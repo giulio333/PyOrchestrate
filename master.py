@@ -17,8 +17,8 @@ class MasterProcess(BaseProcess[TConfig]):
         Inizializza un'istanza di MasterProcess.
 
         Args:
-        name (str): Nome del processo.
-        config (TConfig): Configurazioni del processo.
+            name (str): Nome del processo.
+            config (TConfig): Configurazioni del processo.
         """
         super().__init__(name, config)
 
@@ -31,7 +31,7 @@ class MasterProcess(BaseProcess[TConfig]):
         Aggiunge un'istanza di processo figlio.
 
         Args:
-        child_instance (BaseProcess): Istanza del processo figlio da aggiungere.
+            child_instance (BaseProcess): Istanza del processo figlio da aggiungere.
         """
         self.children.append(child_instance)
         self.logger.info(f"Aggiunto figlio: {child_instance.name}")
