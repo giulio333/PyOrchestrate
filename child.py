@@ -23,3 +23,11 @@ class ChildProcess(BaseProcess[TConfig]):
         config (TConfig): Configurazioni del processo.
         """
         super().__init__(name, config)
+
+    def work(self) -> None:
+        """
+        Metodo principale da implementare nelle sottoclassi.
+        """
+        raise NotImplementedError(
+            f"La classe '{self.__class__.__name__}' deve implementare il metodo `work`."
+        )
