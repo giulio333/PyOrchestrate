@@ -1,5 +1,6 @@
 from base import BaseProcess, TConfig
-
+from typing import TypeVar, Generic
+from logging import Logger
 
 class ChildProcess(BaseProcess[TConfig]):
     """
@@ -13,5 +14,12 @@ class ChildProcess(BaseProcess[TConfig]):
     logger (Logger): Logger del processo.
     """
 
-    def __init__(self, name: str, config: TConfig):
+    def __init__(self, name: str, config: TConfig) -> None:
+        """
+        Inizializza un'istanza di ChildProcess.
+
+        Args:
+        name (str): Nome del processo.
+        config (TConfig): Configurazioni del processo.
+        """
         super().__init__(name, config)

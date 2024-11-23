@@ -11,7 +11,7 @@ class BaseConfig:
     Classe base per le configurazioni.
     """
 
-    def validate(self):
+    def validate(self) -> None:
         """Metodo per validare i parametri di configurazione."""
         pass
 
@@ -28,7 +28,7 @@ class BaseProcess(Process, Generic[TConfig]):
         self.config: TConfig = config
         self.logger: Logger
 
-    def run(self):
+    def run(self) -> None:
 
         self.logger: Logger = self.setup_logger()
 
@@ -36,7 +36,7 @@ class BaseProcess(Process, Generic[TConfig]):
 
         self.work()
 
-    def work(self):
+    def work(self) -> None:
         """
         Metodo principale da implementare nelle sottoclassi.
         """
