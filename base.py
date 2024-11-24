@@ -31,7 +31,7 @@ class BaseProcess(Process, Generic[TConfig]):
 
     def run(self) -> None:
 
-        self.logger: Logger = self.setup_logger()
+        self.logger: Logger = self.setup_logger(log_file=f"{self.name}.log")
 
         self.config.validate()
 
@@ -46,9 +46,7 @@ class BaseProcess(Process, Generic[TConfig]):
             f"La classe '{self.__class__.__name__}' deve implementare il metodo `work`."
         )
 
-    def setup_logger(
-        self, log_file: str = "framework.log", level: int = logging.INFO
-    ) -> Logger:
+    def setup_logger(self, log_file: str, level: int = logging.INFO) -> Logger:
         """
         Configura il logger del processo.
 
@@ -61,7 +59,5 @@ class BaseProcess(Process, Generic[TConfig]):
         Returns:
             Logger: Istanza del logger configurato.
         """
-
-        print(f"Configurazione logger per {self.name}")
 
         return setup_logger(self.name, log_file, level)

@@ -17,9 +17,9 @@ class WorkerConfig(BaseConfig):
     repeat: int = 10
 
 
-class Worker(ChildProcess[WorkerConfig]):
+class Worker2(ChildProcess[WorkerConfig]):
 
-    def __init__(self, config: WorkerConfig, name: str = "VideoWorker") -> None:
+    def __init__(self, config: WorkerConfig, name: str = "VideoWorker2") -> None:
         """
         Inizializza un'istanza di Worker.
 
@@ -29,10 +29,33 @@ class Worker(ChildProcess[WorkerConfig]):
         """
         super().__init__(name, config)
 
-    def setup_logger(
-        self, log_file: str = "Worker.log", level: int = logging.INFO
-    ) -> Logger:
-        return super().setup_logger(log_file, level)
+    def work(self) -> None:
+        """
+        Metodo principale da implementare nelle sottoclassi.
+        """
+        self.logger.info(
+            f"Avvio stampa messaggi: {self.config.message} repeat: {self.config.repeat}"
+        )
+
+        for _ in range(self.config.repeat):
+            self.logger.info(self.config.message)
+
+            time.sleep(0.5)
+
+        self.logger.info("Stampa completata.")
+
+
+class Worker1(ChildProcess[WorkerConfig]):
+
+    def __init__(self, config: WorkerConfig, name: str = "VideoWorker1") -> None:
+        """
+        Inizializza un'istanza di Worker.
+
+        Args:
+        name (str): Nome del processo.
+        config (MessagePrinterConfig): Configurazioni del processo.
+        """
+        super().__init__(name, config)
 
     def work(self) -> None:
         """
@@ -67,11 +90,6 @@ class Launcher(MasterProcess[LauncherConfig]):
         """
         super().__init__(name, config)
 
-    def setup_logger(
-        self, log_file: str = "Launcher.log", level: int = logging.INFO
-    ) -> Logger:
-        return super().setup_logger(log_file, level)
-
     def work(self) -> None:
         """
         Metodo principale da implementare nelle sottoclassi.
@@ -86,12 +104,13 @@ if __name__ == "__main__":
     master = Launcher("Master", LauncherConfig())
 
     master.run()
-    master.instantiate_children(Worker, WorkerConfig())
+    master.instantiate_children(Worker1, WorkerConfig())
+    master.instantiate_children(Worker2, WorkerConfig())
     master.start_children()
 
-    time.sleep(2)
+    # time.sleep(2)
 
-    master.restart_all_children()
+    # master.restart_all_children()
 
     master.wait_for_children()
 
