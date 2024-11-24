@@ -1,13 +1,10 @@
-from logging import INFO, Logger
-from master import MasterProcess
-from child import ChildProcess
+from framework.master import MasterProcess
+from framework.child import ChildProcess
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Any
-import logging
+from datetime import datetime
 
-from base import BaseConfig
+from framework.base import BaseConfig
 
 
 @dataclass
@@ -113,5 +110,3 @@ if __name__ == "__main__":
     # master.restart_all_children()
 
     master.wait_for_children()
-
-    print("Tutti i processi sono completati.")

@@ -1,4 +1,4 @@
-from base import BaseProcess, TConfig
+from framework.base import BaseProcess, TConfig
 from typing import TypeVar, Generic
 from logging import Logger
 

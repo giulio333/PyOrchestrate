@@ -1,52 +1,8 @@
-"""
-Questo modulo fornisce un esempio di utilizzo di un framework per la creazione e gestione di processi Master e Child.
-
-Il framework permette di configurare e avviare processi Master e Child con configurazioni personalizzate.
-
-Classi principali:
-- WorkerConfig: Una configurazione di esempio che eredita da BaseConfig. Contiene i parametri 'message' e 'repeat'.
-- MasterProcess: Classe base per la creazione di un processo Master.
-- ChildProcess: Classe base per la creazione di un processo Child.
-
-Utilizzo:
-1. Creare una nuova configurazione definendo una classe dataclass che erediti da BaseConfig.
-2. Creare un processo Master o Child definendo una classe che erediti rispettivamente da MasterProcess o ChildProcess.
-3. Avviare i processi con le configurazioni definite.
-
-Esempio:
-```python
-from master import MasterProcess
-from child import ChildProcess
-from base import BaseConfig
-from dataclasses import dataclass
-
-@dataclass
-class CustomConfig(BaseConfig):
-    message: str = "Custom Message"
-    repeat: int = 10
-
-class CustomMaster(MasterProcess):
-    def run(self):
-        for _ in range(self.config.repeat):
-            print(self.config.message)
-
-class CustomChild(ChildProcess):
-    def run(self):
-        for _ in range(self.config.repeat):
-            print(self.config.message)
-
-if __name__ == "__main__":
-    master = CustomMaster(config=CustomConfig())
-    child = CustomChild(config=CustomConfig())
-    master.start()
-    child.start()
-"""
-
 from multiprocessing import Process
 from logging import Logger
-from logger import setup_logger
+from framework.logger import setup_logger
 from typing import Optional, List
-from base import BaseConfig, BaseProcess, TConfig
+from framework.base import BaseConfig, BaseProcess, TConfig
 
 
 class MasterProcess(BaseProcess[TConfig]):

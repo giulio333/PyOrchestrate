@@ -4,7 +4,7 @@ from typing import TypeVar, Generic
 from dataclasses import dataclass
 import logging
 
-from logger import setup_logger
+from framework.logger import setup_logger
 
 
 class BaseConfig:
