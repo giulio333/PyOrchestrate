@@ -77,7 +77,7 @@ class LauncherConfig(BaseConfig):
 
 
 class Launcher(MasterProcess[LauncherConfig]):
-    def __init__(self, name: str, config: LauncherConfig) -> None:
+    def __init__(self, name: str, config: LauncherConfig, monitor_health=True) -> None:
         """
         Inizializza un'istanza di Launcher.
 
@@ -85,7 +85,7 @@ class Launcher(MasterProcess[LauncherConfig]):
         name (str): Nome del processo.
         config (LauncherConfig): Configurazioni del processo.
         """
-        super().__init__(name, config)
+        super().__init__(name, config, monitor_health)
 
     def work(self) -> None:
         """

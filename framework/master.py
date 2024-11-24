@@ -3,6 +3,8 @@ from logging import Logger
 from framework.logger import setup_logger
 from typing import Optional, List
 from framework.base import BaseConfig, BaseProcess, TConfig
+from threading import Thread
+import time
 
 
 class MasterProcess(BaseProcess[TConfig]):
@@ -12,6 +14,7 @@ class MasterProcess(BaseProcess[TConfig]):
         self,
         name: str,
         config: TConfig,
+        monitor_health: bool = False,
     ) -> None:
         """
         Inizializza un'istanza di MasterProcess.
@@ -19,6 +22,7 @@ class MasterProcess(BaseProcess[TConfig]):
         Args:
             name (str): Nome del processo.
             config (TConfig): Configurazioni del processo.
+            monitor_health (bool): Flag per abilitare o disabilitare il monitoraggio dello stato di salute dei processi figli.
         """
         super().__init__(name, config)
 
@@ -28,7 +32,11 @@ class MasterProcess(BaseProcess[TConfig]):
         # dizionario delle configurazioni dei processi figli
         self.original_configs = {}
 
-        # self.run()
+        # Flag per il monitoraggio dello stato di salute dei processi figli
+        self.monitor_health = monitor_health
+
+        # Thread per il monitoraggio dello stato di salute
+        self.health_thread: Thread | None = None
 
     def init_children(self, child_class: type, child_config: BaseConfig) -> None:
         """
@@ -50,6 +58,11 @@ class MasterProcess(BaseProcess[TConfig]):
 
         self.logger.info(f"Aggiunto figlio: {child_instance.name}")
 
+        if self.monitor_health:
+            self.logger.info(
+                f"Monitoraggio dello stato di salute abilitato per: {child_instance.name}"
+            )
+
     def start_children(self) -> None:
         """Avvia tutti i processi figli."""
 
@@ -58,6 +71,15 @@ class MasterProcess(BaseProcess[TConfig]):
         for child_instance in self.children.values():
             child_instance.start()
             self.logger.info(f"Avviato figlio: {child_instance.name}")
+
+        if self.monitor_health:
+            self.logger.info("Avvio monitoraggio dello stato di salute.")
+            self.health_thread = Thread(
+                target=self.health_check,
+                name="HealthCheck",
+                daemon=True,
+            )
+            self.health_thread.start()
 
     def wait_for_children(self) -> None:
         """Aspetta che tutti i processi figli terminino."""
@@ -100,5 +122,23 @@ class MasterProcess(BaseProcess[TConfig]):
 
         for child in self.children:
             if child.name == child_name:
-                return f"Processo {child_name} è {'attivo' if child.is_alive() else 'terminato'}"
+                status = f"Processo {child_name} è {'attivo' if child.is_alive() else 'terminato'}"
+                if self.monitor_health:
+                    status += " (monitoraggio abilitato)"
+                return status
         return None
+
+    def health_check(self) -> None:
+        """Controlla lo stato di salute dei processi figli."""
+
+        time.sleep(2)
+
+        while True:
+
+            self.logger.info("Health_check...")
+
+            for child in self.children.values():
+                if not child.is_alive():
+                    self.logger.warning(f"Figlio non risponde: {child.name}")
+
+            time.sleep(2)

@@ -3,7 +3,7 @@ from models import Launcher, LauncherConfig, Worker1, Worker2, WorkerConfig
 
 if __name__ == "__main__":
 
-    master = Launcher("Master", LauncherConfig())
+    master = Launcher("Master", LauncherConfig(), monitor_health=True)
 
     master.run()
 
