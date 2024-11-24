@@ -30,7 +30,7 @@ class MasterProcess(BaseProcess[TConfig]):
 
         # self.run()
 
-    def instantiate_children(self, child_class: type, child_config: BaseConfig) -> None:
+    def init_children(self, child_class: type, child_config: BaseConfig) -> None:
         """
         Istanzia e salva un processo figlio e le sue configurazioni.
 
@@ -82,7 +82,7 @@ class MasterProcess(BaseProcess[TConfig]):
         self.stop_all_children()
 
         for child_name, child_instance in self.children.items():
-            self.instantiate_children(
+            self.init_children(
                 child_class=child_instance.__class__,
                 child_config=self.original_configs[child_name],
             )

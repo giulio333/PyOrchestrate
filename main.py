@@ -101,8 +101,8 @@ if __name__ == "__main__":
     master = Launcher("Master", LauncherConfig())
 
     master.run()
-    master.instantiate_children(Worker1, WorkerConfig())
-    master.instantiate_children(Worker2, WorkerConfig())
+    master.init_children(Worker1, WorkerConfig())
+    master.init_children(Worker2, WorkerConfig())
     master.start_children()
 
     # time.sleep(2)
