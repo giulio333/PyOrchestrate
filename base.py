@@ -2,6 +2,7 @@ from logging import Logger
 from multiprocessing import Process
 from typing import TypeVar, Generic
 from dataclasses import dataclass
+import logging
 
 from logger import setup_logger
 
@@ -45,14 +46,22 @@ class BaseProcess(Process, Generic[TConfig]):
             f"La classe '{self.__class__.__name__}' deve implementare il metodo `work`."
         )
 
-    def setup_logger(self) -> Logger:
+    def setup_logger(
+        self, log_file: str = "framework.log", level: int = logging.INFO
+    ) -> Logger:
         """
         Configura il logger del processo.
 
         E' possibile sovrascrivere questo metodo per personalizzare il logger.
 
+        Args:
+            log_file (str): Nome del file di log.
+            level (int): Livello di log.
+
         Returns:
             Logger: Istanza del logger configurato.
         """
 
-        return setup_logger(self.name)
+        print(f"Configurazione logger per {self.name}")
+
+        return setup_logger(self.name, log_file, level)
