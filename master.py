@@ -21,28 +21,29 @@ class MasterProcess(BaseProcess[TConfig]):
             config (TConfig): Configurazioni del processo.
         """
         super().__init__(name, config)
-
-        self.children: List[BaseProcess] = []
+        self.children = {}
+        self.original_configs = {}
 
         self.run()
 
-    def add_child(self, child_instance: BaseProcess) -> None:
+    def instantiate_children(self, child_class: type, child_config: BaseConfig) -> None:
         """
-        Aggiunge un'istanza di processo figlio.
-
         Args:
-            child_instance (BaseProcess): Istanza del processo figlio da aggiungere.
+            child_class (type): Classe del processo figlio.
+            child_config (BaseConfig): Configurazioni del processo figlio.
         """
-        self.children.append(child_instance)
+        child_instance = child_class("ChildProcess", config=child_config)
+        self.children[child_instance.name] = child_instance
+        self.original_configs[child_instance.name] = child_config
         self.logger.info(f"Aggiunto figlio: {child_instance.name}")
 
     def start_all_children(self) -> None:
         """Avvia tutti i processi figli."""
         self.logger.info("Figli da avviare: %d", len(self.children))
 
-        for child in self.children:
-            child.start()
-            self.logger.info(f"Avviato figlio: {child.name}")
+        for child_name, child_instance in self.children.items():
+            child_instance.start()
+            self.logger.info(f"Avviato figlio: {child_name}")
 
     def wait_for_children(self) -> None:
         """Aspetta che tutti i processi figli terminino."""
@@ -61,16 +62,20 @@ class MasterProcess(BaseProcess[TConfig]):
 
     def restart_all_children(self) -> None:
         """Riavvia tutti i processi figli."""
-        for i, child in enumerate(self.children):
-            if child.is_alive():
-                child.terminate()
-                self.logger.warning(f"Figlio terminato forzatamente: {child.name}")
+        for child_name, child_instance in self.children.items():
+            if child_instance.is_alive():
+                child_instance.terminate()
+                self.logger.warning(
+                    f"Figlio terminato forzatamente: {child_instance.name}"
+                )
 
             # Creare una nuova istanza del processo figlio
-            new_child = type(child)(*child._args, **child._kwargs)
-            self.children[i] = new_child
-            new_child.start()
-            self.logger.info(f"Riavviato figlio: {new_child.name}")
+            child_class = type(child_instance)
+            child_config = self.original_configs[child_name]
+            new_child_instance = child_class(child_instance.name, child_config)
+            self.children[child_name] = new_child_instance
+            new_child_instance.start()
+            self.logger.info(f"Riavviato figlio: {new_child_instance.name}")
 
     def remove_child(self, child_name: str) -> None:
         """Rimuove un processo figlio specifico."""
@@ -83,3 +88,14 @@ class MasterProcess(BaseProcess[TConfig]):
             if child.name == child_name:
                 return f"Processo {child_name} è {'attivo' if child.is_alive() else 'terminato'}"
         return None
+
+    def save_child_config(self, child_name: str, child_config: BaseConfig) -> None:
+        """
+        Salva la configurazione originale di un processo figlio.
+
+        Args:
+            child_name (str): Nome del processo figlio.
+            child_config (BaseConfig): Configurazioni del processo figlio.
+        """
+        self.original_configs[child_name] = child_config
+        self.logger.info(f"Configurazione salvata per il figlio: {child_name}")

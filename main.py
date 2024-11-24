@@ -1,3 +1,13 @@
+"""
+Script di esempio utilizzo del framework.
+
+L'utente crea un Master e un Child con le relative configurazioni.
+
+Per creare una nuova configurazione, creare una nuova classe dataclass che erediti da BaseConfig.
+
+Per creare un Master o un Child, creare una nuova classe che erediti da MasterProcess o ChildProcess
+"""
+
 from master import MasterProcess
 from child import ChildProcess
 import time
@@ -6,6 +16,39 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from base import BaseConfig
+
+
+@dataclass
+class MessagePrinterConfig(BaseConfig):
+
+    message: str = "Hello, World!"
+    repeat: int = 5
+
+
+class Worker(ChildProcess[MessagePrinterConfig]):
+
+    def __init__(self, name: str, config: MessagePrinterConfig) -> None:
+        """
+        Inizializza un'istanza di MessagePrinter.
+
+        Args:
+        name (str): Nome del processo.
+        config (MessagePrinterConfig): Configurazioni del processo.
+        """
+        super().__init__(name, config)
+
+    def work(self) -> None:
+        """
+        Metodo principale da implementare nelle sottoclassi.
+        """
+        self.logger.info(f"Avvio stampa messaggi: {self.config.message}")
+
+        for _ in range(self.config.repeat):
+            self.logger.info(self.config.message)
+
+            time.sleep(0.5)
+
+        self.logger.info("Stampa completata.")
 
 
 @dataclass
@@ -34,6 +77,9 @@ class Launcher(MasterProcess[LauncherConfig]):
         config (LauncherConfig): Configurazioni del processo.
         """
         super().__init__(name, config)
+        self.instantiate_children(
+            Worker, MessagePrinterConfig(message="Hello, World!", repeat=5)
+        )
 
     def work(self) -> None:
         """
@@ -43,80 +89,15 @@ class Launcher(MasterProcess[LauncherConfig]):
         self.logger.info(self.config)
 
 
-class MessagePrinterConfig(BaseConfig):
-
-    def __init__(self, message: str, repeat: int) -> None:
-        """
-        Inizializza un'istanza di MessagePrinterConfig.
-
-        Args:
-        message (str): Messaggio da stampare.
-        repeat (int): Numero di ripetizioni del messaggio.
-        """
-        super().__init__()
-
-        self.message: str = message
-        self.repeat: int = repeat
-
-        self.count: int = 0
-
-
-class MessagePrinter(ChildProcess[MessagePrinterConfig]):
-
-    def __init__(self, name: str, config: MessagePrinterConfig) -> None:
-        """
-        Inizializza un'istanza di MessagePrinter.
-
-        Args:
-        name (str): Nome del processo.
-        config (MessagePrinterConfig): Configurazioni del processo.
-        """
-        super().__init__(name, config)
-
-    def work(self) -> None:
-        """
-        Metodo principale da implementare nelle sottoclassi.
-        """
-        self.logger.info(f"Avvio stampa messaggi: {self.config.message}")
-
-        for _ in range(self.config.repeat):
-            self.logger.info(self.config.message)
-
-            self.config.count += 1
-
-            time.sleep(0.5)
-
-        self.logger.info("Stampa completata. Totale messaggi: %d", self.config.count)
-
-
 if __name__ == "__main__":
 
     master = Launcher("Master", LauncherConfig())
 
-    # Configurazioni per i processi figli
-    message_config = MessagePrinterConfig(message="Ciao Giulio!", repeat=51)
-
-    # Creiamo i processi figli con le configurazioni
-    child1 = MessagePrinter("MessagePrinter-1", config=message_config)
-
-    # Aggiungiamo i processi figli al Master
-    master.add_child(child1)
-
-    # Avviamo i processi
     master.start_all_children()
     # master.wait_for_children()
 
     time.sleep(2)
 
-    # Demonstrate the usage of restart_all_children method
     master.restart_all_children()
-
-    # Demonstrate the usage of remove_child method
-    master.remove_child("MessagePrinter-1")
-
-    # Demonstrate the usage of get_child_status method
-    status = master.get_child_status("MessagePrinter-1")
-    if status:
-        print(status)
 
     print("Tutti i processi sono completati.")
