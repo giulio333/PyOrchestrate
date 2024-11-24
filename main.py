@@ -19,17 +19,17 @@ from base import BaseConfig
 
 
 @dataclass
-class MessagePrinterConfig(BaseConfig):
+class WorkerConfig(BaseConfig):
 
     message: str = "Hello, World!"
-    repeat: int = 5
+    repeat: int = 50
 
 
-class Worker(ChildProcess[MessagePrinterConfig]):
+class Worker(ChildProcess[WorkerConfig]):
 
-    def __init__(self, name: str, config: MessagePrinterConfig) -> None:
+    def __init__(self, config: WorkerConfig, name: str = "VideoWorer") -> None:
         """
-        Inizializza un'istanza di MessagePrinter.
+        Inizializza un'istanza di Worker.
 
         Args:
         name (str): Nome del processo.
@@ -77,8 +77,9 @@ class Launcher(MasterProcess[LauncherConfig]):
         config (LauncherConfig): Configurazioni del processo.
         """
         super().__init__(name, config)
+
         self.instantiate_children(
-            Worker, MessagePrinterConfig(message="Hello, World!", repeat=5)
+            Worker, WorkerConfig(message="Hello, World!", repeat=5)
         )
 
     def work(self) -> None:
@@ -94,10 +95,9 @@ if __name__ == "__main__":
     master = Launcher("Master", LauncherConfig())
 
     master.start_all_children()
-    # master.wait_for_children()
+    master.wait_for_children()
 
-    time.sleep(2)
-
-    master.restart_all_children()
+    # time.sleep(2)
+    # master.restart_all_children()
 
     print("Tutti i processi sono completati.")
