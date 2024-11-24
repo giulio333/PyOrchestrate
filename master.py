@@ -53,5 +53,33 @@ class MasterProcess(BaseProcess[TConfig]):
     def stop_all_children(self) -> None:
         """Ferma tutti i processi figli."""
         for child in self.children:
-            child.terminate()
-            self.logger.warning(f"Figlio terminato forzatamente: {child.name}")
+            if child.is_alive():
+                child.terminate()
+                self.logger.warning(f"Figlio terminato forzatamente: {child.name}")
+            else:
+                self.logger.info(f"Figlio già terminato: {child.name}")
+
+    def restart_all_children(self) -> None:
+        """Riavvia tutti i processi figli."""
+        for i, child in enumerate(self.children):
+            if child.is_alive():
+                child.terminate()
+                self.logger.warning(f"Figlio terminato forzatamente: {child.name}")
+
+            # Creare una nuova istanza del processo figlio
+            new_child = type(child)(*child._args, **child._kwargs)
+            self.children[i] = new_child
+            new_child.start()
+            self.logger.info(f"Riavviato figlio: {new_child.name}")
+
+    def remove_child(self, child_name: str) -> None:
+        """Rimuove un processo figlio specifico."""
+        self.children = [child for child in self.children if child.name != child_name]
+        self.logger.info(f"Rimosso figlio: {child_name}")
+
+    def get_child_status(self, child_name: str) -> Optional[str]:
+        """Ottiene lo stato di un processo figlio specifico."""
+        for child in self.children:
+            if child.name == child_name:
+                return f"Processo {child_name} è {'attivo' if child.is_alive() else 'terminato'}"
+        return None

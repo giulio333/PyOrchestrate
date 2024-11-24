@@ -94,7 +94,7 @@ if __name__ == "__main__":
     master = Launcher("Master", LauncherConfig())
 
     # Configurazioni per i processi figli
-    message_config = MessagePrinterConfig(message="Ciao Giulio!", repeat=5)
+    message_config = MessagePrinterConfig(message="Ciao Giulio!", repeat=51)
 
     # Creiamo i processi figli con le configurazioni
     child1 = MessagePrinter("MessagePrinter-1", config=message_config)
@@ -104,6 +104,19 @@ if __name__ == "__main__":
 
     # Avviamo i processi
     master.start_all_children()
-    master.wait_for_children()
+    # master.wait_for_children()
+
+    time.sleep(2)
+
+    # Demonstrate the usage of restart_all_children method
+    master.restart_all_children()
+
+    # Demonstrate the usage of remove_child method
+    master.remove_child("MessagePrinter-1")
+
+    # Demonstrate the usage of get_child_status method
+    status = master.get_child_status("MessagePrinter-1")
+    if status:
+        print(status)
 
     print("Tutti i processi sono completati.")
