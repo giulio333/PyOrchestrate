@@ -31,7 +31,8 @@ class BaseProcess(Process, Generic[TConfig]):
 
     def run(self) -> None:
 
-        self.logger: Logger = self.setup_logger(log_file=f"{self.name}.log")
+        if not hasattr(self, "logger"):
+            self.logger = self.setup_logger(log_file=f"{self.name}.log")
 
         self.config.validate()
 

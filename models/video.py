@@ -68,32 +68,3 @@ class Worker1(ChildProcess[WorkerConfig]):
             time.sleep(0.5)
 
         self.logger.info("Stampa completata.")
-
-
-@dataclass
-class LauncherConfig(BaseConfig):
-    version: str = "1.0"
-    start_time: datetime = datetime.now()
-
-
-class Launcher(MasterProcess[LauncherConfig]):
-    def __init__(self, name: str, config: LauncherConfig, monitor_health=True) -> None:
-        """
-        Inizializza un'istanza di Launcher.
-
-        Args:
-        name (str): Nome del processo.
-        config (LauncherConfig): Configurazioni del processo.
-        """
-        super().__init__(name, config, monitor_health)
-
-    def work(self) -> None:
-        """
-        Metodo principale da implementare nelle sottoclassi.
-        """
-
-        self.logger.info("Master start.")
-
-        while True:
-            time.sleep(1)
-            self.health_check()

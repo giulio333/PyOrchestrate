@@ -1,7 +1,7 @@
 from multiprocessing import Process
 from logging import Logger
 from framework.logger import setup_logger
-from typing import Optional, List
+from typing import Optional, List, final
 from framework.base import BaseConfig, BaseProcess, TConfig
 from threading import Thread
 import time
@@ -26,6 +26,8 @@ class MasterProcess(BaseProcess[TConfig]):
         """
         super().__init__(name, config)
 
+        self.logger: Logger
+
         # dizionario dei processi figli
         self.children = {}
 
@@ -38,6 +40,15 @@ class MasterProcess(BaseProcess[TConfig]):
         # Thread per il monitoraggio dello stato di salute
         self.health_thread: Thread | None = None
 
+    @final
+    def work(self) -> None:
+        """
+        Questo metodo non va sovrascritto.
+        """
+
+        if len(self.children) > 0:
+            self.__start_children()
+
     def init_children(self, child_class: type, child_config: BaseConfig) -> None:
         """
         Istanzia e salva un processo figlio e le sue configurazioni.
@@ -46,6 +57,9 @@ class MasterProcess(BaseProcess[TConfig]):
             child_class (type): Classe del processo figlio.
             child_config (BaseConfig): Configurazioni del processo figlio.
         """
+
+        if not hasattr(self, "logger"):
+            self.logger = self.setup_logger(log_file=f"{self.name}.log")
 
         # crea un'istanza del processo figlio
         child_instance = child_class(config=child_config)
@@ -63,8 +77,11 @@ class MasterProcess(BaseProcess[TConfig]):
                 f"Monitoraggio dello stato di salute abilitato per: {child_instance.name}"
             )
 
-    def start_children(self) -> None:
+    def __start_children(self) -> None:
         """Avvia tutti i processi figli."""
+
+        if not hasattr(self, "logger"):
+            self.logger = self.setup_logger(log_file=f"{self.name}.log")
 
         self.logger.info("Figli da avviare: %d", len(self.children))
 
@@ -109,7 +126,7 @@ class MasterProcess(BaseProcess[TConfig]):
                 child_config=self.original_configs[child_name],
             )
 
-        self.start_children()
+        self.__start_children()
 
     def remove_child(self, child_name: str) -> None:
         """Rimuove un processo figlio specifico."""
