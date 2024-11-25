@@ -93,4 +93,7 @@ class Launcher(MasterProcess[LauncherConfig]):
         """
 
         self.logger.info("Master start.")
-        self.logger.info(self.config)
+
+        while True:
+            time.sleep(1)
+            self.health_check()
