@@ -23,6 +23,3 @@ class Launcher(MasterProcess[LauncherConfig]):
         config (LauncherConfig): Configurazioni del processo.
         """
         super().__init__(name, config, monitor_health)
-
-    def work(self) -> None:
-        print("ciao")
