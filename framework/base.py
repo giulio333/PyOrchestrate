@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import logging
 
 from framework.logger import setup_logger
+from framework.utilities import LoggerConfig
 
 
 class BaseConfig:
@@ -12,31 +13,71 @@ class BaseConfig:
     Classe base per le configurazioni.
     """
 
+    logger: LoggerConfig = LoggerConfig()
+
     def validate(self) -> None:
         """Metodo per validare i parametri di configurazione."""
         pass
 
 
-TConfig = TypeVar("TConfig", bound=BaseConfig)
+Config = TypeVar("Config", bound=BaseConfig)
 
 
-class BaseProcess(Process, Generic[TConfig]):
-    """Classe base per tutti i processi con un logger e configurazione opzionale."""
+class BaseProcess(Process, Generic[Config]):
+    """
+    Classe base per tutti i processi.
+    """
 
-    def __init__(self, name: str, config: TConfig):
+    def __init__(self, name: str, config: Config, *args, **kwargs):
+        """
+        Inizializza un'istanza di BaseProcess.
+
+        Args:
+            name (str): Nome del processo.
+            config (Config): Configurazioni del processo.
+        """
         super().__init__()
+
         self.name: str = name
-        self.config: TConfig = config
+        self.config: Config = config
         self.logger: Logger
 
     def run(self) -> None:
+        """
+        Metodo principale del processo.
 
-        if not hasattr(self, "logger"):
-            self.logger = self.setup_logger(log_file=f"{self.name}.log")
+        - Configura il logger con il nome del processo.
+        - Esegue la validazione delle configurazioni.
+        - Chiama il metodo `work`.
+        """
+
+        self.setup_logger()
 
         self.config.validate()
 
         self.work()
+
+    def setup_logger(self):
+        """
+        Configura il logger del processo.
+
+        E' possibile sovrascrivere questo metodo per personalizzare il logger.
+
+        Returns:
+            Logger: Istanza del logger configurato.
+        """
+
+        if hasattr(self, "logger"):
+            return
+
+        level = self.config.logger.level or logging.INFO
+        name = self.config.logger.filename or self.name
+
+        self.logger = setup_logger(name=name, log_file=f"{name}.log", level=level)
+
+        self.logger.info(
+            "Logger configurato: log_file=%s, level=%s", f"{self.name}.log", level
+        )
 
     def work(self) -> None:
         """
@@ -46,19 +87,3 @@ class BaseProcess(Process, Generic[TConfig]):
         raise NotImplementedError(
             f"La classe '{self.__class__.__name__}' deve implementare il metodo `work`."
         )
-
-    def setup_logger(self, log_file: str, level: int = logging.INFO) -> Logger:
-        """
-        Configura il logger del processo.
-
-        E' possibile sovrascrivere questo metodo per personalizzare il logger.
-
-        Args:
-            log_file (str): Nome del file di log.
-            level (int): Livello di log.
-
-        Returns:
-            Logger: Istanza del logger configurato.
-        """
-
-        return setup_logger(self.name, log_file, level)

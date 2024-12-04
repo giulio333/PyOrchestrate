@@ -2,18 +2,19 @@ from multiprocessing import Process
 from logging import Logger
 from framework.logger import setup_logger
 from typing import Optional, List, final
-from framework.base import BaseConfig, BaseProcess, TConfig
 from threading import Thread
 import time
 
+from framework.base import BaseConfig, BaseProcess, Config
 
-class MasterProcess(BaseProcess[TConfig]):
+
+class MasterProcess(BaseProcess[Config]):
     """Gestisce processi figli definiti dall'utente."""
 
     def __init__(
         self,
         name: str,
-        config: TConfig,
+        config: Config,
         monitor_health: bool = False,
     ) -> None:
         """
@@ -21,7 +22,7 @@ class MasterProcess(BaseProcess[TConfig]):
 
         Args:
             name (str): Nome del processo.
-            config (TConfig): Configurazioni del processo.
+            config (Config): Configurazioni del processo.
             monitor_health (bool): Flag per abilitare o disabilitare il monitoraggio dello stato di salute dei processi figli.
         """
         super().__init__(name, config)
@@ -58,8 +59,7 @@ class MasterProcess(BaseProcess[TConfig]):
             child_config (BaseConfig): Configurazioni del processo figlio.
         """
 
-        if not hasattr(self, "logger"):
-            self.logger = self.setup_logger(log_file=f"{self.name}.log")
+        self.setup_logger()
 
         # crea un'istanza del processo figlio
         child_instance = child_class(config=child_config)
@@ -79,9 +79,6 @@ class MasterProcess(BaseProcess[TConfig]):
 
     def __start_children(self) -> None:
         """Avvia tutti i processi figli."""
-
-        if not hasattr(self, "logger"):
-            self.logger = self.setup_logger(log_file=f"{self.name}.log")
 
         self.logger.info("Figli da avviare: %d", len(self.children))
 

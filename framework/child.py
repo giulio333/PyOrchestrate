@@ -1,26 +1,26 @@
-from framework.base import BaseProcess, TConfig
+from framework.base import BaseProcess, Config
 from typing import TypeVar, Generic
 from logging import Logger
 
-class ChildProcess(BaseProcess[TConfig]):
+
+class ChildProcess(BaseProcess[Config]):
     """
     Classe base ChildProcess.
 
     Il metodo `work` deve essere implementato nelle sottoclassi per definire il lavoro da svolgere.
 
     Attributes:
-    name (str): Nome del processo.
-    config (TConfig): Configurazioni del processo.
-    logger (Logger): Logger del processo.
+        name (str): Nome del processo.
+        config (Config): Configurazioni del processo.
     """
 
-    def __init__(self, name: str, config: TConfig) -> None:
+    def __init__(self, name: str, config: Config) -> None:
         """
         Inizializza un'istanza di ChildProcess.
 
         Args:
-        name (str): Nome del processo.
-        config (TConfig): Configurazioni del processo.
+            name (str): Nome del processo.
+            config (Config): Configurazioni del processo.
         """
         super().__init__(name, config)
 

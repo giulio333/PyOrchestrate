@@ -3,8 +3,10 @@ from framework.child import ChildProcess
 import time
 from dataclasses import dataclass
 from datetime import datetime
+from logging import DEBUG
 
 from framework.base import BaseConfig
+from framework.utilities import LoggerConfig
 
 
 @dataclass
@@ -12,24 +14,16 @@ class WorkerConfig(BaseConfig):
 
     message: str = "Hello, World!"
     repeat: int = 10
+    logger = LoggerConfig(level=DEBUG)
 
 
 class Worker2(ChildProcess[WorkerConfig]):
 
     def __init__(self, config: WorkerConfig, name: str = "VideoWorker2") -> None:
-        """
-        Inizializza un'istanza di Worker.
-
-        Args:
-        name (str): Nome del processo.
-        config (MessagePrinterConfig): Configurazioni del processo.
-        """
         super().__init__(name, config)
 
     def work(self) -> None:
-        """
-        Metodo principale da implementare nelle sottoclassi.
-        """
+
         self.logger.info(
             f"Avvio stampa messaggi: {self.config.message} repeat: {self.config.repeat}"
         )
@@ -45,19 +39,9 @@ class Worker2(ChildProcess[WorkerConfig]):
 class Worker1(ChildProcess[WorkerConfig]):
 
     def __init__(self, config: WorkerConfig, name: str = "VideoWorker1") -> None:
-        """
-        Inizializza un'istanza di Worker.
-
-        Args:
-        name (str): Nome del processo.
-        config (MessagePrinterConfig): Configurazioni del processo.
-        """
         super().__init__(name, config)
 
     def work(self) -> None:
-        """
-        Metodo principale da implementare nelle sottoclassi.
-        """
         self.logger.info(
             f"Avvio stampa messaggi: {self.config.message} repeat: {self.config.repeat}"
         )
