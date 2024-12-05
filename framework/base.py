@@ -104,10 +104,12 @@ class BaseProcess(Process, Generic[Config]):
         # estrazione configurazioni da BaseConfig.LoggerConfig
         logger_config: LoggerConfig = self.config.logger
         level: int = logger_config.level
-        name: str = logger_config.filename or self.name
+        name: str = logger_config.filename.capitalize() or self.name
 
         self.logger = setup_logger(name=name, log_file=f"{name}.log", level=level)
 
         self.logger.info(
-            "Logger configurato: log_file=%s, level=%s", f"{self.name}.log", level
+            "Logger configurato: log_file=%s, level=%s",
+            f"{self.name}.log",
+            logging.getLevelName(level),
         )
