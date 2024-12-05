@@ -12,6 +12,14 @@ from framework.utilities import LoggerConfig
 class BaseConfig:
     """
     Classe base per le configurazioni.
+
+    E' possibile estendere questa classe per aggiungere nuovi parametri di configurazione.
+
+    Sono disponibili i seguenti parametri di configurazione predefiniti:
+    - logger: Configurazioni del `logger`.
+
+    Attributes:
+        logger (LoggerConfig): Configurazioni del `logger`.
     """
 
     logger: LoggerConfig = LoggerConfig()
@@ -93,8 +101,10 @@ class BaseProcess(Process, Generic[Config]):
         if hasattr(self, "logger"):
             return
 
-        level = self.config.logger.level or logging.INFO
-        name = self.config.logger.filename or self.name
+        # estrazione configurazioni da BaseConfig.LoggerConfig
+        logger_config: LoggerConfig = self.config.logger
+        level: int = logger_config.level
+        name: str = logger_config.filename or self.name
 
         self.logger = setup_logger(name=name, log_file=f"{name}.log", level=level)
 

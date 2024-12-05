@@ -54,7 +54,9 @@ class MasterProcess(BaseProcess[Config]):
 
         self.wait_for_children()
 
-    def init_children(self, child_class: type, child_config: BaseConfig) -> None:
+    def init_children(
+        self, child_class: type[BaseProcess], child_config: BaseConfig
+    ) -> None:
         """
         Istanzia e salva un processo figlio e le sue configurazioni.
 

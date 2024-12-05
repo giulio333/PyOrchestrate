@@ -8,7 +8,7 @@
             "name": "Debugger Python: File corrente",
             "type": "debugpy",
             "request": "launch",
-            "program": "main.py",
+            "program": "example.py",
             "console": "integratedTerminal"
         }
     ]
