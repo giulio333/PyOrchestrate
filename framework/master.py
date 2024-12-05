@@ -1,4 +1,5 @@
 from multiprocessing import Process
+from threading import Event
 from logging import Logger
 from framework.logger import setup_logger
 from typing import Optional, List, final
@@ -39,9 +40,6 @@ class MasterProcess(BaseProcess[Config]):
         # Flag per il monitoraggio dello stato di salute dei processi figli
         self.monitor_health: bool = monitor_health
 
-        # Thread per il monitoraggio dello stato di salute
-        self.health_thread: Thread | None = None
-
     @final
     def work(self) -> None:
         """
@@ -50,6 +48,13 @@ class MasterProcess(BaseProcess[Config]):
 
         if len(self.children) > 0:
             self.__start_children()
+
+        # Thread per il monitoraggio dello stato di salute
+        self.health_monitor = HealthMonitor(
+            logger=self.logger, children=self.children, enabled=self.monitor_health
+        )
+
+        self.health_monitor.start()
 
         self.wait_for_children()
 
@@ -187,3 +192,91 @@ class MasterProcess(BaseProcess[Config]):
                     self.logger.warning(f"Figlio non risponde: {child.name}")
 
             time.sleep(2)
+
+
+class HealthMonitor:
+    """
+    Monitora lo stato di salute dei processi figli.
+
+    Avvia un thread dedicato che, a intervalli regolari,
+    controlla se i processi sono ancora attivi.
+    """
+
+    def __init__(
+        self,
+        logger: Logger,
+        children: dict[str, ChildProcess],
+        enabled: bool = False,
+        check_interval: float = 2.0,
+    ) -> None:
+        """
+        Inizializza il monitor.
+
+        Args:
+            logger (Logger): Logger da utilizzare.
+            children (Dict[str, ChildProcess]): Dizionario dei processi figli.
+            enabled (bool): Flag per abilitare o disabilitare il monitoraggio.
+            check_interval (float): Intervallo in secondi tra un controllo e l'altro.
+        """
+        self.logger = logger
+        self.children = children
+        self.enabled = enabled
+        self.check_interval = check_interval
+        self._stop_event = Event()
+        self._thread: Thread | None = None
+
+    def start(self) -> None:
+        """
+        Avvia il monitoraggio in un thread separato.
+        """
+
+        if self._thread is not None and self._thread.is_alive():
+            self.logger.warning("Il monitoraggio della salute è già attivo.")
+            return
+
+        self.logger.info("Avvio monitoraggio dello stato di salute.")
+
+        self._stop_event.clear()
+
+        self._thread = Thread(
+            target=self._run,
+            name="HealthCheck",
+            daemon=True,
+        )
+
+        self._thread.start()
+
+    def stop(self) -> None:
+        """
+        Ferma il monitoraggio della salute.
+        """
+
+        if self._thread is not None and self._thread.is_alive():
+            self.logger.info("Arresto del monitoraggio della salute in corso...")
+
+            self._stop_event.set()
+            self._thread.join()
+
+            self.logger.info("Monitoraggio della salute arrestato.")
+
+    def _run(self) -> None:
+        """
+        Thread di controllo che verifica periodicamente lo stato dei figli.
+        """
+        # Delay iniziale per dare il tempo ai processi di avviarsi
+        time.sleep(2)
+
+        while not self._stop_event.is_set():
+
+            self.logger.info("Health_check...")
+            self._check_children()
+            time.sleep(self.check_interval)
+
+    def _check_children(self) -> None:
+        """
+        Controlla lo stato dei processi figli e logga eventuali problemi.
+        """
+
+        for child in self.children.values():
+            if not child.is_alive():
+                self.logger.warning(f"Figlio non risponde: {child.name}")
