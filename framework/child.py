@@ -1,9 +1,25 @@
-from framework.base import BaseProcess, Config
+from framework.base import BaseProcess, Config, BaseConfig
 from typing import TypeVar, Generic
 from logging import Logger
 
 
-class ChildProcess(BaseProcess[Config]):
+class ChildConfig(BaseConfig):
+    """
+    Configurazioni di un ChildProcess.
+
+    Attributes:
+        to_monitor (bool): Flag per abilitare il monitoraggio dello stato di salute del processo.
+        logger (LoggerConfig): Configurazioni del `logger`.
+    """
+
+    to_monitor: bool = False
+    """Se True, verrà monitorato lo stato di salute del processo."""
+
+
+ChildConfigType = TypeVar("ChildConfigType", bound=ChildConfig)
+
+
+class ChildProcess(BaseProcess[ChildConfigType], Generic[ChildConfigType]):
     """
     Classe base ChildProcess.
 
@@ -16,7 +32,7 @@ class ChildProcess(BaseProcess[Config]):
 
     def __init__(
         self,
-        config: Config,
+        config: ChildConfigType,
     ) -> None:
         """
         Inizializza un'istanza di ChildProcess.

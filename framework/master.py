@@ -2,15 +2,15 @@ from multiprocessing import Process
 from threading import Event
 from logging import Logger
 from framework.logger import setup_logger
-from typing import Optional, List, final
+from typing import Optional, List, final, Generic
 from threading import Thread
 import time
 
 from framework.base import BaseConfig, BaseProcess, Config
-from framework.child import ChildProcess
+from framework.child import ChildProcess, ChildConfig
 
 
-class MasterProcess(BaseProcess[Config]):
+class MasterProcess(BaseProcess[Config], Generic[Config]):
     """
     Gestisce processi figli definiti dall'utente.
     """
@@ -32,10 +32,10 @@ class MasterProcess(BaseProcess[Config]):
         self.logger: Logger
 
         # dizionario dei processi figli
-        self.children: dict[str, ChildProcess] = {}
+        self.children: dict[str, ChildProcess[ChildConfig]] = {}
 
         # dizionario delle configurazioni dei processi figli
-        self.original_configs: dict[str, BaseConfig] = {}
+        self.childs_config: dict[str, ChildConfig] = {}
 
         # Flag per il monitoraggio dello stato di salute dei processi figli
         self.monitor_health: bool = monitor_health
@@ -61,7 +61,7 @@ class MasterProcess(BaseProcess[Config]):
         self.logger.debug("%s terminato.", self.name)
 
     def init_children(
-        self, child_class: type[ChildProcess], child_config: BaseConfig
+        self, child_class: type[ChildProcess], child_config: ChildConfig
     ) -> None:
         """
         Istanzia e salva un processo figlio e le sue configurazioni.
@@ -80,7 +80,7 @@ class MasterProcess(BaseProcess[Config]):
         self.children[child_instance.name] = child_instance
 
         # salva la configurazione originale del processo figlio
-        self.original_configs[child_instance.name] = child_config
+        self.childs_config[child_instance.name] = child_config
 
         self.logger.info(f"Aggiunto figlio: {child_instance.name}")
 
@@ -97,15 +97,6 @@ class MasterProcess(BaseProcess[Config]):
         for child_instance in self.children.values():
             child_instance.start()
             self.logger.info(f"Avviato figlio: {child_instance.name}")
-
-        if self.monitor_health:
-            self.logger.info("Avvio monitoraggio dello stato di salute.")
-            self.health_thread = Thread(
-                target=self.health_check,
-                name="HealthCheck",
-                daemon=True,
-            )
-            self.health_thread.start()
 
     def wait_for_children(self) -> None:
         """
@@ -140,7 +131,7 @@ class MasterProcess(BaseProcess[Config]):
 
             self.init_children(
                 child_class=child_instance.__class__,
-                child_config=self.original_configs[child_name],
+                child_config=self.childs_config[child_name],
             )
 
         self.__start_children()
@@ -178,21 +169,6 @@ class MasterProcess(BaseProcess[Config]):
 
         return None
 
-    def health_check(self) -> None:
-        """Controlla lo stato di salute dei processi figli."""
-
-        time.sleep(2)
-
-        while True:
-
-            self.logger.info("Health_check...")
-
-            for child in self.children.values():
-                if not child.is_alive():
-                    self.logger.warning(f"Figlio non risponde: {child.name}")
-
-            time.sleep(2)
-
 
 class HealthMonitor:
     """
@@ -205,9 +181,9 @@ class HealthMonitor:
     def __init__(
         self,
         logger: Logger,
-        children: dict[str, ChildProcess],
+        children: dict[str, ChildProcess[ChildConfig]],
         enabled: bool = False,
-        check_interval: float = 2.0,
+        check_interval: int = 2,
     ) -> None:
         """
         Inizializza il monitor.
@@ -216,12 +192,13 @@ class HealthMonitor:
             logger (Logger): Logger da utilizzare.
             children (Dict[str, ChildProcess]): Dizionario dei processi figli.
             enabled (bool): Flag per abilitare o disabilitare il monitoraggio.
-            check_interval (float): Intervallo in secondi tra un controllo e l'altro.
+            check_interval (int): Intervallo in secondi tra un controllo e l'altro.
         """
-        self.logger = logger
-        self.children = children
-        self.enabled = enabled
-        self.check_interval = check_interval
+
+        self.logger: Logger = logger
+        self.children: dict[str, ChildProcess[ChildConfig]] = children
+        self.enabled: bool = enabled
+        self.check_interval: int = check_interval
         self._stop_event = Event()
         self._thread: Thread | None = None
 
@@ -244,7 +221,13 @@ class HealthMonitor:
             daemon=True,
         )
 
-        self._thread.start()
+        # avvia solo se almeno un figlio è da monitorare
+        if any(child.config.to_monitor for child in self.children.values()):
+            self._thread.start()
+        else:
+            self.logger.warning(
+                "HalthMonitoring attivo ma nessun figlio da monitorare. Spegnimento..."
+            )
 
     def stop(self) -> None:
         """
@@ -266,6 +249,15 @@ class HealthMonitor:
         # Delay iniziale per dare il tempo ai processi di avviarsi
         time.sleep(2)
 
+        self.logger.debug(
+            "Monitoraggio attivo per %s",
+            [
+                children.name
+                for children in self.children.values()
+                if children.config.to_monitor
+            ],
+        )
+
         while not self._stop_event.is_set():
 
             self.logger.info("Health_check...")
@@ -278,5 +270,9 @@ class HealthMonitor:
         """
 
         for child in self.children.values():
+
+            if not child.config.to_monitor:
+                continue
+
             if not child.is_alive():
                 self.logger.warning(f"Figlio non risponde: {child.name}")
