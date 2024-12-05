@@ -2,7 +2,7 @@ from multiprocessing import Process
 from threading import Event
 from logging import Logger
 from framework.logger import setup_logger
-from typing import Optional, List, final, Generic
+from typing import Optional, List, final, Generic, TypeVar, Type
 from threading import Thread
 import time
 
@@ -10,14 +10,30 @@ from framework.base import BaseConfig, BaseProcess, Config
 from framework.child import ChildProcess, ChildConfig
 
 
-class MasterProcess(BaseProcess[Config], Generic[Config]):
+class MasterConfig(BaseConfig):
+    """
+    Configurazioni di un MasterProcess.
+
+    Attributes:
+        check_interval (int): Intervallo in secondi tra un controllo e l'altro.
+        logger (LoggerConfig): Configurazioni del `logger`.
+    """
+
+    check_interval: int = 2
+    """Intervallo in secondi tra un HealthCheck e l'altro."""
+
+
+MasterConfigType = TypeVar("MasterConfigType", bound=MasterConfig)
+
+
+class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
     """
     Gestisce processi figli definiti dall'utente.
     """
 
     def __init__(
         self,
-        config: Config,
+        config: MasterConfigType,
         monitor_health: bool = False,
     ) -> None:
         """
@@ -51,7 +67,11 @@ class MasterProcess(BaseProcess[Config], Generic[Config]):
 
         # Thread per il monitoraggio dello stato di salute
         self.health_monitor = HealthMonitor(
-            logger=self.logger, children=self.children, enabled=self.monitor_health
+            logger=self.logger,
+            children=self.children,
+            master_process=self,
+            enabled=self.monitor_health,
+            check_interval=self.config.check_interval,
         )
 
         self.health_monitor.start()
@@ -169,6 +189,33 @@ class MasterProcess(BaseProcess[Config], Generic[Config]):
 
         return None
 
+    def restart_child(self, child_name: str) -> None:
+        """
+        Riavvia un singolo processo figlio se presente.
+        """
+
+        if child_name in self.children:
+
+            child_class = self.children[child_name].__class__
+            child_config: ChildConfig = self.childs_config[child_name]
+
+            self.logger.info(f"Riavvio del figlio: {child_name}")
+
+            assert not self.children[
+                child_name
+            ].is_alive(), "Impossibile riavviare, il figlio è ancora attivo."
+
+            # Rimuove il vecchio figlio
+            self.remove_child(child_name)
+
+            # Ricrea e riavvia il figlio
+            self.init_children(child_class=child_class, child_config=child_config)
+            self.children[child_name].start()
+        else:
+            self.logger.warning(
+                f"Impossibile riavviare, figlio {child_name} non trovato."
+            )
+
 
 class HealthMonitor:
     """
@@ -182,6 +229,7 @@ class HealthMonitor:
         self,
         logger: Logger,
         children: dict[str, ChildProcess[ChildConfig]],
+        master_process: MasterProcess,
         enabled: bool = False,
         check_interval: int = 2,
     ) -> None:
@@ -201,6 +249,7 @@ class HealthMonitor:
         self.check_interval: int = check_interval
         self._stop_event = Event()
         self._thread: Thread | None = None
+        self.master_process: MasterProcess = master_process
 
     def start(self) -> None:
         """
@@ -266,13 +315,20 @@ class HealthMonitor:
 
     def _check_children(self) -> None:
         """
-        Controlla lo stato dei processi figli e logga eventuali problemi.
+        Controlla lo stato di salute dei processi figli.
+
+        Se un processo non risponde, viene riavviato se specificato in ChildConfig.
         """
+        to_restart = []
 
         for child in self.children.values():
 
-            if not child.config.to_monitor:
-                continue
+            if child.config.to_monitor and not child.is_alive():
 
-            if not child.is_alive():
                 self.logger.warning(f"Figlio non risponde: {child.name}")
+
+                if child.config.autorestart:
+                    to_restart.append(child.name)
+
+        for child_name in to_restart:
+            self.master_process.restart_child(child_name)
