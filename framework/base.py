@@ -37,7 +37,7 @@ class BaseProcess(Process, Generic[Config]):
     Classe base per tutti i processi.
     """
 
-    def __init__(self, name: str, config: Config, *args, **kwargs):
+    def __init__(self, config: Config, *args, **kwargs):
         """
         Inizializza un'istanza di BaseProcess.
 
@@ -47,7 +47,7 @@ class BaseProcess(Process, Generic[Config]):
         """
         super().__init__()
 
-        self.name: str = name
+        self.name: str = self.__class__.__name__
         self.config: Config = config
         self.logger: Logger
 

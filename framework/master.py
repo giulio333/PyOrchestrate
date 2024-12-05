@@ -6,6 +6,7 @@ from threading import Thread
 import time
 
 from framework.base import BaseConfig, BaseProcess, Config
+from framework.child import ChildProcess
 
 
 class MasterProcess(BaseProcess[Config]):
@@ -15,7 +16,6 @@ class MasterProcess(BaseProcess[Config]):
 
     def __init__(
         self,
-        name: str,
         config: Config,
         monitor_health: bool = False,
     ) -> None:
@@ -23,16 +23,15 @@ class MasterProcess(BaseProcess[Config]):
         Inizializza un'istanza di MasterProcess.
 
         Args:
-            name (str): Nome del processo.
             config (Config): Configurazioni del processo.
             monitor_health (bool): Flag per abilitare o disabilitare il monitoraggio dello stato di salute dei processi figli.
         """
-        super().__init__(name, config)
+        super().__init__(config)
 
         self.logger: Logger
 
         # dizionario dei processi figli
-        self.children: dict[str, BaseProcess] = {}
+        self.children: dict[str, ChildProcess] = {}
 
         # dizionario delle configurazioni dei processi figli
         self.original_configs: dict[str, BaseConfig] = {}
@@ -54,8 +53,10 @@ class MasterProcess(BaseProcess[Config]):
 
         self.wait_for_children()
 
+        self.logger.debug("%s terminato.", self.name)
+
     def init_children(
-        self, child_class: type[BaseProcess], child_config: BaseConfig
+        self, child_class: type[ChildProcess], child_config: BaseConfig
     ) -> None:
         """
         Istanzia e salva un processo figlio e le sue configurazioni.
@@ -68,7 +69,7 @@ class MasterProcess(BaseProcess[Config]):
         self.setup_logger()
 
         # crea un'istanza del processo figlio
-        child_instance: BaseProcess = child_class(config=child_config)
+        child_instance: ChildProcess = child_class(config=child_config)
 
         # aggiunge il processo figlio al dizionario
         self.children[child_instance.name] = child_instance
@@ -102,11 +103,16 @@ class MasterProcess(BaseProcess[Config]):
             self.health_thread.start()
 
     def wait_for_children(self) -> None:
-        """Aspetta che tutti i processi figli terminino."""
+        """
+        Aspetta che tutti i processi figli terminino.
+        """
 
         for child in self.children.values():
             child.join()
             self.logger.info(f"Figlio terminato: {child.name}.")
+
+        if all(not child.is_alive() for child in self.children.values()):
+            self.logger.debug("Tutti i figli sono terminati.")
 
     def stop_all_children(self) -> None:
         """Ferma tutti i processi figli."""
@@ -119,11 +125,14 @@ class MasterProcess(BaseProcess[Config]):
                 self.logger.info(f"Figlio già terminato: {child.name}")
 
     def restart_all_children(self) -> None:
-        """Riavvia tutti i processi figli."""
+        """
+        Riavvia tutti i processi figli.
+        """
 
         self.stop_all_children()
 
         for child_name, child_instance in self.children.items():
+
             self.init_children(
                 child_class=child_instance.__class__,
                 child_config=self.original_configs[child_name],
@@ -132,20 +141,36 @@ class MasterProcess(BaseProcess[Config]):
         self.__start_children()
 
     def remove_child(self, child_name: str) -> None:
-        """Rimuove un processo figlio specifico."""
+        """
+        Rimuove un processo figlio specifico.
+        """
 
-        self.children = [child for child in self.children if child.name != child_name]
+        if child_name in self.children:
+            del self.children[child_name]
+
         self.logger.info(f"Rimosso figlio: {child_name}")
 
     def get_child_status(self, child_name: str) -> Optional[str]:
-        """Ottiene lo stato di un processo figlio specifico."""
+        """
+        Restituisce lo stato di un processo figlio.
 
-        for child in self.children:
+        Args:
+            child_name (str): Nome del processo figlio.
+
+        Returns:
+            Optional[str]: Stato del processo figlio.
+        """
+
+        for child in self.children.values():
+
             if child.name == child_name:
                 status = f"Processo {child_name} è {'attivo' if child.is_alive() else 'terminato'}"
+
                 if self.monitor_health:
                     status += " (monitoraggio abilitato)"
+
                 return status
+
         return None
 
     def health_check(self) -> None:

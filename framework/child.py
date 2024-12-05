@@ -14,7 +14,10 @@ class ChildProcess(BaseProcess[Config]):
         config (Config): Configurazioni del processo.
     """
 
-    def __init__(self, name: str, config: Config) -> None:
+    def __init__(
+        self,
+        config: Config,
+    ) -> None:
         """
         Inizializza un'istanza di ChildProcess.
 
@@ -22,7 +25,7 @@ class ChildProcess(BaseProcess[Config]):
             name (str): Nome del processo.
             config (Config): Configurazioni del processo.
         """
-        super().__init__(name, config)
+        super().__init__(config)
 
     def work(self) -> None:
         """
