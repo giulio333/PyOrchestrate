@@ -9,7 +9,9 @@ from framework.base import BaseConfig, BaseProcess, Config
 
 
 class MasterProcess(BaseProcess[Config]):
-    """Gestisce processi figli definiti dall'utente."""
+    """
+    Gestisce processi figli definiti dall'utente.
+    """
 
     def __init__(
         self,
@@ -30,13 +32,13 @@ class MasterProcess(BaseProcess[Config]):
         self.logger: Logger
 
         # dizionario dei processi figli
-        self.children = {}
+        self.children: dict[str, BaseProcess] = {}
 
         # dizionario delle configurazioni dei processi figli
-        self.original_configs = {}
+        self.original_configs: dict[str, BaseConfig] = {}
 
         # Flag per il monitoraggio dello stato di salute dei processi figli
-        self.monitor_health = monitor_health
+        self.monitor_health: bool = monitor_health
 
         # Thread per il monitoraggio dello stato di salute
         self.health_thread: Thread | None = None
@@ -50,6 +52,8 @@ class MasterProcess(BaseProcess[Config]):
         if len(self.children) > 0:
             self.__start_children()
 
+        self.wait_for_children()
+
     def init_children(self, child_class: type, child_config: BaseConfig) -> None:
         """
         Istanzia e salva un processo figlio e le sue configurazioni.
@@ -62,7 +66,7 @@ class MasterProcess(BaseProcess[Config]):
         self.setup_logger()
 
         # crea un'istanza del processo figlio
-        child_instance = child_class(config=child_config)
+        child_instance: BaseProcess = child_class(config=child_config)
 
         # aggiunge il processo figlio al dizionario
         self.children[child_instance.name] = child_instance
@@ -100,7 +104,7 @@ class MasterProcess(BaseProcess[Config]):
 
         for child in self.children.values():
             child.join()
-            self.logger.info(f"Figlio terminato: {child.name}")
+            self.logger.info(f"Figlio terminato: {child.name}.")
 
     def stop_all_children(self) -> None:
         """Ferma tutti i processi figli."""

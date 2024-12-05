@@ -9,5 +9,5 @@ class LoggerConfig:
 
     level: int | None = None
     filename: str | None = None
-    format: str | None = None
-    datefmt: str | None = None
+    # format: str | None = None
+    # datefmt: str | None = None

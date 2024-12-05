@@ -3,6 +3,7 @@ from multiprocessing import Process
 from typing import TypeVar, Generic
 from dataclasses import dataclass
 import logging
+import time
 
 from framework.logger import setup_logger
 from framework.utilities import LoggerConfig
@@ -51,11 +52,33 @@ class BaseProcess(Process, Generic[Config]):
         - Chiama il metodo `work`.
         """
 
+        self.start_time = time.time()
+
         self.setup_logger()
+
+        self.setup()
 
         self.config.validate()
 
         self.work()
+
+        self.logger.debug("Tempo di esecuzione: %.2f", time.time() - self.start_time)
+
+    def setup(self):
+        """
+        Metodo per l'inizializzazione delle risorse del processo.
+
+        E' possibile sovrascrivere questo metodo per personalizzarne il comportamento.
+        """
+
+    def work(self) -> None:
+        """
+        Metodo principale da implementare nelle sottoclassi.
+        """
+
+        raise NotImplementedError(
+            f"La classe '{self.__class__.__name__}' deve implementare il metodo `work`."
+        )
 
     def setup_logger(self):
         """
@@ -77,13 +100,4 @@ class BaseProcess(Process, Generic[Config]):
 
         self.logger.info(
             "Logger configurato: log_file=%s, level=%s", f"{self.name}.log", level
-        )
-
-    def work(self) -> None:
-        """
-        Metodo principale da implementare nelle sottoclassi.
-        """
-
-        raise NotImplementedError(
-            f"La classe '{self.__class__.__name__}' deve implementare il metodo `work`."
         )
