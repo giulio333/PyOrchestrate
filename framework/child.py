@@ -44,7 +44,7 @@ class ChildProcess(BaseProcess[ChildConfigType], Generic[ChildConfigType]):
             name (str): Nome del processo.
             config (Config): Configurazioni del processo.
         """
-        super().__init__(config)
+        super().__init__(name=self.__class__.__name__, config=config)
 
     def work(self) -> None:
         """

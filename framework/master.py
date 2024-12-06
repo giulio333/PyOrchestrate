@@ -43,7 +43,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             config (Config): Configurazioni del processo.
             monitor_health (bool): Flag per abilitare o disabilitare il monitoraggio dello stato di salute dei processi figli.
         """
-        super().__init__(config)
+        super().__init__(name=self.__class__.__name__, config=config)
 
         self.logger: Logger
 
@@ -81,20 +81,23 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         self.logger.debug("%s terminato.", self.name)
 
     def init_children(
-        self, child_class: type[ChildProcess], child_config: ChildConfig
+        self,
+        child_class: type[ChildProcess],
+        child_config: ChildConfig,
+        name_suffix: str = "",
     ) -> None:
         """
         Istanzia e salva un processo figlio e le sue configurazioni.
-
-        Args:
-            child_class (type): Classe del processo figlio.
-            child_config (BaseConfig): Configurazioni del processo figlio.
+        Permette, opzionalmente, di aggiungere un suffisso al nome del processo figlio.
         """
 
         self.setup_logger()
 
         # crea un'istanza del processo figlio
         child_instance: ChildProcess = child_class(config=child_config)
+
+        if name_suffix:
+            child_instance.name = f"{child_instance.__class__.__name__}_{name_suffix}"
 
         # aggiunge il processo figlio al dizionario
         self.children[child_instance.name] = child_instance
@@ -107,6 +110,20 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         if self.monitor_health:
             self.logger.info(
                 f"Monitoraggio dello stato di salute abilitato per: {child_instance.name}"
+            )
+
+    def init_multiple_children(
+        self, child_class: type[ChildProcess], configs: List[ChildConfig]
+    ) -> None:
+        """
+        Istanzia e salva più processi figli della stessa classe con configurazioni diverse,
+        usando internamente init_children e delegando a quest’ultima la creazione del suffisso.
+        """
+        self.setup_logger()
+
+        for i, config in enumerate(configs):
+            self.init_children(
+                child_class=child_class, child_config=config, name_suffix=str(i)
             )
 
     def __start_children(self) -> None:
@@ -209,7 +226,12 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             self.remove_child(child_name)
 
             # Ricrea e riavvia il figlio
-            self.init_children(child_class=child_class, child_config=child_config)
+            name_suffix = child_name.split("_")[-1] if "_" in child_name else ""
+            self.init_children(
+                child_class=child_class,
+                child_config=child_config,
+                name_suffix=name_suffix,
+            )
             self.children[child_name].start()
         else:
             self.logger.warning(

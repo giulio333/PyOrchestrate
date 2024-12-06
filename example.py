@@ -1,13 +1,14 @@
 import time
 from models.launcher import Launcher, LauncherConfig
-from models.video import Worker1, Worker2, WorkerConfig
+from models.video import Worker, WorkerConfig1, WorkerConfig2
 
 
 if __name__ == "__main__":
 
-    master = Launcher(name="Master", config=LauncherConfig(), monitor_health=False)
+    master = Launcher(config=LauncherConfig(), monitor_health=True)
 
-    master.init_children(child_class=Worker1, child_config=WorkerConfig())
-    # master.init_children(child_class=Worker2, child_config=WorkerConfig())
+    master.init_multiple_children(
+        child_class=Worker, configs=[WorkerConfig1(), WorkerConfig2()]
+    )
 
     master.run()
