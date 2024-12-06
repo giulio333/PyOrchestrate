@@ -1,0 +1,16 @@
+
+/* Qui è possibile definire stili custom per il tema "default" (tema chiaro) */
+
+/*
+[data-md-color-scheme="default"] {
+    --md-code-bg-color: #eeeeee;
+}
+*/
+
+/* Qui è possibile definire stili custom per il tema "slate" (tema scuro) */
+
+/*
+[data-md-color-scheme="slate"] {
+    --md-code-bg-color: #e4e4e4;
+  }
+*/
