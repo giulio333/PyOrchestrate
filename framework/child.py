@@ -1,6 +1,8 @@
-from framework.base import BaseProcess, Config, BaseConfig
 from typing import TypeVar, Generic
 from logging import Logger
+
+from framework.base import BaseProcess, Config, BaseConfig
+from framework.utilities import CheckConfig
 
 
 class ChildConfig(BaseConfig):
@@ -8,15 +10,11 @@ class ChildConfig(BaseConfig):
     Configurazioni di un ChildProcess.
 
     Attributes:
-        autorestart (bool): Flag per abilitare il riavvio del processo in caso di errore.
-        to_monitor (bool): Flag per abilitare il monitoraggio dello stato di salute del processo.
+        check_config (CheckConfig): Configurazioni thread di controllo del Master.
         logger (LoggerConfig): Configurazioni del `logger`.
     """
 
-    to_monitor: bool = False
-    """Se True, verrà monitorato lo stato di salute del processo."""
-    autorestart: bool = False
-    """Se True, il processo verrà riavviato in caso di errore."""
+    check_config = CheckConfig()
 
 
 ChildConfigType = TypeVar("ChildConfigType", bound=ChildConfig)

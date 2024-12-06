@@ -15,6 +15,8 @@ class LauncherConfig(MasterConfig):
     start_time: datetime = datetime.now()
     logger = LoggerConfig(level=DEBUG)
 
+    wait_mode = "none"
+
 
 class Launcher(MasterProcess[LauncherConfig]):
     def __init__(self, config: LauncherConfig, monitor_health=False) -> None:
