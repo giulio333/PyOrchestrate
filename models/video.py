@@ -13,9 +13,10 @@ from framework.utilities import LoggerConfig
 class WorkerConfig1(ChildConfig):
 
     message: str = "Hello, World!"
-    repeat: int = 50
+    repeat: int = 5
     logger = LoggerConfig(level=DEBUG)
     to_monitor: bool = True
+    autorestart: bool = True
 
 
 @dataclass

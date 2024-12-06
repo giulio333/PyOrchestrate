@@ -3,7 +3,7 @@ from threading import Event
 from logging import Logger
 from framework.logger import setup_logger
 from typing import Optional, List, final, Generic, TypeVar, Type
-from threading import Thread
+from threading import Thread, Event
 import time
 
 from framework.base import BaseConfig, BaseProcess, Config
@@ -56,6 +56,9 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         # Flag per il monitoraggio dello stato di salute dei processi figli
         self.monitor_health: bool = monitor_health
 
+        # Barriera per terminare il master
+        self.end = Event()
+
     @final
     def work(self) -> None:
         """
@@ -75,6 +78,8 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         )
 
         self.health_monitor.start()
+
+        self.end.wait()
 
         self.wait_for_children()
 
