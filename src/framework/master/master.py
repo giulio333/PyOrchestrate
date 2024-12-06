@@ -4,12 +4,14 @@ from logging import Logger
 from framework.utilities.logger import setup_logger
 from typing import Optional, List, final, Generic, TypeVar, Type, Callable, Literal
 from threading import Thread, Event
+from dataclasses import dataclass
 import time
 
 from framework.base_process.base import BaseConfig, BaseProcess, LoggerConfig
-from framework.child.child import ChildProcess, ChildConfig
+from framework.slave.slave import SlaveProcess, SlaveConfig
 
 
+@dataclass
 class MasterConfig(BaseConfig):
     """
     Configurazioni di un MasterProcess.
@@ -50,8 +52,8 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         super().__init__(name=self.__class__.__name__, config=config)
 
         self.logger: Logger
-        self.children: dict[str, ChildProcess[ChildConfig]] = {}
-        self.childs_config: dict[str, ChildConfig] = {}
+        self.slaves: dict[str, SlaveProcess[SlaveConfig]] = {}
+        self.slaves_config: dict[str, SlaveConfig] = {}
         self.monitor_health: bool = monitor_health
 
         # Evento stop del master
@@ -79,12 +81,12 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
 
         self.__check_config()
 
-        if len(self.children) > 0:
-            self.__start_children()
+        if len(self.slaves) > 0:
+            self.__start_slave()
 
         self.health_monitor = HealthMonitor(
             logger=self.logger,
-            children=self.children,
+            slave=self.slaves,
             master_process=self,
             enabled=self.monitor_health,
             check_interval=self.config.check_interval,
@@ -95,8 +97,8 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         self._main_loop()
 
         # Quando esco dal main_loop, fermo i figli
-        self.stop_all_children()
-        self.wait_for_children()
+        self.stop_all_slave()
+        self.wait_for_slave()
 
         self.logger.debug("%s terminato.", self.name)
 
@@ -127,121 +129,119 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             # In questa modalità, aspettiamo che i figli si fermino una volta
             # e poi usciamo.
             while not self.stop_event.is_set():
-                if all(not c.is_alive() for c in self.children.values()):
+                if all(not c.is_alive() for c in self.slaves.values()):
                     self.logger.info("Tutti i figli terminati una volta. Esco.")
                     break
                 time.sleep(1)
 
-    def init_children(
+    def init_slave(
         self,
-        child_class: type[ChildProcess],
-        child_config: ChildConfig,
+        slave_class: type[SlaveProcess],
+        config: SlaveConfig,
         name_suffix: str = "",
     ) -> None:
         self.setup_logger()
 
-        child_instance: ChildProcess = child_class(config=child_config)
+        slave_instance: SlaveProcess = slave_class(config=config)
 
         if name_suffix:
-            child_instance.name = f"{child_instance.__class__.__name__}_{name_suffix}"
+            slave_instance.name = f"{slave_instance.__class__.__name__}_{name_suffix}"
 
-        self.children[child_instance.name] = child_instance
-        self.childs_config[child_instance.name] = child_config
+        self.slaves[slave_instance.name] = slave_instance
+        self.slaves_config[slave_instance.name] = config
 
-        self.logger.info(f"Aggiunto figlio: {child_instance.name}")
+        self.logger.info(f"Aggiunto figlio: {slave_instance.name}")
 
         if self.monitor_health:
             self.logger.info(
-                f"Monitoraggio dello stato di salute abilitato per: {child_instance.name}"
+                f"Monitoraggio dello stato di salute abilitato per: {slave_instance.name}"
             )
 
-    def init_multiple_children(
-        self, child_class: type[ChildProcess], configs: List[ChildConfig]
+    def init_multiple_slave(
+        self, slave_class: type[SlaveProcess], configs: List[SlaveConfig]
     ) -> None:
         self.setup_logger()
 
         for i, config in enumerate(configs):
-            self.init_children(
-                child_class=child_class, child_config=config, name_suffix=str(i)
-            )
+            self.init_slave(slave_class=slave_class, config=config, name_suffix=str(i))
 
-    def __start_children(self) -> None:
-        self.logger.info("Figli da avviare: %d", len(self.children))
+    def __start_slave(self) -> None:
+        self.logger.info("Figli da avviare: %d", len(self.slaves))
 
-        for child_instance in self.children.values():
-            child_instance.start()
-            self.logger.info(f"Avviato figlio: {child_instance.name}")
+        for slave_instance in self.slaves.values():
+            slave_instance.start()
+            self.logger.info(f"Avviato figlio: {slave_instance.name}")
 
-    def wait_for_children(self) -> None:
-        for child in self.children.values():
-            child.join()
-            self.logger.info(f"Figlio terminato: {child.name}.")
+    def wait_for_slave(self) -> None:
+        for slave in self.slaves.values():
+            slave.join()
+            self.logger.info(f"Figlio terminato: {slave.name}.")
 
-        if all(not child.is_alive() for child in self.children.values()):
+        if all(not slave.is_alive() for slave in self.slaves.values()):
             self.logger.debug("Tutti i figli sono terminati.")
 
-    def stop_all_children(self) -> None:
-        for child in self.children.values():
-            if child.is_alive():
-                child.terminate()
-                self.logger.warning(f"Figlio terminato forzatamente: {child.name}")
+    def stop_all_slave(self) -> None:
+        for slave in self.slaves.values():
+            if slave.is_alive():
+                slave.terminate()
+                self.logger.warning(f"Figlio terminato forzatamente: {slave.name}")
             else:
-                self.logger.info(f"Figlio già terminato: {child.name}")
+                self.logger.info(f"Figlio già terminato: {slave.name}")
 
-    def restart_all_children(self) -> None:
-        self.stop_all_children()
+    def restart_all_slave(self) -> None:
+        self.stop_all_slave()
 
-        for child_name, child_instance in list(self.children.items()):
+        for slave_name, slave_instance in list(self.slaves.items()):
             # Riavvia i figli da config salvata
-            self.init_children(
-                child_class=child_instance.__class__,
-                child_config=self.childs_config[child_name],
-                name_suffix=child_name.split("_")[-1] if "_" in child_name else "",
+            self.init_slave(
+                slave_class=slave_instance.__class__,
+                config=self.slaves_config[slave_name],
+                name_suffix=slave_name.split("_")[-1] if "_" in slave_name else "",
             )
 
-        self.__start_children()
+        self.__start_slave()
 
-    def remove_child(self, child_name: str) -> None:
-        if child_name in self.children:
-            del self.children[child_name]
-        if child_name in self.childs_config:
-            del self.childs_config[child_name]
+    def remove_slave(self, slave_name: str) -> None:
+        if slave_name in self.slaves:
+            del self.slaves[slave_name]
+        if slave_name in self.slaves_config:
+            del self.slaves_config[slave_name]
 
-        self.logger.info(f"Rimosso figlio: {child_name}")
+        self.logger.info(f"Rimosso figlio: {slave_name}")
 
-    def get_child_status(self, child_name: str) -> Optional[str]:
-        for child in self.children.values():
-            if child.name == child_name:
-                status = f"Processo {child_name} è {'attivo' if child.is_alive() else 'terminato'}"
+    def get_slave_status(self, slave_name: str) -> Optional[str]:
+        for slave in self.slaves.values():
+            if slave.name == slave_name:
+                status = f"Processo {slave_name} è {'attivo' if slave.is_alive() else 'terminato'}"
                 if self.monitor_health:
                     status += " (monitoraggio abilitato)"
                 return status
         return None
 
-    def restart_child(self, child_name: str) -> None:
-        if child_name in self.children:
-            child_class = self.children[child_name].__class__
-            child_config: ChildConfig = self.childs_config[child_name]
+    def restart_slave(self, slave_name: str) -> None:
+        if slave_name in self.slaves:
+            slave_class = self.slaves[slave_name].__class__
+            slave_config: SlaveConfig = self.slaves_config[slave_name]
 
-            self.logger.info(f"Riavvio del figlio: {child_name}")
+            self.logger.info(f"Riavvio del figlio: {slave_name}")
 
-            assert not self.children[
-                child_name
+            assert not self.slaves[
+                slave_name
             ].is_alive(), "Impossibile riavviare, il figlio è ancora attivo."
 
-            self.remove_child(child_name)
+            self.remove_slave(slave_name)
 
-            name_suffix = child_name.split("_")[-1] if "_" in child_name else ""
-            self.init_children(
-                child_class=child_class,
-                child_config=child_config,
+            name_suffix = slave_name.split("_")[-1] if "_" in slave_name else ""
+            self.init_slave(
+                slave_class=slave_class,
+                config=slave_config,
                 name_suffix=name_suffix,
             )
             self.total_restarts += 1
-            self.children[list(self.children.keys())[-1]].start()
+            self.slaves[list(self.slaves.keys())[-1]].start()
         else:
             self.logger.warning(
-                f"Impossibile riavviare, figlio {child_name} non trovato."
+                f"Impossibile riavviare, figlio {slave_name} non trovato."
             )
 
 
@@ -249,13 +249,13 @@ class HealthMonitor:
     def __init__(
         self,
         logger: Logger,
-        children: dict[str, ChildProcess[ChildConfig]],
+        slave: dict[str, SlaveProcess[SlaveConfig]],
         master_process: MasterProcess,
         enabled: bool = False,
         check_interval: int = 2,
     ) -> None:
         self.logger: Logger = logger
-        self.children: dict[str, ChildProcess[ChildConfig]] = children
+        self.slave_processes: dict[str, SlaveProcess[SlaveConfig]] = slave
         self.enabled: bool = enabled
         self.check_interval: int = check_interval
         self._stop_event = Event()
@@ -278,7 +278,8 @@ class HealthMonitor:
         )
 
         if any(
-            child.config.check_config.to_monitor for child in self.children.values()
+            slave.config.check_config.to_monitor
+            for slave in self.slave_processes.values()
         ):
             self._thread.start()
         else:
@@ -301,28 +302,28 @@ class HealthMonitor:
         self.logger.debug(
             "Monitoraggio attivo per %s",
             [
-                child.name
-                for child in self.children.values()
-                if child.config.check_config.to_monitor
+                slave.name
+                for slave in self.slave_processes.values()
+                if slave.config.check_config.to_monitor
             ],
         )
 
         while not self._stop_event.is_set():
             self.logger.info("Health_check...")
-            self._check_children()
+            self._check_slave()
             time.sleep(self.check_interval)
 
-    def _check_children(self) -> None:
+    def _check_slave(self) -> None:
         to_restart = []
 
-        for child in self.children.values():
-            if child.config.check_config.to_monitor and not child.is_alive():
-                self.logger.warning(f"Figlio non risponde: {child.name}")
-                if child.config.check_config.autorestart:
-                    to_restart.append(child.name)
+        for slave in self.slave_processes.values():
+            if slave.config.check_config.to_monitor and not slave.is_alive():
+                self.logger.warning(f"Figlio non risponde: {slave.name}")
+                if slave.config.check_config.autorestart:
+                    to_restart.append(slave.name)
 
-        for child_name in to_restart:
-            self.master_process.restart_child(child_name)
+        for slave in to_restart:
+            self.master_process.restart_slave(slave)
 
         # Se non siamo in "infinite" e non ci sono figli attivi
         # e non possiamo più fare nulla, fermiamo il master

@@ -1,3 +1,7 @@
 title: Code
 nav:
-    - master.md
+    - base_process
+    - master
+    - slave
+    - comunication
+    - utilities

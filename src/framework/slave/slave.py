@@ -2,12 +2,12 @@ from typing import TypeVar, Generic
 from logging import Logger
 
 from framework.base_process.base import BaseProcess, Config, BaseConfig
-from framework.child.utilities import CheckConfig
+from framework.slave.utilities import CheckConfig
 
 
-class ChildConfig(BaseConfig):
+class SlaveConfig(BaseConfig):
     """
-    Configurazioni di un ChildProcess.
+    Configurazioni di un SlaveProcess.
 
     Attributes:
         check_config (CheckConfig): Configurazioni thread di controllo del Master.
@@ -17,12 +17,12 @@ class ChildConfig(BaseConfig):
     check_config = CheckConfig()
 
 
-ChildConfigType = TypeVar("ChildConfigType", bound=ChildConfig)
+SlaveConfigType = TypeVar("SlaveConfigType", bound=SlaveConfig)
 
 
-class ChildProcess(BaseProcess[ChildConfigType], Generic[ChildConfigType]):
+class SlaveProcess(BaseProcess[SlaveConfigType], Generic[SlaveConfigType]):
     """
-    Classe base ChildProcess.
+    Classe base SlaveProcess.
 
     Il metodo `work` deve essere implementato nelle sottoclassi per definire il lavoro da svolgere.
 
@@ -33,10 +33,10 @@ class ChildProcess(BaseProcess[ChildConfigType], Generic[ChildConfigType]):
 
     def __init__(
         self,
-        config: ChildConfigType,
+        config: SlaveConfigType,
     ) -> None:
         """
-        Inizializza un'istanza di ChildProcess.
+        Inizializza un'istanza di SlaveProcess.
 
         Args:
             name (str): Nome del processo.

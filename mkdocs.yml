@@ -102,7 +102,7 @@ plugins:
             show_source: true
             docstring_style: google
             allow_inspection: true
-          paths: ["./src"]
+          paths: ["./src/"]
 
 markdown_extensions:
   - def_list

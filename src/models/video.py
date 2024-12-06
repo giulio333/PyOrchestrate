@@ -1,15 +1,15 @@
 from framework.master.master import MasterProcess
-from framework.child.child import ChildProcess
+from framework.slave.slave import SlaveProcess
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from logging import DEBUG
 
-from framework.child import ChildProcess, ChildConfig, LoggerConfig, CheckConfig
+from framework.slave import SlaveProcess, SlaveConfig, LoggerConfig, CheckConfig
 
 
 @dataclass
-class WorkerConfig1(ChildConfig):
+class WorkerConfig1(SlaveConfig):
 
     message: str = "Hello, World!"
     repeat: int = 5
@@ -19,7 +19,7 @@ class WorkerConfig1(ChildConfig):
 
 
 @dataclass
-class WorkerConfig2(ChildConfig):
+class WorkerConfig2(SlaveConfig):
 
     message: str = "Hello, World!"
     repeat: int = 5
@@ -28,7 +28,7 @@ class WorkerConfig2(ChildConfig):
     check_config = CheckConfig(to_monitor=False, autorestart=False, interval=1)
 
 
-class Worker(ChildProcess[WorkerConfig1]):
+class Worker(SlaveProcess[WorkerConfig1]):
 
     def __init__(self, config: WorkerConfig1) -> None:
         super().__init__(config=config)
