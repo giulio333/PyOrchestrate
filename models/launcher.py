@@ -1,12 +1,11 @@
-from framework.master import MasterProcess
-from framework.child import ChildProcess
+from framework.master.master import MasterProcess
+from framework.child.child import ChildProcess
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from logging import DEBUG
 
-from framework.master import MasterConfig
-from framework.utilities import LoggerConfig
+from framework.master import MasterProcess, MasterConfig, LoggerConfig
 
 
 @dataclass

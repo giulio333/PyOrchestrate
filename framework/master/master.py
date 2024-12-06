@@ -1,13 +1,13 @@
 from multiprocessing import Process
 from threading import Event
 from logging import Logger
-from framework.logger import setup_logger
+from framework.utilities.logger import setup_logger
 from typing import Optional, List, final, Generic, TypeVar, Type, Callable, Literal
 from threading import Thread, Event
 import time
 
-from framework.base import BaseConfig, BaseProcess
-from framework.child import ChildProcess, ChildConfig
+from framework.base_process.base import BaseConfig, BaseProcess, LoggerConfig
+from framework.child.child import ChildProcess, ChildConfig
 
 
 class MasterConfig(BaseConfig):

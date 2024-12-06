@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import logging
 import time
 
-from framework.logger import setup_logger
-from framework.utilities import LoggerConfig
+from framework.utilities.logger import setup_logger
+from framework.base_process.utilities import LoggerConfig
 
 
 class BaseConfig:

@@ -1,8 +1,8 @@
 from typing import TypeVar, Generic
 from logging import Logger
 
-from framework.base import BaseProcess, Config, BaseConfig
-from framework.utilities import CheckConfig
+from framework.base_process.base import BaseProcess, Config, BaseConfig
+from framework.child.utilities import CheckConfig
 
 
 class ChildConfig(BaseConfig):
