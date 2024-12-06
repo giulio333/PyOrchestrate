@@ -35,14 +35,14 @@ Un **MasterProcess** è il processo principale responsabile della gestione e del
 Per implementare un **MasterProcess**, crea una classe che estende `MasterProcess` all'interno della cartella `models`. Ad esempio:
 
 ```python
-from framework.master import MasterProcess, MasterConfig, LoggerConfig
+from framework.master import MasterProcess, MasterConfig
 
 class Launcher(MasterProcess):
     def __init__(self, config: MasterConfig, monitor_health: bool = False) -> None:
         super().__init__(config, monitor_health)
 ```
 
-## Personalizzazioni del MasterProcess
+### Personalizzazioni
 
 Puoi personalizzare un **MasterProcess** definendo una configurazione specifica. Per farlo, estendi la classe `MasterConfig`, ad esempio:
 
@@ -72,7 +72,7 @@ Questo oggetto contiene anche delle configurazioni predefinite che possono esser
 - `wait_mode`: modalità di attesa del processo.
 - `max_restart`: numero massimo di riavvii del processo.
 
-!!! tip
+!!! example
     Esempio di configurazione avanzata con logger e modalità di attesa specifica:
 
     ```python
@@ -81,3 +81,78 @@ Questo oggetto contiene anche delle configurazioni predefinite che possono esser
         logger = LoggerConfig(level=DEBUG)
         wait_mode = "none"
     ```
+
+## SlaveProcess
+
+Uno **SlaveProcess** è un processo secondario che viene creato e gestito da un processo master.
+
+Per implementare uno **SlaveProcess**, crea una classe che estenda `SlaveProcess` all'interno della cartella `models`. Ad esempio:
+
+```python
+from framework.slave import SlaveProcess, SlaveConfig
+
+class Worker(SlaveProcess):
+    def __init__(self, config: SlaveConfig) -> None:
+        super().__init__(config=config)
+```
+
+### Personalizzazioni
+
+Puoi personalizzare uno **SlaveProcess** definendo una configurazione specifica. Per farlo, estendi la classe `SlaveConfig`, ad esempio:
+
+```python
+from framework.slave import SlaveConfig,
+
+@dataclass
+class WorkerConfig(SlaveConfig):
+    message: str = "Hello, World!"
+    repeat: int = 5
+
+    def validate(self) -> None:
+        if "Hello" not in self.message:
+            # do something
+```
+
+Ogni configurazione (`SlaveConfig`) dispone di un metodo `validate`, che può essere sovrascritto per implementare logiche di validazione personalizzate.
+
+### SlaveConfig
+
+Questo oggetto contiene anche delle configurazioni predefinite che possono essere utilizzate per personalizzare il comportamento del processo.
+
+- `LoggerConfig`: configurazioni per il logger.
+- `check_config`: configurazioni di controllo del processo.
+
+!!! example
+    Esempio di configurazione avanzata con logger e configurazioni di controllo specifiche:
+
+    ```python
+    @dataclass
+    class WorkerConfig(SlaveConfig):
+
+        message: str = "Hello, World!"
+        repeat: int = 5
+
+        logger = LoggerConfig(level=DEBUG)
+        check_config = CheckConfig(to_monitor=False, autorestart=False, interval=1)
+    ```
+
+#### LoggerConfig
+
+La classe `LoggerConfig` permette di configurare i parametri del logger per un processo. 
+
+Descrizione
+
+Questa classe definisce due attributi principali per configurare il logger:
+
+1.	`level`: il livello di log da utilizzare, espresso come intero. I valori seguono la convenzione standard dei livelli di log (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`).
+
+2.	`filename`: il nome del file in cui i log verranno salvati. Se lasciato vuoto (stringa vuota ""), il framework utilizzerà il nome del processo come file di log predefinito.
+
+!!! tip
+    Se uno degli attributi non viene specificato durante l’istanziazione della classe, verrà utilizzato il valore di default.
+
+!!! tip "code"
+    ::: framework.base_process.utilities.LoggerConfig
+        options:
+            show_source: false
+            members: false

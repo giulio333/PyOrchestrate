@@ -1,8 +1,6 @@
-from framework.master.master import MasterProcess
 from framework.slave.slave import SlaveProcess
 import time
 from dataclasses import dataclass
-from datetime import datetime
 from logging import DEBUG
 
 from framework.slave import SlaveProcess, SlaveConfig, LoggerConfig, CheckConfig
