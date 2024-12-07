@@ -6,19 +6,23 @@ import warnings
 @dataclass
 class LoggerConfig:
     """
-    Configurazione per il logger.
+    Process logger configurations.
 
-    Gli attributi sono impostati a `None`.
-    Se non vengono specificati, verranno utilizzati i valori di default.
+    If not specified, default values will be used.
 
     Attributes:
-        level (int): Livello di logging. Defaults to INFO.
-        filename (str): Percorso del file di log. Defaults to "".
+        level (int): Logging level. Defaults to INFO.
+        filename (str): File name for logging. Defaults to empty string.
     """
 
     level: int = INFO
-    """Livello di logging. Defaults to INFO."""
+    """
+    Livello di logging. Defaults to INFO.
+    """
+
     filename: str = ""
-    """Nome del file di log. Defaults to ""."""
-    # format: str | None = None
-    # datefmt: str | None = None
+    """
+    Nome del file di log. Defaults to empty string.
+
+    Se non specificato, verrà utilizzato il nome del processo.
+    """
