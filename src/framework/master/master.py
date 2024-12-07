@@ -62,20 +62,6 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         # Contatore globale dei restart (solo se limited)
         self.total_restarts = 0
 
-    def __check_config(self) -> None:
-
-        if self.config.wait_mode == "limited":
-            assert self.config.max_restarts > 0, "max_restarts deve essere > 0."
-
-        elif self.config.wait_mode == "none":
-            pass
-
-        elif self.config.wait_mode == "infinite":
-            pass
-
-        else:
-            raise ValueError("wait_mode non valido.")
-
     @final
     def work(self) -> None:
 
@@ -243,6 +229,20 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             self.logger.warning(
                 f"Impossibile riavviare, figlio {slave_name} non trovato."
             )
+
+    def __check_config(self) -> None:
+
+        if self.config.wait_mode == "limited":
+            assert self.config.max_restarts > 0, "max_restarts deve essere > 0."
+
+        elif self.config.wait_mode == "none":
+            pass
+
+        elif self.config.wait_mode == "infinite":
+            pass
+
+        else:
+            raise ValueError("wait_mode non valido.")
 
 
 class HealthMonitor:
