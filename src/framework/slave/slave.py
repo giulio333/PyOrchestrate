@@ -31,10 +31,7 @@ class SlaveProcess(BaseProcess[SlaveConfigType], Generic[SlaveConfigType]):
         config (Config): Configurazioni del processo.
     """
 
-    def __init__(
-        self,
-        config: SlaveConfigType,
-    ) -> None:
+    def __init__(self, config: SlaveConfigType, *args, **kwargs) -> None:
         """
         Inizializza un'istanza di SlaveProcess.
 

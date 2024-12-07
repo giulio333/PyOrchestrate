@@ -80,45 +80,25 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
 
         self.health_monitor.start()
 
-        self._main_loop()
+        if self.config.wait_mode == "infinite":
+            self.logger.info("Wait mode: infinite. In attesa indefinita...")
+
+            self.stop_event.wait()
+
+        elif self.config.wait_mode == "none":
+            self.logger.info("Wait mode: none. Mi fermo appena i figli terminano.")
+
+            while not self.stop_event.is_set():
+                if all(not c.is_alive() for c in self.slaves.values()):
+                    self.logger.info("Tutti i figli terminati. Esco.")
+                    break
+                time.sleep(1)
 
         # Quando esco dal main_loop, fermo i figli
         self.stop_all_slave()
         self.wait_for_slave()
 
         self.logger.debug("%s terminato.", self.name)
-
-    def _main_loop(self) -> None:
-        """
-        Gestisce il loop principale in base alla wait_mode.
-        """
-        if self.config.wait_mode == "infinite":
-            self.logger.info("Wait mode: infinite. In attesa indefinita...")
-            # Attendi finché non si chiama stop
-            self.stop_event.wait()
-
-        elif self.config.wait_mode == "limited":
-            self.logger.info(
-                f"Wait mode: limited con max_restarts={self.config.max_restarts}"
-            )
-            # In questa modalità, si rimane attivi finché non si esauriscono i riavvii
-            # oppure si termina manualmente.
-            while not self.stop_event.is_set():
-                # Se abbiamo raggiunto il numero massimo di riavvii, fermiamo il master
-                if self.total_restarts >= self.config.max_restarts:
-                    self.logger.warning("Raggiunto il numero massimo di riavvii. Esco.")
-                    break
-                time.sleep(1)
-
-        elif self.config.wait_mode == "none":
-            self.logger.info("Wait mode: none. Mi fermo appena i figli terminano.")
-            # In questa modalità, aspettiamo che i figli si fermino una volta
-            # e poi usciamo.
-            while not self.stop_event.is_set():
-                if all(not c.is_alive() for c in self.slaves.values()):
-                    self.logger.info("Tutti i figli terminati una volta. Esco.")
-                    break
-                time.sleep(1)
 
     def init_slave(
         self,
@@ -184,6 +164,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             self.logger.debug("Tutti i figli sono terminati.")
 
     def stop_all_slave(self) -> None:
+
         for slave in self.slaves.values():
             if slave.is_alive():
                 slave.terminate()
@@ -223,7 +204,8 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
 
     def restart_slave(self, slave_name: str) -> None:
         if slave_name in self.slaves:
-            slave_class = self.slaves[slave_name].__class__
+
+            slave_class: Type[SlaveProcess] = self.slaves[slave_name].__class__
             slave_config: SlaveConfig = self.slaves_config[slave_name]
 
             self.logger.info(f"Riavvio del figlio: {slave_name}")
@@ -242,6 +224,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             )
             self.total_restarts += 1
             self.slaves[list(self.slaves.keys())[-1]].start()
+
         else:
             self.logger.warning(
                 f"Impossibile riavviare, figlio {slave_name} non trovato."
@@ -347,8 +330,6 @@ class HealthMonitor:
         for slave in to_restart:
             self.master_process.restart_slave(slave)
 
-        # Se non siamo in "infinite" e non ci sono figli attivi
-        # e non possiamo più fare nulla, fermiamo il master
         if self.master_process.config.wait_mode == "none":
             # In modalità none, se i figli sono terminati, stop_event sul master è settato dall'outer loop
             pass
