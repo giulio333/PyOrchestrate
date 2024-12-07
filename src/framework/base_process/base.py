@@ -45,7 +45,7 @@ class BaseProcess(Process, Generic[Config]):
             name (str): Nome del processo.
             config (Config): Configurazioni del processo.
         """
-        super().__init__()
+        super().__init__(name=name)
 
         self.name: str = name
         self.config: Config = config
@@ -59,25 +59,17 @@ class BaseProcess(Process, Generic[Config]):
         - Esegue la validazione delle configurazioni.
         - Chiama il metodo `work`.
         """
+        super().run()
 
         self.start_time = time.time()
 
         self.setup_logger()
-
-        self.setup()
 
         self.config.validate()
 
         self.work()
 
         self.logger.debug("Tempo di esecuzione: %.2f", time.time() - self.start_time)
-
-    def setup(self):
-        """
-        Metodo per l'inizializzazione delle risorse del processo.
-
-        E' possibile sovrascrivere questo metodo per personalizzarne il comportamento.
-        """
 
     def work(self) -> None:
         """

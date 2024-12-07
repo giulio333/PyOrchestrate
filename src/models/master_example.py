@@ -17,7 +17,7 @@ class LauncherConfig(MasterConfig):
 
     logger = LoggerConfig(level=DEBUG)
     wait_mode = "none"
-    health_check = HealthCheckConfig(enabled=True, check_interval=5)
+    health_check = HealthCheckConfig(enabled=True, check_interval=50)
 
 
 class Launcher(MasterProcess[LauncherConfig]):

@@ -1,18 +1,110 @@
-# Framework Slave Processes Documentation
-
 ## Introduzione
 
-Il framework in esame utilizza un'architettura Master-Slave per gestire e coordinare diverse attività attraverso processi paralleli. Il **MasterProcess** è responsabile dell'avvio, del monitoraggio e della gestione dei **SlaveProcess**, che eseguono compiti specifici. Questa documentazione descrive le tipologie di **SlaveProcess** generici implementati nel framework, illustrandone le funzioni, le configurazioni e i comportamenti principali.
+Il framework in esame utilizza un'architettura Master-Slave per gestire e coordinare diverse attività attraverso processi paralleli. Il **MasterProcess** è responsabile dell'avvio, del monitoraggio e della gestione dei **SlaveProcess**, che eseguono compiti specifici. Per organizzare meglio i vari tipi di slave e facilitare la loro gestione, definiamo due macro-categorie:
+
+1.  **Looping Slaves**: Slave che eseguono i propri compiti all'interno di un ciclo infinito, monitorando continuamente o elaborando task in tempo reale.
+2.  **One-Shot Slaves**: Slave che eseguono un'unica operazione e poi terminano.
+
+Questa suddivisione permette di strutturare il framework in modo più modulare e di estendere facilmente le funzionalità aggiungendo nuove tipologie di slave.
 
 ## Indice
 
-1.  [PeriodicSlave](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#periodicslave)
-2.  [EventDrivenSlave](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#eventdrivenslave)
-3.  [TaskQueueSlave](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#taskqueueslave)
-4.  [MonitoringSlave](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#monitoringslave)
-5.  [Considerazioni Generali](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#considerazioni-generali)
+1.  [Macro\-Categorie di Slave](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#macro-categorie-di-slave)
+    -   [LoopingSlaveProcess](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#loopingslaveprocess)
+    -   [OneShotSlaveProcess](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#oneshotslaveprocess)
+2.  [Tipologie di Looping Slaves](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#tipologie-di-looping-slaves)
+    -   [PeriodicSlave](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#periodicslave)
+    -   [EventDrivenSlave](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#eventdrivenslave)
+    -   [TaskQueueSlave](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#taskqueueslave)
+    -   [MonitoringSlave](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#monitoringslave)
+3.  [Tipologie di One\-Shot Slaves](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#tipologie-di-one-shot-slaves)
+    -   [DataInitializerSlave](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#datainitializerslave)
+    -   [ReportGeneratorSlave](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#reportgeneratorslave)
+4.  [Considerazioni Generali](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#considerazioni-generali)
+5.  [Conclusione](https://chatgpt.com/c/675492be-b19c-8008-a16d-4687c69705f2#conclusione)
 
 * * *
+
+## Macro-Categorie di Slave
+
+### 1\. LoopingSlaveProcess
+
+**Descrizione:**
+
+Il **LoopingSlaveProcess** è una classe base per tutti gli slave che eseguono i propri compiti all'interno di un ciclo continuo. Questi slave sono progettati per monitorare costantemente risorse, elaborare task in tempo reale o reagire a eventi senza terminare dopo una singola esecuzione.
+
+**Implementazione:**
+
+```python
+# framework/slave/macrocategories.py
+
+from framework.slave.slave import SlaveProcess, SlaveConfig
+from typing import TypeVar, Generic
+import time
+
+LoopingSlaveConfigType = TypeVar("LoopingSlaveConfigType", bound=SlaveConfig)
+
+class LoopingSlaveProcess(SlaveProcess[LoopingSlaveConfigType], Generic[LoopingSlaveConfigType]):
+    """
+    Classe base per tutti gli Slave che eseguono compiti all'interno di un ciclo continuo.
+    """
+
+    def __init__(self, config: LoopingSlaveConfigType) -> None:
+        super().__init__(config=config)
+
+    def work(self) -> None:
+        """
+        Metodo principale eseguito nel processo.
+        Deve essere implementato nelle sottoclassi.
+        """
+        raise NotImplementedError(
+            f"La classe '{self.__class__.__name__}' deve implementare il metodo `work`."
+        )
+
+```
+
+### 2\. OneShotSlaveProcess
+
+**Descrizione:**
+
+Il **OneShotSlaveProcess** è una classe base per tutti gli slave che eseguono un'unica operazione e poi terminano. Questi slave sono ideali per compiti che devono essere eseguiti una volta, come l'inizializzazione di dati, la generazione di report o l'esecuzione di migrazioni.
+
+**Implementazione:**
+
+```python
+# framework/slave/macrocategories.py
+
+from framework.slave.slave import SlaveProcess, SlaveConfig
+from typing import TypeVar, Generic
+
+OneShotSlaveConfigType = TypeVar("OneShotSlaveConfigType", bound=SlaveConfig)
+
+class OneShotSlaveProcess(SlaveProcess[OneShotSlaveConfigType], Generic[OneShotSlaveConfigType]):
+    """
+    Classe base per tutti gli Slave che eseguono un'unica operazione e poi terminano.
+    """
+
+    def __init__(self, config: OneShotSlaveConfigType) -> None:
+        super().__init__(config=config)
+
+    def work(self) -> None:
+        """
+        Metodo principale eseguito nel processo.
+        Deve essere implementato nelle sottoclassi.
+        """
+        raise NotImplementedError(
+            f"La classe '{self.__class__.__name__}' deve implementare il metodo `work`."
+        )
+
+```
+
+* * *
+
+## Tipologie di Looping Slaves
+
+Questi slave eseguono compiti all'interno di un ciclo infinito, monitorando continuamente risorse, elaborando task o reagendo a eventi.
+
+
 
 ## PeriodicSlave
 

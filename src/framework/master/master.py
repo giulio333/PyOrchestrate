@@ -56,14 +56,13 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         self.slaves_config: dict[str, SlaveConfig] = {}
         self.monitor_health: bool = config.health_check.enabled
 
-        # Evento stop del master
-        self.stop_event = Event()
-
         # Contatore globale dei restart (solo se limited)
         self.total_restarts = 0
 
     @final
     def work(self) -> None:
+
+        self.stop_event = Event()
 
         self.__check_config()
 
@@ -94,7 +93,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
                     break
                 time.sleep(1)
 
-        # Quando esco dal main_loop, fermo i figli
+        # Quando esco dal main_loop, fermo i figli e health_monitor
         self.stop_all_slave()
         self.wait_for_slave()
 
@@ -156,6 +155,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             self.logger.info(f"Avviato figlio: {slave_instance.name}")
 
     def wait_for_slave(self) -> None:
+
         for slave in self.slaves.values():
             slave.join()
             self.logger.info(f"Figlio terminato: {slave.name}.")
