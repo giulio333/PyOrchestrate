@@ -17,8 +17,8 @@ class CheckConfig:
     to_monitor: bool = True
     """Se True, verrà monitorato lo stato di salute del processo."""
 
-    autorestart: bool = True
-    """Se True, il processo verrà riavviato in caso di errore."""
+    autorestart: bool = False
+    """Se True, il processo verrà riavviato in caso di errore o terminazione."""
 
     def __post_init__(self):
 
