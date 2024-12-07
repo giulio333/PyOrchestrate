@@ -1,9 +1,15 @@
 import logging
 from logging.handlers import RotatingFileHandler
 from colorama import init as colorama_init
+import os
+from ..settings import LOG_FOLDER
 
 # Inizializza colorama per garantire la compatibilità dei colori su Windows
 colorama_init(autoreset=True)
+
+# Crea la cartella dei log se non esiste
+if not os.path.exists(LOG_FOLDER):
+    os.makedirs(LOG_FOLDER)
 
 
 class ColoredFormatter(logging.Formatter):
@@ -58,7 +64,10 @@ def setup_logger(name: str, log_file: str = "framework.log", level: int = loggin
         console_handler.setFormatter(console_formatter)
 
         # Handler per il file con il formatter standard e rotazione
-        file_handler = RotatingFileHandler(log_file, maxBytes=1_000_000, backupCount=3)
+        log_file_path = os.path.join(LOG_FOLDER, log_file)
+        file_handler = RotatingFileHandler(
+            log_file_path, maxBytes=1_000_000, backupCount=3
+        )
         file_handler.setFormatter(file_formatter)
 
         # Aggiunta degli handler al logger
