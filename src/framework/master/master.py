@@ -144,7 +144,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             )
 
     def init_multiple_slave(
-        self, slave_class: type[SlaveProcess], configs: List[SlaveConfig]
+        self, slave_class: type[SlaveProcess], configs: list[SlaveConfig]
     ) -> None:
         self.setup_logger()
 

@@ -9,7 +9,7 @@ Per implementare uno **SlaveProcess**, creare una classe che estende `MasterProc
 ```python
 from framework.slave import SlaveProcess, SlaveConfig
 
-class Worker(SlaveProcess):
+class Worker(SlaveProcess[SlaveConfig]):
     def __init__(self, config: SlaveConfig) -> None:
         super().__init__(config)
 ```
@@ -80,3 +80,11 @@ from framework.slave import LoggerConfig
 class LauncherConfig(MasterConfig):
     logger = LoggerConfig(level=DEBUG)
 ```
+
+??? "code"
+    ::: framework.slave.LoggerConfig
+        options:
+            show_source: false
+            merge_init_into_class: true
+            members: false
+            heading_level: 0
