@@ -13,7 +13,7 @@ class WorkerConfig1(SlaveConfig):
     repeat: int = 5
 
     logger = LoggerConfig(level=DEBUG)
-    check_config = CheckConfig(to_monitor=True, autorestart=True, interval=1)
+    check_config = CheckConfig(to_monitor=True, autorestart=True)
 
 
 @dataclass
@@ -23,7 +23,7 @@ class WorkerConfig2(SlaveConfig):
     repeat: int = 5
 
     logger = LoggerConfig(level=DEBUG)
-    check_config = CheckConfig(to_monitor=False, autorestart=False, interval=1)
+    check_config = CheckConfig(to_monitor=False, autorestart=False)
 
 
 class Worker(SlaveProcess[WorkerConfig1]):
