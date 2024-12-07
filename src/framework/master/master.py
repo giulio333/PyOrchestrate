@@ -106,7 +106,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             while not self.stop_event.is_set():
                 # Se abbiamo raggiunto il numero massimo di riavvii, fermiamo il master
                 if self.total_restarts >= self.config.max_restarts:
-                    self.logger.info("Raggiunto il numero massimo di riavvii. Esco.")
+                    self.logger.warning("Raggiunto il numero massimo di riavvii. Esco.")
                     break
                 time.sleep(1)
 
@@ -126,6 +126,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         config: SlaveConfig,
         name_suffix: str = "",
     ) -> None:
+
         self.setup_logger()
 
         slave_instance: SlaveProcess = slave_class(config=config)
@@ -144,12 +145,28 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             )
 
     def init_multiple_slave(
-        self, slave_class: type[SlaveProcess], configs: list[SlaveConfig]
+        self, slave_class: type[SlaveProcess], configs: list[type[SlaveConfig]]
     ) -> None:
+        """
+        Init multiple slave processes.
+
+        If no config is provided, a default SlaveConfig will be used.
+
+        Args:
+            slave_class (type[SlaveProcess]): SlaveProcess class.
+            configs (list[SlaveConfig]): List of SlaveConfig classes.
+        """
+
         self.setup_logger()
 
+        if len(configs) == 0:
+            self.logger.warning("No config provided. Assuming default SlaveConfig.")
+            configs = [SlaveConfig]
+
         for i, config in enumerate(configs):
-            self.init_slave(slave_class=slave_class, config=config, name_suffix=str(i))
+            self.init_slave(
+                slave_class=slave_class, config=config(), name_suffix=str(i)
+            )
 
     def __start_slave(self) -> None:
         self.logger.info("Figli da avviare: %d", len(self.slaves))
