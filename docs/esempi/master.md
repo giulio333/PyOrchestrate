@@ -23,7 +23,7 @@ Ora possiamo definire una configurazione personalizzata per il nostro **MasterPr
 Per farlo, estendi la classe `MasterConfig`, ad esempio:
 
 ```python
-from framework.master import MasterConfig,
+from framework.master import MasterConfig
 
 @dataclass
 class LauncherConfig(MasterConfig):
@@ -47,19 +47,46 @@ Questi dati saranno accessibili all'interno del processo tramite l'attributo `co
 
 Ogni configurazione (`MasterConfig`) dispone di un metodo `validate`, che può essere sovrascritto per implementare logiche di validazione personalizzate.
 
-Questo oggetto contiene anche configurazioni predefinite:
+Questo oggetto contiene anche configurazioni predefinite molto utili, elenchiamone alcune...
 
-- `LoggerConfig`: configurazioni per il logger.
-- `check_interval`: intervallo di controllo della salute del processo.
-- `wait_mode`: modalità di attesa del processo.
-- `max_restart`: numero massimo di riavvii del processo.
+### HealthCheckConfig
 
-!!! example
-    Esempio di configurazione avanzata con logger e modalità di attesa specifica:
+Ogni **MasterProcess** dispone di un meccanismo di controllo della salute per verificare lo stato del processo.
 
-    ```python
-    @dataclass
-    class LauncherConfig(MasterConfig):
-        logger = LoggerConfig(level=DEBUG)
-        wait_mode = "none"
-    ```
+Puoi personalizzare il controllo della salute del processo attraverso la configurazione `HealthCheckConfig`.
+
+```python
+from framework.master import HealthCheckConfig
+
+@dataclass
+class LauncherConfig(MasterConfig):
+    version: str = "1.0"
+    start_time: datetime = datetime.now()
+
+    health_check = HealthCheckConfig(enabled=True, check_interval=5)
+```
+
+In questo modo, il processo controlla i propri slave ogni 5 secondi.
+
+??? "code"
+    ::: framework.master.utilities.HealthCheckConfig
+        options:
+            show_source: false
+            merge_init_into_class: true
+            members: false
+            heading_level: 0
+
+### LoggerConfig
+
+Puoi personalizzare il logger del processo attraverso la configurazione `LoggerConfig`.
+
+```python
+from framework.master import LoggerConfig
+
+@dataclass
+class LauncherConfig(MasterConfig):
+    version: str = "1.0"
+    start_time: datetime = datetime.now()
+
+    logger = LoggerConfig(level=DEBUG)
+```

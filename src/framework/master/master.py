@@ -1,29 +1,25 @@
 from multiprocessing import Process
-from threading import Event
+from threading import Event, Thread
 from logging import Logger
 from framework.utilities.logger import setup_logger
 from typing import Optional, List, final, Generic, TypeVar, Type, Callable, Literal
-from threading import Thread, Event
 from dataclasses import dataclass
 import time
 
-from framework.base_process.base import BaseConfig, BaseProcess, LoggerConfig
+from framework.base_process.base import BaseConfig, BaseProcess
+from framework.master.utilities import HealthCheckConfig
 from framework.slave.slave import SlaveProcess, SlaveConfig
 
 
-@dataclass
 class MasterConfig(BaseConfig):
     """
     Configurazioni di un MasterProcess.
 
     Attributes:
-        check_interval (int): Intervallo in secondi tra un controllo e l'altro.
-        wait_mode (str): Modalità di attesa. Può essere "infinite", "limited", "none".
-        max_restarts (int): Valido solo se wait_mode = "limited". Numero totale di riavvii consentiti.
+        wait_mode (Literal["infinite", "limited", "none"]): Modalità di attesa.
+        max_restarts (int): Numero totale di riavvii consentiti (solo per wait_mode = "limited").
+        health_check (HealthCheckConfig): Configurazione per il monitoraggio dello stato di salute.
     """
-
-    check_interval: int = 2
-    """Intervallo in secondi tra un HealthCheck e l'altro."""
 
     wait_mode: Literal["infinite", "limited", "none"] = "none"
     """
@@ -38,6 +34,11 @@ class MasterConfig(BaseConfig):
     Valido solo se wait_mode = "limited".
     """
 
+    health_check: HealthCheckConfig = HealthCheckConfig()
+    """
+    Configurazione per il monitoraggio dello stato di salute.
+    """
+
 
 MasterConfigType = TypeVar("MasterConfigType", bound=MasterConfig)
 
@@ -47,14 +48,13 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
     def __init__(
         self,
         config: MasterConfigType,
-        monitor_health: bool = False,
     ) -> None:
         super().__init__(name=self.__class__.__name__, config=config)
 
         self.logger: Logger
         self.slaves: dict[str, SlaveProcess[SlaveConfig]] = {}
         self.slaves_config: dict[str, SlaveConfig] = {}
-        self.monitor_health: bool = monitor_health
+        self.monitor_health: bool = config.health_check.enabled
 
         # Evento stop del master
         self.stop_event = Event()
@@ -74,8 +74,8 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             logger=self.logger,
             slave=self.slaves,
             master_process=self,
-            enabled=self.monitor_health,
-            check_interval=self.config.check_interval,
+            enabled=self.config.health_check.enabled,
+            check_interval=self.config.health_check.check_interval,
         )
 
         self.health_monitor.start()
@@ -263,8 +263,13 @@ class HealthMonitor:
         self.master_process: MasterProcess = master_process
 
     def start(self) -> None:
+
         if self._thread is not None and self._thread.is_alive():
             self.logger.warning("Il monitoraggio della salute è già attivo.")
+            return
+
+        if not self.enabled:
+            self.logger.info("Monitoraggio della salute disabilitato.")
             return
 
         self.logger.info("Avvio monitoraggio dello stato di salute.")
