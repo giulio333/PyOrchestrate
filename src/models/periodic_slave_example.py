@@ -31,6 +31,7 @@ class Worker(PeriodicSlave[WorkerConfig]):
         super().__init__(config=config)
 
     def setup(self) -> None:
+        super().setup()
         self.logger.info(f"Configurazione: {self.config}")
 
         self.frame_number = 0

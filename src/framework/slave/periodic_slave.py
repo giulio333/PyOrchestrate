@@ -40,7 +40,6 @@ class PeriodicSlave(LoopingSlave[PeriodicSlaveConfigType]):
         Override the `setup` and `runner` method with the logic to be executed.
         First the `setup` method is called (only once) and then the `runner` method will be called periodically.
 
-
         When you want to terminate the process, call the `stop` method or raise `TerminateProcess`.
     """
 
@@ -50,10 +49,7 @@ class PeriodicSlave(LoopingSlave[PeriodicSlaveConfigType]):
         self.interval: float = config.interval
         self.compensate_delay: bool = config.compensate_delay
 
-    @final
-    def work(self) -> None:
-
-        self.stop_event = Event()
+    def setup(self):
 
         self.timer = PeriodicTimer(
             logger=self.logger,
@@ -61,22 +57,17 @@ class PeriodicSlave(LoopingSlave[PeriodicSlaveConfigType]):
             compensate_delay=self.compensate_delay,
         )
 
-        self.logger.info(
-            f"PeriodicSlave avviato con intervallo di {self.interval} secondi."
-        )
+    @final
+    def loop(self) -> None:
 
-        self.setup()
+        try:
+            self.runner()
+        except TerminateProcess as e:
+            raise e
 
-        while not self.stop_event.is_set():
-
-            try:
-                self.runner()
-            except TerminateProcess as e:
-                raise e
-
-            if self.timer.wait(self.stop_event):
-                # stopping the process
-                break
+        if self.timer.wait(self.stop_event):
+            # stopping the process
+            return
 
     @final
     def stop(self):
@@ -84,15 +75,6 @@ class PeriodicSlave(LoopingSlave[PeriodicSlaveConfigType]):
         Stops the process.
         """
         self.stop_event.set()
-
-    @abstractmethod
-    def setup(self):
-        """
-        Here you can implement the setup logic.
-
-        This method is called once before the runner loop method.
-        """
-        pass
 
     @abstractmethod
     def runner(self):

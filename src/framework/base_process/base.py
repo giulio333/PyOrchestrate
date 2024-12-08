@@ -113,6 +113,13 @@ class BaseProcess(Process, Generic[Config]):
     def check_process_config(self, config_class: Type[BaseConfig] = BaseConfig):
         """
         Metodo per controllare l'integrità delle configurazioni passate al processo.
+
+        - Controlla che il processo abbia un attributo `config`.
+        - Controlla che il tipo di configurazione sia coerente con il tipo di processo.
+        - Esegue la validazione delle configurazioni.
+
+        Args:
+            config_class (Type[BaseConfig], optional): Tipo di configurazione assegnata.
         """
 
         if not hasattr(self, "config"):
@@ -131,4 +138,4 @@ class BaseProcess(Process, Generic[Config]):
 
         self.config.validate()
 
-        self.logger.debug("Configurazioni valide: %s", self.config)
+        self.logger.debug("Configurazioni validate: %s", self.config)

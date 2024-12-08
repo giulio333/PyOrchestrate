@@ -80,10 +80,13 @@ class LoopingSlave(SlaveProcess[LoopingSlaveConfigType]):
 
         while not self.stop_event.is_set():
 
-            try:
-                self.runner()
-            except TerminateProcess as e:
-                raise e
+            self.loop()
+
+    @abstractmethod
+    def loop(self):
+        """
+        Here you have to implement the logic to be executed.
+        """
 
     @final
     def stop(self):
