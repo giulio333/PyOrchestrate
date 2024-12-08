@@ -12,6 +12,9 @@ class SlaveConfig(BaseConfig):
     Attributes:
         check_config (CheckConfig): Configurazioni thread di controllo del Master.
         logger (LoggerConfig): Configurazioni del `logger`.
+
+    Methods:
+        validate: Metodo per validare i parametri di configurazione.
     """
 
     check_config = CheckConfig()

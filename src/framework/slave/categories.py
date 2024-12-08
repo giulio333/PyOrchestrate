@@ -1,8 +1,9 @@
-from typing import TypeVar, Generic, final
+from typing import Type, TypeVar, Generic, final
 from threading import Event
 import time
 from abc import abstractmethod
 
+from framework.base_process.base import BaseConfig
 from framework.slave import SlaveProcess, SlaveConfig
 from framework.base_process.exceptions import TerminateProcess
 from framework.utilities.periodic_timer import PeriodicTimer
@@ -45,6 +46,11 @@ class PeriodicSlaveConfig(SlaveConfig):
     Attributes:
         interval (int): Interval in seconds between each execution
         compensate_delay (bool): If True, the process will try to compensate the delay between the executions
+        check_config (CheckConfig): Configurazioni thread di controllo del Master.
+        logger (LoggerConfig): Configurazioni del `logger`.
+
+    Methods:
+        validate: Metodo per validare i parametri di configurazione.
     """
 
     interval: float = 5
@@ -101,7 +107,7 @@ class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
                 raise e
 
             if self.timer.wait(self.stop_event):
-                self.logger.info("Evento di stop rilevato. Terminazione del ciclo.")
+                # stopping the process
                 break
 
     @final
@@ -126,3 +132,8 @@ class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
         Here you have to implement the logic to be executed periodically.
         """
         pass
+
+    def check_process_config(
+        self, config_class: type[BaseConfig] = PeriodicSlaveConfig
+    ):
+        return super().check_process_config(config_class)

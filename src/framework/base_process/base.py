@@ -1,6 +1,6 @@
 from logging import Logger
 from multiprocessing import Process
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, Type
 from dataclasses import dataclass
 import logging
 import time
@@ -16,11 +16,11 @@ class BaseConfig:
 
     E' possibile estendere questa classe per aggiungere nuovi parametri di configurazione.
 
-    Sono disponibili i seguenti parametri di configurazione predefiniti:
-    - logger: Configurazioni del `logger`.
-
     Attributes:
         logger (LoggerConfig): Configurazioni del `logger`.
+
+    Methods:
+        validate: Metodo per validare i parametri di configurazione.
     """
 
     logger: LoggerConfig = LoggerConfig()
@@ -66,7 +66,7 @@ class BaseProcess(Process, Generic[Config]):
 
         self.setup_logger()
 
-        self.config.validate()
+        self.check_process_config()
 
         try:
             self.work()
@@ -109,3 +109,26 @@ class BaseProcess(Process, Generic[Config]):
             f"{self.name}.log",
             logging.getLevelName(level),
         )
+
+    def check_process_config(self, config_class: Type[BaseConfig] = BaseConfig):
+        """
+        Metodo per controllare l'integrità delle configurazioni passate al processo.
+        """
+
+        if not hasattr(self, "config"):
+            raise AttributeError("Il processo deve avere un attributo `config`.")
+
+        if not isinstance(self.config, config_class):
+            config_bases = ", ".join(
+                base.__name__ for base in type(self.config).__bases__
+            )
+            process_bases = ", ".join(base.__name__ for base in type(self).__bases__)
+            raise TypeError(
+                f"Il tipo '{type(self.config).__name__}' (ereditato da {config_bases}) non è valido "
+                f"per il processo di tipo '{type(self).__name__}' (ereditato da {process_bases}).\n"
+                f"Il processo {process_bases} richiede un tipo di configurazione {process_bases+"Config"}."
+            )
+
+        self.config.validate()
+
+        self.logger.debug("Configurazioni valide: %s", self.config)
