@@ -2,4 +2,4 @@ title: Quickstart
 nav:
         - quickstart.md
         - master.md
-        - slave.md
+        - slaves

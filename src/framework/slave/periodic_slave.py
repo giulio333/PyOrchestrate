@@ -9,39 +9,9 @@ from framework.base_process.exceptions import TerminateProcess
 from framework.utilities.periodic_timer import PeriodicTimer
 
 
-class OneShotSlaveConfig(SlaveConfig):
-    pass
-
-
-OneShotSlaveConfigType = TypeVar("OneShotSlaveConfigType", bound=OneShotSlaveConfig)
-
-
-class OneShotSlaveProcess(
-    SlaveProcess[OneShotSlaveConfigType], Generic[OneShotSlaveConfigType]
-):
+class PeriodicSlaveConfig(SlaveConfig):
     """
-    Theese processes are executed only once.
-
-    Usage:
-        Override the `work` method with the logic to be executed.
-    """
-
-    def __init__(self, config: OneShotSlaveConfigType) -> None:
-        super().__init__(config=config)
-
-    @abstractmethod
-    def work(self) -> None:
-        """
-        Here you have to implement the logic to be executed only once.
-        """
-        raise NotImplementedError(
-            f"La classe '{self.__class__.__name__}' deve implementare il metodo `work`."
-        )
-
-
-class LopingSlaveConfig(SlaveConfig):
-    """
-    LoppingSlave configuration.
+    PeriodicSlave configuration.
 
     Attributes:
         interval (int): Interval in seconds between each execution
@@ -59,10 +29,10 @@ class LopingSlaveConfig(SlaveConfig):
     """If True, the process will try to compensate the delay between the executions"""
 
 
-LoopingSlaveConfigType = TypeVar("LoopingSlaveConfigType", bound=LopingSlaveConfig)
+PeriodicSlaveConfigType = TypeVar("PeriodicSlaveConfigType", bound=PeriodicSlaveConfig)
 
 
-class LoopingSlave(SlaveProcess[LoopingSlaveConfigType]):
+class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
     """
     Theese processes are executed periodically.
 
@@ -74,7 +44,7 @@ class LoopingSlave(SlaveProcess[LoopingSlaveConfigType]):
         When you want to terminate the process, call the `stop` method or raise `TerminateProcess`.
     """
 
-    def __init__(self, config: LoopingSlaveConfigType) -> None:
+    def __init__(self, config: PeriodicSlaveConfigType) -> None:
         super().__init__(config=config)
 
         self.interval: float = config.interval
@@ -85,8 +55,14 @@ class LoopingSlave(SlaveProcess[LoopingSlaveConfigType]):
 
         self.stop_event = Event()
 
+        self.timer = PeriodicTimer(
+            logger=self.logger,
+            interval=self.interval,
+            compensate_delay=self.compensate_delay,
+        )
+
         self.logger.info(
-            f"LoopingSlave avviato con intervallo di {self.interval} secondi."
+            f"PeriodicSlave avviato con intervallo di {self.interval} secondi."
         )
 
         self.setup()
@@ -97,6 +73,10 @@ class LoopingSlave(SlaveProcess[LoopingSlaveConfigType]):
                 self.runner()
             except TerminateProcess as e:
                 raise e
+
+            if self.timer.wait(self.stop_event):
+                # stopping the process
+                break
 
     @final
     def stop(self):
@@ -121,5 +101,7 @@ class LoopingSlave(SlaveProcess[LoopingSlaveConfigType]):
         """
         pass
 
-    def check_process_config(self, config_class: type[BaseConfig] = LopingSlaveConfig):
+    def check_process_config(
+        self, config_class: type[BaseConfig] = PeriodicSlaveConfig
+    ):
         return super().check_process_config(config_class)
