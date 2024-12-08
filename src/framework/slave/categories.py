@@ -1,10 +1,17 @@
-from framework.slave import SlaveProcess, SlaveConfig
 from typing import TypeVar, Generic, final
 from threading import Event
 from time import sleep
 from abc import abstractmethod
 
-OneShotSlaveConfigType = TypeVar("OneShotSlaveConfigType", bound=SlaveConfig)
+from framework.slave import SlaveProcess, SlaveConfig
+from framework.base_process.exceptions import TerminateProcess
+
+
+class OneShotSlaveConfig(SlaveConfig):
+    pass
+
+
+OneShotSlaveConfigType = TypeVar("OneShotSlaveConfigType", bound=OneShotSlaveConfig)
 
 
 class OneShotSlaveProcess(
@@ -30,7 +37,18 @@ class OneShotSlaveProcess(
         )
 
 
-PeriodicSlaveConfigType = TypeVar("PeriodicSlaveConfigType", bound=SlaveConfig)
+class PeriodicSlaveConfig(SlaveConfig):
+    """
+    PeriodicSlave configuration.
+
+    Attributes:
+        interval (int): Interval in seconds between each execution
+    """
+
+    interval: int = 5
+
+
+PeriodicSlaveConfigType = TypeVar("PeriodicSlaveConfigType", bound=PeriodicSlaveConfig)
 
 
 class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
@@ -38,7 +56,8 @@ class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
     Theese processes are executed periodically.
 
     Usage:
-        Override the `runner` method with the logic to be executed.
+        Override the `setup` and `runner` method with the logic to be executed.
+        First the `setup` method is called (only once) and then the `runner` method will be called periodically.
 
         When you want to terminate the process, call the `stop` method.
     """
@@ -49,16 +68,38 @@ class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
 
     @final
     def work(self) -> None:
-
         self.stop_event = Event()
 
         self.logger.info(
             f"PeriodicSlave avviato con intervallo di {self.interval} secondi."
         )
 
+        try:
+
+            self.setup()
+
+        except Exception as e:
+            self.logger.error(f"Errore durante il setup: {e}")
+            self.stop_event.set()
+            return
+
         while not self.stop_event.is_set():
-            self.runner()
-            sleep(self.interval)
+
+            try:
+
+                self.runner()
+
+            except TerminateProcess as e:
+                raise e
+
+            except Exception as e:
+                self.logger.error(f"Errore durante il runner: {e}")
+                self.stop_event.set()
+                break
+
+            if self.stop_event.wait(timeout=self.interval):
+                self.logger.info("Evento di stop rilevato. Terminazione del ciclo.")
+                break
 
     @final
     def stop(self):
@@ -66,6 +107,15 @@ class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
         Stops the process.
         """
         self.stop_event.set()
+
+    @abstractmethod
+    def setup(self):
+        """
+        Here you can implement the setup logic.
+
+        This method is called once before the runner loop method.
+        """
+        pass
 
     @abstractmethod
     def runner(self):

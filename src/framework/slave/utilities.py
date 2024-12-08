@@ -14,7 +14,7 @@ class CheckConfig:
         interval (int): Intervallo di controllo in secondi.
     """
 
-    to_monitor: bool = True
+    to_monitor: bool = False
     """Se True, verrà monitorato lo stato di salute del processo."""
 
     autorestart: bool = False

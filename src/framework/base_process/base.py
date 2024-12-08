@@ -7,6 +7,7 @@ import time
 
 from framework.utilities.logger import setup_logger
 from framework.base_process.utilities import LoggerConfig
+from framework.base_process.exceptions import TerminateProcess
 
 
 class BaseConfig:
@@ -67,7 +68,10 @@ class BaseProcess(Process, Generic[Config]):
 
         self.config.validate()
 
-        self.work()
+        try:
+            self.work()
+        except TerminateProcess as e:
+            self.logger.warning("Processo terminato: %s", e)
 
         self.logger.debug("Tempo di esecuzione: %.2f", time.time() - self.start_time)
 
