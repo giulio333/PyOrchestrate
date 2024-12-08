@@ -13,5 +13,3 @@ if __name__ == "__main__":
     master.init_multiple_slave(slave_class=Worker, configs=[WorkerConfig])
 
     master.run()
-
-    sleep(5)
