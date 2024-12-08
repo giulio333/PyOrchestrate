@@ -1,10 +1,11 @@
 from typing import TypeVar, Generic, final
 from threading import Event
-from time import sleep
+import time
 from abc import abstractmethod
 
 from framework.slave import SlaveProcess, SlaveConfig
 from framework.base_process.exceptions import TerminateProcess
+from framework.utilities.periodic_timer import PeriodicTimer
 
 
 class OneShotSlaveConfig(SlaveConfig):
@@ -43,10 +44,13 @@ class PeriodicSlaveConfig(SlaveConfig):
 
     Attributes:
         interval (int): Interval in seconds between each execution
+        compensate_delay (bool): If True, the process will try to compensate the delay between the executions
     """
 
     interval: float = 5
     """Interval in seconds between each execution"""
+    compensate_delay: bool = True
+    """If True, the process will try to compensate the delay between the executions"""
 
 
 PeriodicSlaveConfigType = TypeVar("PeriodicSlaveConfigType", bound=PeriodicSlaveConfig)
@@ -66,23 +70,26 @@ class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
 
     def __init__(self, config: PeriodicSlaveConfigType) -> None:
         super().__init__(config=config)
-        self.interval = config.interval
+
+        self.interval: float = config.interval
+        self.compensate_delay: bool = config.compensate_delay
 
     @final
     def work(self) -> None:
+
         self.stop_event = Event()
+
+        self.timer = PeriodicTimer(
+            logger=self.logger,
+            interval=self.interval,
+            compensate_delay=self.compensate_delay,
+        )
 
         self.logger.info(
             f"PeriodicSlave avviato con intervallo di {self.interval} secondi."
         )
 
-        try:
-
-            self.setup()
-
-        except Exception as e:
-            self.logger.exception(f"Error during setup: {e}")
-            self.stop_event.set()
+        self.setup()
 
         while not self.stop_event.is_set():
 
@@ -93,12 +100,7 @@ class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
             except TerminateProcess as e:
                 raise e
 
-            except Exception as e:
-                self.logger.exception(f"Error during runner: {e}")
-                self.stop_event.set()
-                break
-
-            if self.stop_event.wait(timeout=self.interval):
+            if self.timer.wait(self.stop_event):
                 self.logger.info("Evento di stop rilevato. Terminazione del ciclo.")
                 break
 
