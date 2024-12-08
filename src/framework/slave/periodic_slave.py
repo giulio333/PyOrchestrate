@@ -4,12 +4,12 @@ import time
 from abc import abstractmethod
 
 from framework.base_process.base import BaseConfig
-from framework.slave import SlaveProcess, SlaveConfig
+from framework.slave.categories import LoopingSlave, LoopingSlaveConfig
 from framework.base_process.exceptions import TerminateProcess
 from framework.utilities.periodic_timer import PeriodicTimer
 
 
-class PeriodicSlaveConfig(SlaveConfig):
+class PeriodicSlaveConfig(LoopingSlaveConfig):
     """
     PeriodicSlave configuration.
 
@@ -32,7 +32,7 @@ class PeriodicSlaveConfig(SlaveConfig):
 PeriodicSlaveConfigType = TypeVar("PeriodicSlaveConfigType", bound=PeriodicSlaveConfig)
 
 
-class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
+class PeriodicSlave(LoopingSlave[PeriodicSlaveConfigType]):
     """
     Theese processes are executed periodically.
 

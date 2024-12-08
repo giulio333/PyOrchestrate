@@ -39,13 +39,11 @@ class OneShotSlaveProcess(
         )
 
 
-class LopingSlaveConfig(SlaveConfig):
+class LoopingSlaveConfig(SlaveConfig):
     """
     LoppingSlave configuration.
 
     Attributes:
-        interval (int): Interval in seconds between each execution
-        compensate_delay (bool): If True, the process will try to compensate the delay between the executions
         check_config (CheckConfig): Configurazioni thread di controllo del Master.
         logger (LoggerConfig): Configurazioni del `logger`.
 
@@ -53,13 +51,10 @@ class LopingSlaveConfig(SlaveConfig):
         validate: Metodo per validare i parametri di configurazione.
     """
 
-    interval: float = 5
-    """Interval in seconds between each execution"""
-    compensate_delay: bool = True
-    """If True, the process will try to compensate the delay between the executions"""
+    pass
 
 
-LoopingSlaveConfigType = TypeVar("LoopingSlaveConfigType", bound=LopingSlaveConfig)
+LoopingSlaveConfigType = TypeVar("LoopingSlaveConfigType", bound=LoopingSlaveConfig)
 
 
 class LoopingSlave(SlaveProcess[LoopingSlaveConfigType]):
@@ -70,24 +65,16 @@ class LoopingSlave(SlaveProcess[LoopingSlaveConfigType]):
         Override the `setup` and `runner` method with the logic to be executed.
         First the `setup` method is called (only once) and then the `runner` method will be called periodically.
 
-
         When you want to terminate the process, call the `stop` method or raise `TerminateProcess`.
     """
 
     def __init__(self, config: LoopingSlaveConfigType) -> None:
         super().__init__(config=config)
 
-        self.interval: float = config.interval
-        self.compensate_delay: bool = config.compensate_delay
-
     @final
     def work(self) -> None:
 
         self.stop_event = Event()
-
-        self.logger.info(
-            f"LoopingSlave avviato con intervallo di {self.interval} secondi."
-        )
 
         self.setup()
 
@@ -121,5 +108,5 @@ class LoopingSlave(SlaveProcess[LoopingSlaveConfigType]):
         """
         pass
 
-    def check_process_config(self, config_class: type[BaseConfig] = LopingSlaveConfig):
+    def check_process_config(self, config_class: type[BaseConfig] = LoopingSlaveConfig):
         return super().check_process_config(config_class)
