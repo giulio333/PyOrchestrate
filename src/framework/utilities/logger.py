@@ -36,12 +36,8 @@ class ColoredFormatter(logging.Formatter):
 def setup_logger(name: str, log_file: str = "framework.log", level: int = logging.INFO):
     """
     Configura un logger con rotazione automatica dei file e output colorato sulla console.
-
-    :param name: Nome del logger.
-    :param log_file: Percorso del file di log.
-    :param level: Livello di logging.
-    :return: Logger configurato.
     """
+
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
@@ -49,13 +45,13 @@ def setup_logger(name: str, log_file: str = "framework.log", level: int = loggin
     if not logger.hasHandlers():
         # Formatter standard per i file di log
         file_formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+            "%(asctime)s.%(msecs)03d [%(levelname)s] [%(name)s] %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 
         # Formatter colorato per la console
         console_formatter = ColoredFormatter(
-            "%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+            "%(asctime)s.%(msecs)03d [%(levelname)s] [%(name)s] %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 

@@ -16,7 +16,8 @@ from framework.base_process.exceptions import TerminateProcess
 class WorkerConfig(PeriodicSlaveConfig):
 
     message: str = "Hello, World!"
-    repeat: int = 5
+    repeat: int = 50
+    interval = 0.01
 
     logger = LoggerConfig(level=DEBUG)
     check_config = CheckConfig(to_monitor=True, autorestart=False)

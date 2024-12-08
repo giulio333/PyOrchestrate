@@ -73,7 +73,7 @@ class BaseProcess(Process, Generic[Config]):
         except TerminateProcess as e:
             self.logger.warning("Processo terminato: %s", e)
 
-        self.logger.debug("Tempo di esecuzione: %.2f", time.time() - self.start_time)
+        self.logger.debug("End - execution time[%.2f]", time.time() - self.start_time)
 
     def work(self) -> None:
         """

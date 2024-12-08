@@ -45,7 +45,8 @@ class PeriodicSlaveConfig(SlaveConfig):
         interval (int): Interval in seconds between each execution
     """
 
-    interval: int = 5
+    interval: float = 5
+    """Interval in seconds between each execution"""
 
 
 PeriodicSlaveConfigType = TypeVar("PeriodicSlaveConfigType", bound=PeriodicSlaveConfig)
@@ -59,12 +60,13 @@ class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
         Override the `setup` and `runner` method with the logic to be executed.
         First the `setup` method is called (only once) and then the `runner` method will be called periodically.
 
-        When you want to terminate the process, call the `stop` method.
+
+        When you want to terminate the process, call the `stop` method or raise `TerminateProcess`.
     """
 
     def __init__(self, config: PeriodicSlaveConfigType) -> None:
         super().__init__(config=config)
-        self.interval = 1
+        self.interval = config.interval
 
     @final
     def work(self) -> None:
@@ -79,9 +81,8 @@ class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
             self.setup()
 
         except Exception as e:
-            self.logger.error(f"Errore durante il setup: {e}")
+            self.logger.exception(f"Error during setup: {e}")
             self.stop_event.set()
-            return
 
         while not self.stop_event.is_set():
 
@@ -93,7 +94,7 @@ class PeriodicSlave(SlaveProcess[PeriodicSlaveConfigType]):
                 raise e
 
             except Exception as e:
-                self.logger.error(f"Errore durante il runner: {e}")
+                self.logger.exception(f"Error during runner: {e}")
                 self.stop_event.set()
                 break
 
