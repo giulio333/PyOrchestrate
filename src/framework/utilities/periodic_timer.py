@@ -55,7 +55,7 @@ class PeriodicTimer:
         _lock (threading.Lock): A lock to ensure thread-safe operations on internal state.
     """
 
-    def __init__(self, logger: Logger, interval: float, compensate_delay: bool = True):
+    def __init__(self, logger, interval: float, compensate_delay: bool = True):
         """
         Initializes a new instance of PeriodicTimer.
 
@@ -73,7 +73,7 @@ class PeriodicTimer:
         if interval <= 0:
             raise ValueError("Interval must be a positive number representing seconds.")
 
-        self.logger: Logger = logger
+        self.logger = logger
         self.interval: float = interval
         self.compensate_delay: bool = compensate_delay
         self.next_time: float = time.perf_counter()

@@ -6,6 +6,7 @@ import logging
 import time
 
 from framework.utilities.logger import setup_logger
+from framework.utilities.logguru import LoggerFactory
 from framework.base_process.utilities import LoggerConfig
 from framework.base_process.exceptions import TerminateProcess
 
@@ -50,7 +51,6 @@ class BaseProcess(Process, Generic[Config]):
 
         self.name: str = name
         self.config: Config = config
-        self.logger: Logger
 
     def run(self) -> None:
         """
@@ -99,10 +99,13 @@ class BaseProcess(Process, Generic[Config]):
 
         # estrazione configurazioni da BaseConfig.LoggerConfig
         logger_config: LoggerConfig = self.config.logger
-        level: int = logger_config.level
+        level: str = logger_config.level
         name: str = logger_config.filename.capitalize() or self.name
 
-        self.logger = setup_logger(name=name, log_file=f"{name}.log", level=level)
+        # self.logger = setup_logger(name=name, log_file=f"{name}.log", level=level)
+        self.logger = LoggerFactory.create_logger(
+            log_identifier=name, logger_name=name, level=level
+        )
 
         self.logger.info(
             "Logger configurato: log_file=%s, level=%s",

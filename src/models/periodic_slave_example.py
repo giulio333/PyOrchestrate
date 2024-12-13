@@ -21,7 +21,7 @@ class WorkerConfig(PeriodicSlaveConfig):
     interval = 1
     compensate_delay = True
 
-    logger = LoggerConfig(level=DEBUG)
+    logger = LoggerConfig(level="DEBUG")
     check_config = CheckConfig(to_monitor=True, autorestart=False)
 
 

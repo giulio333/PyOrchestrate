@@ -15,7 +15,7 @@ class LauncherConfig(MasterConfig):
     version: str = "1.0"
     start_time: datetime = datetime.now()
 
-    logger = LoggerConfig(level=DEBUG)
+    logger = LoggerConfig(level="DEBUG")
     wait_mode = "none"
     health_check = HealthCheckConfig(enabled=True, check_interval=50)
 

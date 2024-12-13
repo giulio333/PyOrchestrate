@@ -54,7 +54,6 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
     ) -> None:
         super().__init__(name=self.__class__.__name__, config=config)
 
-        self.logger: Logger
         self.slaves: dict[str, SlaveProcess[SlaveConfig]] = {}
         self.slaves_config: dict[str, SlaveConfig] = {}
         self.monitor_health: bool = config.health_check.enabled
@@ -251,13 +250,13 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
 class HealthMonitor:
     def __init__(
         self,
-        logger: Logger,
+        logger,
         slave: dict[str, SlaveProcess[SlaveConfig]],
         master_process: MasterProcess,
         enabled: bool = False,
         check_interval: int = 2,
     ) -> None:
-        self.logger: Logger = logger
+        self.logger = logger
         self.slave_processes: dict[str, SlaveProcess[SlaveConfig]] = slave
         self.enabled: bool = enabled
         self.check_interval: int = check_interval
@@ -346,5 +345,5 @@ class HealthMonitor:
                 self.master_process.stop_event.set()
 
         elif self.master_process.config.wait_mode == "infinite":
-            # In modalità infinite non facciamo nulla, continua a girare.
+            # In modalità infinite non facciamo nulla, continua a lavorare.
             pass

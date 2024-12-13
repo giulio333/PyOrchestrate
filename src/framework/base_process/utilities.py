@@ -15,7 +15,7 @@ class LoggerConfig:
         filename (str): File name for logging. Defaults to empty string.
     """
 
-    level: int = INFO
+    level: str = "INFO"
     """
     Livello di logging. Defaults to INFO.
     """
