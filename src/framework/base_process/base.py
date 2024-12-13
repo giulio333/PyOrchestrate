@@ -86,9 +86,10 @@ class BaseProcess(Process, Generic[Config]):
 
     def setup_logger(self):
         """
-        Configura il logger del processo.
+        Configura il logger del processo. Le configurazioni vengono estratte da `LoggerConfig`.
 
-        E' possibile sovrascrivere questo metodo per personalizzare il logger.
+        tip:
+            E' possibile sovrascrivere questo metodo per personalizzare il logger.
 
         Returns:
             Logger: Istanza del logger configurato.
@@ -100,17 +101,14 @@ class BaseProcess(Process, Generic[Config]):
         # estrazione configurazioni da BaseConfig.LoggerConfig
         logger_config: LoggerConfig = self.config.logger
         level: str = logger_config.level
-        name: str = logger_config.filename.capitalize() or self.name
+        filename: str = logger_config.filename.capitalize() or self.name
 
-        # self.logger = setup_logger(name=name, log_file=f"{name}.log", level=level)
         self.logger = LoggerFactory.create_logger(
-            log_identifier=name, logger_name=name, level=level
+            log_identifier=filename, logger_name=filename, level=level
         )
 
         self.logger.info(
-            "Logger configurato: log_file=%s, level=%s",
-            f"{self.name}.log",
-            logging.getLevelName(level),
+            f"Logger configurato: log_file={self.name}.log, level={level}",
         )
 
     def check_process_config(self, config_class: Type[BaseConfig] = BaseConfig):
