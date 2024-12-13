@@ -2,6 +2,8 @@
 title: SlaveProcess
 ---
 
+I processi **OneShotSlave** e **LoopingSlave** derivano da uno **SlaveProcess**. E' una buona scelta utilizzare questa classe per definire il vostro processo slave se avete bisogno di un comportamento personalizzato.
+
 Vediamo come creare e personalizzare uno **SlaveProcess** e come configurare le sue opzioni.
 
 Per implementare uno **SlaveProcess**, creare una classe che estende `MasterProcess` all'interno della cartella `models`. Ad esempio:

@@ -2,7 +2,9 @@
 title: Introduzione
 ---
 
-Nel contesto del nostro framework, **SlaveProcess** rappresenta un componente fondamentale per la gestione e l'esecuzione di compiti paralleli e specifici. L'architettura adottata si basa sul modello **Master-Slave**, in cui il **MasterProcess** coordina e supervisiona una serie di **SlaveProcess**, ognuno dei quali è incaricato di eseguire attività particolari in modo indipendente e parallelo.
+Nel contesto del nostro framework, **SlaveProcess** rappresenta un componente fondamentale per la gestione e l'esecuzione di compiti paralleli e specifici. 
+
+L'architettura adottata si basa sul modello **Master-Slave**, in cui il **MasterProcess** coordina e supervisiona una serie di **SlaveProcess**, ognuno dei quali è incaricato di eseguire attività particolari in modo indipendente e parallelo.
 
 ## Cosa è un SlaveProcess?
 
