@@ -77,7 +77,6 @@ class PeriodicTimer:
         self.interval: float = interval
         self.compensate_delay: bool = compensate_delay
         self.next_time: float = time.perf_counter()
-        self._lock = threading.Lock()
 
     def wait(self, stop_event: threading.Event) -> bool:
         """
@@ -112,19 +111,18 @@ class PeriodicTimer:
             ```
         """
 
-        with self._lock:
-            self.next_time += self.interval
-            sleep_time = self.next_time - time.perf_counter()
+        self.next_time += self.interval
+        sleep_time = self.next_time - time.perf_counter()
 
-            if sleep_time > 0:
-                # Wait for the remaining time or until the stop_event is set
-                return stop_event.wait(timeout=sleep_time)
-            else:
-                if self.compensate_delay:
-                    # Adjust the next_time to the current time to compensate for delay
-                    self.next_time = time.perf_counter()
-                # If not compensating, allow next_time to continue accumulating delays
-                return False
+        if sleep_time > 0:
+            # Wait for the remaining time or until the stop_event is set
+            return stop_event.wait(timeout=sleep_time)
+        else:
+            if not self.compensate_delay:
+                # Adjust the next_time to the current time to compensate for delay
+                self.next_time = time.perf_counter()
+            # If not compensating, allow next_time to continue accumulating delays
+            return False
 
     def reset(self):
         """
@@ -134,5 +132,5 @@ class PeriodicTimer:
         counter, effectively resetting the timer's schedule. This can be useful if the
         timing sequence needs to be restarted without waiting for the next interval.
         """
-        with self._lock:
-            self.next_time = time.perf_counter()
+
+        self.next_time = time.perf_counter()

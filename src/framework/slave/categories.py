@@ -5,8 +5,6 @@ from abc import abstractmethod
 
 from framework.base_process.base import BaseConfig
 from framework.slave import SlaveProcess, SlaveConfig
-from framework.base_process.exceptions import TerminateProcess
-from framework.utilities.periodic_timer import PeriodicTimer
 
 
 class OneShotSlaveConfig(SlaveConfig):
@@ -80,10 +78,10 @@ class LoopingSlave(SlaveProcess[LoopingSlaveConfigType]):
 
         while not self.stop_event.is_set():
 
-            self.loop()
+            self.cycle()
 
     @abstractmethod
-    def loop(self):
+    def cycle(self):
         """
         Here you have to implement the logic to be executed.
         """

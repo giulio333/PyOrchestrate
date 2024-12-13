@@ -2,6 +2,8 @@ import time
 import os, sys
 from time import sleep
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from models.master_example import Launcher, LauncherConfig
 from models.periodic_slave_example import Worker, WorkerConfig
 

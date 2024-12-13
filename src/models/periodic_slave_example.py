@@ -19,7 +19,7 @@ class WorkerConfig(PeriodicSlaveConfig):
     repeat: int = 50
 
     interval = 1
-    compensate_delay = False
+    compensate_delay = True
 
     logger = LoggerConfig(level=DEBUG)
     check_config = CheckConfig(to_monitor=True, autorestart=False)
@@ -32,6 +32,7 @@ class Worker(PeriodicSlave[WorkerConfig]):
 
     def setup(self) -> None:
         super().setup()
+
         self.logger.info(f"Configurazione: {self.config}")
 
         self.frame_number = 0
@@ -44,11 +45,8 @@ class Worker(PeriodicSlave[WorkerConfig]):
             f"Elaborazione frame {self.frame_number}/{self.config.repeat}: {self.config.message}"
         )
 
-        if self.frame_number > 5 and self.frame_number < 8:
+        if self.frame_number > 9 and self.frame_number < 21:
             time.sleep(self.interval + 0.3)
-
-        if self.frame_number == 20:
-            self.stop()
 
         if self.frame_number >= self.config.repeat:
             self.logger.info("Elaborazione completata.")

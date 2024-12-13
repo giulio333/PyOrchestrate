@@ -58,7 +58,7 @@ class PeriodicSlave(LoopingSlave[PeriodicSlaveConfigType]):
         )
 
     @final
-    def loop(self) -> None:
+    def cycle(self) -> None:
 
         try:
             self.runner()
