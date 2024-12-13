@@ -43,8 +43,8 @@ class LoggerFactory:
     dev_format: str = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
-        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-        " {elapsed} | "
+        "<level><cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan></level> - "
+        "<level>{elapsed}</level> | "
         "{extra[name]} | "
         "<level>{message}</level>"
     )
@@ -52,8 +52,8 @@ class LoggerFactory:
     prod_format: str = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
-        "<cyan>{name}</cyan>:<cyan>{{function}}</cyan>:<cyan>{{line}}</cyan> - "
-        "{extra[name]} - <level>{message}</level>"
+        "{extra[name]} | "
+        "<level>{message}</level>"
     )
 
     rotation_default: str = "00:00"
