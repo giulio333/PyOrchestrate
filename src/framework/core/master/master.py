@@ -6,9 +6,9 @@ from typing import Optional, List, final, Generic, TypeVar, Type, Callable, Lite
 from dataclasses import dataclass
 import time
 
-from framework.core.base import BaseConfig, BaseProcess
-from framework.core.master import HealthCheckConfig
-from framework.core.slave import SlaveProcess, SlaveConfig
+from framework.core.base.base import BaseConfig, BaseProcess
+from framework.core.master.utilities import HealthCheckConfig
+from framework.core.slave.slave import SlaveProcess, SlaveConfig
 
 
 class MasterConfig(BaseConfig):
@@ -99,7 +99,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         self.stop_all_slave()
         self.wait_for_slave()
 
-        self.logger.debug("{} terminato.", self.name)
+        self.logger.debug("%s terminato.", self.name)
 
     def init_slave(
         self,

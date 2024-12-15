@@ -1,4 +1,4 @@
-from ..base_process.utilities import LoggerConfig
+from framework.core import LoggerConfig
 from .master import MasterProcess, MasterConfig
 
-from .utilities import HealthCheckConfig
+from framework.core import HealthCheckConfig
