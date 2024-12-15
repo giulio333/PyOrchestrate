@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from logging import DEBUG
 
-from framework.master import (
+from framework.core.master import (
     MasterProcess,
     MasterConfig,
     LoggerConfig,

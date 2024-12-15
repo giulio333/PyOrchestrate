@@ -3,8 +3,8 @@ from threading import Event
 import time
 from abc import abstractmethod
 
-from framework.base_process.base import BaseConfig
-from framework.slave import SlaveProcess, SlaveConfig
+from framework.core.base import BaseConfig
+from framework.core.slave import SlaveProcess, SlaveConfig
 
 
 class OneShotSlaveConfig(SlaveConfig):

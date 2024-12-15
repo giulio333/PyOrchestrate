@@ -2,14 +2,14 @@ import time
 from dataclasses import dataclass
 from logging import DEBUG
 
-from framework.slave import (
+from framework.core.slave import (
     PeriodicSlave,
     PeriodicSlaveConfig,
     LoggerConfig,
     CheckConfig,
 )
 
-from framework.base_process.exceptions import TerminateProcess
+from framework.core.base.exceptions import TerminateProcess
 
 
 @dataclass

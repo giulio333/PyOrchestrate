@@ -2,9 +2,9 @@ from typing import TypeVar, Any
 from threading import Thread
 from dataclasses import dataclass
 from time import sleep
-from framework.base_process.base import BaseConfig
-from framework.slave import PeriodicSlave, PeriodicSlaveConfig
-from framework.worker import WorkerThread, WorkerConfig
+from framework.core.base import BaseConfig
+from framework.core.slave import PeriodicSlave, PeriodicSlaveConfig
+from framework.core.worker import WorkerThread, WorkerConfig
 
 
 @dataclass

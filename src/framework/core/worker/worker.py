@@ -1,8 +1,8 @@
 from typing import TypeVar, Generic
 from logging import Logger
 
-from framework.base_process.base import Config, BaseConfig, BaseThread
-from framework.slave.utilities import CheckConfig
+from framework.core.base import Config, BaseConfig, BaseThread
+from framework.core.slave.utilities import CheckConfig
 
 
 class WorkerConfig(BaseConfig):

@@ -3,14 +3,14 @@ from threading import Event
 import time
 from abc import abstractmethod
 
-from framework.base_process.base import BaseConfig
-from framework.worker import (
+from framework.core.base import BaseConfig
+from framework.core.worker import (
     WorkerThread,
     WorkerConfig,
     LoopingWorkerConfig,
     LoopingWorker,
 )
-from framework.base_process.exceptions import TerminateProcess
+from framework.core.base.exceptions import TerminateProcess
 from framework.utilities.periodic_timer import PeriodicTimer
 
 

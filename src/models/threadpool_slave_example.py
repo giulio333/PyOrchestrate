@@ -2,14 +2,14 @@ import time
 from dataclasses import dataclass
 from logging import DEBUG
 
-from framework.slave import (
+from framework.core.slave import (
     ThreadPoolSlave,
     ThreadPoolSlaveConfig,
     LoggerConfig,
     CheckConfig,
 )
-from framework.worker import PeriodicWorker, PeriodicWorkerConfig
-from framework.slave.threadpool_slave import w_config
+from framework.core.worker import PeriodicWorker, PeriodicWorkerConfig
+from framework.core.slave.threadpool_slave import w_config
 
 
 class PrinterThread(PeriodicWorker):
