@@ -3,18 +3,18 @@ from threading import Thread
 from dataclasses import dataclass
 from time import sleep
 from framework.base_process.base import BaseConfig
-from framework.slave.categories import LoopingSlave, LoopingSlaveConfig
-from framework.worker.worker import BaseWorker
+from framework.slave import PeriodicSlave, PeriodicSlaveConfig
+from framework.worker import WorkerThread, WorkerConfig
 
 
 @dataclass
 class w_config:
     worker_name: str
-    worker_class: type[BaseWorker]
+    worker_class: type[WorkerThread]
     worker_config: BaseConfig
 
 
-class ThreadPoolSlaveConfig(LoopingSlaveConfig):
+class ThreadPoolSlaveConfig(PeriodicSlaveConfig):
     """
     ThreadPoolSlave configuration.
 
@@ -39,7 +39,7 @@ ThreadPoolSlaveConfigType = TypeVar(
 )
 
 
-class ThreadPoolSlave(LoopingSlave[ThreadPoolSlaveConfigType]):
+class ThreadPoolSlave(PeriodicSlave[ThreadPoolSlaveConfigType]):
     """
     Theese processes can create a thread pool.
 
@@ -57,19 +57,19 @@ class ThreadPoolSlave(LoopingSlave[ThreadPoolSlaveConfigType]):
 
         self.config: ThreadPoolSlaveConfigType = config
         self.w_config: list[w_config] = workers
-        self.workers: dict[str, BaseWorker] = {}
+        self.workers: dict[str, WorkerThread] = {}
         self.workers_config: dict[str, BaseConfig] = {}
 
     def init_worker(
         self,
-        worker_class: type[BaseWorker],
+        worker_class: type[WorkerThread],
         config,
         name_suffix: str = "",
     ) -> None:
 
         self.setup_logger()
 
-        worker_instance = worker_class(config=config, name=worker_class.__name__)
+        worker_instance: WorkerThread = worker_class(config=config)
 
         if name_suffix:
             worker_instance.name = f"{worker_instance.__class__.__name__}_{name_suffix}"
@@ -79,15 +79,14 @@ class ThreadPoolSlave(LoopingSlave[ThreadPoolSlaveConfigType]):
 
         self.logger.info(f"Aggiunto figlio: {worker_instance.name}")
 
-    def cycle(self):
+    def runner(self):
 
         for worker_name, worker in self.workers.items():
             if not worker.is_alive():
                 self.logger.error(f"Worker {worker_name} is not alive")
 
-        sleep(1)
-
     def setup(self):
+        super().setup()
 
         # instantiate and start threads
         for w_config in self.w_config:

@@ -1,7 +1,7 @@
 from typing import TypeVar, Generic
 from logging import Logger
 
-from framework.base_process.base import Config, BaseConfig, BaseWorker
+from framework.base_process.base import Config, BaseConfig, BaseThread
 from framework.slave.utilities import CheckConfig
 
 
@@ -23,7 +23,7 @@ class WorkerConfig(BaseConfig):
 WorkerConfigType = TypeVar("WorkerConfigType", bound=WorkerConfig)
 
 
-class WorkerProcess(BaseWorker[WorkerConfigType], Generic[WorkerConfigType]):
+class WorkerThread(BaseThread[WorkerConfigType], Generic[WorkerConfigType]):
     """
     Classe base WorkerProcess.
 

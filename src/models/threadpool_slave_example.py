@@ -8,23 +8,28 @@ from framework.slave import (
     LoggerConfig,
     CheckConfig,
 )
-from framework.worker import BaseConfig, BaseWorker
+from framework.worker import PeriodicWorker, PeriodicWorkerConfig
 from framework.slave.threadpool_slave import w_config
 
 
-class ww(BaseWorker):
-    def work(self):
+class PrinterThread(PeriodicWorker):
+    def runner(self):
         self.logger.info(f"Hello, World!")
 
-    def setup(self):
-        self.logger.info(f"Configurazione: {self.config}")
+
+printer = w_config("printer", PrinterThread, PeriodicWorkerConfig())
 
 
-c = w_config("worker", ww, BaseConfig())
+class ReaderThread(PeriodicWorker):
+    def runner(self):
+        self.logger.info(f"Lettura di un file")
+
+
+reader = w_config("reader", ReaderThread, PeriodicWorkerConfig())
 
 
 @dataclass
-class EngineConfig(ThreadPoolSlaveConfig):
+class PrinterConfig(ThreadPoolSlaveConfig):
 
     message: str = "Hello, World!"
     repeat: int = 50
@@ -36,10 +41,10 @@ class EngineConfig(ThreadPoolSlaveConfig):
     check_config = CheckConfig(to_monitor=True, autorestart=False)
 
 
-class Engine(ThreadPoolSlave[EngineConfig]):
+class Engine(ThreadPoolSlave[PrinterConfig]):
 
-    def __init__(self, config: EngineConfig) -> None:
-        super().__init__(config=config, workers=[c])
+    def __init__(self, config: PrinterConfig) -> None:
+        super().__init__(config=config, workers=[reader, printer])
 
     def setup(self) -> None:
         super().setup()

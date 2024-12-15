@@ -141,7 +141,7 @@ class BaseProcess(Process, Generic[Config]):
         self.logger.debug("Configurazioni validate: %s", self.config)
 
 
-class BaseWorker(Thread, Generic[Config]):
+class BaseThread(Thread, Generic[Config]):
     """
     Classe base per tutti i worker.
     """
