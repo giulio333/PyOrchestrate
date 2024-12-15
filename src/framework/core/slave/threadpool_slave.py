@@ -9,11 +9,12 @@ from framework.core.worker import WorkerThread, WorkerConfig
 
 @dataclass
 class w_config:
-    worker_name: str
     worker_class: type[WorkerThread]
     worker_config: BaseConfig
+    worker_name: str = ""
 
 
+@dataclass
 class ThreadPoolSlaveConfig(PeriodicSlaveConfig):
     """
     ThreadPoolSlave configuration.
@@ -82,8 +83,13 @@ class ThreadPoolSlave(PeriodicSlave[ThreadPoolSlaveConfigType]):
     def runner(self):
 
         for worker_name, worker in self.workers.items():
+
             if not worker.is_alive():
-                self.logger.error(f"Worker {worker_name} is not alive")
+                self.logger.warning(f"Worker {worker_name} is not alive")
+
+        # if at least one worker is not alive, stop the process
+        if not all(worker.is_alive() for worker in self.workers.values()):
+            self.stop()
 
     def setup(self):
         super().setup()

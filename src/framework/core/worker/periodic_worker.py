@@ -79,7 +79,7 @@ class PeriodicWorker(LoopingWorker[PeriodicWorkerConfigType]):
     @final
     def stop(self):
         """
-        Stops the process.
+        Stops the Thread.
         """
         self.stop_event.set()
 

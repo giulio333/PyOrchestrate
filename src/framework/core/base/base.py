@@ -138,7 +138,7 @@ class BaseProcess(Process, Generic[Config]):
 
         self.config.validate()
 
-        self.logger.debug("Configurazioni validate: %s", self.config)
+        self.logger.debug(f"Configurazioni validate: {self.config}")
 
 
 class BaseThread(Thread, Generic[Config]):
@@ -233,4 +233,4 @@ class BaseThread(Thread, Generic[Config]):
 
         self.config.validate()
 
-        self.logger.debug("Configurazioni validate: %s", self.config)
+        self.logger.debug(f"Configurazioni validate: {self.config}")

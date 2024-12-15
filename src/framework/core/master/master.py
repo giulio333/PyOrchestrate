@@ -150,7 +150,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             )
 
     def __start_slave(self) -> None:
-        self.logger.info("Figli da avviare: %d", len(self.slaves))
+        self.logger.info(f"Figli da avviare: {len(self.slaves)}")
 
         for slave_instance in self.slaves.values():
             slave_instance.start()

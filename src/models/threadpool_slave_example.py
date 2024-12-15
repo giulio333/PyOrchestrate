@@ -12,20 +12,37 @@ from framework.core.worker import PeriodicWorker, PeriodicWorkerConfig
 from framework.core.slave.threadpool_slave import w_config
 
 
-class PrinterThread(PeriodicWorker):
+class ThreadConfig(PeriodicWorkerConfig):
+
+    interval = 1
+    cicli = 0
+
+
+class PrinterThread(PeriodicWorker[ThreadConfig]):
     def runner(self):
         self.logger.info(f"Hello, World!")
 
+        self.config.cicli += 1
 
-printer = w_config("printer", PrinterThread, PeriodicWorkerConfig())
+        if self.config.cicli == 10:
+            self.stop()
 
 
-class ReaderThread(PeriodicWorker):
+printer = w_config(PrinterThread, ThreadConfig())
+
+
+class ReaderThread(PeriodicWorker[ThreadConfig]):
+
     def runner(self):
         self.logger.info(f"Lettura di un file")
 
+        self.config.cicli += 1
 
-reader = w_config("reader", ReaderThread, PeriodicWorkerConfig())
+        if self.config.cicli == 10:
+            self.stop()
+
+
+reader = w_config(ReaderThread, ThreadConfig())
 
 
 @dataclass
@@ -44,7 +61,7 @@ class PrinterConfig(ThreadPoolSlaveConfig):
 class Engine(ThreadPoolSlave[PrinterConfig]):
 
     def __init__(self, config: PrinterConfig) -> None:
-        super().__init__(config=config, workers=[reader, printer])
+        super().__init__(config=config, workers=[reader])
 
     def setup(self) -> None:
         super().setup()
