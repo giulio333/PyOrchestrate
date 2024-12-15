@@ -1,7 +1,7 @@
 from typing import TypeVar, Generic, Any
 from abc import abstractmethod
 
-from framework.slave import PeriodicSlave, PeriodicSlaveConfig
+from framework.core.slave.periodic_slave import PeriodicSlave, PeriodicSlaveConfig
 
 
 class EventDrivenSlaveConfig(PeriodicSlaveConfig):

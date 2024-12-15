@@ -7,8 +7,8 @@ import time
 
 from framework.utilities.logger import setup_logger
 from framework.utilities.logguru import LoggerFactory
-from framework.base_process.utilities import LoggerConfig
-from framework.base_process.exceptions import TerminateProcess
+from framework.core.base.utilities import LoggerConfig
+from framework.core.base.exceptions import TerminateProcess
 
 
 class BaseConfig:
