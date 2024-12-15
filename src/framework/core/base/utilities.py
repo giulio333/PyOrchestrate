@@ -11,13 +11,13 @@ class LoggerConfig:
     If not specified, default values will be used.
 
     Attributes:
-        level (int): Logging level. Defaults to INFO.
+        level (int): Logging level. Defaults to DEBUG.
         filename (str): File name for logging. Defaults to empty string.
     """
 
-    level: str = "INFO"
+    level: str = "DEBUG"
     """
-    Livello di logging. Defaults to INFO.
+    Livello di logging. Defaults to DEBUG.
     """
 
     filename: str = ""

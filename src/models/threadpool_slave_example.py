@@ -12,6 +12,7 @@ from framework.core.worker import PeriodicWorker, PeriodicWorkerConfig
 from framework.core.slave.threadpool_slave import w_config
 
 
+@dataclass
 class ThreadConfig(PeriodicWorkerConfig):
 
     interval = 1
