@@ -3,9 +3,9 @@ from threading import Event
 import time
 from abc import abstractmethod
 
-from framework.core.base import BaseConfig
-from framework.core.slave.categories import LoopingSlave, LoopingSlaveConfig
-from framework.core.base import TerminateProcess
+from framework.base_process.base import BaseConfig
+from framework.slave.categories import LoopingSlave, LoopingSlaveConfig
+from framework.base_process.exceptions import TerminateProcess
 from framework.utilities.periodic_timer import PeriodicTimer
 
 

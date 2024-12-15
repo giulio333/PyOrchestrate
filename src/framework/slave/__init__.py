@@ -1,4 +1,4 @@
-from ..base import LoggerConfig
+from ..base_process.utilities import LoggerConfig
 from .slave import SlaveProcess, SlaveConfig
 from .periodic_slave import PeriodicSlave, PeriodicSlaveConfig
 from .threadpool_slave import ThreadPoolSlave, ThreadPoolSlaveConfig
