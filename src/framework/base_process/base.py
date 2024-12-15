@@ -1,11 +1,8 @@
-from logging import Logger
 from multiprocessing import Process
+from threading import Thread
 from typing import TypeVar, Generic, Type
-from dataclasses import dataclass
-import logging
 import time
 
-from framework.utilities.logger import setup_logger
 from framework.utilities.logguru import LoggerFactory
 from framework.base_process.utilities import LoggerConfig
 from framework.base_process.exceptions import TerminateProcess
@@ -62,14 +59,16 @@ class BaseProcess(Process, Generic[Config]):
         """
         super().run()
 
-        self.start_time = time.time()
+        self.start_time: float = time.time()
 
         self.setup_logger()
 
         self.check_process_config()
 
         try:
+
             self.work()
+
         except TerminateProcess as e:
             self.logger.warning("Processo terminato: %s", e)
 
@@ -135,6 +134,101 @@ class BaseProcess(Process, Generic[Config]):
                 f"Il tipo '{type(self.config).__name__}' (ereditato da {config_bases}) non è valido "
                 f"per il processo di tipo '{type(self).__name__}' (ereditato da {process_bases}).\n"
                 f"Il processo {process_bases} richiede un tipo di configurazione {process_bases+"Config"}."
+            )
+
+        self.config.validate()
+
+        self.logger.debug("Configurazioni validate: %s", self.config)
+
+
+class BaseWorker(Thread, Generic[Config]):
+    """
+    Classe base per tutti i worker.
+    """
+
+    def __init__(self, name: str, config: Config, *args, **kwargs):
+        """
+        Inizializza un'istanza di BaseWorker.
+
+        Args:
+            name (str): Nome del worker.
+            config (Config): Configurazioni del worker.
+        """
+        super().__init__(name=name)
+
+        self.name: str = name
+        self.config: Config = config
+
+    def run(self) -> None:
+        """
+        Metodo principale del worker.
+
+        - Configura il logger con il nome del worker.
+        - Esegue la validazione delle configurazioni.
+        - Chiama il metodo `work`.
+        """
+        super().run()
+
+        self.start_time: float = time.time()
+
+        self.setup_logger()
+
+        self.check_worker_config()
+
+        try:
+            self.work()
+        except TerminateProcess as e:
+            self.logger.warning("Worker terminato: %s", e)
+
+        self.logger.debug("End - execution time[%.2f]", time.time() - self.start_time)
+
+    def work(self):
+        """
+        Metodo principale da implementare nelle sottoclassi.
+        """
+
+        raise NotImplementedError(
+            f"La classe '{self.__class__.__name__}' deve implementare il metodo `work`."
+        )
+
+    def setup_logger(self):
+        """
+        Configura il logger del worker. Le configurazioni vengono estratte da `LoggerConfig`.
+        """
+
+        if hasattr(self, "logger"):
+            return
+
+        # estrazione configurazioni da BaseConfig.LoggerConfig
+        logger_config: LoggerConfig = self.config.logger
+        level: str = logger_config.level
+        filename: str = logger_config.filename.capitalize() or self.name
+
+        self.logger = LoggerFactory.create_logger(
+            log_identifier=filename, logger_name=filename, level=level
+        )
+
+        self.logger.info(
+            f"Logger configurato: log_file={self.name}.log, level={level}",
+        )
+
+    def check_worker_config(self, config_class: Type[BaseConfig] = BaseConfig):
+        """
+        Metodo per controllare l'integrità delle configurazioni passate al worker.
+        """
+
+        if not hasattr(self, "config"):
+            raise AttributeError("Il worker deve avere un attributo `config`.")
+
+        if not isinstance(self.config, config_class):
+            config_bases = ", ".join(
+                base.__name__ for base in type(self.config).__bases__
+            )
+            worker_bases = ", ".join(base.__name__ for base in type(self).__bases__)
+            raise TypeError(
+                f"Il tipo '{type(self.config).__name__}' (ereditato da {config_bases}) non è valido "
+                f"per il worker di tipo '{type(self).__name__}' (ereditato da {worker_bases}).\n"
+                f"Il worker {worker_bases} richiede un tipo di configurazione {worker_bases+"Config"}."
             )
 
         self.config.validate()

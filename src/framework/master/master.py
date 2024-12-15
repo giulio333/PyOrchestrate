@@ -99,7 +99,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         self.stop_all_slave()
         self.wait_for_slave()
 
-        self.logger.debug("%s terminato.", self.name)
+        self.logger.debug("{} terminato.", self.name)
 
     def init_slave(
         self,
