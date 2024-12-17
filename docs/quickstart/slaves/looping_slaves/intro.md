@@ -62,7 +62,7 @@ class LauncherConfig(MasterConfig):
 In questo modo, il **MasterProcess** monitora lo stato del **SlaveProcess** e lo riavvia automaticamente se necessario.
 
 ??? "code"
-    ::: framework.slave.utilities.CheckConfig
+    ::: framework.core.slave.utilities.CheckConfig
         options:
             show_source: false
             merge_init_into_class: true
@@ -82,7 +82,7 @@ class LauncherConfig(MasterConfig):
 ```
 
 ??? "code"
-    ::: framework.slave.LoggerConfig
+    ::: framework.core.slave.LoggerConfig
         options:
             show_source: false
             merge_init_into_class: true

@@ -105,7 +105,7 @@ class WorkerConfig(SlaveConfig):
 Ogni configurazione (`SlaveConfig`) dispone di un metodo `validate`, che può essere sovrascritto per implementare logiche di validazione personalizzate.
 
 ??? "code"
-    ::: framework.slave.slave.SlaveProcess
+    ::: framework.core.slave.slave.SlaveProcess
         options:
             show_source: false
             merge_init_into_class: true
@@ -134,7 +134,7 @@ Questo oggetto contiene anche delle configurazioni predefinite che possono esser
     ```
 
 ??? "code"
-    ::: framework.slave.slave.SlaveConfig
+    ::: framework.core.slave.slave.SlaveConfig
         options:
             show_source: false
             merge_init_into_class: true
@@ -154,7 +154,7 @@ Questa classe definisce due attributi principali per configurare il logger:
 2.	`filename`: il nome del file in cui i log verranno salvati. Se lasciato vuoto (stringa vuota ""), il framework utilizzerà il nome del processo come file di log predefinito.
 
 ??? "code"
-    ::: framework.base_process.utilities.LoggerConfig
+    ::: framework.core.base.utilities.LoggerConfig
         options:
             show_source: false
             merge_init_into_class: true

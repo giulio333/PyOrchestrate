@@ -69,7 +69,7 @@ class LauncherConfig(MasterConfig):
 In questo modo, il processo controlla i propri slave ogni 5 secondi.
 
 ??? "code"
-    ::: framework.master.utilities.HealthCheckConfig
+    ::: framework.core.master.utilities.HealthCheckConfig
         options:
             show_source: false
             merge_init_into_class: true
