@@ -1,5 +1,6 @@
 from typing import Type, TypeVar, Generic, final
 from threading import Event
+from dataclasses import dataclass
 import time
 from abc import abstractmethod
 
@@ -14,12 +15,13 @@ from framework.core.base.exceptions import TerminateProcess
 from framework.utilities.periodic_timer import PeriodicTimer
 
 
+@dataclass
 class PeriodicWorkerConfig(LoopingWorkerConfig):
     """
     PeriodicSlave configuration.
 
     Attributes:
-        interval (int): Interval in seconds between each execution
+        interval (float | int): Interval in seconds between each execution
         compensate_delay (bool): If True, the process will try to compensate the delay between the executions
         check_config (CheckConfig): Configurazioni thread di controllo del Master.
         logger (LoggerConfig): Configurazioni del `logger`.
@@ -28,7 +30,7 @@ class PeriodicWorkerConfig(LoopingWorkerConfig):
         validate: Metodo per validare i parametri di configurazione.
     """
 
-    interval: float = 5
+    interval: float | int = 5
     """Interval in seconds between each execution"""
     compensate_delay: bool = True
     """If True, the process will try to compensate the delay between the executions"""

@@ -17,8 +17,9 @@ class MasterConfig(BaseConfig):
 
     Attributes:
         wait_mode (Literal["infinite", "limited", "none"]): Modalità di attesa.
-        max_restarts (int): Numero totale di riavvii consentiti (solo per wait_mode = "limited").
+        max_restarts (int): Numero totale di riavvii consentiti (solo per `wait_mode` = "limited").
         health_check (HealthCheckConfig): Configurazione per il monitoraggio dello stato di salute.
+        logger (LoggerConfig): Configurazioni del `logger`.
 
     Methods:
         validate: Metodo per validare i parametri di configurazione.

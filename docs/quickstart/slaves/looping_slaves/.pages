@@ -1,3 +1,4 @@
 title: PeriodicSlave
 nav:
         - intro.md
+        - threadpool_slaves

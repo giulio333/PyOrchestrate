@@ -1,7 +1,8 @@
 from typing import TypeVar, Any
 from threading import Thread
 from dataclasses import dataclass
-from time import sleep
+from typing import TypeVar, Type, final
+
 from framework.core.base import BaseConfig
 from framework.core.slave import PeriodicSlave, PeriodicSlaveConfig
 from framework.core.worker import WorkerThread, WorkerConfig
@@ -42,13 +43,39 @@ ThreadPoolSlaveConfigType = TypeVar(
 
 class ThreadPoolSlave(PeriodicSlave[ThreadPoolSlaveConfigType]):
     """
-    Theese processes can create a thread pool.
+    These processes can create a thread pool.
 
     Usage:
-        Override the `setup` and `runner` method with the logic to be executed.
-        First the `setup` method is called (only once) and then the `runner` method will be called periodically.
+        Override the `setup` method with the logic to be executed.
+        First, the `setup` method is called (only once) and then the `runner` method will be called periodically to execute checks on the launched threads.
+
+        The `runner` method will run every `ThreadPoolSlaveConfig.interval` seconds to ensure all threads are alive.
+
+        Threads should be passed to the `__init__` method in the `workers` parameter as a list of `w_config` objects.
 
         When you want to terminate the process, call the `stop` method or raise `TerminateProcess`.
+
+    Examples:
+        ```python
+        my_worker = w_config(MyWorker, MyWorkerConfig())
+
+        class MyThreadPoolSlaveConfig(ThreadPoolSlaveConfig):
+            interval = 1
+
+        class MyThreadPoolSlave(ThreadPoolSlave[MyThreadPoolSlaveConfig]):
+            def __init__(self, config: MyThreadPoolSlaveConfig) -> None:
+                super().__init__(config=config, workers=[my_worker])
+
+            def setup(self):
+                super().setup()
+
+                self.logger.info(f"Configurazione: {self.config}")
+
+        if __name__ == "__main__":
+            config = MyThreadPoolSlaveConfig()
+            slave = MyThreadPoolSlave(config=config)
+            slave.run()
+        ```
     """
 
     def __init__(
@@ -80,7 +107,15 @@ class ThreadPoolSlave(PeriodicSlave[ThreadPoolSlaveConfigType]):
 
         self.logger.info(f"Aggiunto figlio: {worker_instance.name}")
 
+    @final
     def runner(self):
+        """
+        This method is called periodically every `ThreadPoolSlaveConfig.interval` seconds.
+        It checks if all workers are alive, otherwise it stops the process.
+
+        Warning:
+            This method should not be overridden.
+        """
 
         for worker_name, worker in self.workers.items():
 
