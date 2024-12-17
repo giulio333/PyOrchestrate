@@ -120,9 +120,9 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
 
         self.logger.info(f"Aggiunto figlio: {slave_instance.name}")
 
-        if self.monitor_health:
+        if self.monitor_health and config.check_config.to_monitor:
             self.logger.info(
-                f"Monitoraggio dello stato di salute abilitato per: {slave_instance.name}"
+                f"Monitoraggio dello stato di salute abilitato per {slave_instance.name}"
             )
 
     def init_multiple_slave(
