@@ -13,13 +13,13 @@ from framework.core.slave.threadpool_slave import w_config
 
 
 @dataclass
-class ThreadConfig(PeriodicWorkerConfig):
+class PrinterThreadConfig(PeriodicWorkerConfig):
 
     interval = 1
     cicli = 0
 
 
-class PrinterThread(PeriodicWorker[ThreadConfig]):
+class PrinterThread(PeriodicWorker[PrinterThreadConfig]):
     def runner(self):
         self.logger.info(f"Hello, World!")
 
@@ -29,10 +29,10 @@ class PrinterThread(PeriodicWorker[ThreadConfig]):
             self.stop()
 
 
-printer = w_config(PrinterThread, ThreadConfig())
+printer = w_config(PrinterThread, PrinterThreadConfig())
 
 
-class ReaderThread(PeriodicWorker[ThreadConfig]):
+class ReaderThread(PeriodicWorker[PrinterThreadConfig]):
 
     def runner(self):
         self.logger.info(f"Lettura di un file")
@@ -43,7 +43,7 @@ class ReaderThread(PeriodicWorker[ThreadConfig]):
             self.stop()
 
 
-reader = w_config(ReaderThread, ThreadConfig())
+reader = w_config(ReaderThread, PrinterThreadConfig())
 
 
 @dataclass
@@ -55,11 +55,11 @@ class PrinterConfig(ThreadPoolSlaveConfig):
     interval = 1
     compensate_delay = True
 
-    logger = LoggerConfig(level="DEBUG")
-    check_config = CheckConfig(to_monitor=True, autorestart=False)
+    logger = LoggerConfig(level="TRACE")
+    check_config = CheckConfig(to_monitor=False, autorestart=False)
 
 
-class Engine(ThreadPoolSlave[PrinterConfig]):
+class PrinterPool(ThreadPoolSlave[PrinterConfig]):
 
     def __init__(self, config: PrinterConfig) -> None:
         super().__init__(config=config, workers=[reader])

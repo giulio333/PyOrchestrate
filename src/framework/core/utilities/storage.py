@@ -2,7 +2,7 @@ from typing import Type, Dict, Any, List
 from threading import Thread
 from multiprocessing import Process
 
-from framework.core.base import BaseConfig
+from framework.core.base import BaseConfig, BaseProcess
 
 
 class Storage:
@@ -87,7 +87,7 @@ class Storage:
             **thread_data["kwargs"],
         )
 
-    def instantiate_process(self, name: str, index: int) -> Process:
+    def instantiate_process(self, name: str, index: int) -> BaseProcess:
         """
         Istanzia un nuovo processo dalla configurazione registrata.
 
@@ -103,7 +103,7 @@ class Storage:
 
         process_data = self.process_storage[name][index]
         return process_data["class"](
-            name=f"{name}_{index}",
+            # name=f"{name}_{index}",
             config=process_data["config"],
             *process_data["args"],
             **process_data["kwargs"],
