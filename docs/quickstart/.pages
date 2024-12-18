@@ -1,5 +1,6 @@
 title: Quickstart
 nav:
         - quickstart.md
+        - usage.md
         - master.md
         - slaves

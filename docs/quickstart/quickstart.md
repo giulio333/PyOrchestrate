@@ -1,162 +1,134 @@
 ---
-title: QuickStart
+title: PyOrchestrate Framework
 ---
 
-L'elemento fondamentale di questo framework è il **processo**.
+PyOrchestrate è un framework concepito per semplificare la creazione e la gestione di architetture multi-processo e multi-thread in Python. La sua filosofia è quella di offrire un’infrastruttura versatile, in grado di adattarsi a diversi contesti operativi, dalla semplice esecuzione di un singolo task, alla gestione gerarchica di processi e thread multipli. Onestamente, è un approccio che sposa molto bene le necessità moderne di computing distribuito, evitando di reinventare continuamente la ruota.
 
-Il framework offre due tipologie di **processi** per creare un'architettura personalizzata:
+## Concetti di Base
 
-1.  **`MasterProcess`**: un processo principale che può creare e gestire altri processi.
-2.  **`SlaveProcess`**: un processo secondario che viene creato e gestito da un processo master.
+I due attori principali dell’architettura sono:
 
-!!! info
-    - Per creare un **MasterProcess**, estendi la classe `MasterProcess`. 
-    - Per creare un **SlaveProcess**, estendi la classe `SlaveProcess`.
+- **Orchestrator**: L’entità centrale incaricata di coordinare e supervisionare il lavoro degli Agenti.
+- **Agent**: Un’unità esecutiva che può essere implementata come processo o thread.
 
-Ogni **processo** può essere personalizzato attraverso un set di configurazioni specifiche:
+L’idea chiave è che un Orchestrator possa agire come singolo punto di controllo, delegando compiti specifici a molteplici Agenti. Questo permette di mantenere una visione di insieme sulla pipeline di elaborazione, pur distribuendo l’esecuzione e ottimizzando le risorse disponibili.
 
-1.  **`MasterConfig`**: configurazioni personalizzate per un **MasterProcess**.
-2.  **`SlaveConfig`**: configurazioni personalizzate per uno **SlaveProcess**.
+## Scenari di Utilizzo
 
-!!! tip 
-    - Estendi la classe `MasterConfig` per definire configurazioni personalizzate per un **MasterProcess**. 
-    - Estendi la classe `SlaveConfig` per definire configurazioni personalizzate per uno **SlaveProcess**.
+1. **Agente di tipo processo indipendente**  
+   Un Agente di tipo processo può essere avviato ed eseguito senza alcun Orchestrator. Questo è particolarmente utile quando si ha un compito isolato: basta lanciare il processo e lasciare che svolga la sua attività fino al termine.
 
+   **Esempio:**  
+   Un processo che analizza un grande file di log, produce un report e poi termina. Non c’è bisogno di orchestrazione se l’attività è del tutto autonoma.
 
+2. **Orchestrator che gestisce Agenti di tipo processo**  
+   Un Orchestrator può coordinare molteplici processi, affidando a ciascuno un sottoinsieme di dati o un compito ben definito. Questo scenario è perfetto per implementare pipeline di elaborazione parallele, dove ogni processo svolge una parte del lavoro.
 
-## Models
+   **Esempio:**  
+   Un Orchestrator riceve dati da sensori IoT e delega a diversi processi l’analisi di sottoinsiemi di questi dati, aggregando poi i risultati finali.
 
-Ogni **processo** può essere definito come un modello. I modelli devono essere collocati nella cartella `models` e rappresentano l'implementazione di uno specifico processo o configurazione.
+3. **Orchestrator Gerarchico**  
+   Un livello ulteriore di complessità si ottiene quando un Orchestrator lancia Agenti di tipo processo, i quali a loro volta fungono da Orchestrator per un pool di thread. Questo consente di combinare la resilienza e l’isolamento dei processi con la leggerezza dei thread, massimizzando le prestazioni su hardware multi-core.
 
-## MasterProcess
+   **Esempio:**  
+   Un Orchestrator principale avvia processi dedicati all’elaborazione di immagini di grandi dimensioni. Ogni processo lancia a sua volta thread multipli per analizzare porzioni dell’immagine in parallelo, riducendo i tempi di elaborazione.
 
+## Gerarchia delle Unità
 
-### Personalizzazioni
+La gerarchia principale all’interno del framework è la seguente:
 
-Puoi personalizzare un **MasterProcess** definendo una configurazione specifica. Per farlo, estendi la classe `MasterConfig`, ad esempio:
+- **Orchestrator**
 
-```python
-from framework.master import MasterConfig,
+    - Gestisce direttamente gli **Agents (Process | Thread)**
 
-@dataclass
-class LauncherConfig(MasterConfig):
-    version: str = "1.0"
-    start_time: datetime = datetime.now()
-    output_folder: str = "output"
+- **Agent**
 
+    - **OneShotAgent**
+    - **LoopingAgent**
+        - **PeriodicAgent**
+        - **EventAgent**
+        - **ScheduledAgent**
 
-    def validate(self) -> None:
-        if os.path.exists(self.output_folder):
-            # do something
-```
+## Descrizione delle Unità Logiche
 
-Ogni configurazione (`MasterConfig`) dispone di un metodo `validate`, che può essere sovrascritto per implementare logiche di validazione personalizzate.
+### Orchestrator
 
-### MasterConfig
+L’Orchestrator è il cuore pulsante del sistema. Coordina, supervisiona e gestisce il ciclo di vita degli Agenti.
 
-Questo oggetto contiene anche delle configurazioni predefinite che possono essere utilizzate per personalizzare il comportamento del processo.
+**Funzionalità principali:**
 
-- `LoggerConfig`: configurazioni per il logger.
-- `check_interval`: intervallo di controllo della salute del processo.
-- `wait_mode`: modalità di attesa del processo.
-- `max_restart`: numero massimo di riavvii del processo.
+- Creazione, avvio e arresto degli Agenti.
+- Monitoraggio delle performance e dello stato degli Agenti.
+- Possibile gestione gerarchica: un Orchestrator può orchestrare altri Orchestrator.
 
-!!! example
-    Esempio di configurazione avanzata con logger e modalità di attesa specifica:
+L’aspetto più affascinante è la sua natura flessibile: si presta sia a implementazioni semplici (pochi processi da coordinare) sia a scenari complessi (catene di elaborazione con diversi livelli gerarchici).
 
-    ```python
-    @dataclass
-    class LauncherConfig(MasterConfig):
-        logger = LoggerConfig(level=DEBUG)
-        wait_mode = "none"
-    ```
+### OneShotAgent
 
-## SlaveProcess
+Un **OneShotAgent** esegue un singolo compito per poi terminare. È l’agente perfetto per task di durata limitata e indipendenti.
 
-Uno **SlaveProcess** è un processo secondario che viene creato e gestito da un processo master.
+**Esempi di utilizzo:**
 
-Per implementare uno **SlaveProcess**, crea una classe che estenda `SlaveProcess` all'interno della cartella `models`. Ad esempio:
+- Elaborazione di un singolo file.
+- Invio di una richiesta HTTP e gestione della risposta.
+- Esecuzione di un comando di system check una tantum.
 
-```python
-from framework.slave import SlaveProcess, SlaveConfig
+### LoopingAgent
 
-class Worker(SlaveProcess):
-    def __init__(self, config: SlaveConfig) -> None:
-        super().__init__(config=config)
-```
+Un **LoopingAgent** esegue ciclicamente un’attività, senza una frequenza predefinita. È come avere un “demone” personalizzato che continua a girare fino a quando non viene esplicitamente fermato o quando la sua logica interna lo richiede. Non ci sono regole stringenti: sta a te definire quando, quanto spesso e con quali condizioni fermarti o ripetere il ciclo.
 
-### Personalizzazioni
+Questo lo rende potentissimo in contesti dove la logica del loop è altamente specifica e non standardizzabile.
 
-Puoi personalizzare uno **SlaveProcess** definendo una configurazione specifica. Per farlo, estendi la classe `SlaveConfig`, ad esempio:
+### PeriodicAgent
 
-```python
-from framework.slave import SlaveConfig,
+Un **PeriodicAgent** è una specializzazione di LoopingAgent con intervalli regolari di esecuzione. In altre parole, fa sempre la stessa cosa, ma a intervalli di tempo ben definiti.
 
-@dataclass
-class WorkerConfig(SlaveConfig):
-    message: str = "Hello, World!"
-    repeat: int = 5
+**Esempi di utilizzo:**
 
-    def validate(self) -> None:
-        if "Hello" not in self.message:
-            # do something
-```
+- Raccolta dati da sensori ogni N secondi.
+- Lettura di frame da una telecamera a un framerate costante.
+- Invio di notifiche o report a intervalli pianificati.
 
-Ogni configurazione (`SlaveConfig`) dispone di un metodo `validate`, che può essere sovrascritto per implementare logiche di validazione personalizzate.
+### EventAgent
 
-??? "code"
-    ::: framework.core.slave.slave.SlaveProcess
-        options:
-            show_source: false
-            merge_init_into_class: true
-            members: false
-            heading_level: 0
+Un **EventAgent** esegue operazioni in risposta a un evento o a un segnale. È l’agente “reattivo” per definizione, perfetto per reagire immediatamente a cambiamenti nel contesto.
 
-### SlaveConfig
+**Esempi di utilizzo:**
 
-Questo oggetto contiene anche delle configurazioni predefinite che possono essere utilizzate per personalizzare il comportamento del processo.
+- Avvio di un task quando viene rilevato un nuovo file in una directory.
+- Attivazione di un job quando un utente invia un input o un comando.
+- Esecuzione di operazioni al verificarsi di un determinato segnale esterno.
 
-- `LoggerConfig`: configurazioni per il logger.
-- `check_config`: configurazioni di controllo del processo.
+### ScheduledAgent
 
-!!! example
-    Esempio di configurazione avanzata con logger e configurazioni di controllo specifiche:
+Lo **ScheduledAgent** è un altro perfezionamento del concetto di LoopingAgent. A differenza del PeriodicAgent, che si limita a intervalli regolari, lo ScheduledAgent supporta pianificazioni più complesse, come orari precisi, date specifiche, o regole di calendario.
 
-    ```python
-    @dataclass
-    class WorkerConfig(SlaveConfig):
+**Esempi di utilizzo:**
 
-        message: str = "Hello, World!"
-        repeat: int = 5
+- Eseguire backup ogni giorno alle 02:00.
+- Pianificare elaborazioni settimanali, mensili o basate su calendari aziendali.
+- Avviare task in orari non regolari, come ogni primo lunedì del mese.
 
-        logger = LoggerConfig(level=DEBUG)
-        check_config = CheckConfig(to_monitor=False, autorestart=False, interval=1)
-    ```
+**Estendibilità e Personalizzazione degli Agenti**
 
-??? "code"
-    ::: framework.core.slave.slave.SlaveConfig
-        options:
-            show_source: false
-            merge_init_into_class: true
-            members: false
-            heading_level: 0
+Una delle caratteristiche più potenti di PyOrchestrate è la possibilità di partire dalle classi fornite dal framework, “prelevarle” ed estenderle per creare implementazioni su misura. Ogni classe, infatti, è stata progettata per essere sovrascrivibile in modo selettivo, con metodi già pronti all’uso e altri non modificabili, affinché tu possa concentrare i tuoi sforzi solo sulle logiche di business necessarie al tuo caso.
 
-#### LoggerConfig
+La scelta di quale classe utilizzare dipende direttamente dal livello di complessità della tua esigenza:
 
-La classe `LoggerConfig` permette di configurare i parametri del logger per un processo. 
+-   Se il tuo compito è semplice, come eseguire un backup di un file a intervalli regolari, potresti “attingere” direttamente dal **PeriodicAgent**. Questa classe, infatti, offre già un loop di esecuzione scandito da timer regolari e ti permette di intervenire solo sul “cosa” eseguire, senza dover reinventare il meccanismo di scheduling.
+    
+-   Nel caso in cui nessuno degli Agent forniti “chiavi in mano” soddisfi la tua logica, puoi risalire la gerarchia delle classi. Se, ad esempio, un **LoopingAgent** non basta, puoi spostarti a livelli superiori, fino ad arrivare alla classe Base di tutti gli Agent. Ovviamente, questo approccio ti metterà di fronte a un po’ più di lavoro, poiché salendo nella gerarchia avrai maggiore libertà ma dovrai occuparti di dettagli più bassi livello. Tuttavia, anche la classe Base non ti lascia a mani vuote: fornisce già i meccanismi fondamentali per gestire thread e processi in Python, così non dovrai mai partire davvero da zero.
+    
 
-Descrizione
+In altre parole, PyOrchestrate ti permette di adottare un approccio graduale: parti da classi specializzate e, solo se necessario, risali alla sorgente della gerarchia. Puoi così trovare il perfetto equilibrio tra facilità di utilizzo e flessibilità, creando soluzioni eleganti e robuste senza compromessi. Con PyOrchestrate, la scalabilità non riguarda solo la mole di dati o la complessità del computing, ma anche il tuo stesso modo di implementare, estendere e plasmare il comportamento dei tuoi Agenti.
 
-Questa classe definisce due attributi principali per configurare il logger:
+## Perché Scegliere PyOrchestrate?
 
-1.	`level`: il livello di log da utilizzare, espresso come intero. I valori seguono la convenzione standard dei livelli di log (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`).
+PyOrchestrate non è solo una raccolta di pattern, ma un vero e proprio framework che mira a rendere la gestione dei task paralleli e distribuiti più chiara, strutturata e robusta.  
+Sì, potresti scrivere tutto a mano con qualche riga di Python, `multiprocessing` o `threading`, ma perderesti la visione d’insieme, la flessibilità di combinare più livelli di orchestrazione e la semplicità di usare modelli già pronti. In un’epoca in cui le risorse computazionali devono essere sfruttate al massimo, avere un framework dedicato, come PyOrchestrate, è quasi una scelta obbligata se non vuoi incappare in un groviglio di codice difficile da mantenere.
 
-2.	`filename`: il nome del file in cui i log verranno salvati. Se lasciato vuoto (stringa vuota ""), il framework utilizzerà il nome del processo come file di log predefinito.
+## Conclusioni
 
-??? "code"
-    ::: framework.core.base.utilities.LoggerConfig
-        options:
-            show_source: false
-            merge_init_into_class: true
-            members: false
-            heading_level: 0
+PyOrchestrate offre una gerarchia chiara, funzionalità avanzate e flessibilità operativa. Dall’esecuzione di un singolo task a intere pipeline complesse, il framework può adattarsi a qualsiasi scenario. Tutto ciò rende lo sviluppo di architetture multi-processo e multi-thread meno stressante e più gratificante.
+
+Se hai bisogno di scalabilità, robustezza e organizzazione in architetture complesse, PyOrchestrate è, secondo me, una strada da esplorare.
