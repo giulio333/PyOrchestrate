@@ -2,80 +2,216 @@ import multiprocessing
 import threading
 from abc import ABC, abstractmethod
 import logging
+import time
+import os, sys
+from dataclasses import dataclass
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from framework.utilities.logguru import LoggerFactory
+from framework.core.base.exceptions import TerminateProcess
 
 
-class BaseAgent(ABC):
-    def __init__(self, name=None, log_level=logging.INFO):
-        """Inizializza un agente di base."""
-        self.name = name if name else self.__class__.__name__
+import threading
+import multiprocessing
+import time
+import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
-        # Configurazione del logger
-        self.logger = logging.getLogger(self.name)
-        self.logger.setLevel(log_level)
-        handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
-        self.logger.addHandler(handler)
+
+class BaseConfig(ABC):
+    """
+    Classe astratta delle configurazioni, se necessario
+    """
+
+    @classmethod
+    def validate(cls):
+        """Valida la configurazione (metodo facoltativo)."""
+        pass
+
+
+@dataclass
+class LoggerConfig:
+    level: str = "DEBUG"
+    filename: str = ""
+
+
+class AbstractBaseAgent(ABC):
+    """
+    Classe astratta che racchiude la logica comune a tutti gli agenti:
+    - setup del logger
+    - validazione della configurazione
+    - metodo astratto execute
+    """
+
+    # Classe di configurazione “interna”
+    class Config(BaseConfig):
+        logger: LoggerConfig = LoggerConfig()
+
+    def __init__(self, name: str | None = None):
+        self.name: str = name or self.__class__.__name__
+        self._stop_event = None
+        self.start_time = 0.0
 
     def setup_logger(self):
         """
-        Configura il logger del processo. Le configurazioni vengono estratte da `LoggerConfig`.
-
-        tip:
-            E' possibile sovrascrivere questo metodo per personalizzare il logger.
-
-        Returns:
-            Logger: Istanza del logger configurato.
+        Configura il logger in base a `Config.logger`.
         """
 
         if hasattr(self, "logger"):
             return
 
-        # estrazione configurazioni da BaseConfig.LoggerConfig
-        # logger_config: LoggerConfig = self.config.logger
-        level: str = "TRACE"  # logger_config.level
-        filename: str = self.name  # logger_config.filename.capitalize() or self.name
+        logger_cfg = self.Config.logger
+        logging_level = getattr(logging, logger_cfg.level.upper(), "INFO")
+        log_name = logger_cfg.filename or self.name
+
+        # Configurazione di base del logger
+        logging.basicConfig(
+            format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+            level=logging_level,
+        )
 
         self.logger = LoggerFactory.create_logger(
-            log_identifier=filename, logger_name=filename, level=level
+            log_identifier=log_name, logger_name=log_name, level=logging_level
         )
-
         self.logger.info(
-            f"Logger configurato: log_file={self.name}.log, level={level}",
+            f"[{self.name}] Logger configurato a livello: {logger_cfg.level}"
         )
 
-    def run(self):
-        """Metodo eseguito dall'agente (processo o thread)."""
-        self.logger.info(f"Inizio dell'esecuzione: {self.name}", logging.INFO)
+    def validate_config(self):
+        """
+        Esegue la validazione della configurazione.
+        """
+
+        self.Config.validate()
+        self.logger.debug(f"[{self.name}] Configurazione validata: {self.Config}")
+
+    def run_agent(self):
+        """
+        Logica di avvio comune: prepara logger, valida config, gestisce eccezioni, etc.
+        """
+
+        self.setup_logger()
+        self.validate_config()
+
+        self.logger.info(f"[{self.name}] Avvio dell'esecuzione...")
+        self.start_time = time.time()
+
         try:
             self.execute()
-        except Exception as e:
-            self.logger.exception(f"Errore durante l'esecuzione: {e}", logging.ERROR)
+        except Exception as ex:
+            self.logger.exception(f"[{self.name}] Errore durante l'esecuzione: {ex}")
         finally:
-            self.logger.critical(f"Fine dell'esecuzione: {self.name}", logging.INFO)
+            elapsed = time.time() - self.start_time
+            self.logger.info(
+                f"[{self.name}] Esecuzione terminata in {elapsed:.2f} secondi"
+            )
 
     @abstractmethod
     def execute(self):
-        """Metodo astratto da implementare per definire la logica dell'agente."""
+        """
+        Metodo astratto da implementare nelle classi derivate:
+        la logica del “lavoro” effettivo.
+        """
         pass
 
 
-class ProcessAgent(BaseAgent, multiprocessing.Process):
-    def __init__(self, *args, **kwargs):
-        BaseAgent.__init__(self, *args, **kwargs)
-        multiprocessing.Process.__init__(self)
+class BaseThreadAgent(AbstractBaseAgent, threading.Thread):
+    """
+    Agente base che utilizza un thread per l'esecuzione.
+    """
+
+    def __init__(self, name: str | None = None):
+        # Inizializzo il thread
+        threading.Thread.__init__(self, name=name)
+
+        # Inizializzo la parte AbstractBaseAgent
+        AbstractBaseAgent.__init__(self, name)
+
+        self._stop_event = threading.Event()
 
     def run(self):
-        BaseAgent.run(self)
+        """
+        Override del metodo `run` di threading.Thread: richiama la logica comune `run_agent`.
+        """
+        self.run_agent()
+
+    def stop(self):
+        """
+        Facoltativo: set di un event per richiedere lo stop esterno del thread.
+        """
+        self._stop_event.set()
+        self.logger.info(f"[{self.name}] Richiesta di stop ricevuta.")
 
 
-class ThreadAgent(BaseAgent, threading.Thread):
-    def __init__(self, *args, **kwargs):
-        BaseAgent.__init__(self, *args, **kwargs)
-        threading.Thread.__init__(self)
+class BaseProcessAgent(AbstractBaseAgent, multiprocessing.Process):
+    """
+    Agente base che utilizza un processo per l'esecuzione.
+    """
+
+    def __init__(self, name: str | None = None):
+        # Inizializzo il process
+        multiprocessing.Process.__init__(self, name=name)
+
+        # Inizializzo la parte AbstractBaseAgent
+        AbstractBaseAgent.__init__(self, name)
+
+        self._stop_event = multiprocessing.Event()
 
     def run(self):
-        BaseAgent.run(self)
+        """
+        Override del metodo `run` di multiprocessing.Process: richiama la logica comune `run_agent`.
+        """
+        self.run_agent()
+
+    def stop(self):
+        """
+        Facoltativo: set di un event per richiedere lo stop esterno del processo.
+        """
+        self._stop_event.set()
+        if self.logger:
+            self.logger.info(f"[{self.name}] Richiesta di stop ricevuta.")
+
+
+# Esempio di agente "concreto" che lavora in loop
+class MyLoopingThreadAgent(BaseProcessAgent):
+    def execute(self):
+        # Esempio di un loop continuo finché non viene settato lo stop_event
+        self.logger.info(f"[{self.name}] Inizio del loop...")
+        while not self._stop_event.is_set():
+            self.logger.debug(f"[{self.name}] Eseguo un ciclo di lavoro.")
+            time.sleep(1)  # Evita di saturare la CPU
+        self.logger.info(f"[{self.name}] Loop terminato.")
+
+
+class LoopingAgent(BaseProcessAgent):
+
+    def __init__(self, name: str):
+        super().__init__(name=name)
+
+    def execute(self):
+        """Esegue un loop continuo finché non viene richiesto di fermarsi."""
+        self.logger.info(f"{self.name} ha iniziato il loop.")
+        while not self._stop_event.is_set():
+            self.do_work()
+            time.sleep(1)  # Pausa tra le iterazioni del loop
+
+    @abstractmethod
+    def do_work(self):
+        """Definisce il lavoro da eseguire in ogni iterazione del loop."""
+        pass
+
+    def stop(self):
+        """Richiede l'interruzione del loop."""
+        self.logger.info(f"{self.name} ha ricevuto la richiesta di stop.")
+        self._stop_event.set()
+
+
+if __name__ == "__main__":
+    agent = MyLoopingThreadAgent("AgentThread")
+    agent.start()
+
+    time.sleep(5)
+    agent.stop()
+    agent.join()
