@@ -5,6 +5,8 @@ import logging
 import time
 import os, sys
 from dataclasses import dataclass
+from loguru import logger
+from typing import Type
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
@@ -22,7 +24,7 @@ from dataclasses import dataclass
 
 class BaseConfig(ABC):
     """
-    Classe astratta delle configurazioni, se necessario
+    Classe base per la configurazione.
     """
 
     @classmethod
@@ -45,15 +47,22 @@ class AbstractBaseAgent(ABC):
     - metodo astratto execute
     """
 
-    # Classe di configurazione “interna”
     class Config(BaseConfig):
-        logger: LoggerConfig = LoggerConfig()
+        """
+        Configurazione dell'agente.
 
-    def __init__(self, name: str | None = None):
+        Attributes:
+            logger (LoggerConfig): Configurazione del logger.
+        """
+
+        logger: LoggerConfig = LoggerConfig()
+        cycles: int = 5
+
+    def __init__(self, name: str | None = None, *args, **kwargs):
         self.name: str = name or self.__class__.__name__
-        self._stop_event = None
         self.start_time = 0.0
 
+    @logger.catch(reraise=False)
     def setup_logger(self):
         """
         Configura il logger in base a `Config.logger`.
@@ -79,6 +88,7 @@ class AbstractBaseAgent(ABC):
             f"[{self.name}] Logger configurato a livello: {logger_cfg.level}"
         )
 
+    @logger.catch(reraise=False)
     def validate_config(self):
         """
         Esegue la validazione della configurazione.
@@ -116,13 +126,21 @@ class AbstractBaseAgent(ABC):
         """
         pass
 
+    @abstractmethod
+    def stop(self):
+        """
+        Metodo astratto da implementare nelle classi derivate:
+        richiesta di stop dell'agente.
+        """
+        pass
+
 
 class BaseThreadAgent(AbstractBaseAgent, threading.Thread):
     """
     Agente base che utilizza un thread per l'esecuzione.
     """
 
-    def __init__(self, name: str | None = None):
+    def __init__(self, name: str | None = None, *args, **kwargs):
         # Inizializzo il thread
         threading.Thread.__init__(self, name=name)
 
@@ -150,12 +168,13 @@ class BaseProcessAgent(AbstractBaseAgent, multiprocessing.Process):
     Agente base che utilizza un processo per l'esecuzione.
     """
 
-    def __init__(self, name: str | None = None):
+    def __init__(self, name: str | None = None, *args, **kwargs):
+
         # Inizializzo il process
         multiprocessing.Process.__init__(self, name=name)
 
         # Inizializzo la parte AbstractBaseAgent
-        AbstractBaseAgent.__init__(self, name)
+        AbstractBaseAgent.__init__(self, name, *args, **kwargs)
 
         self._stop_event = multiprocessing.Event()
 
@@ -170,25 +189,14 @@ class BaseProcessAgent(AbstractBaseAgent, multiprocessing.Process):
         Facoltativo: set di un event per richiedere lo stop esterno del processo.
         """
         self._stop_event.set()
-        if self.logger:
-            self.logger.info(f"[{self.name}] Richiesta di stop ricevuta.")
-
-
-# Esempio di agente "concreto" che lavora in loop
-class MyLoopingThreadAgent(BaseProcessAgent):
-    def execute(self):
-        # Esempio di un loop continuo finché non viene settato lo stop_event
-        self.logger.info(f"[{self.name}] Inizio del loop...")
-        while not self._stop_event.is_set():
-            self.logger.debug(f"[{self.name}] Eseguo un ciclo di lavoro.")
-            time.sleep(1)  # Evita di saturare la CPU
-        self.logger.info(f"[{self.name}] Loop terminato.")
+        # if self.logger:
+        #     self.logger.info(f"[{self.name}] Richiesta di stop ricevuta.")
 
 
 class LoopingAgent(BaseProcessAgent):
 
-    def __init__(self, name: str):
-        super().__init__(name=name)
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name=name, *args, **kwargs)
 
     def execute(self):
         """Esegue un loop continuo finché non viene richiesto di fermarsi."""
@@ -202,16 +210,100 @@ class LoopingAgent(BaseProcessAgent):
         """Definisce il lavoro da eseguire in ogni iterazione del loop."""
         pass
 
+
+class Orchestrator:
+
+    def __init__(self):
+        """Inizializza un Orchestrator vuoto."""
+        self.agents: dict[str, AbstractBaseAgent] = {}
+        self.logger = LoggerFactory().create_logger(
+            "Orchestrator", "Orchestrator", level="INFO"
+        )
+
+    def add_agent(
+        self, agent_class: Type[AbstractBaseAgent], name: str, *args, **kwargs
+    ):
+        """Aggiunge un nuovo agente all'Orchestrator.
+
+        Args:
+            agent_class (type): La classe dell'agente da istanziare.
+            agent_type (str): Il tipo di agente, 'process' o 'thread'. Default è 'process'.
+            *args: Argomenti posizionali per il costruttore dell'agente.
+            **kwargs: Argomenti keyword per il costruttore dell'agente.
+
+        Raises:
+            ValueError: Se il tipo di agente non è valido.
+        """
+
+        agent_instance = agent_class(name, *args, **kwargs)
+
+        unique_name = f"{name}_{len(self.agents)}"
+
+        self.agents.update({unique_name: agent_instance})
+
+        self.logger.info(f"Agente {name} aggiunto.")
+
+    def start(self):
+        """Avvia tutti gli agenti registrati."""
+
+        for agent in self.agents:
+            agent_instance: AbstractBaseAgent = self.agents[agent]
+            agent_instance.start()  # type: ignore
+            self.logger.info(f"Agente {agent} avviato.")
+
+    def join(self):
+        """Attende il completamento di tutti gli agenti registrati."""
+        for agent in self.agents:
+            agent_instance: AbstractBaseAgent = self.agents[agent]
+            agent_instance.join()  # type: ignore
+            self.logger.info(f"Agente {agent} completato.")
+
     def stop(self):
-        """Richiede l'interruzione del loop."""
-        self.logger.info(f"{self.name} ha ricevuto la richiesta di stop.")
-        self._stop_event.set()
+        """Termina tutti gli agenti registrati.
+
+        Note:
+            Questa funzione tenta di terminare i processi o thread. Per i processi utilizza
+            `terminate()`; per i thread, è necessaria una logica specifica nell'implementazione
+            degli agenti.
+        """
+        for agent in self.agents:
+            agent_instance: AbstractBaseAgent = self.agents[agent]
+            agent_instance.stop()
+            self.logger.info(f"Agente {agent} fermato.")
+
+
+# Esempio di agente "concreto" che lavora in loop
+class FileWriter(LoopingAgent):
+
+    def __init__(self, name: str, message):
+        super().__init__(
+            name,
+        )
+
+        self.message = message
+
+    class Config(LoopingAgent.Config):
+        num_iterations: int = 5
+
+    def do_work(self):
+
+        self.Config.num_iterations -= 1
+
+        if self.Config.num_iterations == 0:
+            self.stop()
+
+        with open(f"{self.name}_log.txt", "a") as log_file:
+            log_message = f"[{self.name}] {self.message}\n"
+            log_file.write(log_message)
+        self.logger.debug(log_message.strip())
+        time.sleep(1)  # Evita di saturare la CPU
 
 
 if __name__ == "__main__":
-    agent = MyLoopingThreadAgent("AgentThread")
-    agent.start()
 
-    time.sleep(5)
-    agent.stop()
-    agent.join()
+    o = Orchestrator()
+    o.add_agent(FileWriter, name="AgentThread1", message="Hello")
+    o.add_agent(FileWriter, name="AgentThread2", message="World")
+
+    o.start()
+    o.join()
