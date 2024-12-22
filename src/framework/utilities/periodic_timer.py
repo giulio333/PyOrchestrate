@@ -36,6 +36,7 @@ Example:
 
 import time
 import threading
+import multiprocessing
 from logging import Logger
 
 
@@ -78,7 +79,7 @@ class PeriodicTimer:
         self.compensate_delay: bool = compensate_delay
         self.next_time: float = time.perf_counter()
 
-    def wait(self, stop_event: threading.Event) -> bool:
+    def wait(self, stop_event) -> bool:
         """
         Calculates the remaining sleep time and pauses the thread accordingly.
 

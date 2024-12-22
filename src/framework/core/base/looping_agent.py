@@ -1,0 +1,64 @@
+from abc import abstractmethod
+from typing import final
+import time
+
+from framework.core.base.baseagent import BaseProcessAgent, BaseThreadAgent
+from framework.utilities.periodic_timer import PeriodicTimer
+
+
+class LoopingProcessAgent(BaseProcessAgent):
+
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name=name, *args, **kwargs)
+
+    @final
+    def execute(self):
+        """Esegue un loop continuo finché non viene richiesto di fermarsi."""
+
+        self.setup()
+
+        while not self._stop_event.is_set():
+            self.cycle()
+
+    @abstractmethod
+    def cycle(self):
+        """Definisce il lavoro da eseguire in ogni iterazione del loop."""
+        pass
+
+    @abstractmethod
+    def setup(self):
+        """
+        Here you can implement the setup logic.
+
+        This method is called once before the runner loop method.
+        """
+        pass
+
+
+class LoopingThreadAgent(BaseThreadAgent):
+
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name=name, *args, **kwargs)
+
+    @final
+    def execute(self):
+        """Esegue un loop continuo finché non viene richiesto di fermarsi."""
+
+        self.setup()
+
+        while not self._stop_event.is_set():
+            self.cycle()
+
+    @abstractmethod
+    def cycle(self):
+        """Definisce il lavoro da eseguire in ogni iterazione del loop."""
+        pass
+
+    @abstractmethod
+    def setup(self):
+        """
+        Here you can implement the setup logic.
+
+        This method is called once before the runner loop method.
+        """
+        pass
