@@ -5,6 +5,7 @@ import logging
 from abc import ABC, abstractmethod
 from loguru import logger
 from dataclasses import dataclass
+from typing import Type, cast
 
 from ...utilities.logguru import LoggerFactory
 from ..base.utilities import LoggerConfig
