@@ -1,39 +1,27 @@
 from typing import Type
 
-from framework.core.base.baseagent import AbstractBaseAgent
-from framework.utilities.logguru import LoggerFactory
+from ..base.baseagent import AbstractBaseAgent, BaseConfig
+from ...utilities.logguru import LoggerFactory
 
 
 class Orchestrator:
 
     def __init__(self):
-        """Inizializza un Orchestrator vuoto."""
         self.agents: dict[str, AbstractBaseAgent] = {}
         self.logger = LoggerFactory().create_logger(
-            "Orchestrator", "Orchestrator", level="INFO"
+            "Orchestrator", "Orchestrator", "INFO"
         )
 
     def add_agent(
-        self,
-        agent_class: Type[AbstractBaseAgent],
-        name: str,
-        custom_config: dict = {},
-        *args,
-        **kwargs,
+            self,
+            agent_class: Type[AbstractBaseAgent],
+            name: str,
+            custom_config: BaseConfig | None = None,
+            *args,
+            **kwargs,
     ):
-        """Aggiunge un nuovo agente all'Orchestrator.
 
-        Args:
-            agent_class (type): La classe dell'agente da istanziare.
-            agent_type (str): Il tipo di agente, 'process' o 'thread'. Default è 'process'.
-            *args: Argomenti posizionali per il costruttore dell'agente.
-            **kwargs: Argomenti keyword per il costruttore dell'agente.
-
-        Raises:
-            ValueError: Se il tipo di agente non è valido.
-        """
-
-        agent_instance = agent_class(name, *args, **kwargs)
+        agent_instance = agent_class(name, custom_config, *args, **kwargs)
 
         unique_name = f"{name}_{len(self.agents)}"
 

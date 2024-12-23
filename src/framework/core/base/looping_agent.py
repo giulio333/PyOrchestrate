@@ -1,15 +1,13 @@
 from abc import abstractmethod
 from typing import final
-import time
 
-from framework.core.base.baseagent import BaseProcessAgent, BaseThreadAgent
-from framework.utilities.periodic_timer import PeriodicTimer
+from ..base.baseagent import BaseProcessAgent, BaseThreadAgent
 
 
 class LoopingProcessAgent(BaseProcessAgent):
 
     def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name=name, *args, **kwargs)
+        super().__init__(name, *args, **kwargs)
 
     @final
     def execute(self):

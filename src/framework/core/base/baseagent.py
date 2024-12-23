@@ -1,106 +1,88 @@
-import multiprocessing
 import threading
-from abc import ABC, abstractmethod
-import logging
+import multiprocessing
 import time
-import os, sys
-from dataclasses import dataclass
+import logging
+from abc import ABC, abstractmethod
 from loguru import logger
 from dataclasses import dataclass
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-
-from framework.utilities.logguru import LoggerFactory
-from framework.core.base.utilities import LoggerConfig
-
-import threading
-import multiprocessing
-import time
-import logging
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from ...utilities.logguru import LoggerFactory
+from ..base.utilities import LoggerConfig
 
 
 class BaseConfig(ABC):
     """
-    Classe base per la configurazione.
+    Base configuration class.
     """
 
     logger: LoggerConfig = LoggerConfig()
 
     @classmethod
     def validate(cls):
-        """Valida la configurazione."""
+        """
+        Validate the configuration.
+        """
         pass
 
 
 class AbstractBaseAgent(ABC):
     """
-    Classe astratta che racchiude la logica comune a tutti gli agenti:
-    - setup del logger
-    - validazione della configurazione
-    - metodo astratto execute
+    Abstract base class for all agents.
     """
+    start_time: float
 
     @dataclass
     class Config(BaseConfig):
         """
-        Configurazione dell'agente.
+        Agent configuration class.
 
         Attributes:
-            logger (LoggerConfig): Configurazione del logger.
+            logger (LoggerConfig): Logger configuration.
         """
 
-    def __init__(self, name: str | None = None, *args, **kwargs):
+    def __init__(self, name: str | None = None, config: BaseConfig | None = None, *args, **kwargs):
 
-        self.config = self.Config()
-        self.name: str = name or self.__class__.__name__
-        self.start_time = 0.0
+        self.logger = None
+        self.config = config if config else self.Config()
+        self.name = name if name else self.__class__.__name__
 
     @logger.catch(reraise=False)
     def setup_logger(self):
         """
-        Configura il logger in base a `Config.logger`.
+        Set up the logger.
+
+        Notes:
+            Logger configuration is read from the `config.logger` attribute.
         """
 
-        if hasattr(self, "logger"):
+        if self.logger is not None:
             return
 
         logger_cfg = self.config.logger
         logging_level = getattr(logging, logger_cfg.level.upper(), "INFO")
         log_name = logger_cfg.filename or self.name
 
-        # Configurazione di base del logger
-        logging.basicConfig(
-            format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-            level=logging_level,
-        )
-
         self.logger = LoggerFactory.create_logger(
             log_identifier=log_name, logger_name=log_name, level=logging_level
         )
-        self.logger.info(
-            f"[{self.name}] Logger configurato a livello: {logger_cfg.level}"
-        )
+        self.logger.debug("Logger initialized.")
 
     @logger.catch(reraise=False)
     def validate_config(self):
         """
-        Esegue la validazione della configurazione.
+        Validate the configuration.
         """
 
-        self.Config.validate()
-        self.logger.debug(f"[{self.name}] Configurazione validata: {self.Config}")
+        self.config.validate()
+        self.logger.info("Configuration successfully validated.")
 
     def run_agent(self):
-        """
-        Logica di avvio comune: prepara logger, valida config, gestisce eccezioni, etc.
-        """
 
         self.setup_logger()
         self.validate_config()
 
-        self.logger.info(f"[{self.name}] Avvio dell'esecuzione...")
+        self.logger.info("Starting agent...")
+
         self.start_time = time.time()
 
         try:
@@ -110,7 +92,7 @@ class AbstractBaseAgent(ABC):
         finally:
             elapsed = time.time() - self.start_time
             self.logger.info(
-                f"[{self.name}] Esecuzione terminata in {elapsed:.2f} secondi"
+                f"execution completed in {elapsed:.3f} seconds."
             )
 
     @abstractmethod
@@ -131,15 +113,9 @@ class AbstractBaseAgent(ABC):
 
 
 class BaseThreadAgent(AbstractBaseAgent, threading.Thread):
-    """
-    Agente base che utilizza un thread per l'esecuzione.
-    """
 
     def __init__(self, name: str | None = None, *args, **kwargs):
-        # Inizializzo il thread
         threading.Thread.__init__(self, name=name)
-
-        # Inizializzo la parte AbstractBaseAgent
         AbstractBaseAgent.__init__(self, name)
 
         self._stop_event = threading.Event()
@@ -159,16 +135,9 @@ class BaseThreadAgent(AbstractBaseAgent, threading.Thread):
 
 
 class BaseProcessAgent(AbstractBaseAgent, multiprocessing.Process):
-    """
-    Agente base che utilizza un processo per l'esecuzione.
-    """
 
     def __init__(self, name: str | None = None, *args, **kwargs):
-
-        # Inizializzo il process
         multiprocessing.Process.__init__(self, name=name)
-
-        # Inizializzo la parte AbstractBaseAgent
         AbstractBaseAgent.__init__(self, name, *args, **kwargs)
 
         self._stop_event = multiprocessing.Event()
