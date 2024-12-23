@@ -41,7 +41,7 @@ class FileWriter(PeriodicProcessAgent):
         """
         Imposta il FileWriter, creando la directory di log se necessario.
         """
-        super().setup()  # Chiamata al setup di PeriodicProcessAgent
+        super().setup()
         os.makedirs(self.config.output_directory, exist_ok=True)
 
         self.logger.info(f"FileWriter {self.name} inizializzato.")

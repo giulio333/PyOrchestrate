@@ -25,7 +25,7 @@ class LoggerFactory:
     """
     Factory per creare e gestire logger personalizzati utilizzando Loguru.
 
-    Attributi:
+    Attributes:
         _sinks (Dict[str, int]): Mappa dei sink ID.
         _initialized (bool): Flag per indicare se il logger è stato inizializzato.
         _lock (threading.Lock): Lock per garantire l'accesso thread-safe ai sink.
@@ -63,11 +63,11 @@ class LoggerFactory:
 
     @classmethod
     def set_defaults(
-        cls,
-        rotation: str | None = None,
-        retention: str | None = None,
-        compression: str | None = None,
-        log_path: str | Path | None = None,
+            cls,
+            rotation: str | None = None,
+            retention: str | None = None,
+            compression: str | None = None,
+            log_path: str | Path | None = None,
     ):
         """
         Imposta i valori di default per rotation, retention, compression e log_path.
@@ -83,14 +83,14 @@ class LoggerFactory:
 
     @classmethod
     def create_logger(
-        cls,
-        log_identifier: str,
-        logger_name: str,
-        level: str = "INFO",
-        rotation: str | None = None,
-        retention: str | None = None,
-        compression: str | None = None,
-        log_path: str | Path | None = None,  # Modificato logs_dir in log_path
+            cls,
+            log_identifier: str,
+            logger_name: str,
+            level: str = "INFO",
+            rotation: str | None = None,
+            retention: str | None = None,
+            compression: str | None = None,
+            log_path: str | Path | None = None,  # Modificato logs_dir in log_path
     ):
         """
         Crea o restituisce un `logger` esistente.
@@ -162,7 +162,6 @@ class LoggerFactory:
         Chiude tutti i `sink`.
         """
         with cls._lock:
-
             logger.remove()
             cls._sinks.clear()
             cls._initialized = False
@@ -170,7 +169,6 @@ class LoggerFactory:
 
 # Esempio di utilizzo
 def task(log_identifier: str, logger_name: str):
-
     path = Path(__file__).parent / "logs"
 
     # LoggerFactory.set_defaults(log_path=path)
