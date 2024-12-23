@@ -5,8 +5,8 @@ from dataclasses import dataclass
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from framework.core.base.periodic_agent import PeriodicProcessAgent
-from framework.core.orchestrator import Orchestrator
+from framework.core.base.periodic_agent import PeriodicProcessAgent # type: ignore
+from framework.core.orchestrator import Orchestrator # type: ignore
 
 
 class FileWriter(PeriodicProcessAgent):
@@ -19,6 +19,8 @@ class FileWriter(PeriodicProcessAgent):
         num_iterations: int = 5
         interval: float = 0.05
         compensate_delay: bool = True
+
+
 
     def runner(self):
 
