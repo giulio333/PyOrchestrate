@@ -1,7 +1,7 @@
 import datetime
 from typing import Dict, List, Optional, Type, Any
 
-from ..base.baseagent import AbstractBaseAgent, BaseConfig
+from ..base.baseagent import AbstractBaseAgent, BaseConfig, BaseProcessAgent, BaseThreadAgent
 
 
 class AgentEntry:
@@ -74,6 +74,42 @@ class AgentEntry:
         self.join()
         self.instance = self._create_instance()
         self.start()
+
+    def status(self) -> str:
+        """
+        Get agent status.
+
+        Notes:
+            The status is a string containing the following information:
+
+            - Whether the agent is alive.
+            - Whether the agent is a daemon.
+            - The agent's ident (if it is a process).
+            - The agent's PID (if it is a process).
+
+        Returns:
+            str: Agent status.
+        """
+
+        alive: bool
+        daemon: bool
+        ident: int | None
+        pid: int | None
+
+        if isinstance(self.instance, BaseProcessAgent):
+            alive: bool = self.instance.is_alive()
+            daemon: bool = self.instance.daemon
+            ident: int | None = self.instance.ident
+            pid: int | None = self.instance.pid
+        elif isinstance(self.instance, BaseThreadAgent):
+            alive = self.instance.is_alive()
+            daemon = self.instance.daemon
+            ident = None
+            pid = None
+        else:
+            raise ValueError("Unknown agent type.")
+
+        return f"{self.instance.name} -> alive: {alive} daemon: {daemon} ident: {ident} pid: {pid}"
 
     def __str__(self):
         return self.name

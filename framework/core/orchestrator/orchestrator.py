@@ -1,9 +1,7 @@
 from typing import Type
-from loguru import logger
 
 from .memory import OMemory
 from ..base.baseagent import AbstractBaseAgent, BaseConfig, BaseClass
-from ...utilities.logguru import LoggerFactory
 
 
 class Orchestrator(BaseClass):
@@ -72,3 +70,9 @@ class Orchestrator(BaseClass):
         for agent in self.memory.agents:
             agent.join()
             self.logger.info(f"Agent {agent} ended.")
+
+    def report(self):
+        """Report the status of all agents."""
+        self.logger.info(f"Reporting {len(self.memory.agents)} agents status.")
+        for agent in self.memory.agents:
+            self.logger.info(agent.status())

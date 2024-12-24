@@ -108,8 +108,14 @@ class AbstractBaseAgent(BaseClass, ABC):
     @abstractmethod
     def stop(self):
         """
-        Metodo astratto da implementare nelle classi derivate:
-        richiesta di stop dell'agente.
+        Abstract method to be implemented in derived classes: Agent stop logic.
+        """
+        pass
+
+    @abstractmethod
+    def execute(self):
+        """
+        Abstract method to be implemented in derived classes: Agent execution logic.
         """
         pass
 
@@ -134,6 +140,13 @@ class BaseThreadAgent(AbstractBaseAgent, threading.Thread):
         """
         self._stop_event.set()
 
+    @abstractmethod
+    def execute(self):
+        """
+        Abstract method to be implemented in derived classes: Agent execution logic.
+        """
+        pass
+
 
 class BaseProcessAgent(AbstractBaseAgent, multiprocessing.Process):
 
@@ -154,3 +167,10 @@ class BaseProcessAgent(AbstractBaseAgent, multiprocessing.Process):
         Facoltativo: set di un event per richiedere lo stop esterno del processo.
         """
         self._stop_event.set()
+
+    @abstractmethod
+    def execute(self):
+        """
+        Abstract method to be implemented in derived classes: Agent execution logic.
+        """
+        pass

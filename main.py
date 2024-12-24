@@ -62,6 +62,7 @@ class FileWriter(PeriodicProcessAgent):
 
 
 if __name__ == "__main__":
+    # orchestrator
     oConfig = Orchestrator.Config(logger=LoggerConfig("INFO", "Orchestrator"))
     orchestrator = Orchestrator(oConfig)
 
@@ -72,5 +73,14 @@ if __name__ == "__main__":
     custom_config = FileWriter.Config(num_iterations=2, execution_interval=.5, output_directory="logs")
     orchestrator.register_agent(FileWriter, "FileWriter2", custom_config)
 
+    # start all agents
     orchestrator.start()
+
+    # first report
+    orchestrator.report()
+
+    # wait for all agents to complete
     orchestrator.join()
+
+    # second report
+    orchestrator.report()

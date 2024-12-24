@@ -26,9 +26,11 @@ class LoopingProcessAgent(BaseProcessAgent):
     @abstractmethod
     def setup(self):
         """
-        Here you can implement the setup logic.
+        Abstract method to be implemented in derived classes: Agent setup logic.
 
-        This method is called once before the runner loop method.
+        Notes:
+            Here you can implement the setup logic.
+            This method is called once before the Agent cycle method.
         """
         pass
 
@@ -55,8 +57,10 @@ class LoopingThreadAgent(BaseThreadAgent):
     @abstractmethod
     def setup(self):
         """
-        Here you can implement the setup logic.
+        Abstract method to be implemented in derived classes: Agent setup logic.
 
-        This method is called once before the runner loop method.
+        Notes:
+            Here you can implement the setup logic.
+            This method is called once before the Agent cycle method.
         """
         pass
