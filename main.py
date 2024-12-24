@@ -19,8 +19,6 @@ class FileWriterConfig(PeriodicProcessAgent.Config):
     def validate(self):
         if self.num_iterations <= 0:
             raise ValueError("Il numero di iterazioni deve essere maggiore di 0.")
-        if self.output_directory == "logs":
-            raise ValueError("La directory di output non può essere vuota.")
 
 
 class FileWriter(PeriodicProcessAgent):
@@ -59,7 +57,7 @@ class FileWriter(PeriodicProcessAgent):
 
 
 if __name__ == "__main__":
-    from src.framework.core.orchestrator import Orchestrator
+    from framework.core.orchestrator import Orchestrator
 
     orchestrator = Orchestrator()
 
