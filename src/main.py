@@ -1,6 +1,5 @@
 import os
 from dataclasses import dataclass
-from typing import cast
 
 from framework.core.base.periodic_agent import PeriodicProcessAgent
 
@@ -17,15 +16,11 @@ class FileWriterConfig(PeriodicProcessAgent.Config):
     num_iterations: int = 5
     output_directory: str = "./logs"
 
-    @classmethod
-    def validate(cls):
-        """
-        Validazione dei parametri di configurazione.
-        """
-        if cls.num_iterations <= 0:
+    def validate(self):
+        if self.num_iterations <= 0:
             raise ValueError("Il numero di iterazioni deve essere maggiore di 0.")
-        if cls.execution_interval <= 0:
-            raise ValueError("L'intervallo di esecuzione deve essere maggiore di 0.")
+        if self.output_directory == "logs":
+            raise ValueError("La directory di output non può essere vuota.")
 
 
 class FileWriter(PeriodicProcessAgent):
@@ -49,10 +44,6 @@ class FileWriter(PeriodicProcessAgent):
         self.logger.info(f"Numero di iterazioni: {self.config.num_iterations}")
 
     def runner(self):
-        """
-        Logica periodica. Scrive un messaggio di log ad ogni esecuzione.
-        """
-
         if self.config.num_iterations <= 0:
             self.stop()
             return
@@ -76,7 +67,7 @@ if __name__ == "__main__":
     orchestrator.add_agent(FileWriter, "FileWriter1")
 
     # second agent with custom configuration
-    custom_config = FileWriter.Config(num_iterations=20, execution_interval=.5)
+    custom_config = FileWriter.Config(num_iterations=20, execution_interval=.5, output_directory="logs")
     orchestrator.add_agent(FileWriter, "FileWriter2", custom_config)
 
     orchestrator.start()

@@ -5,7 +5,6 @@ import logging
 from abc import ABC, abstractmethod
 from loguru import logger
 from dataclasses import dataclass
-from typing import Type, cast
 
 from ...utilities.logguru import LoggerFactory
 from ..base.utilities import LoggerConfig
@@ -18,18 +17,11 @@ class BaseConfig(ABC):
 
     logger: LoggerConfig = LoggerConfig()
 
-    @classmethod
-    def validate(cls):
+    def validate(self):
         """
         Validates certain conditions related to the class. This method is intended to
         ensure the integrity or correctness of class-level behaviors, parameters, or
         state and can be overridden in subclasses to customize validation logic.
-
-        Args:
-            cls: The class on which this method is called.
-
-        Returns:
-            None
         """
         pass
 
@@ -76,7 +68,7 @@ class AbstractBaseAgent(ABC):
         )
         self.logger.debug("Logger initialized.")
 
-    @logger.catch(reraise=False)
+    @logger.catch(reraise=True)
     def validate_config(self):
         """
         Validate the configuration.
@@ -103,14 +95,6 @@ class AbstractBaseAgent(ABC):
             self.logger.info(
                 f"execution completed in {elapsed:.3f} seconds."
             )
-
-    @abstractmethod
-    def execute(self):
-        """
-        Metodo astratto da implementare nelle classi derivate:
-        la logica del “lavoro” effettivo.
-        """
-        pass
 
     @abstractmethod
     def stop(self):
@@ -140,7 +124,6 @@ class BaseThreadAgent(AbstractBaseAgent, threading.Thread):
         Facoltativo: set di un event per richiedere lo stop esterno del thread.
         """
         self._stop_event.set()
-        self.logger.info(f"[{self.name}] Richiesta di stop ricevuta.")
 
 
 class BaseProcessAgent(AbstractBaseAgent, multiprocessing.Process):

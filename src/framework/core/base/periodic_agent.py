@@ -23,6 +23,7 @@ class PeriodicProcessAgent(LoopingProcessAgent):
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
 
+        self.timer = None
         self.interval = self.config.execution_interval
         self.compensate_delay = self.config.delay_compensation
 
