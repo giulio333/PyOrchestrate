@@ -10,6 +10,9 @@ class LoggerConfig:
 
     If not specified, default values will be used.
 
+    Notes:
+        If not specified, the log file will be named like the agent.
+
     Attributes:
         level (int): Logging level. Defaults to DEBUG.
         filename (str): File name for logging. Defaults to empty string.

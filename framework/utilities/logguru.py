@@ -40,7 +40,7 @@ class LoggerFactory:
     _initialized: bool = False
     _lock = threading.Lock()
 
-    dev_format: str = (
+    prod_format: str = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
         "<level><cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan></level> - "
@@ -49,7 +49,7 @@ class LoggerFactory:
         "<level>{message}</level>"
     )
 
-    prod_format: str = (
+    dev_format: str = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
         "{extra[name]} | "
@@ -90,7 +90,7 @@ class LoggerFactory:
             rotation: str | None = None,
             retention: str | None = None,
             compression: str | None = None,
-            log_path: str | Path | None = None,  # Modificato logs_dir in log_path
+            log_path: str | Path | None = None,
     ):
         """
         Crea o restituisce un `logger` esistente.

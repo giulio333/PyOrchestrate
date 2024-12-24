@@ -13,6 +13,9 @@ from ..base.utilities import LoggerConfig
 class BaseConfig(ABC):
     """
     Base configuration class.
+
+    Attributes:
+        logger (LoggerConfig): Logger configuration.
     """
 
     logger: LoggerConfig = LoggerConfig()
@@ -66,7 +69,7 @@ class AbstractBaseAgent(ABC):
         self.logger = LoggerFactory.create_logger(
             log_identifier=log_name, logger_name=log_name, level=logging_level
         )
-        self.logger.debug("Logger initialized.")
+        self.logger.debug(f"Logger initialized: {self.config.logger}")
 
     @logger.catch(reraise=True)
     def validate_config(self):

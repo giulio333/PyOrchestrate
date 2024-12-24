@@ -15,6 +15,7 @@ class PeriodicProcessAgent(LoopingProcessAgent):
         Attributes:
             execution_interval (float): The interval between two consecutive executions.
             delay_compensation (bool): Compensate the delay in the execution.
+            logger (LoggerConfig): Logger configuration.
         """
 
         execution_interval: float = 1
@@ -59,6 +60,7 @@ class PeriodicThreadAgent(LoopingThreadAgent):
         super().__init__(name=name, *args, **kwargs)
         self.interval = interval
         self.compensate_delay = compensate_delay
+        self.timer = None
 
     def setup(self):
         self.timer = PeriodicTimer(
@@ -69,8 +71,8 @@ class PeriodicThreadAgent(LoopingThreadAgent):
 
     @final
     def cycle(self):
+        """This method is called in a loop by the agent."""
         self.runner()
-
         if self.timer.wait(self._stop_event):
             # stopping the process
             return

@@ -3,8 +3,8 @@ from dataclasses import dataclass
 import time
 
 from framework.core.orchestrator import Orchestrator
-from framework.core.orchestrator.memory import AgentEntry
 from framework.core.base.periodic_agent import PeriodicProcessAgent
+from framework.core.base.utilities import LoggerConfig
 
 
 @dataclass
@@ -15,9 +15,11 @@ class FileWriterConfig(PeriodicProcessAgent.Config):
     Attributes:
         num_iterations (int): Numero totale di iterazioni da eseguire.
         output_directory (str): Directory dove salvare i log.
+        logger (LoggerConfig): Logger configuration.
     """
     num_iterations: int = 5
     output_directory: str = "./logs"
+    logger = LoggerConfig(level="DEBUG")
 
     def validate(self):
         if self.num_iterations <= 0:
@@ -72,11 +74,3 @@ if __name__ == "__main__":
     orchestrator.start()
 
     orchestrator.join()
-
-    agents: list[AgentEntry] = orchestrator.memory.agents
-
-    for agent in agents:
-        agent_name = agent.name
-        agent_stats = orchestrator.memory.get_agent_stats(agent_name)
-        print(f"Agent: {agent_name}")
-        print(f"Stats: {agent_stats}")

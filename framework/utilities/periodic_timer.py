@@ -53,10 +53,9 @@ class PeriodicTimer:
         interval (float): The time interval in seconds between each iteration.
         compensate_delay (bool): Determines whether to compensate for accumulated delays.
         next_time (float): The scheduled start time for the next iteration.
-        _lock (threading.Lock): A lock to ensure thread-safe operations on internal state.
     """
 
-    def __init__(self, logger, interval: float, compensate_delay: bool = True):
+    def __init__(self, logger: object, interval: float, compensate_delay: bool = True):
         """
         Initializes a new instance of PeriodicTimer.
 
