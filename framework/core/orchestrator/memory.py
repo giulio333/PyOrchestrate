@@ -237,42 +237,6 @@ class OMemory:
                 instances.append(entry.instance)
         return instances
 
-    def start_agent(self, name: str) -> None:
-        """
-        Start the agent with the given name.
-        """
-        entry = self.get_agent_entry(name)
-        if entry:
-            entry.start()
-            self._record_event(name, "start")
-
-    def stop_agent(self, name: str) -> None:
-        """
-        Stop the agent with the given name.
-        """
-        entry = self.get_agent_entry(name)
-        if entry:
-            entry.stop()
-            self._record_event(name, "stop")
-
-    def join_agent(self, name: str) -> None:
-        """
-        Join the agent with the given name.
-        """
-        entry = self.get_agent_entry(name)
-        if entry:
-            entry.join()
-            self._record_event(name, "join")
-
-    def restart_agent(self, name: str) -> None:
-        """
-        Restart the agent with the given name.
-        """
-        entry = self.get_agent_entry(name)
-        if entry:
-            entry.restart()
-            self._record_event(name, "restart")
-
     def get_agent_stats(self, agent_name: str) -> Optional[List[Dict[str, datetime]]]:
         """
         Return the event log for the specified agent.

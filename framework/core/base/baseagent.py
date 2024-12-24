@@ -4,12 +4,13 @@ import time
 import logging
 from abc import ABC, abstractmethod
 from loguru import logger
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ...utilities.logguru import LoggerFactory
 from ..base.utilities import LoggerConfig
 
 
+@dataclass
 class BaseConfig(ABC):
     """
     Base configuration class.
@@ -18,7 +19,7 @@ class BaseConfig(ABC):
         logger (LoggerConfig): Logger configuration.
     """
 
-    logger: LoggerConfig = LoggerConfig()
+    logger: LoggerConfig = field(default_factory=LoggerConfig)
 
     def validate(self):
         """
@@ -29,10 +30,7 @@ class BaseConfig(ABC):
         pass
 
 
-class AbstractBaseAgent(ABC):
-    """
-    Abstract base class for all agents.
-    """
+class BaseClass:
     start_time: float
 
     @dataclass
@@ -45,7 +43,6 @@ class AbstractBaseAgent(ABC):
         """
 
     def __init__(self, name: str | None = None, config: BaseConfig | None = None, *args, **kwargs):
-
         self.logger = None
         self.config = config if config else self.Config()
         self.name = name if name else self.__class__.__name__
@@ -70,6 +67,15 @@ class AbstractBaseAgent(ABC):
             log_identifier=log_name, logger_name=log_name, level=logging_level
         )
         self.logger.debug(f"Logger initialized: {self.config.logger}")
+
+
+class AbstractBaseAgent(BaseClass, ABC):
+    """
+    Abstract base class for all agents.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     @logger.catch(reraise=True)
     def validate_config(self):

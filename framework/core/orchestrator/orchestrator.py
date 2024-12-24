@@ -1,18 +1,37 @@
 from typing import Type
-import uuid
+from loguru import logger
 
 from .memory import OMemory
-from ..base.baseagent import AbstractBaseAgent, BaseConfig
+from ..base.baseagent import AbstractBaseAgent, BaseConfig, BaseClass
 from ...utilities.logguru import LoggerFactory
 
 
-class Orchestrator:
+class Orchestrator(BaseClass):
+    """
+    Orchestrator class to manages the agents.
 
-    def __init__(self):
-        self.logger = LoggerFactory().create_logger(
-            "Orchestrator", "Orchestrator", "INFO"
-        )
+    Notes:
+        You can pass custom configuration, same as the agent configuration.
+
+        >>> from framework.core.base.utilities import LoggerConfig
+        >>> Orchestrator.Config(logger=LoggerConfig("INFO", "Orchestrator"))
+
+    Attributes:
+        memory (OMemory): Memory to store the agents.
+
+    Methods:
+        register_agent: Register an agent on the orchestrator.
+        start: Start all the agents registered in the orchestrator.
+        stop: Terminates all registered agents.
+        join: Wait for all the agents to complete.
+    """
+
+    def __init__(self, config: BaseConfig | None = None):
+        super().__init__(name="Orchestrator", config=config)
+        self.logger = None
         self.memory = OMemory()
+
+        self.setup_logger()
 
     def register_agent(
             self,
