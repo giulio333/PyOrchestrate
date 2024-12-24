@@ -1,6 +1,8 @@
 import os
 from dataclasses import dataclass
+import time
 
+from framework.core.orchestrator import Orchestrator
 from framework.core.base.periodic_agent import PeriodicProcessAgent
 
 
@@ -57,16 +59,15 @@ class FileWriter(PeriodicProcessAgent):
 
 
 if __name__ == "__main__":
-    from framework.core.orchestrator import Orchestrator
-
     orchestrator = Orchestrator()
 
     # first agent with default configuration
-    orchestrator.add_agent(FileWriter, "FileWriter1")
+    orchestrator.register_agent(FileWriter, "FileWriter1")
 
     # second agent with custom configuration
     custom_config = FileWriter.Config(num_iterations=20, execution_interval=.5, output_directory="logs")
-    orchestrator.add_agent(FileWriter, "FileWriter2", custom_config)
+    orchestrator.register_agent(FileWriter, "FileWriter2", custom_config)
 
     orchestrator.start()
+
     orchestrator.join()

@@ -1,5 +1,7 @@
 from typing import Type
+import uuid
 
+from .memory import OrchestratorMemory
 from ..base.baseagent import AbstractBaseAgent, BaseConfig
 from ...utilities.logguru import LoggerFactory
 
@@ -7,12 +9,12 @@ from ...utilities.logguru import LoggerFactory
 class Orchestrator:
 
     def __init__(self):
-        self.agents: dict[str, AbstractBaseAgent] = {}
         self.logger = LoggerFactory().create_logger(
             "Orchestrator", "Orchestrator", "INFO"
         )
+        self.memory = OrchestratorMemory()
 
-    def add_agent(
+    def register_agent(
             self,
             agent_class: Type[AbstractBaseAgent],
             name: str,
@@ -20,39 +22,39 @@ class Orchestrator:
             *args,
             **kwargs,
     ):
+        """
+        Register an agent on current orchestrator.
 
-        agent_instance = agent_class(name, custom_config, *args, **kwargs)
+        Args:
+            agent_class: Class of the agent to register.
+            name: Name of the agent.
+            custom_config: Custom configuration for the agent.
 
-        unique_name = f"{name}_{len(self.agents)}"
+        Returns:
+            None
+        """
 
-        self.agents.update({unique_name: agent_instance})
+        self.memory.add_agent(agent_class, name, custom_config, *args, **kwargs)
 
-        self.logger.info(f"Agente {name} aggiunto.")
+        self.logger.info(f"Agent {name} registered.")
 
     def start(self):
-        """Avvia tutti gli agenti registrati."""
+        """Start all the agents registered in the orchestrator."""
 
-        for agent in self.agents:
-            agent_instance: AbstractBaseAgent = self.agents[agent]
-            agent_instance.start()  # type: ignore
-            self.logger.info(f"Agente {agent} avviato.")
-
-    def join(self):
-        """Attende il completamento di tutti gli agenti registrati."""
-        for agent in self.agents:
-            agent_instance: AbstractBaseAgent = self.agents[agent]
-            agent_instance.join()  # type: ignore
-            self.logger.info(f"Agente {agent} completato.")
+        for agent in self.memory.agents:
+            agent.start()
+            self.logger.info(f"Starting agent {agent}.")
 
     def stop(self):
-        """Termina tutti gli agenti registrati.
+        """Terminates all registered agents."""
 
-        Note:
-            Questa funzione tenta di terminare i processi o thread. Per i processi utilizza
-            `terminate()`; per i thread, è necessaria una logica specifica nell'implementazione
-            degli agenti.
-        """
-        for agent in self.agents:
-            agent_instance: AbstractBaseAgent = self.agents[agent]
-            agent_instance.stop()
-            self.logger.info(f"Agente {agent} fermato.")
+        for agent in self.memory.agents:
+            agent.stop()
+            self.logger.info(f"Stopping agent {agent}.")
+
+    def join(self):
+        """Wait for all the agents to complete."""
+
+        for agent in self.memory.agents:
+            agent.join()
+            self.logger.info(f"Agent {agent} ended.")
