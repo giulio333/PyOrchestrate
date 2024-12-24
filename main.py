@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import time
 
 from framework.core.orchestrator import Orchestrator
+from framework.core.orchestrator.memory import AgentEntry
 from framework.core.base.periodic_agent import PeriodicProcessAgent
 
 
@@ -65,9 +66,17 @@ if __name__ == "__main__":
     orchestrator.register_agent(FileWriter, "FileWriter1")
 
     # second agent with custom configuration
-    custom_config = FileWriter.Config(num_iterations=20, execution_interval=.5, output_directory="logs")
+    custom_config = FileWriter.Config(num_iterations=2, execution_interval=.5, output_directory="logs")
     orchestrator.register_agent(FileWriter, "FileWriter2", custom_config)
 
     orchestrator.start()
 
     orchestrator.join()
+
+    agents: list[AgentEntry] = orchestrator.memory.agents
+
+    for agent in agents:
+        agent_name = agent.name
+        agent_stats = orchestrator.memory.get_agent_stats(agent_name)
+        print(f"Agent: {agent_name}")
+        print(f"Stats: {agent_stats}")

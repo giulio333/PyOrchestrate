@@ -1,8 +1,6 @@
-from typing import Dict, List, Optional, Type
+import datetime
+from typing import Dict, List, Optional, Type, Any
 
-from ..base.baseagent import AbstractBaseAgent, BaseConfig
-
-from typing import Type, Optional, Any
 from ..base.baseagent import AbstractBaseAgent, BaseConfig
 
 
@@ -16,6 +14,7 @@ class AgentEntry:
             agent_class: Type[AbstractBaseAgent],
             name: str,
             config: Optional[BaseConfig] = None,
+            record_event_callback: Optional[Any] = None,
             *args: Any,
             **kwargs: Any
     ):
@@ -25,6 +24,9 @@ class AgentEntry:
         self.args = args
         self.kwargs = kwargs
 
+        # callback per registrare eventi (arriva da OrchestratorMemory)
+        self._record_event_callback = record_event_callback
+
         self.instance: AbstractBaseAgent = self._create_instance()
 
     def _create_instance(self) -> AbstractBaseAgent:
@@ -33,12 +35,20 @@ class AgentEntry:
         """
         return self.agent_class(self.name, self.config, *self.args, **self.kwargs)
 
+    def _record_event(self, event_type: str) -> None:
+        """
+        Invochiamo la callback se è presente.
+        """
+        if self._record_event_callback is not None:
+            self._record_event_callback(self.name, event_type)
+
     def start(self) -> None:
         """
         Metodi “di comodo” per gestire l’agente
         """
         if hasattr(self.instance, 'start'):
             self.instance.start()
+        self._record_event("start")
 
     def stop(self) -> None:
         """
@@ -46,6 +56,7 @@ class AgentEntry:
         """
         if hasattr(self.instance, 'stop'):
             self.instance.stop()
+        self._record_event("stop")
 
     def join(self) -> None:
         """
@@ -53,6 +64,7 @@ class AgentEntry:
         """
         if hasattr(self.instance, 'join'):
             self.instance.join()
+        self._record_event("join")
 
     def restart(self) -> None:
         """
@@ -91,15 +103,16 @@ class Group:
             self.agent_names.remove(agent_name)
 
 
-class OrchestratorMemory:
+class OMemory:
     """
-    OrchestratorMemory is a class that stores agents and groups of agents.
+    OMemory is a class that stores agents and groups of agents.
 
     Agents are stored as `AgentEntry` objects, which contain some metadata and the agent instance.
 
     Attributes:
         _agents (Dict[str, AgentEntry]): Map from agent name to `AgentEntry` object.
         _groups (Dict[str, Group]): Map from group name to `Group` object.
+        _agent_stats (Dict[str, List[Dict[str, Any]]]): mappa dell’agente a una lista di eventi registrati.
 
     Methods:
         add_agent: Add an agent to the orchestrator memory.
@@ -115,6 +128,7 @@ class OrchestratorMemory:
         join_agent: Join the agent with the given name.
         restart_agent: Restart the agent with the given name.
         agents: Get the list of all `AgentEntry` objects
+        get_agent_stats: Get the event log for the specified agent
     """
 
     def __init__(self):
@@ -122,6 +136,20 @@ class OrchestratorMemory:
         self._agents: Dict[str, AgentEntry] = {}
         # Mappa dal nome del gruppo all’oggetto `Group`
         self._groups: Dict[str, Group] = {}
+        # Mappa dal nome dell’agente a una lista di eventi con timestamp
+        self._agent_stats: Dict[str, List[Dict[str, Any]]] = {}
+
+    @property
+    def agents(self) -> List[AgentEntry]:
+        """
+        Return the list of all `AgentEntry` objects.
+
+        These objects contain all the information needed to manage an agent.
+
+        Returns:
+            list[AgentEntry]: List of all agents.
+        """
+        return list(self._agents.values())
 
     def add_agent(
             self,
@@ -132,24 +160,37 @@ class OrchestratorMemory:
             **kwargs: Any
     ) -> None:
         """
-        Crea e memorizza un agente, costruendo un oggetto `AgentEntry`.
+        Store an agent in the orchestrator memory.
+
+        Data will be stored as an `AgentEntry` object, which contains metadata and the agent instance.
+
+        Args:
+            agent_class (Type[AbstractBaseAgent]): The class of the agent to store.
+            name (str): The name of the agent.
+            custom_config (Optional[BaseConfig], optional): Custom configuration for the agent. Defaults to None.
         """
 
-        entry = AgentEntry(agent_class, name, custom_config, *args, **kwargs)
+        entry = AgentEntry(
+            agent_class=agent_class,
+            name=name,
+            config=custom_config,
+            record_event_callback=self._record_event,
+            *args,
+            **kwargs
+        )
         self._agents[name] = entry
+        self._agent_stats[name] = []
 
     def get_agent_entry(self, name: str) -> Optional[AgentEntry]:
         """
         Ritorna l'oggetto `AgentEntry` corrispondente al nome fornito (se esiste).
         """
-
         return self._agents.get(name)
 
     def get_agent_instance(self, name: str) -> Optional[AbstractBaseAgent]:
         """
         Ritorna l’istanza dell’agente (se esiste).
         """
-
         entry = self.get_agent_entry(name)
         return entry.instance if entry else None
 
@@ -157,7 +198,6 @@ class OrchestratorMemory:
         """
         Crea un gruppo vuoto, se non esiste già.
         """
-
         if group_name not in self._groups:
             self._groups[group_name] = Group(group_name)
 
@@ -165,7 +205,6 @@ class OrchestratorMemory:
         """
         Aggiunge un agente esistente al gruppo specificato (se il gruppo esiste).
         """
-
         if agent_name in self._agents and group_name in self._groups:
             group = self._groups[group_name]
             group.add_agent(agent_name)
@@ -174,7 +213,6 @@ class OrchestratorMemory:
         """
         Rimuove un agente dal gruppo specificato (se il gruppo esiste).
         """
-
         if group_name in self._groups:
             group = self._groups[group_name]
             group.remove_agent(agent_name)
@@ -183,14 +221,12 @@ class OrchestratorMemory:
         """
         Ritorna l'oggetto `Group`, se esiste.
         """
-
         return self._groups.get(group_name)
 
     def get_group_agents(self, group_name: str) -> List[AbstractBaseAgent]:
         """
         Ritorna la lista delle istanze degli agenti appartenenti al gruppo.
         """
-
         group = self._groups.get(group_name)
         if not group:
             return []
@@ -205,47 +241,73 @@ class OrchestratorMemory:
         """
         Start the agent with the given name.
         """
-
         entry = self.get_agent_entry(name)
         if entry:
             entry.start()
+            self._record_event(name, "start")
 
     def stop_agent(self, name: str) -> None:
         """
         Stop the agent with the given name.
         """
-
         entry = self.get_agent_entry(name)
         if entry:
             entry.stop()
+            self._record_event(name, "stop")
 
     def join_agent(self, name: str) -> None:
         """
         Join the agent with the given name.
         """
-
         entry = self.get_agent_entry(name)
         if entry:
             entry.join()
+            self._record_event(name, "join")
 
     def restart_agent(self, name: str) -> None:
         """
         Restart the agent with the given name.
         """
-
         entry = self.get_agent_entry(name)
         if entry:
             entry.restart()
+            self._record_event(name, "restart")
 
-    @property
-    def agents(self) -> list[AgentEntry]:
+    def get_agent_stats(self, agent_name: str) -> Optional[List[Dict[str, datetime]]]:
         """
-        Return the list of all `AgentEntry` objects.
+        Return the event log for the specified agent.
 
-        These objects contain all the information needed to manage an agent.
+        If the agent does not exist or has no events, return None.
+
+        Args:
+            agent_name (str): The name of the agent.
 
         Returns:
-            list[AgentEntry]: List of all agents.
+            Optional[List[Dict[str, datetime]]]: The event log for the agent or None.
         """
+        return self._agent_stats.get(agent_name)
 
-        return [agent for agent in self._agents.values()]
+    def _record_event(self, agent_name: str, event_type: str) -> None:
+        """
+        Record an event for the specified agent.
+
+        event = { "timestamp": datetime.datetime.now(), "event": "start" }
+
+        Args:
+            agent_name (str): The name of the agent.
+            event_type (str): The type of event to record.
+
+        Returns:
+            None
+        """
+        now = datetime.datetime.now()
+        event = {
+            "timestamp": now,
+            "event": event_type
+        }
+        if agent_name not in self._agent_stats:
+            self._agent_stats[agent_name] = []
+        self._agent_stats[agent_name].append(event)
+
+    def __str__(self):
+        return f"<OrchestratorMemory: {len(self._agents)} agents, {len(self._groups)} groups.>"
