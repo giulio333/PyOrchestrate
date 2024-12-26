@@ -35,7 +35,7 @@ if __name__ == "__main__":
     orchestrator = Orchestrator(oConfig)
 
     # first agent with default configuration
-    orchestrator.register_agent(FileWriter, "FileWriter1")
+    orchestrator.register_agent(FileWriter, "FileWriter1", )
 
     # start all agents
     orchestrator.start()
