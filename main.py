@@ -9,14 +9,6 @@ from framework.core.base.utilities import LoggerConfig
 
 @dataclass
 class FileWriterConfig(PeriodicProcessAgent.Config):
-    """
-    Configurazione che eredita da PeriodicProcessAgent.Config.
-
-    Attributes:
-        num_iterations (int): Numero totale di iterazioni da eseguire.
-        output_directory (str): Directory dove salvare i log.
-        logger (LoggerConfig): Logger configuration.
-    """
     num_iterations: int = 5
     output_directory: str = "./logs"
     logger = LoggerConfig(level="DEBUG")

@@ -13,15 +13,20 @@ class MyThread(PeriodicThreadAgent):
     def runner(self):
         print(f"Thread {self.name} running")
 
+        self.stop()
+
+
+@dataclass
+class FileWriterConfig(PeriodicProcessAgent.Config):
+    agents_entry = [AgentEntry(MyThread, "Thread1")]
+    output_directory = "log"
+    num_iterations = 5
+
 
 class FileWriter(PoolAgent):
-    """
-    FileWriter, un agente periodico che esegue un ciclo per scrivere log.
-    """
-
     @dataclass
-    class Config(PoolAgent.Config):
-        agents_entry = [AgentEntry(MyThread, "Thread1")]
+    class Config(FileWriterConfig):
+        pass
 
     def setup(self):
         """
