@@ -38,7 +38,7 @@ class LoopingProcessAgent(BaseProcessAgent):
 class LoopingThreadAgent(BaseThreadAgent):
 
     def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name=name, *args, **kwargs)
+        super().__init__(name, *args, **kwargs)
 
     @final
     def execute(self):
