@@ -3,12 +3,13 @@ from dataclasses import dataclass
 import time
 
 from framework.core.orchestrator import Orchestrator
-from framework.core.base.periodic_agent import PeriodicProcessAgent
+from framework.core.base.periodic_agent import PeriodicAgent
+from framework.core.base.baseagent import BaseProcessAgent
 from framework.core.base.utilities import LoggerConfig
 
 
 @dataclass
-class FileWriterConfig(PeriodicProcessAgent.Config):
+class FileWriterConfig(PeriodicAgent.Config):
     num_iterations: int = 5
     output_directory: str = "./logs"
     logger = LoggerConfig(level="DEBUG")
@@ -18,7 +19,7 @@ class FileWriterConfig(PeriodicProcessAgent.Config):
             raise ValueError("Il numero di iterazioni deve essere maggiore di 0.")
 
 
-class FileWriter(PeriodicProcessAgent):
+class FileWriter(PeriodicAgent, BaseProcessAgent):
     """
     FileWriter, un agente periodico che esegue un ciclo per scrivere log.
     """

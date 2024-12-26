@@ -76,6 +76,7 @@ class AbstractBaseAgent(BaseClass, ABC):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._stop_event = None
 
     @logger.catch(reraise=True)
     def validate_config(self):

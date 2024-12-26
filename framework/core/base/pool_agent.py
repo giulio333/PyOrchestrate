@@ -2,13 +2,13 @@ from abc import abstractmethod
 from typing import final
 from dataclasses import dataclass
 
-from ..base.periodic_agent import PeriodicProcessAgent
+from ..base.periodic_agent import PeriodicAgent
 from ...utilities.periodic_timer import PeriodicTimer
 from ..orchestrator.orchestrator import Orchestrator
 from ..orchestrator.memory import AgentEntry
 
 
-class PoolAgent(PeriodicProcessAgent):
+class PoolAgent(PeriodicAgent):
     """
     Pool agent class.
 
@@ -16,7 +16,7 @@ class PoolAgent(PeriodicProcessAgent):
     """
 
     @dataclass
-    class Config(PeriodicProcessAgent.Config):
+    class Config(PeriodicAgent.Config):
         """
         Pool agent configuration class.
 

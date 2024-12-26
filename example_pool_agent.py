@@ -4,21 +4,22 @@ import time
 
 from framework.core.orchestrator import Orchestrator
 from framework.core.orchestrator.memory import AgentEntry
-from framework.core.base.periodic_agent import PeriodicProcessAgent, PeriodicThreadAgent
+from framework.core.base.periodic_agent import PeriodicAgent
 from framework.core.base.utilities import LoggerConfig
 from framework.core.base.pool_agent import PoolAgent
+from framework.core.base.baseagent import BaseProcessAgent, BaseThreadAgent
 
 
-class MyThread(PeriodicThreadAgent):
+class MyThread(PeriodicAgent, BaseThreadAgent):
     def runner(self):
         print(f"Thread {self.name} running")
 
         self.stop()
 
 
-class FileWriter(PoolAgent):
+class FileWriter(PoolAgent, BaseProcessAgent):
     @dataclass
-    class Config(PeriodicProcessAgent.Config):
+    class Config(PeriodicAgent.Config):
         agents_entry = [AgentEntry(MyThread, "Thread1")]
         output_directory = "log"
         num_iterations = 5

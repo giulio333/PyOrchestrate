@@ -29,7 +29,6 @@ class LoggerFactory:
         _sinks (Dict[str, int]): Mappa dei sink ID.
         _initialized (bool): Flag per indicare se il logger è stato inizializzato.
         _lock (threading.Lock): Lock per garantire l'accesso thread-safe ai sink.
-        format (str): Formato dei messaggi di log.
         rotation_default (str): Frequenza di rotazione dei file di log di default.
         retention_default (str): Durata di retention dei file di log di default.
         compression_default (str): Tipo di compressione dei file di log di default.
@@ -134,7 +133,6 @@ class LoggerFactory:
                 file_name = logs_dir / f"{log_identifier}.log"
 
             try:
-                # Aggiunge un sink file con rotazione, retention e compressione
                 sink_id = logger.add(
                     file_name,
                     rotation=rotation or cls.rotation_default,
