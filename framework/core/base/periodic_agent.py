@@ -10,14 +10,13 @@ class PeriodicProcessAgent(LoopingProcessAgent):
     @dataclass
     class Config(LoopingProcessAgent.Config):
         """
-        Periodic agent configuration class.
+        PeriodicProcessAgent configuration class.
 
         Attributes:
             execution_interval (float): The interval between two consecutive executions.
             delay_compensation (bool): Compensate the delay in the execution.
             logger (LoggerConfig): Logger configuration.
         """
-
         execution_interval: float = 1
         delay_compensation: bool = False
 
@@ -56,14 +55,13 @@ class PeriodicThreadAgent(LoopingThreadAgent):
     @dataclass
     class Config(LoopingProcessAgent.Config):
         """
-        Periodic agent configuration class.
+        PeriodicThreadAgent configuration class.
 
         Attributes:
             execution_interval (float): The interval between two consecutive executions.
             delay_compensation (bool): Compensate the delay in the execution.
             logger (LoggerConfig): Logger configuration.
         """
-
         execution_interval: float = 1
         delay_compensation: bool = False
 

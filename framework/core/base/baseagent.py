@@ -47,7 +47,7 @@ class BaseClass:
         self.config = config if config else self.Config()
         self.name = name if name else self.__class__.__name__
 
-    @logger.catch(reraise=False)
+    @logger.catch(reraise=True)
     def setup_logger(self):
         """
         Set up the logger.
