@@ -1,5 +1,3 @@
-from dataclasses import dataclass, field
-
 from framework.core.orchestrator import Orchestrator
 from framework.core.orchestrator.memory import AgentEntry
 from framework.core.base.periodic_agent import PeriodicAgent
@@ -19,7 +17,7 @@ class MyThread(PeriodicAgent, BaseThreadAgent):
 class FileWriter(PoolAgent, BaseProcessAgent):
     class Config(PoolAgent.Config):
         agents_entry = [AgentEntry(MyThread, "Thread1"), AgentEntry(MyThread, "Thread2")]
-        output_directory: str = field(default="output")
+        output_directory: str = "output"
 
     def setup(self):
         """

@@ -58,7 +58,8 @@ class PoolAgent(PeriodicAgent):
             self.logger.warning("No agents for current pool agent.")
             return
         for agent in self.config.agents_entry:
-            self.orchestrator.register_agent(agent.agent_class, agent.name, agent.config)
+            self.orchestrator.register_agent(agent.agent_class, agent.name, agent.config,
+                                             stop_callback=self.on_agent_stopped)
         self.orchestrator.start()
 
     @final
@@ -70,6 +71,15 @@ class PoolAgent(PeriodicAgent):
             self.logger.info("All agents are stopped.")
             self.stop()
             return
+
+    def on_agent_stopped(self, agent_name: str):
+        """
+        Callback to be called when an agent is stopped.
+
+        Args:
+            agent_name: The name of the agent that stopped.
+        """
+        self.logger.info(f"callback Agent {agent_name} stopped.")
 
     @property
     def orchestrator(self) -> Orchestrator:

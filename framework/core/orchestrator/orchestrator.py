@@ -76,3 +76,12 @@ class Orchestrator(BaseClass):
         self.logger.info(f"Reporting {len(self.memory.agents)} agents status.")
         for agent in self.memory.agents:
             self.logger.info(agent.status())
+
+    def on_agent_stopped(self, agent_name: str):
+        """
+        Callback to be called when an agent is stopped.
+
+        Args:
+            agent_name: The name of the agent that stopped.
+        """
+        self.logger.info(f"callback Agent {agent_name} stopped.")

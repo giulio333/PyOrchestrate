@@ -41,10 +41,11 @@ class BaseClass:
             logger (LoggerConfig): Logger configuration.
         """
 
-    def __init__(self, name: str | None = None, config: BaseConfig | None = None, *args, **kwargs):
+    def __init__(self, name: str | None = None, config: BaseConfig | None = None, stop_callback=None, *args, **kwargs):
         self.logger = None
         self.config = config if config else self.Config()
         self.name = name if name else self.__class__.__name__
+        self.stop_callback = stop_callback
 
     @logger.catch(reraise=True)
     def setup_logger(self):
@@ -100,6 +101,8 @@ class AbstractBaseAgent(BaseClass, ABC):
         except Exception as ex:
             self.logger.exception(f"[{self.name}] Errore durante l'esecuzione: {ex}")
         finally:
+            if self.stop_callback:
+                self.stop_callback(self.name)
             elapsed = time.time() - self.start_time
             self.logger.info(
                 f"execution completed in {elapsed:.3f} seconds."
@@ -120,7 +123,7 @@ class BaseThreadAgent(AbstractBaseAgent, threading.Thread):
 
     def __init__(self, name: str | None = None, *args, **kwargs):
         threading.Thread.__init__(self, name=name)
-        AbstractBaseAgent.__init__(self, name)
+        AbstractBaseAgent.__init__(self, name, *args, **kwargs)
 
         self._stop_event = threading.Event()
 
