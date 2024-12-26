@@ -2,7 +2,7 @@ from framework.core.orchestrator import Orchestrator
 from framework.core.orchestrator.memory import AgentEntry
 from framework.core.base.periodic_agent import PeriodicAgent
 from framework.core.base.pool_agent import PoolAgent
-from framework.core.base.baseagent import BaseProcessAgent, BaseThreadAgent
+from framework.core.base.base import BaseProcessAgent, BaseThreadAgent
 from framework.core.base.utilities import LoggerConfig
 
 

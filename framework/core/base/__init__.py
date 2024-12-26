@@ -1,1 +1,1 @@
-from .baseagent import BaseConfig, BaseProcessAgent, BaseThreadAgent
+from .base import BaseConfig, BaseProcessAgent, BaseThreadAgent

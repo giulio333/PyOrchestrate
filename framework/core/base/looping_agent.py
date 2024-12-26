@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import final
 
-from ..base.baseagent import AbstractBaseAgent
+from ..base.base import AbstractBaseAgent
 
 
 class LoopingAgent(AbstractBaseAgent):

@@ -1,7 +1,7 @@
 import datetime
 from typing import Dict, List, Optional, Type, Any
 
-from ..base.baseagent import AbstractBaseAgent, BaseConfig, BaseProcessAgent, BaseThreadAgent
+from ..base.base import AbstractBaseAgent, BaseConfig, BaseProcessAgent, BaseThreadAgent
 
 
 class AgentEntry:

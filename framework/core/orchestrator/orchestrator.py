@@ -1,7 +1,7 @@
 from typing import Type
 
 from .memory import OMemory
-from ..base.baseagent import AbstractBaseAgent, BaseConfig, BaseClass
+from ..base.base import AbstractBaseAgent, BaseConfig, BaseClass
 
 
 class Orchestrator(BaseClass):

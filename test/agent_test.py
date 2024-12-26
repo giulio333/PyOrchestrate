@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 import sys, os
 
-from framework.core.base.baseagent import AbstractBaseAgent, BaseThreadAgent, BaseConfig, BaseProcessAgent
+from framework.core.base.base import AbstractBaseAgent, BaseThreadAgent, BaseConfig, BaseProcessAgent
 
 
 class TestAbstractBaseAgent(unittest.TestCase):

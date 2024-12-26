@@ -4,7 +4,7 @@ import time
 
 from framework.core.orchestrator import Orchestrator
 from framework.core.base.periodic_agent import PeriodicAgent
-from framework.core.base.baseagent import BaseProcessAgent
+from framework.core.base.base import BaseProcessAgent
 from framework.core.base.utilities import LoggerConfig
 
 
