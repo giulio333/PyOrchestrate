@@ -10,7 +10,6 @@ from ...utilities.logguru import LoggerFactory
 from ..base.utilities import LoggerConfig
 
 
-@dataclass
 class BaseConfig(ABC):
     """
     Base configuration class.
@@ -19,12 +18,13 @@ class BaseConfig(ABC):
         logger (LoggerConfig): Logger configuration.
     """
 
-    logger: LoggerConfig = field(default_factory=LoggerConfig)
+    def __init__(self, logger_config: LoggerConfig | None = None):
+        self.logger = logger_config if logger_config else LoggerConfig()
 
     def validate(self):
         """
         Validates certain conditions related to the class. This method is intended to
-        ensure the integrity or correctness of class-level behaviors, parameters, or
+        ensure the integrity or correctness of parameters or
         state and can be overridden in subclasses to customize validation logic.
         """
         pass
@@ -33,7 +33,6 @@ class BaseConfig(ABC):
 class BaseClass:
     start_time: float
 
-    @dataclass
     class Config(BaseConfig):
         """
         Agent configuration class.
@@ -107,17 +106,13 @@ class AbstractBaseAgent(BaseClass, ABC):
             )
 
     @abstractmethod
-    def stop(self):
-        """
-        Abstract method to be implemented in derived classes: Agent stop logic.
-        """
-        pass
-
-    @abstractmethod
     def execute(self):
         """
         Abstract method to be implemented in derived classes: Agent execution logic.
         """
+        pass
+
+    def stop(self):
         pass
 
 

@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import final
 from dataclasses import dataclass
 
@@ -15,21 +14,27 @@ class PoolAgent(PeriodicAgent):
     This agent is an orchestrator of BaseThreadAgent instances.
     """
 
-    @dataclass
     class Config(PeriodicAgent.Config):
         """
         Pool agent configuration class.
 
         Attributes:
+            auto_reboot (bool): Flag to enable automatic reboot of agents.
             agents_entry (list[AgentEntry]): List of agents to be registered.
-            execution_interval (float): The interval between two consecutive executions.
-            delay_compensation (bool): Compensate the delay in the execution.
+            execution_interval (float): The interval of checking the agents.
             logger (LoggerConfig): Logger configuration.
         """
 
+        auto_reboot: bool = False
         execution_interval: float = 1
-        delay_compensation: bool = False
         agents_entry: list[AgentEntry] = None
+
+        def validate(self):
+            super().validate()
+            if self.limit is not None:
+                raise ValueError("PoolAgent does not support limit parameter.")
+            if self.agents_entry is None:
+                raise ValueError("No agents to register.")
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
@@ -61,12 +66,10 @@ class PoolAgent(PeriodicAgent):
         """
         Check the status of the agents and restart them if necessary.
         """
-        for agent in self.orchestrator.memory.agents:
-            if not agent.instance.is_alive():
-                self.logger.info(f"Found dead agent {agent}. Stopping.")
-                self.stop()
-            else:
-                self.logger.debug(f"Agent {agent} is running.")
+        if all(not agent.instance.is_alive() for agent in self.orchestrator.memory.agents):
+            self.logger.info("All agents are stopped.")
+            self.stop()
+            return
 
     @property
     def orchestrator(self) -> Orchestrator:

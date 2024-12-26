@@ -56,7 +56,7 @@ class FileWriter(PeriodicAgent, BaseProcessAgent):
 
 if __name__ == "__main__":
     # orchestrator
-    oConfig = Orchestrator.Config(logger=LoggerConfig("INFO", "Orchestrator"))
+    oConfig = Orchestrator.Config(logger_config=LoggerConfig("INFO", "Orchestrator"))
     orchestrator = Orchestrator(oConfig)
 
     # first agent with default configuration

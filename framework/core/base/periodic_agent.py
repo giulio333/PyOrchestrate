@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import final
+from typing import final, cast
 from dataclasses import dataclass
 
 from ..base.looping_agent import LoopingAgent
@@ -7,7 +7,25 @@ from ...utilities.periodic_timer import PeriodicTimer
 
 
 class PeriodicAgent(LoopingAgent):
-    @dataclass
+    """
+    Periodic agent class.
+
+    This agent executes a process periodically, with a fixed interval.
+
+    Notes:
+        Derived classes must implement the `runner` method to define the logic to be executed. You can also implement the
+        `setup` method to initialize some agent attributes before the cycle method (use super().setup()).
+
+    Warnings:
+        The `cycle` method must not be implemented in the derived class.
+
+    Methods:
+        runner: The method to be executed periodically. This method must be implemented in the derived class.
+        setup: Setup method to initialize the agent. This method is called once before the agent cycle method.
+        cycle: The method that defines the agent's work to be done in each iteration of the loop.
+            This method must be implemented in the derived class.
+    """
+
     class Config(LoopingAgent.Config):
         """
         PeriodicProcessAgent configuration class.
@@ -15,10 +33,9 @@ class PeriodicAgent(LoopingAgent):
         Attributes:
             execution_interval (float): The interval between two consecutive executions.
             delay_compensation (bool): Compensate the delay in the execution.
+            limit (int): The maximum number of iterations.
             logger (LoggerConfig): Logger configuration.
         """
-        execution_interval: float = 1
-        delay_compensation: bool = False
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
