@@ -7,6 +7,22 @@ from ..base import BaseAgent, BaseConfig, ProcessAgent, ThreadAgent
 class AgentEntry:
     """
     AgentEntry is a class that stores metadata and the instance of an agent.
+
+    Attributes:
+        agent_class (Type[BaseAgent]): The class of the agent.
+        name (str): The name of the agent.
+        config (Optional[BaseConfig]): Custom configuration for the agent.
+        args (Any): Additional arguments for the agent.
+        kwargs (Any): Additional keyword arguments for the agent.
+        instance (BaseAgent): The agent instance.
+        _record_event_callback (Optional[Any]): Callback to record events.
+
+    Methods:
+        start: Start the agent instance.
+        stop: Stop the agent instance.
+        join: Join the agent instance.
+        restart: Restart the agent instance.
+        status: Get the status of the agent
     """
 
     def __init__(
@@ -148,7 +164,7 @@ class OMemory:
     Attributes:
         _agents (Dict[str, AgentEntry]): Map from agent name to `AgentEntry` object.
         _groups (Dict[str, Group]): Map from group name to `Group` object.
-        _agent_stats (Dict[str, List[Dict[str, Any]]]): mappa dell’agente a una lista di eventi registrati.
+        _agent_stats (Dict[str, List[Dict[str, Any]]]): mappa dell’agente con una lista di eventi registrati.
 
     Methods:
         add_agent: Add an agent to the orchestrator memory.
