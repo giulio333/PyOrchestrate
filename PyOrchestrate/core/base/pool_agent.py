@@ -46,6 +46,17 @@ class PoolAgent(PeriodicAgent):
         self._orchestrator = None
 
     def setup(self):
+        """
+        Set up the PoolAgent.
+
+        Notes:
+            The PoolAgent act as an orchestrator for the agents. All agents found in the configuration are registered
+            and started.
+
+        Warnings:
+            You can override this method to add custom setup logic but remember to call super().setup() to ensure the
+            agent is correctly initialized.
+        """
         self.timer = PeriodicTimer(
             logger=self.logger,
             interval=self.interval,
@@ -58,9 +69,7 @@ class PoolAgent(PeriodicAgent):
             self.logger.warning("No agents for current pool agent.")
             return
         for agent in self.config.agents_entry:
-            # stop_callback is the callback to be called when the agent is stopped
-            self.orchestrator.register_agent(agent.agent_class, agent.name, agent.config,
-                                             stop_callback=self.on_agent_stopped)
+            self.orchestrator.register_agent(agent.agent_class, agent.name, agent.config)
         self.orchestrator.start()
 
     @final

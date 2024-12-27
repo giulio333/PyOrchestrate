@@ -1,5 +1,6 @@
 nav:
         - quickstart
         - hint
+        - advanced
         - release
         - code

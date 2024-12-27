@@ -49,7 +49,7 @@ class AgentEntry:
         """
         Create agent instance.
         """
-        return self.agent_class(self.name, self.config, *self.args, **self.kwargs)
+        return self.agent_class(name=self.name, config=self.config, *self.args, **self.kwargs)
 
     def _record_event(self, event_type: str) -> None:
         """

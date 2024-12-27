@@ -12,6 +12,7 @@ class Orchestrator(BaseClass):
     Notes:
         You can pass custom configuration, same as the agent configuration.
 
+    Examples:
         >>> from PyOrchestrate.core.base.utilities import LoggerConfig
         >>> Orchestrator.Config(logger=LoggerConfig("INFO", "Orchestrator"))
 
@@ -52,7 +53,7 @@ class Orchestrator(BaseClass):
             None
         """
 
-        self.memory.add_agent(agent_class, name, custom_config, *args, **kwargs)
+        self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config, *args, **kwargs)
         self.logger.info(f"Agent {name} registered.")
 
     def start(self):

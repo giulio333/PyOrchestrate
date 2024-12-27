@@ -47,11 +47,10 @@ class BaseClass:
             logger (LoggerConfig): Logger configuration.
         """
 
-    def __init__(self, name: str | None = None, config: BaseConfig | None = None, stop_callback=None, *args, **kwargs):
+    def __init__(self, name: str | None = None, config: BaseConfig | None = None, *args, **kwargs):
         self.logger = None
         self.config = config if config else self.Config()
         self.name = name if name else self.__class__.__name__
-        self.stop_callback = stop_callback
 
     @logger.catch(reraise=True)
     def setup_logger(self):
