@@ -6,6 +6,7 @@ from PyOrchestrate.core.base import BaseProcessAgent
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
 from PyOrchestrate.core.base.utilities import LoggerConfig
+from PyOrchestrate.core.base.exceptions import RecoverableException, NonRecoverableException
 
 
 class WeatherCollector(PeriodicAgent, BaseProcessAgent):
@@ -14,13 +15,13 @@ class WeatherCollector(PeriodicAgent, BaseProcessAgent):
     """
 
     class Config(PeriodicAgent.Config):
-        def __init__(self, output_file: str = "weather_data.json", url:str="https://catfact.ninja/fact"):
+        def __init__(self, output_file: str = "weather_data.json", url:str="https://catfact.ninja/factt"):
             super().__init__()
             self.output_file = output_file
             self.url = url
 
             # PeriodicAgent data
-            self.limit = 5
+            self.limit = 2
             self.execution_interval = 5
             self.logger = LoggerConfig(level="INFO")
 
@@ -58,7 +59,7 @@ class WeatherCollector(PeriodicAgent, BaseProcessAgent):
             self.logger.info(f"Dati salvati correttamente in {self.config.output_file}.")
 
         except requests.RequestException as e:
-            self.logger.error(f"Errore nella richiesta API: {e}")
+            raise NonRecoverableException(f"Errore nella richiesta: {e}")
 
 
 if __name__ == "__main__":

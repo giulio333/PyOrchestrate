@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import final
 
+from .exceptions import RecoverableException, NonRecoverableException
 from ..base.base import AbstractBaseAgent
 
 
@@ -24,18 +25,32 @@ class LoopingAgent(AbstractBaseAgent):
 
     @final
     def execute(self):
-        """Esegue un loop continuo finché non viene richiesto di fermarsi."""
+        """Execute the agent cycle method in a loop.
+        If the limit is set, the loop will stop after reaching that, otherwise it will run indefinitely.
+        """
 
         self.setup()
 
-        if self.config.limit is None:  # no limit
+        # without limit
+        if self.config.limit is None:
             while not self._stop_event.is_set():
-                self.cycle()
-        else:  # limit
+                self.safe_cycle()
+
+        # with limit
+        else:
             for _ in range(self.config.limit):
                 if self._stop_event.is_set():
                     break
-                self.cycle()
+                self.safe_cycle()
+
+    def safe_cycle(self):
+        try:
+            self.cycle()
+        except RecoverableException as e:
+            self.logger.error(f"Recoverable error: {e}")
+        except NonRecoverableException as e:
+            self.logger.error(f"Non-recoverable error: {e}")
+            self._stop_event.set()
 
     @abstractmethod
     def cycle(self):

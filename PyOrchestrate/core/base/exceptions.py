@@ -29,3 +29,33 @@ class TerminateProcess(Exception):
             str: The exception message.
         """
         return self.args[0]
+
+class RecoverableException(Exception):
+    """Exception raised to signal a recoverable error in an Agent.
+
+    This custom exception can be used to signal that an error occurred during the execution
+    of an Agent, but that the Agent can be recovered and resumed.
+    """
+
+    def __init__(self, message: str) -> None:
+        """Initialize the RecoverableException exception.
+
+        Args:
+            message (str): The message to be displayed when the exception is raised.
+        """
+        super().__init__(message)
+
+class NonRecoverableException(Exception):
+    """Exception raised to signal a non-recoverable error in an Agent.
+
+    This custom exception can be used to signal that an error occurred during the execution
+    of an Agent, and that the Agent cannot be recovered and should be stopped.
+    """
+
+    def __init__(self, message: str) -> None:
+        """Initialize the NonRecoverableException exception.
+
+        Args:
+            message (str): The message to be displayed when the exception is raised.
+        """
+        super().__init__(message)
