@@ -1,4 +1,5 @@
 from typing import Type
+import time
 
 from .memory import OMemory
 
@@ -26,12 +27,30 @@ class Orchestrator(BaseClass):
         join: Wait for all the agents to complete.
     """
 
+    class Config(BaseConfig):
+        """
+        Orchestrator configuration class.
+
+        Attributes:
+            logger (LoggerConfig): Logger configuration.
+        """
+
+        def __init__(self, check: bool = False, check_interval: float = 1, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.check_interval: float = check_interval
+            self.check: bool = check
+
+        def validate(self):
+            if self.check_interval <= 0:
+                raise ValueError("Check interval must be greater than 0.")
+
     def __init__(self, config: BaseConfig | None = None):
         super().__init__(name="Orchestrator", config=config)
         self.logger = None
-        self.memory = OMemory()
 
         self.setup_logger()
+        self.config.validate()
+        self.memory = OMemory()
 
     def register_agent(
             self,
@@ -69,10 +88,28 @@ class Orchestrator(BaseClass):
             self.logger.info(f"Stopping agent {agent}.")
 
     def join(self):
-        """Wait for all the agents to complete."""
-        for agent in self.memory.agents:
-            agent.join()
-            self.logger.info(f"Agent {agent} ended.")
+
+        if self.config.check:
+            self._check_agent()
+        else:
+            for agent in self.memory.agents:
+                agent.join()
+                self.logger.info(f"Agent {agent} completed.")
+
+    def _check_agent(self):
+        """Monitor all agents and log when each one finishes. Return when all agents are completed."""
+
+        active_agents = set(self.memory.agents)
+
+        while active_agents:
+            for agent in list(active_agents):
+                if not agent.instance.is_alive():
+                    self.logger.info(f"Agent {agent} ended.")
+                    active_agents.remove(agent)
+
+            time.sleep(self.config.check_interval)
+
+        self.logger.info("All agents completed.")
 
     def report(self):
         """Report the status of all agents."""

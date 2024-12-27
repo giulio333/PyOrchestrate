@@ -1,9 +1,7 @@
-import threading
-import multiprocessing
-import time
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 from loguru import logger
+from typing import Generic, TypeVar
 
 from ...utilities.logguru import LoggerFactory
 from ..base.utilities import LoggerConfig
@@ -20,6 +18,12 @@ class BaseConfig(ABC):
     """
 
     def __init__(self, logger_config: LoggerConfig | None = None):
+        """
+        Initialize the configuration.
+
+        Args:
+            logger_config (LoggerConfig): Logger configuration. You can pass a custom configuration.
+        """
         self.logger = logger_config if logger_config else LoggerConfig()
 
     def validate(self):
@@ -29,6 +33,9 @@ class BaseConfig(ABC):
         state and can be overridden in subclasses to customize validation logic.
         """
         pass
+
+
+GenericConfig = TypeVar("GenericConfig", bound=BaseConfig)
 
 
 class BaseClass:
@@ -47,9 +54,9 @@ class BaseClass:
             logger (LoggerConfig): Logger configuration.
         """
 
-    def __init__(self, name: str | None = None, config: BaseConfig | None = None, *args, **kwargs):
+    def __init__(self, name: str | None = None, config: GenericConfig | None = None, *args, **kwargs):
         self.logger = None
-        self.config = config if config else self.Config()
+        self.config: GenericConfig = config if config else self.Config()
         self.name = name if name else self.__class__.__name__
 
     @logger.catch(reraise=True)
@@ -72,4 +79,3 @@ class BaseClass:
             log_identifier=log_name, logger_name=log_name, level=logging_level
         )
         self.logger.debug(f"Logger initialized: {self.config.logger}")
-

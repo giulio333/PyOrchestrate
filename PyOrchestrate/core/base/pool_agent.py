@@ -1,5 +1,4 @@
 from typing import final
-from dataclasses import dataclass
 
 from ..base.periodic_agent import PeriodicAgent
 from ...utilities.periodic_timer import PeriodicTimer
@@ -81,15 +80,6 @@ class PoolAgent(PeriodicAgent):
             self.logger.info("All agents are stopped.")
             self.stop()
             return
-
-    def on_agent_stopped(self, agent_name: str):
-        """
-        Callback to be called when an agent is stopped.
-
-        Args:
-            agent_name: The name of the agent that stopped.
-        """
-        self.logger.info(f"callback Agent {agent_name} stopped.")
 
     @property
     def orchestrator(self) -> Orchestrator:

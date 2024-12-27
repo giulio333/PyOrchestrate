@@ -27,7 +27,7 @@ class AgentEntry:
 
     def __init__(
             self,
-            agent_class: Type[BaseAgent],
+            agent_class: Type[ProcessAgent|ThreadAgent],
             name: str,
             config: Optional[BaseConfig] = None,
             record_event_callback: Optional[Any] = None,
@@ -43,9 +43,9 @@ class AgentEntry:
         # callback per registrare eventi (arriva da OrchestratorMemory)
         self._record_event_callback = record_event_callback
 
-        self.instance: BaseAgent = self._create_instance()
+        self.instance: ProcessAgent | ThreadAgent = self._create_instance()
 
-    def _create_instance(self) -> BaseAgent:
+    def _create_instance(self) -> ProcessAgent|ThreadAgent:
         """
         Create agent instance.
         """
@@ -76,7 +76,7 @@ class AgentEntry:
 
     def join(self) -> None:
         """
-        Fa la join dell’istanza, se supportato
+        Join the agent instance.
         """
         if hasattr(self.instance, 'join'):
             self.instance.join()
@@ -90,6 +90,15 @@ class AgentEntry:
         self.join()
         self.instance = self._create_instance()
         self.start()
+
+    def is_alive(self) -> bool:
+        """
+        Check if the agent instance is alive.
+
+        Returns:
+            bool: True if the agent instance is alive, False otherwise.
+        """
+        return self.instance.is_alive()
 
     def status(self) -> str:
         """
