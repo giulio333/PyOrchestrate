@@ -2,11 +2,11 @@ from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.orchestrator.memory import AgentEntry
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
 from PyOrchestrate.core.base.pool_agent import PoolAgent
-from PyOrchestrate.core.base.base_agent import BaseProcessAgent, BaseThreadAgent
+from PyOrchestrate.core.base.base_agent import ProcessAgent, ThreadAgent
 from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
-class MyThread(PeriodicAgent, BaseThreadAgent):
+class MyThread(PeriodicAgent, ThreadAgent):
     class Config(PeriodicAgent.Config):
         limit: int = 3
 
@@ -14,7 +14,7 @@ class MyThread(PeriodicAgent, BaseThreadAgent):
         print(f"Thread {self.name} running")
 
 
-class FileWriter(PoolAgent, BaseProcessAgent):
+class FileWriter(PoolAgent, ProcessAgent):
     class Config(PoolAgent.Config):
         agents_entry = [AgentEntry(MyThread, "Thread1"), AgentEntry(MyThread, "Thread2")]
         output_directory: str = "output"

@@ -2,14 +2,14 @@ import requests
 import json
 import os
 
-from PyOrchestrate.core.base.base_agent import BaseProcessAgent
+from PyOrchestrate.core.base.base_agent import ProcessAgent
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
 from PyOrchestrate.core.base.utilities import LoggerConfig
 from PyOrchestrate.core.base.exceptions import RecoverableException, NonRecoverableException
 
 
-class WeatherCollector(PeriodicAgent, BaseProcessAgent):
+class WeatherCollector(PeriodicAgent, ProcessAgent):
     """
     Makes a request to an API and saves the data in a file.
     """

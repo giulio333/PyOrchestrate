@@ -2,7 +2,7 @@ from typing import Type
 
 from .memory import OMemory
 
-from ..base import BaseAgent, BaseConfig, BaseClass, BaseThreadAgent
+from ..base import BaseAgent, BaseConfig, BaseClass, ThreadAgent
 
 
 class Orchestrator(BaseClass):

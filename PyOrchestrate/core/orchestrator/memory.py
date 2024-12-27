@@ -1,7 +1,7 @@
 import datetime
 from typing import Dict, List, Optional, Type, Any
 
-from ..base import BaseAgent, BaseConfig, BaseProcessAgent, BaseThreadAgent
+from ..base import BaseAgent, BaseConfig, ProcessAgent, ThreadAgent
 
 
 class AgentEntry:
@@ -96,12 +96,12 @@ class AgentEntry:
         ident: int | None
         pid: int | None
 
-        if isinstance(self.instance, BaseProcessAgent):
+        if isinstance(self.instance, ProcessAgent):
             alive: bool = self.instance.is_alive()
             daemon: bool = self.instance.daemon
             ident: int | None = self.instance.ident
             pid: int | None = self.instance.pid
-        elif isinstance(self.instance, BaseThreadAgent):
+        elif isinstance(self.instance, ThreadAgent):
             alive = self.instance.is_alive()
             daemon = self.instance.daemon
             ident = None

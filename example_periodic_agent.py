@@ -1,17 +1,13 @@
-import os
-from dataclasses import dataclass
-import time
-
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
-from PyOrchestrate.core.base.base_agent import BaseProcessAgent
+from PyOrchestrate.core.base.base_agent import ProcessAgent
 from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
 
 
 
-class FileWriter(PeriodicAgent, BaseProcessAgent):
+class FileWriter(PeriodicAgent, ProcessAgent):
     """
     FileWriter, un agente periodico che esegue un ciclo per scrivere log.
     """

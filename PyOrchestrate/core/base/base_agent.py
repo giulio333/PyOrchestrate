@@ -56,7 +56,7 @@ class BaseAgent(BaseClass, ABC):
         pass
 
 
-class BaseThreadAgent(BaseAgent, threading.Thread):
+class ThreadAgent(BaseAgent, threading.Thread):
 
     def __init__(self, name: str | None = None, *args, **kwargs):
         threading.Thread.__init__(self, name=name)
@@ -84,7 +84,7 @@ class BaseThreadAgent(BaseAgent, threading.Thread):
         pass
 
 
-class BaseProcessAgent(BaseAgent, multiprocessing.Process):
+class ProcessAgent(BaseAgent, multiprocessing.Process):
 
     def __init__(self, name: str | None = None, *args, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
