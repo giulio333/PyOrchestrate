@@ -2,7 +2,7 @@ import requests
 import json
 import os
 
-from PyOrchestrate.core.base import BaseProcessAgent
+from PyOrchestrate.core.base.base_agent import BaseProcessAgent
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
 from PyOrchestrate.core.base.utilities import LoggerConfig

@@ -1,7 +1,7 @@
 import datetime
 from typing import Dict, List, Optional, Type, Any
 
-from ..base.base import AbstractBaseAgent, BaseConfig, BaseProcessAgent, BaseThreadAgent
+from ..base import BaseAgent, BaseConfig, BaseProcessAgent, BaseThreadAgent
 
 
 class AgentEntry:
@@ -11,7 +11,7 @@ class AgentEntry:
 
     def __init__(
             self,
-            agent_class: Type[AbstractBaseAgent],
+            agent_class: Type[BaseAgent],
             name: str,
             config: Optional[BaseConfig] = None,
             record_event_callback: Optional[Any] = None,
@@ -27,9 +27,9 @@ class AgentEntry:
         # callback per registrare eventi (arriva da OrchestratorMemory)
         self._record_event_callback = record_event_callback
 
-        self.instance: AbstractBaseAgent = self._create_instance()
+        self.instance: BaseAgent = self._create_instance()
 
-    def _create_instance(self) -> AbstractBaseAgent:
+    def _create_instance(self) -> BaseAgent:
         """
         Create agent instance.
         """
@@ -189,7 +189,7 @@ class OMemory:
 
     def add_agent(
             self,
-            agent_class: Type[AbstractBaseAgent],
+            agent_class: Type[BaseAgent],
             name: str,
             custom_config: Optional[BaseConfig] = None,
             *args: Any,
@@ -201,7 +201,7 @@ class OMemory:
         Data will be stored as an `AgentEntry` object, which contains metadata and the agent instance.
 
         Args:
-            agent_class (Type[AbstractBaseAgent]): The class of the agent to store.
+            agent_class (Type[BaseAgent]): The class of the agent to store.
             name (str): The name of the agent.
             custom_config (Optional[BaseConfig], optional): Custom configuration for the agent. Defaults to None.
         """
@@ -223,7 +223,7 @@ class OMemory:
         """
         return self._agents.get(name)
 
-    def get_agent_instance(self, name: str) -> Optional[AbstractBaseAgent]:
+    def get_agent_instance(self, name: str) -> Optional[BaseAgent]:
         """
         Ritorna l’istanza dell’agente (se esiste).
         """
@@ -259,7 +259,7 @@ class OMemory:
         """
         return self._groups.get(group_name)
 
-    def get_group_agents(self, group_name: str) -> List[AbstractBaseAgent]:
+    def get_group_agents(self, group_name: str) -> List[BaseAgent]:
         """
         Ritorna la lista delle istanze degli agenti appartenenti al gruppo.
         """

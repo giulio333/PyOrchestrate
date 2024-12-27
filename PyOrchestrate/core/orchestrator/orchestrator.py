@@ -1,7 +1,8 @@
 from typing import Type
 
 from .memory import OMemory
-from ..base.base import AbstractBaseAgent, BaseConfig, BaseClass, BaseThreadAgent
+
+from ..base import BaseAgent, BaseConfig, BaseClass, BaseThreadAgent
 
 
 class Orchestrator(BaseClass):
@@ -33,7 +34,7 @@ class Orchestrator(BaseClass):
 
     def register_agent(
             self,
-            agent_class: Type[AbstractBaseAgent],
+            agent_class: Type[BaseAgent],
             name: str,
             custom_config: BaseConfig | None = None,
             *args,

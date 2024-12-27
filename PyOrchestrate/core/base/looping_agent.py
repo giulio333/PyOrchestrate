@@ -2,11 +2,11 @@ from abc import abstractmethod
 from typing import final
 
 from .exceptions import RecoverableException, NonRecoverableException
-from ..base.base import AbstractBaseAgent
+from .base_agent import BaseAgent
 
 
-class LoopingAgent(AbstractBaseAgent):
-    class Config(AbstractBaseAgent.Config):
+class LoopingAgent(BaseAgent):
+    class Config(BaseAgent.Config):
         """
         PeriodicProcessAgent configuration class.
 

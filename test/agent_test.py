@@ -2,13 +2,13 @@ import unittest
 from unittest.mock import MagicMock, patch
 import sys, os
 
-from PyOrchestrate.core.base.base import AbstractBaseAgent, BaseThreadAgent, BaseConfig, BaseProcessAgent
+from PyOrchestrate.core.base.base import BaseAgent, BaseThreadAgent, BaseConfig, BaseProcessAgent
 
 
 class TestAbstractBaseAgent(unittest.TestCase):
     def setUp(self):
         # Creazione di una sottoclasse per testare AbstractBaseAgent
-        class TestAgent(AbstractBaseAgent):
+        class TestAgent(BaseAgent):
             def stop(self):
                 pass
 

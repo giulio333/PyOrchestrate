@@ -2,7 +2,7 @@ from abc import abstractmethod
 from typing import final, cast
 from dataclasses import dataclass
 
-from ..base.looping_agent import LoopingAgent
+from .looping_agent import LoopingAgent
 from ...utilities.periodic_timer import PeriodicTimer
 
 
