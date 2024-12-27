@@ -1,1 +1,1 @@
-::: framework.comunication.ClientSocket
+::: PyOrchestrate.comunication.ClientSocket

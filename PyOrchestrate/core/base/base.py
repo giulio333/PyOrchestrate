@@ -14,6 +14,8 @@ class BaseConfig(ABC):
     """
     Base configuration class.
 
+    All Agent's Config classes should inherit from this class.
+
     Attributes:
         logger (LoggerConfig): Logger configuration.
     """
@@ -31,11 +33,16 @@ class BaseConfig(ABC):
 
 
 class BaseClass:
+    """
+    Base class for all classes.
+
+    Every class has a logger and a configuration object.
+    """
     start_time: float
 
     class Config(BaseConfig):
         """
-        Agent configuration class.
+        Configuration class for the BaseClass.
 
         Attributes:
             logger (LoggerConfig): Logger configuration.

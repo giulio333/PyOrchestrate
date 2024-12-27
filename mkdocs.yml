@@ -1,8 +1,8 @@
-site_name: Framework
-site_url: https://github.com/giulio333/framework
+site_name: PyOrchestrate
+site_url: https://github.com/giulio333/PyOrchestrate
 site_description: Framework multi process.
-repo_url: https://github.com/giulio333/framework
-repo_name: Framework
+repo_url: https://github.com/giulio333/PyOrchestrate
+repo_name: PyOrchestrate
 edit_uri: edit/main/docs/
 
 theme:

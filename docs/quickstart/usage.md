@@ -13,77 +13,99 @@ All’interno di `models.py` è possibile definire nuove classi che ereditano da
 classi devono implementare i metodi necessari a svolgere il compito specifico dell’Agent. Inoltre, è possibile
 specificare una classe interna `Config` per stabilire i parametri chiave dell’Agent.
 
-Ad esempio, di seguito è mostrata la definizione di un `VideoReaderAgent` che eredita da `PeriodicAgent`. Questo Agent
-legge periodicamente frame da un flusso video, utilizzando un intervallo stabilito nella sua `Config`. Se il ciclo
-impiega più tempo del previsto, la modalità `compensate_delay` tenta di mantenere l’intervallo complessivo costante.
-Inoltre, viene definito un logger con livello di log, formato e output standard.
+Ad esempio, di seguito è mostrata la definizione di un `WeatherCollector` che eredita da `PeriodicAgent` e `BaseProcessAgent`. 
+Questo Agent di tipo processo esegue periodicamente le chiamate, utilizzando un intervallo stabilito nella sua `Config`. 
 
 ``` python
-from pyorchestrate.agents import PeriodicAgent
-import logging
-import cv2  # per la gestione di flussi video
+from PyOrchestrate.core.base import BaseProcessAgent
+from PyOrchestrate.core.orchestrator import Orchestrator
+from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
+from PyOrchestrate.core.base.utilities import LoggerConfig
 
-class VideoReaderAgent(PeriodicAgent):
-    class Config:
-        interval = 5
-        compensate_delay = True
-        logger = {
-            'level': logging.INFO,
-            'format': '%(asctime)s [%(levelname)s] %(message)s',
-            'handlers': [logging.StreamHandler()]
-        }
+class WeatherCollector(PeriodicAgent, BaseProcessAgent):
+    """
+    Makes a request to an API and saves the data in a file.
+    """
 
-    def run_task(self):
-        # Lettura di un frame da un flusso video (esempio: RTSP)
-        cap = cv2.VideoCapture("rtsp://example.com/myvideo")
-        ret, frame = cap.read()
-        cap.release()
+    class Config(PeriodicAgent.Config):
+        def __init__(self, output_file: str = "weather_data.json", url:str="https://catfact.ninja/fact"):
+            super().__init__()
+            self.output_file = output_file
+            self.url = url
 
-        if ret:
-            self.log("Frame letto con successo", level="info")
-            # Inserire qui la logica di elaborazione del frame
-            # ad esempio: salvataggio su disco, analisi di immagine, ecc.
-        else:
-            self.log("Impossibile leggere il frame", level="warning")
+            # PeriodicAgent data
+            self.limit = 5
+            self.execution_interval = 5
+            self.logger = LoggerConfig(level="INFO")
+
+        def validate(self):
+            pass
+
+    def setup(self):
+        """
+        Initial setup of the WeatherCollector.
+        """
+        super().setup()
+        self.logger.info("Configurazione iniziale del WeatherCollector...")
+        if not os.path.exists(self.config.output_file):
+            with open(self.config.output_file, "w") as file:
+                json.dump([], file)  # Inizializza il file come lista vuota
+            self.logger.info(f"Creato file di output: {self.config.output_file}")
+
+    def runner(self):
+        """
+        Periodic logic (makes a request to the API and saves the data in a file).
+        """
+        self.logger.info(f"Making request to {self.config.url}...")
+
+        try:
+            response = requests.get(self.config.url)
+            response.raise_for_status()
+            data = response.json()
+
+            with open(self.config.output_file, "r+") as file:
+                records = json.load(file)
+                records.append(data)
+                file.seek(0)
+                json.dump(records, file, indent=4)
+
+            self.logger.info(f"Dati salvati correttamente in {self.config.output_file}.")
+
+        except requests.RequestException as e:
+            self.logger.error(f"Errore nella richiesta API: {e}")
 ```
 
 ## Avvio con un Orchestrator
 
 Dopo aver definito gli Agent in `models.py`, è possibile utilizzare un Orchestrator per avviarli come processi o thread,
-a seconda delle necessità. Nell’esempio seguente, si istanzia un Orchestrator, si registra il `VideoReaderAgent` come
-processo e poi si avvia l’esecuzione. L’Orchestrator si occuperà di caricare gli Agent definiti, di monitorarli e di
-gestirne il ciclo di vita.
+a seconda delle necessità. Nell’esempio seguente, si istanzia un Orchestrator, si registra il `WeatherCollector` e poi 
+si avvia l’esecuzione. L’Orchestrator si occuperà di caricare gli Agent definiti, di monitorarli e di gestirne il ciclo 
+di vita.
 
 ``` python
-from pyorchestrate import Orchestrator
-from models import VideoReaderAgent
+from PyOrchestrate.core.orchestrator import Orchestrator
+from models import WeatherCollector
 
 if __name__ == "__main__":
     orchestrator = Orchestrator()
-    orchestrator.add_agent(VideoReaderAgent, agent_type='process')
+
+    orchestrator.register_agent(WeatherCollector, "WeatherCollector1")
+
     orchestrator.start()
     orchestrator.join()
 ```
 
 ## Configurazione degli Agent
 
-Le Config sono un elemento chiave per personalizzare il comportamento degli Agent. Nel caso del `VideoReaderAgent`, la
-`Config` fornisce tre parametri:
+Le Config sono un elemento chiave per personalizzare il comportamento degli Agent. Nel caso del `PeriodicAgent`, la
+`Config` fornisce i seguenti parametr:
 
-- **interval**: (in secondi) specifica la frequenza con cui l’Agent esegue il compito.
-- **compensate_delay**: se `True`, l’Agent tenterà di compensare eventuali ritardi mantenendo l’intervallo medio di
-  esecuzione.
-- **logger**: un dizionario che definisce il livello del logger, il formato dei messaggi e i gestori (ad es.
-  `StreamHandler` per stampare su console).
+| Parametro             | Descrizione                                                                 |
+|-----------------------|-----------------------------------------------------------------------------|
+| **execution_interval** | (in secondi) specifica la frequenza con cui l’Agent esegue il compito.      |
+| **delay_compensation** | se `True`, l’Agent tenterà di compensare eventuali ritardi mantenendo l’intervallo medio di esecuzione. |
+| **limit**             | il numero massimo di esecuzioni.                                            |
+| **logger**            | un dizionario che definisce il livello del logger, il formato dei messaggi e i gestori (ad es. `StreamHandler` per stampare su console). |
 
 Questi parametri possono essere modificati per adattarsi alle esigenze specifiche della propria applicazione, senza
-dover alterare la logica dell’Agent. Ad esempio, per aumentare la frequenza di lettura, basterà ridurre `interval`,
-mentre per scrivere i log su file si potrà aggiungere un `FileHandler` alla configurazione del logger.
-
-## Conclusioni
-
-L’obiettivo del file `models.py` e delle Config degli Agent è fornire un sistema chiaro e scalabile per definire,
-modificare e avviare gli Agent. Dalla semplice lettura periodica di un flusso video ad architetture più complesse,
-l’approccio basato sugli Agent e sull’Orchestrator consente di concentrare l’attenzione sulla logica dell’applicazione,
-lasciando al framework il compito di gestire i dettagli di basso livello relativi a processi, thread, logging e
-schedulazione.
+dover alterare la logica dell’Agent. Ad esempio, per aumentare la frequenza delle richieste, basterà ridurre `execution_interval`.

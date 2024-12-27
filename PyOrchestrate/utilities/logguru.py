@@ -129,7 +129,7 @@ class LoggerFactory:
             elif cls.log_path_default:
                 file_name = Path(cls.log_path_default) / f"{log_identifier}.log"
             else:
-                logs_dir = Path(__file__).resolve().parent.parent / "logs"
+                logs_dir = Path(__file__).resolve().parent.parent.parent / "logs"
                 file_name = logs_dir / f"{log_identifier}.log"
 
             try:

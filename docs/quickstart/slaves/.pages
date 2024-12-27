@@ -1,6 +1,0 @@
-title: SlavesProcess
-nav:
-        - intro.md
-        - SlaveProcess.md
-        - looping_slaves
-        - oneshot_slaves
