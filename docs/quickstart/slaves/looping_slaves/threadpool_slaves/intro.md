@@ -4,10 +4,12 @@ title: ThreadPoolSlave
 
 Vediamo come creare e personalizzare uno **ThreadPoolSlave** e come configurare le sue opzioni.
 
-Per implementare uno **ThreadPoolSlave**, dobbiamo definire una configurazione che estenda `ThreadPoolSlaveConfig` e uno processo che estenda `ThreadPoolSlave`.
+Per implementare uno **ThreadPoolSlave**, dobbiamo definire una configurazione che estenda `ThreadPoolSlaveConfig` e uno
+processo che estenda `ThreadPoolSlave`.
 
 ```python
-from framework.core.slave import ThreadPoolSlave, ThreadPoolSlaveConfig
+from PyOrchestrate.core.slave import ThreadPoolSlave, ThreadPoolSlaveConfig
+
 
 @dataclass
 class PrinterConfig(ThreadPoolSlaveConfig):
@@ -16,6 +18,7 @@ class PrinterConfig(ThreadPoolSlaveConfig):
 
     logger = LoggerConfig(level="TRACE")
     check_config = CheckConfig(to_monitor=False, autorestart=False)
+
 
 class PrinterPool(ThreadPoolSlave[PrinterConfig]):
 
@@ -28,16 +31,17 @@ class PrinterPool(ThreadPoolSlave[PrinterConfig]):
 Analizziamo la configurazione `ThreadPoolSlaveConfig`...
 
 ??? "code"
-    ::: framework.core.slave.ThreadPoolSlaveConfig
-        options:
-            show_source: false
-            merge_init_into_class: true
-            members: false
-            heading_level: 0
+::: framework.core.slave.ThreadPoolSlaveConfig
+options:
+show_source: false
+merge_init_into_class: true
+members: false
+heading_level: 0
 
 Questi dati saranno accessibili all'interno del processo tramite l'attributo `config`.
 
-Ogni configurazione (`ThreadPoolSlaveConfig`) dispone di un metodo `validate`, che può essere sovrascritto per implementare logiche di validazione personalizzate.
+Ogni configurazione (`ThreadPoolSlaveConfig`) dispone di un metodo `validate`, che può essere sovrascritto per
+implementare logiche di validazione personalizzate.
 
 Questo oggetto contiene anche configurazioni predefinite molto utili:
 
@@ -50,10 +54,12 @@ Questo oggetto contiene anche configurazioni predefinite molto utili:
 
 Ogni **MasterProcess** dispone di un meccanismo di controllo della salute per verificare lo stato dei propri **Slave**.
 
-Puoi personalizzare il comportamento del controllo della salute su questo particolare **Slave** attraverso la configurazione `CheckConfig`.
+Puoi personalizzare il comportamento del controllo della salute su questo particolare **Slave** attraverso la
+configurazione `CheckConfig`.
 
 ```python
-from framework.slave import CheckConfig
+from PyOrchestrate.slave import CheckConfig
+
 
 @dataclass
 class LauncherConfig(MasterConfig):
@@ -63,19 +69,20 @@ class LauncherConfig(MasterConfig):
 In questo modo, il **MasterProcess** monitora lo stato del **SlaveProcess** e lo riavvia automaticamente se necessario.
 
 ??? "code"
-    ::: framework.core.slave.utilities.CheckConfig
-        options:
-            show_source: false
-            merge_init_into_class: true
-            members: false
-            heading_level: 0
+::: framework.core.slave.utilities.CheckConfig
+options:
+show_source: false
+merge_init_into_class: true
+members: false
+heading_level: 0
 
 ### LoggerConfig
 
 Puoi personalizzare il logger del processo attraverso la configurazione `LoggerConfig`.
 
 ```python
-from framework.slave import LoggerConfig
+from PyOrchestrate.slave import LoggerConfig
+
 
 @dataclass
 class LauncherConfig(MasterConfig):
@@ -83,9 +90,9 @@ class LauncherConfig(MasterConfig):
 ```
 
 ??? "code"
-    ::: framework.core.slave.LoggerConfig
-        options:
-            show_source: false
-            merge_init_into_class: true
-            members: false
-            heading_level: 0
+::: framework.core.slave.LoggerConfig
+options:
+show_source: false
+merge_init_into_class: true
+members: false
+heading_level: 0

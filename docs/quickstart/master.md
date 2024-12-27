@@ -4,12 +4,15 @@ title: MasterProcess
 
 Vediamo come creare e personalizzare un **MasterProcess** e come configurare le sue opzioni.
 
-Un **MasterProcess** è il processo principale responsabile della gestione e del controllo di altri processi (SlaveProcess).
+Un **MasterProcess** è il processo principale responsabile della gestione e del controllo di altri processi (
+SlaveProcess).
 
-Per implementare un **MasterProcess**, crea una classe che estende `MasterProcess` all'interno della cartella `models`. Ad esempio:
+Per implementare un **MasterProcess**, crea una classe che estende `MasterProcess` all'interno della cartella `models`.
+Ad esempio:
 
 ```python
-from framework.master import MasterProcess, MasterConfig
+from PyOrchestrate.master import MasterProcess, MasterConfig
+
 
 class Launcher(MasterProcess):
     def __init__(self, config: MasterConfig, monitor_health: bool = False) -> None:
@@ -23,7 +26,8 @@ Ora possiamo definire una configurazione personalizzata per il nostro **MasterPr
 Per farlo, estendi la classe `MasterConfig`, ad esempio:
 
 ```python
-from framework.master import MasterConfig
+from PyOrchestrate.master import MasterConfig
+
 
 @dataclass
 class LauncherConfig(MasterConfig):
@@ -31,10 +35,9 @@ class LauncherConfig(MasterConfig):
     start_time: datetime = datetime.now()
     output_folder: str = "output"
 
-
     def validate(self) -> None:
         if os.path.exists(self.output_folder):
-            # do something
+    # do something
 ```
 
 Qui abbiamo definito una configurazione personalizzata che contiene i campi:
@@ -45,7 +48,8 @@ Qui abbiamo definito una configurazione personalizzata che contiene i campi:
 
 Questi dati saranno accessibili all'interno del processo tramite l'attributo `config`.
 
-Ogni configurazione (`MasterConfig`) dispone di un metodo `validate`, che può essere sovrascritto per implementare logiche di validazione personalizzate.
+Ogni configurazione (`MasterConfig`) dispone di un metodo `validate`, che può essere sovrascritto per implementare
+logiche di validazione personalizzate.
 
 Questo oggetto contiene anche configurazioni predefinite molto utili, elenchiamone alcune...
 
@@ -56,7 +60,8 @@ Ogni **MasterProcess** dispone di un meccanismo di controllo della salute per ve
 Puoi personalizzare il controllo della salute del processo attraverso la configurazione `HealthCheckConfig`.
 
 ```python
-from framework.master import HealthCheckConfig
+from PyOrchestrate.master import HealthCheckConfig
+
 
 @dataclass
 class LauncherConfig(MasterConfig):
@@ -69,19 +74,20 @@ class LauncherConfig(MasterConfig):
 In questo modo, il processo controlla i propri slave ogni 5 secondi.
 
 ??? "code"
-    ::: framework.core.master.utilities.HealthCheckConfig
-        options:
-            show_source: false
-            merge_init_into_class: true
-            members: false
-            heading_level: 0
+::: framework.core.master.utilities.HealthCheckConfig
+options:
+show_source: false
+merge_init_into_class: true
+members: false
+heading_level: 0
 
 ### LoggerConfig
 
 Puoi personalizzare il logger del processo attraverso la configurazione `LoggerConfig`.
 
 ```python
-from framework.master import LoggerConfig
+from PyOrchestrate.master import LoggerConfig
+
 
 @dataclass
 class LauncherConfig(MasterConfig):

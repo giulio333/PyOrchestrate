@@ -3,9 +3,9 @@ from threading import Thread
 from dataclasses import dataclass
 from typing import TypeVar, Type, final
 
-from framework.core.base import BaseConfig
-from framework.core.slave import PeriodicSlave, PeriodicSlaveConfig
-from framework.core.worker import WorkerThread, WorkerConfig
+from PyOrchestrate.core.base import BaseConfig
+from PyOrchestrate.core.slave import PeriodicSlave, PeriodicSlaveConfig
+from PyOrchestrate.core.worker import WorkerThread, WorkerConfig
 
 
 @dataclass
@@ -79,7 +79,7 @@ class ThreadPoolSlave(PeriodicSlave[ThreadPoolSlaveConfigType]):
     """
 
     def __init__(
-        self, config: ThreadPoolSlaveConfigType, workers: list[w_config]
+            self, config: ThreadPoolSlaveConfigType, workers: list[w_config]
     ) -> None:
         super().__init__(config=config)
 
@@ -89,10 +89,10 @@ class ThreadPoolSlave(PeriodicSlave[ThreadPoolSlaveConfigType]):
         self.workers_config: dict[str, BaseConfig] = {}
 
     def init_worker(
-        self,
-        worker_class: type[WorkerThread],
-        config,
-        name_suffix: str = "",
+            self,
+            worker_class: type[WorkerThread],
+            config,
+            name_suffix: str = "",
     ) -> None:
 
         self.setup_logger()
@@ -141,6 +141,6 @@ class ThreadPoolSlave(PeriodicSlave[ThreadPoolSlaveConfigType]):
             worker.start()
 
     def check_process_config(
-        self, config_class: type[BaseConfig] = ThreadPoolSlaveConfig
+            self, config_class: type[BaseConfig] = ThreadPoolSlaveConfig
     ):
         return super().check_process_config(config_class)

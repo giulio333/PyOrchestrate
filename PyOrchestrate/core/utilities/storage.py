@@ -2,7 +2,7 @@ from typing import Type, Dict, Any, List
 from threading import Thread
 from multiprocessing import Process
 
-from framework.core.base import BaseConfig, BaseProcess
+from PyOrchestrate.core.base import BaseConfig, BaseProcess
 
 
 class Storage:
@@ -15,7 +15,7 @@ class Storage:
         self.process_storage: Dict[str, List[Dict[str, Any]]] = {}
 
     def register_thread(
-        self, name: str, thread_class: Type[Thread], config: BaseConfig, *args, **kwargs
+            self, name: str, thread_class: Type[Thread], config: BaseConfig, *args, **kwargs
     ):
         """
         Registra una classe Thread e la sua configurazione.
@@ -38,12 +38,12 @@ class Storage:
         )
 
     def register_process(
-        self,
-        name: str,
-        process_class: Type[Process],
-        config: BaseConfig,
-        *args,
-        **kwargs,
+            self,
+            name: str,
+            process_class: Type[Process],
+            config: BaseConfig,
+            *args,
+            **kwargs,
     ):
         """
         Registra una classe Process e la sua configurazione.

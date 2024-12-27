@@ -12,7 +12,7 @@ Example:
     ```python
     from datetime import datetime
     import threading
-    from framework.utilities.periodic_timer import PeriodicTimer
+    from PyOrchestrate.utilities.periodic_timer import PeriodicTimer
 
 
     def periodic_task():

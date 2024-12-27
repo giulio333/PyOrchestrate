@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from logging import DEBUG
 
-from framework.core.master import (
+from PyOrchestrate.core.master import (
     MasterProcess,
     MasterConfig,
     LoggerConfig,

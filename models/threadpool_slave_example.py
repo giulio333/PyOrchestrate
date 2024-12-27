@@ -2,19 +2,18 @@ import time
 from dataclasses import dataclass
 from logging import DEBUG
 
-from framework.core.slave import (
+from PyOrchestrate.core.slave import (
     ThreadPoolSlave,
     ThreadPoolSlaveConfig,
     LoggerConfig,
     CheckConfig,
 )
-from framework.core.worker import PeriodicWorker, PeriodicWorkerConfig
-from framework.core.slave.threadpool_slave import w_config
+from PyOrchestrate.core.worker import PeriodicWorker, PeriodicWorkerConfig
+from PyOrchestrate.core.slave.threadpool_slave import w_config
 
 
 @dataclass
 class PrinterThreadConfig(PeriodicWorkerConfig):
-
     interval: int = 1
     cicli: int = 0
 
@@ -34,7 +33,6 @@ printer = w_config(PrinterThread, PrinterThreadConfig())
 
 @dataclass
 class PrinterConfig(ThreadPoolSlaveConfig):
-
     message: str = "Hello, World!"
     repeat: int = 50
 

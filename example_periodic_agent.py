@@ -2,10 +2,10 @@ import os
 from dataclasses import dataclass
 import time
 
-from framework.core.orchestrator import Orchestrator
-from framework.core.base.periodic_agent import PeriodicAgent
-from framework.core.base.base import BaseProcessAgent
-from framework.core.base.utilities import LoggerConfig
+from PyOrchestrate.core.orchestrator import Orchestrator
+from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
+from PyOrchestrate.core.base.base import BaseProcessAgent
+from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
 @dataclass

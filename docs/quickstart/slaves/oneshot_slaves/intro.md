@@ -4,10 +4,12 @@ title: SlaveProcess
 
 Vediamo come creare e personalizzare uno **SlaveProcess** e come configurare le sue opzioni.
 
-Per implementare uno **SlaveProcess**, creare una classe che estende `MasterProcess` all'interno della cartella `models`. Ad esempio:
+Per implementare uno **SlaveProcess**, creare una classe che estende `MasterProcess` all'interno della cartella
+`models`. Ad esempio:
 
 ```python
-from framework.slave import SlaveProcess, SlaveConfig
+from PyOrchestrate.slave import SlaveProcess, SlaveConfig
+
 
 class Worker(SlaveProcess[SlaveConfig]):
     def __init__(self, config: SlaveConfig) -> None:
@@ -21,13 +23,13 @@ Ora possiamo definire una configurazione personalizzata per il nostro **SlavePro
 Per farlo, estendere la classe `SlaveConfig`, ad esempio:
 
 ```python
-from framework.slave import SlaveProcess
+from PyOrchestrate.slave import SlaveProcess
+
 
 @dataclass
 class WorkerConfig(SlaveProcess):
     message: str = "Hello, World!"
     repeat: int = 5
-
 
     def validate(self) -> None:
         if self.repeat < 0:
@@ -41,7 +43,8 @@ Qui abbiamo definito una configurazione personalizzata che contiene i campi:
 
 Questi dati saranno accessibili all'interno del processo tramite l'attributo `config`.
 
-Ogni configurazione (`SlaveConfig`) dispone di un metodo `validate`, che può essere sovrascritto per implementare logiche di validazione personalizzate.
+Ogni configurazione (`SlaveConfig`) dispone di un metodo `validate`, che può essere sovrascritto per implementare
+logiche di validazione personalizzate.
 
 Questo oggetto contiene anche configurazioni predefinite molto utili, elenchiamone alcune...
 
@@ -49,10 +52,12 @@ Questo oggetto contiene anche configurazioni predefinite molto utili, elenchiamo
 
 Ogni **MasterProcess** dispone di un meccanismo di controllo della salute per verificare lo stato dei propri **Slave**.
 
-Puoi personalizzare il comportamento del controllo della salute su questo particolare **Slave** attraverso la configurazione `CheckConfig`.
+Puoi personalizzare il comportamento del controllo della salute su questo particolare **Slave** attraverso la
+configurazione `CheckConfig`.
 
 ```python
-from framework.slave import CheckConfig
+from PyOrchestrate.slave import CheckConfig
+
 
 @dataclass
 class LauncherConfig(MasterConfig):
@@ -62,19 +67,20 @@ class LauncherConfig(MasterConfig):
 In questo modo, il **MasterProcess** monitora lo stato del **SlaveProcess** e lo riavvia automaticamente se necessario.
 
 ??? "code"
-    ::: framework.core.slave.utilities.CheckConfig
-        options:
-            show_source: false
-            merge_init_into_class: true
-            members: false
-            heading_level: 0
+::: framework.core.slave.utilities.CheckConfig
+options:
+show_source: false
+merge_init_into_class: true
+members: false
+heading_level: 0
 
 ### LoggerConfig
 
 Puoi personalizzare il logger del processo attraverso la configurazione `LoggerConfig`.
 
 ```python
-from framework.slave import LoggerConfig
+from PyOrchestrate.slave import LoggerConfig
+
 
 @dataclass
 class LauncherConfig(MasterConfig):
@@ -82,9 +88,9 @@ class LauncherConfig(MasterConfig):
 ```
 
 ??? "code"
-    ::: framework.core.base.utilities.LoggerConfig
-        options:
-            show_source: false
-            merge_init_into_class: true
-            members: false
-            heading_level: 0
+::: framework.core.base.utilities.LoggerConfig
+options:
+show_source: false
+merge_init_into_class: true
+members: false
+heading_level: 0

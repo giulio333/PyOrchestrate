@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 import sys, os
 
-from framework.core.base.base import AbstractBaseAgent, BaseThreadAgent, BaseConfig, BaseProcessAgent
+from PyOrchestrate.core.base.base import AbstractBaseAgent, BaseThreadAgent, BaseConfig, BaseProcessAgent
 
 
 class TestAbstractBaseAgent(unittest.TestCase):
@@ -24,7 +24,7 @@ class TestAbstractBaseAgent(unittest.TestCase):
         self.assertIsNone(self.agent.logger)
         self.assertIsInstance(self.agent.config, BaseConfig)
 
-    @patch("framework.core.base.baseagent.LoggerFactory.create_logger")
+    @patch("PyOrchestrate.core.base.baseagent.LoggerFactory.create_logger")
     def test_setup_logger(self, mock_create_logger):
         # Simula il seup del logger
         mock_logger = MagicMock()
@@ -34,7 +34,7 @@ class TestAbstractBaseAgent(unittest.TestCase):
         self.assertIsNotNone(self.agent.logger)
         mock_create_logger.assert_called_once()
 
-    @patch("framework.core.base.baseagent.LoggerFactory.create_logger")
+    @patch("PyOrchestrate.core.base.baseagent.LoggerFactory.create_logger")
     def test_validate_config(self, mock_create_logger):
         # Testa il metodo validate_config
         mock_logger = MagicMock()
@@ -45,7 +45,7 @@ class TestAbstractBaseAgent(unittest.TestCase):
 
         mock_logger.info.assert_any_call("Configuration successfully validated.")
 
-    @patch("framework.core.base.baseagent.LoggerFactory.create_logger")
+    @patch("PyOrchestrate.core.base.baseagent.LoggerFactory.create_logger")
     @patch("time.time", return_value=100.0)
     def test_run_agent(self, mock_time, mock_create_logger):
         # Testa il ciclo principale di un agent

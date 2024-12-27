@@ -1,9 +1,9 @@
-from framework.core.orchestrator import Orchestrator
-from framework.core.orchestrator.memory import AgentEntry
-from framework.core.base.periodic_agent import PeriodicAgent
-from framework.core.base.pool_agent import PoolAgent
-from framework.core.base.base import BaseProcessAgent, BaseThreadAgent
-from framework.core.base.utilities import LoggerConfig
+from PyOrchestrate.core.orchestrator import Orchestrator
+from PyOrchestrate.core.orchestrator.memory import AgentEntry
+from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
+from PyOrchestrate.core.base.pool_agent import PoolAgent
+from PyOrchestrate.core.base.base import BaseProcessAgent, BaseThreadAgent
+from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
 class MyThread(PeriodicAgent, BaseThreadAgent):

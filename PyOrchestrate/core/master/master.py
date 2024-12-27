@@ -1,14 +1,14 @@
 from multiprocessing import Process
 from threading import Event, Thread
 from logging import Logger
-from framework.utilities.logger import setup_logger
+from PyOrchestrate.utilities.logger import setup_logger
 from typing import Optional, List, final, Generic, TypeVar, Type, Callable, Literal
 from dataclasses import dataclass
 import time
 
-from framework.core.base import BaseConfig, BaseProcess
-from framework.core.master.utilities import HealthCheckConfig
-from framework.core.slave.slave import SlaveProcess, SlaveConfig
+from PyOrchestrate.core.base import BaseConfig, BaseProcess
+from PyOrchestrate.core.master.utilities import HealthCheckConfig
+from PyOrchestrate.core.slave.slave import SlaveProcess, SlaveConfig
 
 
 class MasterConfig(BaseConfig):
@@ -50,8 +50,8 @@ MasterConfigType = TypeVar("MasterConfigType", bound=MasterConfig)
 class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
 
     def __init__(
-        self,
-        config: MasterConfigType,
+            self,
+            config: MasterConfigType,
     ) -> None:
         super().__init__(name=self.__class__.__name__, config=config)
 
@@ -103,10 +103,10 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
         self.logger.debug("{} terminato.", self.name)
 
     def init_slave(
-        self,
-        slave_class: type[SlaveProcess],
-        config: SlaveConfig,
-        name_suffix: str = "",
+            self,
+            slave_class: type[SlaveProcess],
+            config: SlaveConfig,
+            name_suffix: str = "",
     ) -> None:
 
         self.setup_logger()
@@ -127,7 +127,7 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
             )
 
     def init_multiple_slave(
-        self, slave_class: type[SlaveProcess], configs: list[type[SlaveConfig]]
+            self, slave_class: type[SlaveProcess], configs: list[type[SlaveConfig]]
     ) -> None:
         """
         Init multiple slave processes.
@@ -250,12 +250,12 @@ class MasterProcess(BaseProcess[MasterConfigType], Generic[MasterConfigType]):
 
 class HealthMonitor:
     def __init__(
-        self,
-        logger,
-        slave: dict[str, SlaveProcess[SlaveConfig]],
-        master_process: MasterProcess,
-        enabled: bool = False,
-        check_interval: int = 2,
+            self,
+            logger,
+            slave: dict[str, SlaveProcess[SlaveConfig]],
+            master_process: MasterProcess,
+            enabled: bool = False,
+            check_interval: int = 2,
     ) -> None:
         self.logger = logger
         self.slave_processes: dict[str, SlaveProcess[SlaveConfig]] = slave
@@ -286,8 +286,8 @@ class HealthMonitor:
         )
 
         if any(
-            slave.config.check_config.to_monitor
-            for slave in self.slave_processes.values()
+                slave.config.check_config.to_monitor
+                for slave in self.slave_processes.values()
         ):
             self._thread.start()
         else:
@@ -340,8 +340,8 @@ class HealthMonitor:
         elif self.master_process.config.wait_mode == "limited":
             # In modalità limited, se abbiamo superato i restart permessi, settare stop_event
             if (
-                self.master_process.total_restarts
-                >= self.master_process.config.max_restarts
+                    self.master_process.total_restarts
+                    >= self.master_process.config.max_restarts
             ):
                 self.master_process.stop_event.set()
 

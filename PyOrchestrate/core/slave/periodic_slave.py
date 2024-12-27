@@ -1,27 +1,20 @@
 from typing import Type, TypeVar, Generic, final
 from threading import Event
-from dataclasses import dataclass
 import time
 from abc import abstractmethod
 
-from framework.core.base import BaseConfig
-from framework.core.worker import (
-    WorkerThread,
-    WorkerConfig,
-    LoopingWorkerConfig,
-    LoopingWorker,
-)
-from framework.core.base.exceptions import TerminateProcess
-from framework.utilities.periodic_timer import PeriodicTimer
+from PyOrchestrate.core.base import BaseConfig
+from PyOrchestrate.core.slave.categories import LoopingSlave, LoopingSlaveConfig
+from PyOrchestrate.core.base.exceptions import TerminateProcess
+from PyOrchestrate.utilities.periodic_timer import PeriodicTimer
 
 
-@dataclass
-class PeriodicWorkerConfig(LoopingWorkerConfig):
+class PeriodicSlaveConfig(LoopingSlaveConfig):
     """
     PeriodicSlave configuration.
 
     Attributes:
-        interval (float | int): Interval in seconds between each execution
+        interval (int): Interval in seconds between each execution
         compensate_delay (bool): If True, the process will try to compensate the delay between the executions
         check_config (CheckConfig): Configurazioni thread di controllo del Master.
         logger (LoggerConfig): Configurazioni del `logger`.
@@ -30,18 +23,16 @@ class PeriodicWorkerConfig(LoopingWorkerConfig):
         validate: Metodo per validare i parametri di configurazione.
     """
 
-    interval: float | int = 5
+    interval: float = 5
     """Interval in seconds between each execution"""
     compensate_delay: bool = True
     """If True, the process will try to compensate the delay between the executions"""
 
 
-PeriodicWorkerConfigType = TypeVar(
-    "PeriodicWorkerConfigType", bound=PeriodicWorkerConfig
-)
+PeriodicSlaveConfigType = TypeVar("PeriodicSlaveConfigType", bound=PeriodicSlaveConfig)
 
 
-class PeriodicWorker(LoopingWorker[PeriodicWorkerConfigType]):
+class PeriodicSlave(LoopingSlave[PeriodicSlaveConfigType]):
     """
     Theese processes are executed periodically.
 
@@ -52,7 +43,7 @@ class PeriodicWorker(LoopingWorker[PeriodicWorkerConfigType]):
         When you want to terminate the process, call the `stop` method or raise `TerminateProcess`.
     """
 
-    def __init__(self, config: PeriodicWorkerConfigType) -> None:
+    def __init__(self, config: PeriodicSlaveConfigType) -> None:
         super().__init__(config=config)
 
         self.interval: float = config.interval
@@ -81,7 +72,7 @@ class PeriodicWorker(LoopingWorker[PeriodicWorkerConfigType]):
     @final
     def stop(self):
         """
-        Stops the Thread.
+        Stops the process.
         """
         self.stop_event.set()
 
@@ -92,7 +83,7 @@ class PeriodicWorker(LoopingWorker[PeriodicWorkerConfigType]):
         """
         pass
 
-    def check_worker_config(
-        self, config_class: type[BaseConfig] = PeriodicWorkerConfig
+    def check_process_config(
+            self, config_class: type[BaseConfig] = PeriodicSlaveConfig
     ):
-        return super().check_worker_config(config_class)
+        return super().check_process_config(config_class)

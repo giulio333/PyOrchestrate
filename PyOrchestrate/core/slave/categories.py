@@ -3,19 +3,19 @@ from threading import Event
 import time
 from abc import abstractmethod
 
-from framework.core.base import BaseConfig
-from framework.core.worker import WorkerThread, WorkerConfig
+from PyOrchestrate.core.base import BaseConfig
+from PyOrchestrate.core.slave import SlaveProcess, SlaveConfig
 
 
-class OneShotSlaveConfig(WorkerConfig):
+class OneShotSlaveConfig(SlaveConfig):
     pass
 
 
-OneShotWorkerConfigType = TypeVar("OneShotWorkerConfigType", bound=OneShotSlaveConfig)
+OneShotSlaveConfigType = TypeVar("OneShotSlaveConfigType", bound=OneShotSlaveConfig)
 
 
-class OneShotWorker(
-    WorkerThread[OneShotWorkerConfigType], Generic[OneShotWorkerConfigType]
+class OneShotSlaveProcess(
+    SlaveProcess[OneShotSlaveConfigType], Generic[OneShotSlaveConfigType]
 ):
     """
     Theese processes are executed only once.
@@ -24,7 +24,7 @@ class OneShotWorker(
         Override the `work` method with the logic to be executed.
     """
 
-    def __init__(self, config: OneShotWorkerConfigType) -> None:
+    def __init__(self, config: OneShotSlaveConfigType) -> None:
         super().__init__(config=config)
 
     @abstractmethod
@@ -37,7 +37,7 @@ class OneShotWorker(
         )
 
 
-class LoopingWorkerConfig(WorkerConfig):
+class LoopingSlaveConfig(SlaveConfig):
     """
     LoppingSlave configuration.
 
@@ -52,10 +52,10 @@ class LoopingWorkerConfig(WorkerConfig):
     pass
 
 
-LoopingWorkerConfigType = TypeVar("LoopingWorkerConfigType", bound=LoopingWorkerConfig)
+LoopingSlaveConfigType = TypeVar("LoopingSlaveConfigType", bound=LoopingSlaveConfig)
 
 
-class LoopingWorker(WorkerThread[LoopingWorkerConfigType]):
+class LoopingSlave(SlaveProcess[LoopingSlaveConfigType]):
     """
     Theese processes are executed periodically.
 
@@ -66,18 +66,16 @@ class LoopingWorker(WorkerThread[LoopingWorkerConfigType]):
         When you want to terminate the process, call the `stop` method or raise `TerminateProcess`.
     """
 
-    def __init__(self, config: LoopingWorkerConfigType) -> None:
+    def __init__(self, config: LoopingSlaveConfigType) -> None:
         super().__init__(config=config)
 
     @final
     def work(self) -> None:
-
         self.stop_event = Event()
 
         self.setup()
 
         while not self.stop_event.is_set():
-
             self.cycle()
 
     @abstractmethod
@@ -109,5 +107,5 @@ class LoopingWorker(WorkerThread[LoopingWorkerConfigType]):
         """
         pass
 
-    def check_worker_config(self, config_class: type[BaseConfig] = LoopingWorkerConfig):
-        return super().check_worker_config(config_class)
+    def check_process_config(self, config_class: type[BaseConfig] = LoopingSlaveConfig):
+        return super().check_process_config(config_class)

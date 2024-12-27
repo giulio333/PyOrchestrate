@@ -1,11 +1,11 @@
 from typing import TypeVar, Generic
 from logging import Logger
 
-from framework.core.base import Config, BaseConfig, BaseThread
-from framework.core.slave.utilities import CheckConfig
+from PyOrchestrate.core.base import BaseProcess, Config, BaseConfig
+from PyOrchestrate.core.slave.utilities import CheckConfig
 
 
-class WorkerConfig(BaseConfig):
+class SlaveConfig(BaseConfig):
     """
     Configurazioni di un SlaveProcess.
 
@@ -20,12 +20,12 @@ class WorkerConfig(BaseConfig):
     check_config = CheckConfig()
 
 
-WorkerConfigType = TypeVar("WorkerConfigType", bound=WorkerConfig)
+SlaveConfigType = TypeVar("SlaveConfigType", bound=SlaveConfig)
 
 
-class WorkerThread(BaseThread[WorkerConfigType], Generic[WorkerConfigType]):
+class SlaveProcess(BaseProcess[SlaveConfigType], Generic[SlaveConfigType]):
     """
-    Classe base WorkerProcess.
+    Classe base SlaveProcess.
 
     Il metodo `work` deve essere implementato nelle sottoclassi per definire il lavoro da svolgere.
 
@@ -34,7 +34,7 @@ class WorkerThread(BaseThread[WorkerConfigType], Generic[WorkerConfigType]):
         config (Config): Configurazioni del processo.
     """
 
-    def __init__(self, config: WorkerConfigType, *args, **kwargs) -> None:
+    def __init__(self, config: SlaveConfigType, *args, **kwargs) -> None:
         """
         Inizializza un'istanza di SlaveProcess.
 

@@ -2,19 +2,18 @@ import time
 from dataclasses import dataclass
 from logging import DEBUG
 
-from framework.core.slave import (
+from PyOrchestrate.core.slave import (
     PeriodicSlave,
     PeriodicSlaveConfig,
     LoggerConfig,
     CheckConfig,
 )
 
-from framework.core.base.exceptions import TerminateProcess
+from PyOrchestrate.core.base.exceptions import TerminateProcess
 
 
 @dataclass
 class WorkerConfig(PeriodicSlaveConfig):
-
     message: str = "Hello, World!"
     repeat: int = 50
 

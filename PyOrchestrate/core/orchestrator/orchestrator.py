@@ -11,7 +11,7 @@ class Orchestrator(BaseClass):
     Notes:
         You can pass custom configuration, same as the agent configuration.
 
-        >>> from framework.core.base.utilities import LoggerConfig
+        >>> from PyOrchestrate.core.base.utilities import LoggerConfig
         >>> Orchestrator.Config(logger=LoggerConfig("INFO", "Orchestrator"))
 
     Attributes:
