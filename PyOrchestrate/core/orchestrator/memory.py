@@ -37,12 +37,11 @@ class AgentEntry:
         self.config = config
         self.kwargs = kwargs
 
-        # callback per registrare eventi (arriva da OrchestratorMemory)
         self._record_event_callback = record_event_callback
 
-        self.instance: ProcessAgent | ThreadAgent = self._create_instance()
+        # self.instance: ProcessAgent | ThreadAgent = self._create_instance()
 
-    def _create_instance(self) -> ProcessAgent | ThreadAgent:
+    def create_instance(self) -> ProcessAgent | ThreadAgent:
         """
         Create agent instance.
         """
@@ -62,6 +61,9 @@ class AgentEntry:
         """
         Metodi “di comodo” per gestire l’agente
         """
+
+        self.instance = self.create_instance()
+
         if hasattr(self.instance, 'start'):
             self.instance.start()
         self._record_event("start")

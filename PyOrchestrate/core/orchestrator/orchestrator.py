@@ -57,7 +57,6 @@ class Orchestrator(BaseClass[OConfig]):
         if config is None:
             config = Orchestrator.Config()
         super().__init__(name="Orchestrator", config=config)
-        self.logger = None
 
         self.setup_logger()
         self.config.validate()
