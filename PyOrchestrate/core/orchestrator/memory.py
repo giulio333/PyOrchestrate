@@ -12,7 +12,6 @@ class AgentEntry:
         agent_class (Type[BaseAgent]): The class of the agent.
         name (str): The name of the agent.
         config (Optional[BaseConfig]): Custom configuration for the agent.
-        args (Any): Additional arguments for the agent.
         kwargs (Any): Additional keyword arguments for the agent.
         instance (BaseAgent): The agent instance.
         _record_event_callback (Optional[Any]): Callback to record events.
@@ -27,17 +26,15 @@ class AgentEntry:
 
     def __init__(
             self,
-            agent_class: Type[ProcessAgent|ThreadAgent],
+            agent_class: Type[ProcessAgent | ThreadAgent],
             name: str,
             config: Optional[BaseConfig] = None,
             record_event_callback: Optional[Any] = None,
-            *args: Any,
             **kwargs: Any
     ):
         self.agent_class = agent_class
         self.name = name
         self.config = config
-        self.args = args
         self.kwargs = kwargs
 
         # callback per registrare eventi (arriva da OrchestratorMemory)
@@ -45,11 +42,14 @@ class AgentEntry:
 
         self.instance: ProcessAgent | ThreadAgent = self._create_instance()
 
-    def _create_instance(self) -> ProcessAgent|ThreadAgent:
+    def _create_instance(self) -> ProcessAgent | ThreadAgent:
         """
         Create agent instance.
         """
-        return self.agent_class(name=self.name, config=self.config, *self.args, **self.kwargs)
+        if self.config is None:
+            self.config = self.agent_class.Config()
+
+        return self.agent_class(name=self.name, config=self.config, **self.kwargs)
 
     def _record_event(self, event_type: str) -> None:
         """
@@ -115,11 +115,6 @@ class AgentEntry:
         Returns:
             str: Agent status.
         """
-
-        alive: bool
-        daemon: bool
-        ident: int | None
-        pid: int | None
 
         if isinstance(self.instance, ProcessAgent):
             alive: bool = self.instance.is_alive()
@@ -192,7 +187,7 @@ class OMemory:
         get_agent_stats: Get the event log for the specified agent
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Mappa dal nome dell’agente all’oggetto `AgentEntry`
         self._agents: Dict[str, AgentEntry] = {}
         # Mappa dal nome del gruppo all’oggetto `Group`
@@ -214,10 +209,9 @@ class OMemory:
 
     def add_agent(
             self,
-            agent_class: Type[BaseAgent],
+            agent_class: Type[ProcessAgent | ThreadAgent],
             name: str,
             custom_config: Optional[BaseConfig] = None,
-            *args: Any,
             **kwargs: Any
     ) -> None:
         """
@@ -236,7 +230,6 @@ class OMemory:
             name=name,
             config=custom_config,
             record_event_callback=self._record_event,
-            *args,
             **kwargs
         )
         self._agents[name] = entry
@@ -284,7 +277,7 @@ class OMemory:
         """
         return self._groups.get(group_name)
 
-    def get_group_agents(self, group_name: str) -> List[BaseAgent]:
+    def get_group_agents(self, group_name: str) -> List[ThreadAgent | ProcessAgent]:
         """
         Ritorna la lista delle istanze degli agenti appartenenti al gruppo.
         """
@@ -298,7 +291,7 @@ class OMemory:
                 instances.append(entry.instance)
         return instances
 
-    def get_agent_stats(self, agent_name: str) -> Optional[List[Dict[str, datetime]]]:
+    def get_agent_stats(self, agent_name: str) -> list[dict] | None:
         """
         Return the event log for the specified agent.
 

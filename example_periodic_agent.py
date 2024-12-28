@@ -4,20 +4,25 @@ from PyOrchestrate.core.base.base_agent import ProcessAgent
 from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
-class FileWriter(PeriodicAgent, ProcessAgent):
+class FWConfig(PeriodicAgent.Config):
+    def __init__(self, limit: int = 20, output_directory: str = "co",
+                 logger: LoggerConfig = LoggerConfig("DEBUG"), **kwargs):
+        super().__init__(**kwargs)
+        self.output_directory: str = output_directory
+        self.logger = logger
+        self.limit: int = limit
+
+    def validate(self):
+        pass
+
+
+class FileWriter(PeriodicAgent[FWConfig], ProcessAgent[FWConfig]):
     """
     FileWriter, un agente periodico che esegue un ciclo per scrivere log.
     """
 
-    class Config(PeriodicAgent.Config):
-        def __init__(self, limit: int = 20, output_directory: str = "co", logger: LoggerConfig = LoggerConfig("DEBUG")):
-            super().__init__()
-            self.output_directory: str = output_directory
-            self.logger = logger
-            self.limit: int = limit
-
-        def validate(self):
-            pass
+    class Config(FWConfig):
+        pass
 
     def setup(self):
         """
@@ -35,13 +40,14 @@ class FileWriter(PeriodicAgent, ProcessAgent):
 
 if __name__ == "__main__":
     # orchestrator
-    orchestrator = Orchestrator()
+    OConfig = Orchestrator.Config(check=True)
+    orchestrator = Orchestrator(OConfig)
 
     # first agent with default configuration
     orchestrator.register_agent(FileWriter, "FileWriter1")
 
     # second agent with custom configuration
-    custom_config = FileWriter.Config(limit=4, output_directory="output", logger=LoggerConfig("DEBUG"))
+    custom_config = FileWriter.Config(execution_interval=.1)
     orchestrator.register_agent(FileWriter, "FileWriter2", custom_config)
 
     # start all agents

@@ -3,10 +3,33 @@ import time
 
 from .memory import OMemory
 
-from ..base import BaseAgent, BaseConfig, BaseClass, ThreadAgent
+from ..base import BaseClass
+from ..base.base_agent import ProcessAgent, ThreadAgent
+from ..base.base import T, BaseConfig
 
 
-class Orchestrator(BaseClass):
+class OConfig(BaseConfig):
+    """
+    Orchestrator configuration class.
+
+    Attributes:
+        check_interval (float): Interval to check the agents.
+        check (bool): Flag to enable the agent check.
+        logger (LoggerConfig): Logger configuration.
+    """
+
+    def __init__(self, check: bool = False, check_interval: float = 1, **kwargs):
+        super().__init__(**kwargs)
+        self.check_interval: float = check_interval
+        self.check: bool = check
+        self.orchestrator_type = "base"
+
+    def validate(self):
+        if self.check_interval <= 0:
+            raise ValueError("Check interval must be greater than 0.")
+
+
+class Orchestrator(BaseClass[OConfig]):
     """
     Orchestrator class to manages the agents.
 
@@ -27,24 +50,12 @@ class Orchestrator(BaseClass):
         join: Wait for all the agents to complete.
     """
 
-    class Config(BaseConfig):
-        """
-        Orchestrator configuration class.
+    class Config(OConfig):
+        pass
 
-        Attributes:
-            logger (LoggerConfig): Logger configuration.
-        """
-
-        def __init__(self, check: bool = False, check_interval: float = 1, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.check_interval: float = check_interval
-            self.check: bool = check
-
-        def validate(self):
-            if self.check_interval <= 0:
-                raise ValueError("Check interval must be greater than 0.")
-
-    def __init__(self, config: BaseConfig | None = None):
+    def __init__(self, config: OConfig | None = None):
+        if config is None:
+            config = Orchestrator.Config()
         super().__init__(name="Orchestrator", config=config)
         self.logger = None
 
@@ -52,9 +63,11 @@ class Orchestrator(BaseClass):
         self.config.validate()
         self.memory = OMemory()
 
+        self.logger.info(self.config)
+
     def register_agent(
             self,
-            agent_class: Type[BaseAgent],
+            agent_class: Type[ProcessAgent | ThreadAgent],
             name: str,
             custom_config: BaseConfig | None = None,
             *args,
@@ -72,7 +85,7 @@ class Orchestrator(BaseClass):
             None
         """
 
-        self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config, *args, **kwargs)
+        self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config, **kwargs)
         self.logger.info(f"Agent {name} registered.")
 
     def start(self):

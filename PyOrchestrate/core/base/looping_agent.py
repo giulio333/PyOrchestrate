@@ -1,27 +1,35 @@
 from abc import abstractmethod
-from typing import final
+from typing import final, TypeVar
 
 from .exceptions import RecoverableException, NonRecoverableException
 from .base_agent import BaseAgent
 
 
-class LoopingAgent(BaseAgent):
-    class Config(BaseAgent.Config):
+class LoopingAgentConfig(BaseAgent.Config):
+
+    def __init__(self, limit: int | None = None,
+                 **kwargs):
+        super().__init__(**kwargs)
+
+        self.limit: int | None = limit
+
+
+T = TypeVar('T', bound=LoopingAgentConfig)
+
+
+class LoopingAgent(BaseAgent[T]):
+    class Config(LoopingAgentConfig):
         """
         PeriodicProcessAgent configuration class.
 
         Attributes:
-            execution_interval (float): The interval between two consecutive executions.
-            delay_compensation (bool): Compensate the delay in the execution.
             limit (int): The maximum number of iterations.
             logger (LoggerConfig): Logger configuration.
         """
-        execution_interval: float = 1
-        delay_compensation: bool = False
-        limit: int | None = None
+        pass
 
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str, config: T, **kwargs):
+        super().__init__(name=name, config=config, **kwargs)
 
     @final
     def execute(self):

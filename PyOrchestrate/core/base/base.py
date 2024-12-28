@@ -1,13 +1,12 @@
 import logging
-from abc import ABC
 from loguru import logger
 from typing import Generic, TypeVar
 
-from ...utilities.logguru import LoggerFactory
+from PyOrchestrate.utilities.logguru import LoggerFactory
 from ..base.utilities import LoggerConfig
 
 
-class BaseConfig(ABC):
+class BaseConfig:
     """
     Base configuration class.
 
@@ -34,11 +33,14 @@ class BaseConfig(ABC):
         """
         pass
 
+    def __str__(self):
+        return f"<{self.__class__.__name__} {self.__dict__}>"
 
-GenericConfig = TypeVar("GenericConfig", bound=BaseConfig)
+
+T = TypeVar("T", bound=BaseConfig)
 
 
-class BaseClass:
+class BaseClass(Generic[T]):
     """
     Base class for all classes.
 
@@ -54,9 +56,9 @@ class BaseClass:
             logger (LoggerConfig): Logger configuration.
         """
 
-    def __init__(self, name: str | None = None, config: GenericConfig | None = None, *args, **kwargs):
+    def __init__(self, config: T, name: str | None = None, **kwargs):
         self.logger = None
-        self.config: GenericConfig = config if config else self.Config()
+        self.config = config
         self.name = name if name else self.__class__.__name__
 
     @logger.catch(reraise=True)
@@ -72,7 +74,7 @@ class BaseClass:
             return
 
         logger_cfg = self.config.logger
-        logging_level = getattr(logging, logger_cfg.level.upper(), "INFO")
+        logging_level = getattr(logging, logger_cfg.level.upper(), "DEBUG")
         log_name = logger_cfg.filename or self.name
 
         self.logger = LoggerFactory.create_logger(

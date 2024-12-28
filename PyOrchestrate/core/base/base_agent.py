@@ -6,15 +6,16 @@ from typing import final
 
 from loguru import logger
 
-from .base import BaseClass
+from .base import BaseClass, T
 
-class BaseAgent(BaseClass, ABC):
+
+class BaseAgent(BaseClass[T], ABC):
     """
     Abstract base class for all agents.
     """
 
-    def __init__(self,name,config, *args, **kwargs):
-        super().__init__(name=name, config=config,*args, **kwargs)
+    def __init__(self, name: str | None, config: T, **kwargs):
+        super().__init__(name=name, config=config, **kwargs)
         self._stop_event = None
 
     @logger.catch(reraise=True)
@@ -25,6 +26,7 @@ class BaseAgent(BaseClass, ABC):
 
         self.config.validate()
         self.logger.info("Configuration successfully validated.")
+        self.logger.debug(self.config)
 
     @final
     def run_agent(self):
@@ -65,7 +67,7 @@ class BaseAgent(BaseClass, ABC):
         pass
 
 
-class ThreadAgent(BaseAgent, threading.Thread):
+class ThreadAgent(BaseAgent[T], threading.Thread):
     """
     Agent class based on threading.Thread.
 
@@ -73,11 +75,11 @@ class ThreadAgent(BaseAgent, threading.Thread):
     the agent's lifecycle management.
     """
 
-    def __init__(self, name: str | None = None,config=None, *args, **kwargs):
+    def __init__(self, config: T, name: str | None = None, **kwargs):
         threading.Thread.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name, config=config,*args, **kwargs)
+        BaseAgent.__init__(self, name=name, config=config, **kwargs)
 
-        self._stop_event = threading.Event()
+        self._stop_event = threading.Event()  # type: ignore
 
     def run(self):
         """
@@ -99,7 +101,7 @@ class ThreadAgent(BaseAgent, threading.Thread):
         pass
 
 
-class ProcessAgent(BaseAgent, multiprocessing.Process):
+class ProcessAgent(BaseAgent[T], multiprocessing.Process):
     """
     Agent class based on multiprocessing.Process.
 
@@ -107,11 +109,11 @@ class ProcessAgent(BaseAgent, multiprocessing.Process):
     the agent's lifecycle management.
     """
 
-    def __init__(self, name: str | None = None,config=None, *args, **kwargs):
+    def __init__(self, config: T, name: str | None = None, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name,config=config, *args, **kwargs)
+        BaseAgent.__init__(self, name=name, config=config, **kwargs)
 
-        self._stop_event = multiprocessing.Event()
+        self._stop_event = multiprocessing.Event()  # type: ignore
 
     def run(self):
         """

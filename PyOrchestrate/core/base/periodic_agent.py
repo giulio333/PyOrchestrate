@@ -1,12 +1,24 @@
 from abc import abstractmethod
-from typing import final, cast
+from typing import final, cast, TypeVar, Generic
 from dataclasses import dataclass
 
 from .looping_agent import LoopingAgent
 from ...utilities.periodic_timer import PeriodicTimer
 
 
-class PeriodicAgent(LoopingAgent):
+class PeriodicAgentConfig(LoopingAgent.Config):
+    def __init__(self, execution_interval: float = 1, delay_compensation: bool = False, limit: int = 1, **kwargs):
+        super().__init__(limit, **kwargs)
+
+        self.execution_interval: float = execution_interval
+        self.delay_compensation: bool = delay_compensation
+        self.limit: int = limit
+
+
+T = TypeVar('T', bound=PeriodicAgentConfig)
+
+
+class PeriodicAgent(LoopingAgent[T]):
     """
     Periodic agent class.
 
@@ -26,7 +38,7 @@ class PeriodicAgent(LoopingAgent):
             This method must be implemented in the derived class.
     """
 
-    class Config(LoopingAgent.Config):
+    class Config(PeriodicAgentConfig):
         """
         PeriodicProcessAgent configuration class.
 
@@ -36,9 +48,10 @@ class PeriodicAgent(LoopingAgent):
             limit (int): The maximum number of iterations.
             logger (LoggerConfig): Logger configuration.
         """
+        pass
 
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str, config: T, **kwargs):
+        super().__init__(name=name, config=config, **kwargs)
 
         self.timer = None
         self.interval = self.config.execution_interval

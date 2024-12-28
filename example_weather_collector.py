@@ -15,7 +15,7 @@ class WeatherCollector(PeriodicAgent, ProcessAgent):
     """
 
     class Config(PeriodicAgent.Config):
-        def __init__(self, output_file: str = "weather_data.json", url:str="https://catfact.ninja/factt"):
+        def __init__(self, output_file: str = "weather_data.json", url: str = "https://catfact.ninja/factt"):
             super().__init__()
             self.output_file = output_file
             self.url = url
@@ -59,7 +59,7 @@ class WeatherCollector(PeriodicAgent, ProcessAgent):
             self.logger.info(f"Dati salvati correttamente in {self.config.output_file}.")
 
         except requests.RequestException as e:
-            raise NonRecoverableException(f"Errore nella richiesta: {e}")
+            raise RecoverableException(f"Errore nella richiesta: {e}")
 
 
 if __name__ == "__main__":

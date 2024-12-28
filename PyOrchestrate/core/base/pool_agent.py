@@ -23,6 +23,7 @@ class PoolAgent(PeriodicAgent):
             execution_interval (float): The interval of checking the agents.
             logger (LoggerConfig): Logger configuration.
         """
+        # TODO: Init method
 
         auto_reboot: bool = False
         execution_interval: float = 1

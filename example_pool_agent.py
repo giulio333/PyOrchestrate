@@ -8,7 +8,8 @@ from PyOrchestrate.core.base.utilities import LoggerConfig
 
 class MyThread(PeriodicAgent, ThreadAgent):
     class Config(PeriodicAgent.Config):
-        limit: int = 3
+        def __init__(self, limit: int = 5, **kwargs):
+            super().__init__(limit, **kwargs)
 
     def runner(self):
         print(f"Thread {self.name} running")
