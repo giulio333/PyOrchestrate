@@ -7,12 +7,13 @@ from ...utilities.periodic_timer import PeriodicTimer
 
 
 class PeriodicAgentConfig(LoopingAgent.Config):
-    def __init__(self, execution_interval: float = 1, delay_compensation: bool = False, limit: int = 1, **kwargs):
+    def __init__(self, execution_interval: float = 1, delay_compensation: bool = False, limit: int | None = None,
+                 **kwargs):
         super().__init__(limit, **kwargs)
 
         self.execution_interval: float = execution_interval
         self.delay_compensation: bool = delay_compensation
-        self.limit: int = limit
+        self.limit: int | None = limit
 
 
 T = TypeVar('T', bound=PeriodicAgentConfig)

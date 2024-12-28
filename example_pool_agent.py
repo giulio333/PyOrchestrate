@@ -9,7 +9,7 @@ from PyOrchestrate.core.base.utilities import LoggerConfig
 class MyThread(PeriodicAgent, ThreadAgent):
     class Config(PeriodicAgent.Config):
         def __init__(self, limit: int = 5, **kwargs):
-            super().__init__(limit, **kwargs)
+            super().__init__(limit=limit, **kwargs)
 
     def runner(self):
         print(f"Thread {self.name} running")
@@ -17,8 +17,10 @@ class MyThread(PeriodicAgent, ThreadAgent):
 
 class FileWriter(PoolAgent, ProcessAgent):
     class Config(PoolAgent.Config):
-        agents_entry = [AgentEntry(MyThread, "Thread1"), AgentEntry(MyThread, "Thread2")]
-        output_directory: str = "output"
+        def __init__(self) -> None:
+            super().__init__()
+            self.agents_entry = [AgentEntry(MyThread, "Thread1"), AgentEntry(MyThread, "Thread2")]
+            self.output_directory: str = "output"
 
     def setup(self):
         """

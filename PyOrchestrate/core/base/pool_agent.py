@@ -6,6 +6,21 @@ from ..orchestrator.orchestrator import Orchestrator
 from ..orchestrator.memory import AgentEntry
 
 
+class PoolAgentConfig(PeriodicAgent.Config):
+    def __init__(self, auto_reboot: bool = False, agents_entry: list[AgentEntry] = None, **kwargs):
+        super().__init__(**kwargs)
+
+        self.auto_reboot: bool = auto_reboot
+        self.agents_entry: list[AgentEntry] = agents_entry
+
+    def validate(self):
+        super().validate()
+        if self.limit is not None:
+            raise ValueError("PoolAgent does not support limit parameter.")
+        if self.agents_entry is None:
+            raise ValueError("No agents to register.")
+
+
 class PoolAgent(PeriodicAgent):
     """
     Pool agent class.
@@ -13,7 +28,7 @@ class PoolAgent(PeriodicAgent):
     This agent is an orchestrator of BaseThreadAgent instances.
     """
 
-    class Config(PeriodicAgent.Config):
+    class Config(PoolAgentConfig):
         """
         Pool agent configuration class.
 
@@ -23,18 +38,7 @@ class PoolAgent(PeriodicAgent):
             execution_interval (float): The interval of checking the agents.
             logger (LoggerConfig): Logger configuration.
         """
-        # TODO: Init method
-
-        auto_reboot: bool = False
-        execution_interval: float = 1
-        agents_entry: list[AgentEntry] = None
-
-        def validate(self):
-            super().validate()
-            if self.limit is not None:
-                raise ValueError("PoolAgent does not support limit parameter.")
-            if self.agents_entry is None:
-                raise ValueError("No agents to register.")
+        pass
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
