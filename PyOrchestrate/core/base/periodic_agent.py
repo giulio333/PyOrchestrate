@@ -13,7 +13,6 @@ class PeriodicAgentConfig(LoopingAgent.Config):
 
         self.execution_interval: float = execution_interval
         self.delay_compensation: bool = delay_compensation
-        self.limit: int | None = limit
 
 
 T = TypeVar('T', bound=PeriodicAgentConfig)
@@ -59,6 +58,7 @@ class PeriodicAgent(LoopingAgent[T]):
         self.compensate_delay = self.config.delay_compensation
 
     def setup(self):
+        super().setup()
         self.timer = PeriodicTimer(
             logger=self.logger,
             interval=self.interval,
@@ -80,3 +80,8 @@ class PeriodicAgent(LoopingAgent[T]):
         periodically.
         """
         pass
+
+    def _info(self):
+        super()._info()
+        self.logger.debug(f"execution_interval: {self.interval}")
+        self.logger.debug(f"delay_compensation: {self.compensate_delay}")

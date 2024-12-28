@@ -1,4 +1,4 @@
-from typing import final
+from typing import final, TypeVar
 
 from ..base.periodic_agent import PeriodicAgent
 from ...utilities.periodic_timer import PeriodicTimer
@@ -7,21 +7,24 @@ from ..orchestrator.memory import AgentEntry
 
 
 class PoolAgentConfig(PeriodicAgent.Config):
-    def __init__(self, auto_reboot: bool = False, agents_entry: list[AgentEntry] = None, **kwargs):
+    def __init__(self, agents_entry: list[AgentEntry] | None = None, auto_reboot: bool = False, **kwargs):
         super().__init__(**kwargs)
 
         self.auto_reboot: bool = auto_reboot
-        self.agents_entry: list[AgentEntry] = agents_entry
+        self.agents_entry: list[AgentEntry] = agents_entry if agents_entry else []
 
     def validate(self):
         super().validate()
         if self.limit is not None:
             raise ValueError("PoolAgent does not support limit parameter.")
-        if self.agents_entry is None:
+        if not self.agents_entry:
             raise ValueError("No agents to register.")
 
 
-class PoolAgent(PeriodicAgent):
+T = TypeVar('T', bound=PoolAgentConfig)
+
+
+class PoolAgent(PeriodicAgent[T]):
     """
     Pool agent class.
 
@@ -49,6 +52,13 @@ class PoolAgent(PeriodicAgent):
 
         self._orchestrator = None
 
+    def _info(self):
+        super()._info()
+        self.logger.debug(f"interval: {self.interval}")
+        self.logger.debug(f"compensate_delay: {self.compensate_delay}")
+        self.logger.debug(f"auto_reboot: {self.config.auto_reboot}")
+        self.logger.debug(f"agents_entry: {self.config.agents_entry}")
+
     def setup(self):
         """
         Set up the PoolAgent.
@@ -61,17 +71,14 @@ class PoolAgent(PeriodicAgent):
             You can override this method to add custom setup logic but remember to call super().setup() to ensure the
             agent is correctly initialized.
         """
-        self.timer = PeriodicTimer(
-            logger=self.logger,
-            interval=self.interval,
-            compensate_delay=self.compensate_delay,
-        )
+        super().setup()
 
-        self._orchestrator = Orchestrator()
+        self._orchestrator = Orchestrator(name=self.name)
 
         if not self.config.agents_entry:
             self.logger.warning("No agents for current pool agent.")
             return
+
         for agent in self.config.agents_entry:
             self.orchestrator.register_agent(agent.agent_class, agent.name, agent.config)
         self.orchestrator.start()
@@ -91,3 +98,8 @@ class PoolAgent(PeriodicAgent):
         if self._orchestrator is None:
             raise RuntimeError("Orchestrator is not initialized")
         return self._orchestrator
+
+    def _info(self):
+        super()._info()
+        self.logger.debug(f"auto_reboot: {self.config.auto_reboot}")
+        self.logger.debug(f"agents_entry: {self.config.agents_entry}")

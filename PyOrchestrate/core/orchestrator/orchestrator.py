@@ -53,10 +53,10 @@ class Orchestrator(BaseClass[OConfig]):
     class Config(OConfig):
         pass
 
-    def __init__(self, config: OConfig | None = None):
+    def __init__(self, name: str, config: OConfig | None = None):
         if config is None:
             config = Orchestrator.Config()
-        super().__init__(name="Orchestrator", config=config)
+        super().__init__(name=name, config=config)
 
         self.setup_logger()
         self.config.validate()
@@ -69,7 +69,6 @@ class Orchestrator(BaseClass[OConfig]):
             agent_class: Type[ProcessAgent | ThreadAgent],
             name: str,
             custom_config: BaseConfig | None = None,
-            *args,
             **kwargs,
     ):
         """

@@ -50,6 +50,7 @@ class LoopingAgent(BaseAgent[T]):
                 if self._stop_event.is_set():
                     break
                 self.safe_cycle()
+            self.logger.debug(f"Reached limit ({self.config.limit}).")
 
     def safe_cycle(self):
         try:
@@ -72,3 +73,10 @@ class LoopingAgent(BaseAgent[T]):
             Here you can implement the setup logic.
             This method is called once before the Agent cycle method.
         """
+        self._info()
+        pass
+
+    @abstractmethod
+    def _info(self):
+        super()._info()
+        self.logger.debug(f"limit: {self.config.limit}")

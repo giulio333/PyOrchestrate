@@ -80,4 +80,3 @@ class BaseClass(Generic[T]):
         self.logger = LoggerFactory.create_logger(
             log_identifier=log_name, logger_name=log_name, level=logging_level
         )
-        self.logger.debug(f"Logger initialized: {self.config.logger}")

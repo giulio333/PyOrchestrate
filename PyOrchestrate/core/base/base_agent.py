@@ -18,15 +18,12 @@ class BaseAgent(BaseClass[T], ABC):
         super().__init__(name=name, config=config, **kwargs)
         self._stop_event = None
 
-    @logger.catch(reraise=True)
     def validate_config(self):
         """
         Validate the configuration.
         """
-
         self.config.validate()
-        self.logger.info("Configuration successfully validated.")
-        self.logger.debug(self.config)
+        self.logger.debug(f"Self configuration validated.")
 
     @final
     def run_agent(self):
@@ -36,6 +33,7 @@ class BaseAgent(BaseClass[T], ABC):
         This method is called by the `run` method of the derived classes. So it can be considered the entry point for
         the agent execution.
         """
+        self.start_time = time.time()
 
         self.setup_logger()
 
@@ -43,9 +41,7 @@ class BaseAgent(BaseClass[T], ABC):
 
             self.validate_config()
 
-            self.logger.info("Starting agent...")
-
-            self.start_time = time.time()
+            self.logger.info("Starting...")
 
             self.execute()
         except Exception as ex:
@@ -64,6 +60,9 @@ class BaseAgent(BaseClass[T], ABC):
         pass
 
     def stop(self):
+        pass
+
+    def _info(self):
         pass
 
 
@@ -100,6 +99,9 @@ class ThreadAgent(BaseAgent[T], threading.Thread):
         """
         pass
 
+    def _info(self):
+        super()._info()
+
 
 class ProcessAgent(BaseAgent[T], multiprocessing.Process):
     """
@@ -133,3 +135,6 @@ class ProcessAgent(BaseAgent[T], multiprocessing.Process):
         Abstract method to be implemented in derived classes: Agent execution logic.
         """
         pass
+
+    def _info(self):
+        super()._info()

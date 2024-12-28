@@ -39,8 +39,6 @@ class AgentEntry:
 
         self._record_event_callback = record_event_callback
 
-        # self.instance: ProcessAgent | ThreadAgent = self._create_instance()
-
     def create_instance(self) -> ProcessAgent | ThreadAgent:
         """
         Create agent instance.
@@ -135,6 +133,9 @@ class AgentEntry:
 
     def __str__(self):
         return self.name
+
+    def __repr__(self):
+        return f"<AgentEntry: {self.name}>"
 
 
 class Group:

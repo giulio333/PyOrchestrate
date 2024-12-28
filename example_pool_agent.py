@@ -9,45 +9,60 @@ from PyOrchestrate.core.base.utilities import LoggerConfig
 class MyThread(PeriodicAgent, ThreadAgent):
     class Config(PeriodicAgent.Config):
         def __init__(self, limit: int = 5, **kwargs):
-            super().__init__(limit=limit, **kwargs)
+            super().__init__(limit=limit, execution_interval=.2, **kwargs)
 
     def runner(self):
-        print(f"Thread {self.name} running")
+        self.logger.debug(f"Thread {self.name} running")
 
 
-class FileWriter(PoolAgent, ProcessAgent):
+class FileWriter(PoolAgent["FileWriter.Config"], ProcessAgent["FileWriter.Config"]):
     class Config(PoolAgent.Config):
-        def __init__(self) -> None:
-            super().__init__()
-            self.agents_entry = [AgentEntry(MyThread, "Thread1"), AgentEntry(MyThread, "Thread2")]
-            self.output_directory: str = "output"
+        def __init__(self,
+                     agents_entry=None,
+                     default_agents=None,
+                     **kwargs):
+            if default_agents is None:
+                # Esempio di set di agent di default
+                default_agents = [
+                    AgentEntry(MyThread, "DefaultThread1"),
+                    AgentEntry(MyThread, "DefaultThread2")
+                ]
+            if agents_entry is None:
+                agents_entry = default_agents
+
+            super().__init__(agents_entry=agents_entry, **kwargs)
 
     def setup(self):
         """
         Imposta il FileWriter, creando la directory di log se necessario.
         """
         super().setup()
-
         self.logger.info(f"FileWriter {self.name} inizializzato.")
-        self.logger.info(f"Directory di output: {self.config.output_directory}")
 
 
 if __name__ == "__main__":
-    # orchestrator
-    oConfig = Orchestrator.Config(logger_config=LoggerConfig("INFO", "Orchestrator"))
-    orchestrator = Orchestrator(oConfig)
+    # Configurazione dell'orchestratore
+    oConfig = Orchestrator.Config(
+        logger_config=LoggerConfig("INFO", "Orchestrator")
+    )
+    orchestrator = Orchestrator("Orchestrator", oConfig)
 
-    # first agent with default configuration
-    orchestrator.register_agent(FileWriter, "FileWriter1", )
+    # Esempio 1: uso della config di default (senza passare agent_entry)
+    orchestrator.register_agent(FileWriter, "FileWriter_Default")
 
-    # start all agents
+    # Esempio 2: config custom con agent personalizzati
+    fw2_config = FileWriter.Config(
+        agents_entry=[
+            AgentEntry(MyThread, "ThreadCustom1"),
+            AgentEntry(MyThread, "ThreadCustom2")
+        ]
+    )
+    orchestrator.register_agent(FileWriter, "FileWriter_Custom", custom_config=fw2_config)
+
+    # Avvio degli agent
     orchestrator.start()
-
-    # first report
     orchestrator.report()
 
-    # wait for all agents to complete
+    # Attendo la terminazione di tutti gli agent
     orchestrator.join()
-
-    # second report
     orchestrator.report()
