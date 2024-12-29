@@ -85,7 +85,6 @@ class LoopingAgent(BaseAgent[T]):
             Here you can implement the setup logic.
             This method is called once before the Agent cycle method.
         """
-        self._info()
         pass
 
     @abstractmethod

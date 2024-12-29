@@ -9,28 +9,7 @@ from ..base.base_agent import ProcessAgent, ThreadAgent
 from ..base.base import BaseClass
 
 
-class OConfig(BaseClass.Config):
-    """
-    Orchestrator configuration class.
-
-    Attributes:
-        check_interval (float): Interval to check the agents.
-        check (bool): Flag to enable the agent check.
-        logger (LoggerConfig): Logger configuration.
-    """
-
-    def __init__(self, check: bool = False, check_interval: float = 1, **kwargs):
-        super().__init__(**kwargs)
-        self.check_interval: float = check_interval
-        self.check: bool = check
-        self.orchestrator_type = "base"
-
-    def validate(self):
-        if self.check_interval <= 0:
-            raise ValueError("Check interval must be greater than 0.")
-
-
-class Orchestrator(BaseClass[OConfig]):
+class Orchestrator(BaseClass["Orchestrator.Config"]):
     """
     Orchestrator class to manages the agents.
 
@@ -51,15 +30,46 @@ class Orchestrator(BaseClass[OConfig]):
         join: Wait for all the agents to complete.
     """
 
-    class Config(OConfig):
-        pass
+    class Config(BaseClass.Config):
+        """
+        Orchestrator configuration class.
 
-    def __init__(self, name: str, config: OConfig | None = None):
-        if config is None:
-            config = Orchestrator.Config()
-        super().__init__(name=name, config=config)
+        Attributes:
+            check_interval (float): Interval to check the agents.
+            logger (LoggerConfig): Logger configuration.
+
+        Notes:
+            Class attributes store default values for the configuration parameters. If you want to change the default
+            values, you can override them in the derived class or pass them as arguments to the constructor.
+
+            User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
+            overridden in the derived class.
+
+        Examples:
+            You can create a custom configuration class by inheriting from the OrchestratorConfig class and overriding the
+            desired attributes.
+
+            >>> class Config(Orchestrator.Config):
+            ...     check_interval = 2
+            >>> default_config = Config()
+            >>> custom_config = Config(check_interval=5)
+        """
+        check_interval: float = 1
+
+        def __init__(self, check: bool = False, check_interval: float = 1, **kwargs):
+            super().__init__(**kwargs)
+            self.check_interval: float = check_interval
+
+        def validate(self):
+            super().validate()
+            if self.check_interval <= 0:
+                raise ValueError("Check interval must be greater than 0.")
+
+    def __init__(self, name: str):
+        super().__init__(name=name, config=Orchestrator.Config())
 
         self.setup_logger()
+        self._info()
         self.config.validate()
         self.memory = OMemory()
         self.event_manager = EventManager()
@@ -134,3 +144,6 @@ class Orchestrator(BaseClass[OConfig]):
         self.logger.info(f"Reporting {len(self.memory.agents)} agents status.")
         for agent in self.memory.agents:
             self.logger.info(agent.status())
+
+    def _info(self):
+        self.logger.debug(f"Config: check_interval: {self.config.check_interval}")
