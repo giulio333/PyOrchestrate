@@ -5,8 +5,13 @@ import os
 from PyOrchestrate.core.base.base_agent import ProcessAgent
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
-from PyOrchestrate.core.base.utilities import LoggerConfig
 from PyOrchestrate.core.base.exceptions import RecoverableException
+
+from PyOrchestrate.core.utilities.event import OrchestratorEvent
+
+
+def on_agent_started(agent_name: str):
+    print(f"Agent {agent_name} started.")
 
 
 class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["WeatherCollector.Config"]):
@@ -65,10 +70,7 @@ if __name__ == "__main__":
     orchestrator = Orchestrator("Orchestrator")
 
     orchestrator.register_agent(WeatherCollector, "WeatherCollector1")
-
-    orchestrator.register_agent(WeatherCollector, "WCustom",
-                                WeatherCollector.Config(execution_interval=.2, output_file="custom.json",
-                                                        print_result=True))
+    orchestrator.event_manager.connect(OrchestratorEvent.AGENT_STARTED.value, on_agent_started)
 
     orchestrator.start()
     orchestrator.join()

@@ -2,6 +2,8 @@ from typing import Type
 import time
 
 from .memory import OMemory
+from PyOrchestrate.core.utilities.event_manager import EventManager
+from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
 from ..base.base_agent import ProcessAgent, ThreadAgent
 from ..base.base import BaseClass
@@ -60,6 +62,7 @@ class Orchestrator(BaseClass[OConfig]):
         self.setup_logger()
         self.config.validate()
         self.memory = OMemory()
+        self.event_manager = EventManager()
 
     def register_agent(
             self,
@@ -88,6 +91,7 @@ class Orchestrator(BaseClass[OConfig]):
         for agent in self.memory.agents:
             agent.start()
             self.logger.info(f"Starting agent {agent}.")
+            self.event_manager.emit(OrchestratorEvent.AGENT_STARTED.value, agent_name=agent.name)
 
     def stop(self):
         """Terminates all registered agents."""
@@ -104,6 +108,8 @@ class Orchestrator(BaseClass[OConfig]):
                 agent.join()
                 self.logger.info(f"Agent {agent} completed.")
 
+            self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED.value)
+
     def _check_agent(self):
         """Monitor all agents and log when each one finishes. Return when all agents are completed."""
 
@@ -113,6 +119,8 @@ class Orchestrator(BaseClass[OConfig]):
             for agent in list(active_agents):
                 if not agent.instance.is_alive():
                     self.logger.info(f"Agent {agent} ended.")
+                    self.event_manager.emit(OrchestratorEvent.AGENT_TERMINATED.value, agent_name=agent.name)
+
                     active_agents.remove(agent)
 
             time.sleep(self.config.check_interval)
