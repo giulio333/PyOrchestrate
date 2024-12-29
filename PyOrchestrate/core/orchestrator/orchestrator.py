@@ -3,12 +3,11 @@ import time
 
 from .memory import OMemory
 
-from ..base import BaseClass
 from ..base.base_agent import ProcessAgent, ThreadAgent
-from ..base.base import T, BaseConfig
+from ..base.base import BaseClass
 
 
-class OConfig(BaseConfig):
+class OConfig(BaseClass.Config):
     """
     Orchestrator configuration class.
 
@@ -66,7 +65,7 @@ class Orchestrator(BaseClass[OConfig]):
             self,
             agent_class: Type[ProcessAgent | ThreadAgent],
             name: str,
-            custom_config: BaseConfig | None = None,
+            custom_config: BaseClass.Config | None = None,
             **kwargs,
     ):
         """

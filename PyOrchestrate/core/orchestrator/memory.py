@@ -1,7 +1,7 @@
 import datetime
 from typing import Dict, List, Optional, Type, Any
 
-from ..base import BaseAgent, BaseConfig, ProcessAgent, ThreadAgent
+from ..base import BaseAgent, ProcessAgent, ThreadAgent, BaseClass
 
 
 class AgentEntry:
@@ -28,7 +28,7 @@ class AgentEntry:
             self,
             agent_class: Type[ProcessAgent | ThreadAgent],
             name: str,
-            config: Optional[BaseConfig] = None,
+            config: Optional[BaseClass.Config] = None,
             record_event_callback: Optional[Any] = None,
             **kwargs: Any
     ):
@@ -214,7 +214,7 @@ class OMemory:
             self,
             agent_class: Type[ProcessAgent | ThreadAgent],
             name: str,
-            custom_config: Optional[BaseConfig] = None,
+            custom_config: Optional[BaseClass.Config] = None,
             **kwargs: Any
     ) -> None:
         """

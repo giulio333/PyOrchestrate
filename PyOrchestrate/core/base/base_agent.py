@@ -4,11 +4,9 @@ import time
 from abc import ABC, abstractmethod
 from typing import final, TypeVar
 
-from loguru import logger
+from .base import BaseClass
 
-from .base import BaseClass, BaseConfig
-
-T = TypeVar("T", bound="BaseConfig")
+T = TypeVar("T", bound="BaseClass.Config")
 
 
 class BaseAgent(BaseClass[T], ABC):

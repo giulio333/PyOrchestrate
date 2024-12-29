@@ -17,20 +17,8 @@ class MyThread(PeriodicAgent, ThreadAgent):
 
 class FileWriter(PoolAgent["FileWriter.Config"], ProcessAgent["FileWriter.Config"]):
     class Config(PoolAgent.Config):
-        def __init__(self,
-                     agents_entry=None,
-                     default_agents=None,
-                     **kwargs):
-            if default_agents is None:
-                # Esempio di set di agent di default
-                default_agents = [
-                    AgentEntry(MyThread, "DefaultThread1"),
-                    AgentEntry(MyThread, "DefaultThread2")
-                ]
-            if agents_entry is None:
-                agents_entry = default_agents
-
-            super().__init__(agents_entry=agents_entry, **kwargs)
+        agents_entry = [AgentEntry(MyThread, "DefaultThread")]
+        auto_reboot = True
 
     def setup(self):
         """
@@ -54,15 +42,12 @@ if __name__ == "__main__":
     fw2_config = FileWriter.Config(
         agents_entry=[
             AgentEntry(MyThread, "ThreadCustom1"),
-            AgentEntry(MyThread, "ThreadCustom2")
-        ]
+        ], auto_reboot=False
     )
     orchestrator.register_agent(FileWriter, "FileWriter_Custom", custom_config=fw2_config)
 
     # Avvio degli agent
     orchestrator.start()
-    orchestrator.report()
 
     # Attendo la terminazione di tutti gli agent
     orchestrator.join()
-    orchestrator.report()

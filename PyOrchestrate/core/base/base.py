@@ -5,39 +5,7 @@ from typing import Generic, TypeVar
 from PyOrchestrate.utilities.logguru import LoggerFactory
 from ..base.utilities import LoggerConfig
 
-
-class BaseConfig:
-    """
-    Base configuration class.
-
-    All Agent's Config classes should inherit from this class.
-
-    Attributes:
-        logger (LoggerConfig): Logger configuration.
-    """
-
-    def __init__(self, logger_config: LoggerConfig | None = None):
-        """
-        Initialize the configuration.
-
-        Args:
-            logger_config (LoggerConfig): Logger configuration. You can pass a custom configuration.
-        """
-        self.logger = logger_config if logger_config else LoggerConfig()
-
-    def validate(self):
-        """
-        Validates certain conditions related to the class. This method is intended to
-        ensure the integrity or correctness of parameters or
-        state and can be overridden in subclasses to customize validation logic.
-        """
-        pass
-
-    def __str__(self):
-        return f"<{self.__class__.__name__} {self.__dict__}>"
-
-
-T = TypeVar("T", bound=BaseConfig)
+T = TypeVar("T", bound="BaseClass.Config")
 
 
 class BaseClass(Generic[T]):
@@ -49,13 +17,50 @@ class BaseClass(Generic[T]):
 
     start_time: float
 
-    class Config(BaseConfig):
+    class Config:
         """
-        Configuration class for the BaseClass.
+        BaseClass configuration class.
 
         Attributes:
             logger (LoggerConfig): Logger configuration.
+
+        Notes:
+            Class attributes store default values for the configuration parameters. If you want to change the default
+            values, you can override them in the derived class or pass them as arguments to the constructor.
+
+            User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
+            overridden in the derived class.
+
+        Examples:
+            You can create a custom configuration class by inheriting from the BaseClass.Config class and overriding the
+            desired attributes.
+
+            >>> class Config(BaseClass.Config):
+            ...     logger = LoggerConfig(level="DEBUG")
+            >>> default_config = Config()
+            >>> custom_config = Config(logger=LoggerConfig(level="INFO"))
         """
+
+        logger = LoggerConfig()
+
+        def __init__(self, logger_config: LoggerConfig | None = None, **kwargs):
+            if logger_config is not None:
+                self.logger = logger_config
+
+            # store user-defined attributes
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+
+        def validate(self):
+            """
+            Validates certain conditions related to the class. This method is intended to
+            ensure the integrity or correctness of parameters or
+            state and can be overridden in subclasses to customize validation logic.
+            """
+            pass
+
+        def __str__(self):
+            return f"<{self.__class__.__name__} {self.__dict__}>"
 
     def __init__(self, config: T, name: str | None = None, **kwargs):
         self.config = config

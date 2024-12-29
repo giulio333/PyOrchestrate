@@ -6,27 +6,23 @@ from PyOrchestrate.core.base.base_agent import ProcessAgent
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
 from PyOrchestrate.core.base.utilities import LoggerConfig
-from PyOrchestrate.core.base.exceptions import RecoverableException, NonRecoverableException
+from PyOrchestrate.core.base.exceptions import RecoverableException
 
 
-class WeatherCollector(PeriodicAgent, ProcessAgent):
+class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["WeatherCollector.Config"]):
     """
-    Makes a request to an API and saves the data in a file.
+    Example of a WeatherCollector agent that makes a request to an API and saves the data in a file.
+
+    This is a Periodic and Process agent that makes a request to an API and saves the data in a file.
     """
 
     class Config(PeriodicAgent.Config):
-        def __init__(self, output_file: str = "weather_data.json", url: str = "https://catfact.ninja/factt"):
-            super().__init__()
-            self.output_file = output_file
-            self.url = url
 
-            # PeriodicAgent data
-            self.limit = 2
-            self.execution_interval = 5
-            self.logger = LoggerConfig(level="INFO")
-
-        def validate(self):
-            pass
+        limit: int = 2
+        execution_interval: float = 2
+        url: str = "https://catfact.ninja/fact"
+        output_file: str = "weather_data.json"
+        print_result: bool = False
 
     def setup(self):
         """
@@ -36,7 +32,7 @@ class WeatherCollector(PeriodicAgent, ProcessAgent):
         self.logger.info("Configurazione iniziale del WeatherCollector...")
         if not os.path.exists(self.config.output_file):
             with open(self.config.output_file, "w") as file:
-                json.dump([], file)  # Inizializza il file come lista vuota
+                json.dump([], file)  # type: ignore
             self.logger.info(f"Creato file di output: {self.config.output_file}")
 
     def runner(self):
@@ -54,18 +50,25 @@ class WeatherCollector(PeriodicAgent, ProcessAgent):
                 records = json.load(file)
                 records.append(data)
                 file.seek(0)
-                json.dump(records, file, indent=4)
+                json.dump(records, file, indent=4)  # type: ignore
 
             self.logger.info(f"Dati salvati correttamente in {self.config.output_file}.")
+
+            if self.config.print_result:
+                self.logger.info(f"Risultato: {data}")
 
         except requests.RequestException as e:
             raise RecoverableException(f"Errore nella richiesta: {e}")
 
 
 if __name__ == "__main__":
-    orchestrator = Orchestrator()
+    orchestrator = Orchestrator("Orchestrator")
 
     orchestrator.register_agent(WeatherCollector, "WeatherCollector1")
+
+    orchestrator.register_agent(WeatherCollector, "WCustom",
+                                WeatherCollector.Config(execution_interval=.2, output_file="custom.json",
+                                                        print_result=True))
 
     orchestrator.start()
     orchestrator.join()

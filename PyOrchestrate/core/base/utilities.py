@@ -4,7 +4,7 @@ from dataclasses import dataclass
 @dataclass
 class LoggerConfig:
     """
-    Process logger configurations.
+    Logger configuration class.
 
     If not specified, default values will be used.
 

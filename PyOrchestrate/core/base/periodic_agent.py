@@ -1,21 +1,10 @@
 from abc import abstractmethod
-from typing import final, cast, TypeVar, Generic
-from dataclasses import dataclass
+from typing import final, TypeVar
 
 from .looping_agent import LoopingAgent
 from ...utilities.periodic_timer import PeriodicTimer
 
-
-class PeriodicAgentConfig(LoopingAgent.Config):
-    def __init__(self, execution_interval: float = 1, delay_compensation: bool = False, limit: int | None = None,
-                 **kwargs):
-        super().__init__(limit, **kwargs)
-
-        self.execution_interval: float = execution_interval
-        self.delay_compensation: bool = delay_compensation
-
-
-T = TypeVar('T', bound=PeriodicAgentConfig)
+T = TypeVar('T', bound="PeriodicAgent.Config")
 
 
 class PeriodicAgent(LoopingAgent[T]):
@@ -38,17 +27,44 @@ class PeriodicAgent(LoopingAgent[T]):
             This method must be implemented in the derived class.
     """
 
-    class Config(PeriodicAgentConfig):
+    class Config(LoopingAgent.Config):
         """
-        PeriodicProcessAgent configuration class.
+        Periodic agent configuration class.
 
         Attributes:
             execution_interval (float): The interval between two consecutive executions.
             delay_compensation (bool): Compensate the delay in the execution.
             limit (int): The maximum number of iterations.
             logger (LoggerConfig): Logger configuration.
+
+        Notes:
+            Class attributes store default values for the configuration parameters. If you want to change the default
+            values, you can override them in the derived class or pass them as arguments to the constructor.
+
+            User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
+            overridden in the derived class.
+
+        Examples:
+            You can create a custom configuration class by inheriting from the PeriodicAgent.Config class and overriding the
+            desired attributes.
+
+            >>> class Config(PeriodicAgent.Config):
+            ...     execution_interval = 2
+            ...     delay_compensation = True
+            >>> default_config = Config()
+            >>> custom_config = Config(execution_interval=.2)
         """
-        pass
+        execution_interval: float = 1
+        delay_compensation: bool = False
+
+        def __init__(self, execution_interval: float | None = None, delay_compensation: bool | None = None, **kwargs):
+            super().__init__(**kwargs)
+
+            if execution_interval is not None:
+                self.execution_interval: float = execution_interval
+
+            if delay_compensation is not None:
+                self.delay_compensation: bool = delay_compensation
 
     def __init__(self, name: str, config: T, **kwargs):
         super().__init__(name=name, config=config, **kwargs)

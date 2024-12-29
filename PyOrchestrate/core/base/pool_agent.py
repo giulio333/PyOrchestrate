@@ -1,27 +1,10 @@
 from typing import final, TypeVar
 
 from ..base.periodic_agent import PeriodicAgent
-from ...utilities.periodic_timer import PeriodicTimer
 from ..orchestrator.orchestrator import Orchestrator
 from ..orchestrator.memory import AgentEntry
 
-
-class PoolAgentConfig(PeriodicAgent.Config):
-    def __init__(self, agents_entry: list[AgentEntry] | None = None, auto_reboot: bool = False, **kwargs):
-        super().__init__(**kwargs)
-
-        self.auto_reboot: bool = auto_reboot
-        self.agents_entry: list[AgentEntry] = agents_entry if agents_entry else []
-
-    def validate(self):
-        super().validate()
-        if self.limit is not None:
-            raise ValueError("PoolAgent does not support limit parameter.")
-        if not self.agents_entry:
-            raise ValueError("No agents to register.")
-
-
-T = TypeVar('T', bound=PoolAgentConfig)
+T = TypeVar('T', bound="PoolAgent.Config")
 
 
 class PoolAgent(PeriodicAgent[T]):
@@ -31,7 +14,7 @@ class PoolAgent(PeriodicAgent[T]):
     This agent is an orchestrator of BaseThreadAgent instances.
     """
 
-    class Config(PoolAgentConfig):
+    class Config(PeriodicAgent.Config):
         """
         Pool agent configuration class.
 
@@ -39,9 +22,44 @@ class PoolAgent(PeriodicAgent[T]):
             auto_reboot (bool): Flag to enable automatic reboot of agents.
             agents_entry (list[AgentEntry]): List of agents to be registered.
             execution_interval (float): The interval of checking the agents.
+            delay_compensation (bool): Compensate the delay in the execution.
             logger (LoggerConfig): Logger configuration.
+
+        Notes:
+            Class attributes store default values for the configuration parameters. If you want to change the default
+            values, you can override them in the derived class or pass them as arguments to the constructor.
+
+            User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
+            overridden in the derived class.
+
+        Examples:
+            You can create a custom configuration class by inheriting from the PoolAgentConfig class and overriding the
+            desired attributes.
+
+            >>> class Config(PoolAgent.Config):
+            ...     agent_entry = [AgentEntry(...), AgentEntry(...)]
+            ...     auto_reboot = True
+            >>> default_config = Config()
+            >>> custom_config = Config(auto_reboot=False)
         """
-        pass
+        agent_entry: list[AgentEntry] | None = None
+        auto_reboot: bool = False
+
+        def __init__(self, agents_entry: list[AgentEntry] | None = None, auto_reboot: bool | None = None, **kwargs):
+            super().__init__(**kwargs)
+
+            if auto_reboot is not None:
+                self.auto_reboot: bool = auto_reboot
+
+            if agents_entry is not None:
+                self.agents_entry: list[AgentEntry] = agents_entry
+
+        def validate(self):
+            super().validate()
+            if self.limit is not None:
+                raise ValueError("PoolAgent does not support limit parameter.")
+            if not self.agents_entry:
+                raise ValueError("No agents to register.")
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
@@ -51,13 +69,6 @@ class PoolAgent(PeriodicAgent[T]):
         self.compensate_delay = self.config.delay_compensation
 
         self._orchestrator = None
-
-    def _info(self):
-        super()._info()
-        self.logger.debug(f"Config: interval: {self.interval}")
-        self.logger.debug(f"Config: compensate_delay: {self.compensate_delay}")
-        self.logger.debug(f"Config: auto_reboot: {self.config.auto_reboot}")
-        self.logger.debug(f"Config: agents_entry: {self.config.agents_entry}")
 
     def setup(self):
         """
@@ -101,5 +112,5 @@ class PoolAgent(PeriodicAgent[T]):
 
     def _info(self):
         super()._info()
-        self.logger.debug(f"auto_reboot: {self.config.auto_reboot}")
-        self.logger.debug(f"agents_entry: {self.config.agents_entry}")
+        self.logger.debug(f"Config: auto_reboot: {self.config.auto_reboot}")
+        self.logger.debug(f"Config: agents_entry: {self.config.agents_entry}")
