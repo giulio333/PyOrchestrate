@@ -1,5 +1,4 @@
 import logging
-from loguru import logger
 from typing import Generic, TypeVar
 
 from PyOrchestrate.utilities.logguru import LoggerFactory
@@ -40,7 +39,6 @@ class BaseClass(Generic[T]):
             >>> default_config = Config()
             >>> custom_config = Config(logger=LoggerConfig(level="INFO"))
         """
-
         logger = LoggerConfig()
 
         def __init__(self, logger_config: LoggerConfig | None = None, **kwargs):
@@ -66,7 +64,6 @@ class BaseClass(Generic[T]):
         self.config = config
         self.name = name if name else self.__class__.__name__
 
-    @logger.catch(reraise=True)
     def setup_logger(self):
         """
         Set up the logger.

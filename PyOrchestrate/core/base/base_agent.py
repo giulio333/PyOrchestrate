@@ -38,6 +38,7 @@ class BaseAgent(BaseClass[T], ABC):
         self.setup_logger()
 
         try:
+            self._info()
 
             self.validate_config()
 
@@ -57,9 +58,14 @@ class BaseAgent(BaseClass[T], ABC):
         """
         pass
 
+    @abstractmethod
     def stop(self):
+        """
+        Event set to request the external stop of the process.
+        """
         pass
 
+    @abstractmethod
     def _info(self):
         pass
 
@@ -86,7 +92,7 @@ class ThreadAgent(BaseAgent[T], threading.Thread):
 
     def stop(self):
         """
-        Event set to request the external stop of the thread.
+        Event set to request the external stop of the process.
         """
         self._stop_event.set()
 
