@@ -27,13 +27,13 @@ def send_telegram_message(message: str):
         logging.error(f"Errore nell'invio del messaggio Telegram: {e}")
 
 
-def on_agent_started(agent_name: str):
-    message = f"Agent {agent_name} started."
+def on_agent_started(agent_name: str, event_date, event_time):
+    message = f"Agent {agent_name} started. Date: {event_date}, Time: {event_time}"
     print(message)
     send_telegram_message(message)
 
 
-def on_agent_stopped(agent_name: str):
+def on_agent_stopped(agent_name: str, **kwargs):
     message = f"Agent {agent_name} stopped."
     print(message)
     send_telegram_message(message)
