@@ -79,4 +79,4 @@ class LoopingAgent(BaseAgent[T]):
     @abstractmethod
     def _info(self):
         super()._info()
-        self.logger.debug(f"limit: {self.config.limit}")
+        self.logger.debug(f"Config: limit: {self.config.limit}")

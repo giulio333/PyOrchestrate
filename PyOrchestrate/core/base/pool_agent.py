@@ -54,10 +54,10 @@ class PoolAgent(PeriodicAgent[T]):
 
     def _info(self):
         super()._info()
-        self.logger.debug(f"interval: {self.interval}")
-        self.logger.debug(f"compensate_delay: {self.compensate_delay}")
-        self.logger.debug(f"auto_reboot: {self.config.auto_reboot}")
-        self.logger.debug(f"agents_entry: {self.config.agents_entry}")
+        self.logger.debug(f"Config: interval: {self.interval}")
+        self.logger.debug(f"Config: compensate_delay: {self.compensate_delay}")
+        self.logger.debug(f"Config: auto_reboot: {self.config.auto_reboot}")
+        self.logger.debug(f"Config: agents_entry: {self.config.agents_entry}")
 
     def setup(self):
         """

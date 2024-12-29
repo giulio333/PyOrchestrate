@@ -83,5 +83,5 @@ class PeriodicAgent(LoopingAgent[T]):
 
     def _info(self):
         super()._info()
-        self.logger.debug(f"execution_interval: {self.interval}")
-        self.logger.debug(f"delay_compensation: {self.compensate_delay}")
+        self.logger.debug(f"Config: execution_interval: {self.interval}")
+        self.logger.debug(f"Config: delay_compensation: {self.compensate_delay}")

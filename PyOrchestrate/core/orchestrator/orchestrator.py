@@ -62,8 +62,6 @@ class Orchestrator(BaseClass[OConfig]):
         self.config.validate()
         self.memory = OMemory()
 
-        self.logger.info(self.config)
-
     def register_agent(
             self,
             agent_class: Type[ProcessAgent | ThreadAgent],
