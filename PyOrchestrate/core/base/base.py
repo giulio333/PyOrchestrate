@@ -46,6 +46,7 @@ class BaseClass(Generic[T]):
 
     Every class has a logger and a configuration object.
     """
+
     start_time: float
 
     class Config(BaseConfig):
@@ -57,7 +58,6 @@ class BaseClass(Generic[T]):
         """
 
     def __init__(self, config: T, name: str | None = None, **kwargs):
-        self.logger = None
         self.config = config
         self.name = name if name else self.__class__.__name__
 
@@ -70,7 +70,7 @@ class BaseClass(Generic[T]):
             Logger configuration is read from the `config.logger` attribute.
         """
 
-        if self.logger is not None:
+        if hasattr(self, "logger"):
             return
 
         logger_cfg = self.config.logger

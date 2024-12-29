@@ -2,11 +2,13 @@ import threading
 import multiprocessing
 import time
 from abc import ABC, abstractmethod
-from typing import final
+from typing import final, TypeVar
 
 from loguru import logger
 
-from .base import BaseClass, T
+from .base import BaseClass, BaseConfig
+
+T = TypeVar("T", bound="BaseConfig")
 
 
 class BaseAgent(BaseClass[T], ABC):
@@ -48,9 +50,7 @@ class BaseAgent(BaseClass[T], ABC):
             self.logger.exception(f"[{self.name}] Errore durante l'esecuzione: {ex}")
         finally:
             elapsed = time.time() - self.start_time
-            self.logger.info(
-                f"execution completed in {elapsed:.3f} seconds."
-            )
+            self.logger.info(f"execution completed in {elapsed:.3f} seconds.")
 
     @abstractmethod
     def execute(self):
