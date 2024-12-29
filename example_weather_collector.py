@@ -45,7 +45,6 @@ def on_all_agents_stopped():
     send_telegram_message(message)
 
 
-# Classe WeatherCollector
 class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["WeatherCollector.Config"]):
     class Config(PeriodicAgent.Config):
         limit: int = 2
