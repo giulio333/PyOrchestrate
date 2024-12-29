@@ -1,28 +1,53 @@
 import requests
 import json
 import os
-
+import logging
 from PyOrchestrate.core.base.base_agent import ProcessAgent
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
 from PyOrchestrate.core.base.exceptions import RecoverableException
-
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
+
+# Configura il bot di Telegram
+TELEGRAM_TOKEN = "***REMOVED_TELEGRAM_TOKEN***"
+TELEGRAM_CHAT_ID = "***REMOVED_TELEGRAM_CHAT_ID***"
+
+
+def send_telegram_message(message: str):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message
+    }
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+        logging.info(f"Messaggio inviato con successo: {message}")
+    except requests.RequestException as e:
+        logging.error(f"Errore nell'invio del messaggio Telegram: {e}")
 
 
 def on_agent_started(agent_name: str):
-    print(f"Agent {agent_name} started.")
+    message = f"Agent {agent_name} started."
+    print(message)
+    send_telegram_message(message)
 
 
+def on_agent_stopped(agent_name: str):
+    message = f"Agent {agent_name} stopped."
+    print(message)
+    send_telegram_message(message)
+
+
+def on_all_agents_stopped():
+    message = "All agents stopped."
+    print(message)
+    send_telegram_message(message)
+
+
+# Classe WeatherCollector
 class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["WeatherCollector.Config"]):
-    """
-    Example of a WeatherCollector agent that makes a request to an API and saves the data in a file.
-
-    This is a Periodic and Process agent that makes a request to an API and saves the data in a file.
-    """
-
     class Config(PeriodicAgent.Config):
-
         limit: int = 2
         execution_interval: float = 2
         url: str = "https://catfact.ninja/fact"
@@ -30,9 +55,6 @@ class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["W
         print_result: bool = False
 
     def setup(self):
-        """
-        Initial setup of the WeatherCollector.
-        """
         super().setup()
         self.logger.info("Configurazione iniziale del WeatherCollector...")
         if not os.path.exists(self.config.output_file):
@@ -41,9 +63,6 @@ class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["W
             self.logger.info(f"Creato file di output: {self.config.output_file}")
 
     def runner(self):
-        """
-        Periodic logic (makes a request to the API and saves the data in a file).
-        """
         self.logger.info(f"Making request to {self.config.url}...")
 
         try:
@@ -69,8 +88,11 @@ class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["W
 if __name__ == "__main__":
     orchestrator = Orchestrator("Orchestrator")
 
+    # Registra gli agenti e i callback
     orchestrator.register_agent(WeatherCollector, "WeatherCollector1")
     orchestrator.event_manager.connect(OrchestratorEvent.AGENT_STARTED.value, on_agent_started)
+    orchestrator.event_manager.connect(OrchestratorEvent.AGENT_TERMINATED.value, on_agent_stopped)
+    orchestrator.event_manager.connect(OrchestratorEvent.ALL_AGENTS_COMPLETED.value, on_all_agents_stopped)
 
     orchestrator.start()
     orchestrator.join()

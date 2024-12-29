@@ -100,32 +100,34 @@ class Orchestrator(BaseClass[OConfig]):
             self.logger.info(f"Stopping agent {agent}.")
 
     def join(self):
+        """
+        Monitor and join all agents.
 
-        if self.config.check:
-            self._check_agent()
-        else:
-            for agent in self.memory.agents:
-                agent.join()
-                self.logger.info(f"Agent {agent} completed.")
+        Notes:
+            This method will wait for all agents to complete. It will check the status of the stored agents at regular
+            intervals (config.check_interval).
 
-            self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED.value)
-
-    def _check_agent(self):
-        """Monitor all agents and log when each one finishes. Return when all agents are completed."""
-
+            When an agent completes, will emit the OrchestratorEvent.AGENT_TERMINATED vent.
+            When all agents are completed, will emit the OrchestratorEvent.ALL_AGENTS_COMPLETED event.
+        """
         active_agents = set(self.memory.agents)
 
         while active_agents:
-            for agent in list(active_agents):
+            completed_agents = []
+            for agent in active_agents:
                 if not agent.instance.is_alive():
                     self.logger.info(f"Agent {agent} ended.")
                     self.event_manager.emit(OrchestratorEvent.AGENT_TERMINATED.value, agent_name=agent.name)
+                    completed_agents.append(agent)
 
-                    active_agents.remove(agent)
+            # refresh active agents list
+            for agent in completed_agents:
+                active_agents.remove(agent)
 
             time.sleep(self.config.check_interval)
 
         self.logger.info("All agents completed.")
+        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED.value)
 
     def report(self):
         """Report the status of all agents."""
