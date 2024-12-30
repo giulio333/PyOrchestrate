@@ -1,3 +1,7 @@
+"""
+BaseAgent module.
+"""
+
 import threading
 import multiprocessing
 import time
@@ -13,6 +17,30 @@ class BaseAgent(BaseClass[T], ABC):
     """
     Abstract base class for all agents.
     """
+
+    class Config(BaseClass.Config):
+        """
+        Base agent configuration class.
+
+        Attributes:
+            logger (LoggerConfig): Logger configuration.
+
+        Notes:
+            Class attributes store default values for the configuration parameters. If you want to change the default
+            values, you can override them in the derived class or pass them as arguments to the constructor.
+
+            User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
+            overridden in the derived class.
+
+        Examples:
+            You can create a custom configuration class by inheriting from the BaseAgent.Config class and overriding the
+            desired attributes.
+
+            >>> class Config(BaseClass.Config):
+            ...     value = "value"
+            >>> default_config = Config()
+            >>> custom_config = Config(value="new value")
+        """
 
     def __init__(self, name: str | None, config: T, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
@@ -63,6 +91,16 @@ class BaseAgent(BaseClass[T], ABC):
         """
         Event set to request the external stop of the process.
         """
+        self.on_stop()
+
+    def on_stop(self):
+        """
+        Method called when the agent is stopped.
+
+        Notes:
+            This method can be overridden in the derived class to implement custom logic to be executed when the agent
+            is stopped.
+        """
         pass
 
     @abstractmethod
@@ -72,10 +110,22 @@ class BaseAgent(BaseClass[T], ABC):
 
 class ThreadAgent(BaseAgent[T], threading.Thread):
     """
-    Agent class based on threading.Thread.
+    ThreadAgent base on BaseAgent and threading.Thread.
 
     This class is a base class for all agents that need to run in a separate thread. It provides a common interface for
     the agent's lifecycle management.
+
+    Notes:
+
+
+    Attributes:
+        _stop_event (threading.Event): Event to request the external stop of the process.
+
+    Methods:
+        run: Override of the `run` method of threading.Thread: it calls the common logic `run_agent`.
+        stop: Event set to request the external stop of the process.
+        execute: Abstract method to be implemented in derived classes: Agent execution logic.
+        _info: Print the agent information.
     """
 
     def __init__(self, config: T, name: str | None = None, **kwargs):
@@ -84,16 +134,23 @@ class ThreadAgent(BaseAgent[T], threading.Thread):
 
         self._stop_event = threading.Event()  # type: ignore
 
+    @final
     def run(self):
         """
         Override of the `run` method of threading.Thread: it calls the common logic `run_agent`.
         """
         self.run_agent()
 
+    @final
     def stop(self):
         """
-        Event set to request the external stop of the process.
+        Event set to request the external stop of the thread.
+
+        Warning:
+            Do not override this method. If you need to implement custom logic when the agent is stopped, you can
+            override the `on_stop` method.
         """
+        super().stop()
         self._stop_event.set()
 
     @abstractmethod
@@ -130,7 +187,12 @@ class ProcessAgent(BaseAgent[T], multiprocessing.Process):
     def stop(self):
         """
         Event set to request the external stop of the process.
+
+        Warning:
+            Do not override this method. If you need to implement custom logic when the agent is stopped, you can
+            override the `on_stop` method.
         """
+        super().stop()
         self._stop_event.set()
 
     @abstractmethod

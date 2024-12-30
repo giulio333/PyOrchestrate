@@ -18,7 +18,6 @@ class FileWriter(PeriodicAgent["FileWriter.Config"], ProcessAgent["FileWriter.Co
         Setup method for the agent.
         """
         super().setup()
-
         self.logger.info(f"FileWriter {self.name} inizializzato.")
 
     def runner(self):
