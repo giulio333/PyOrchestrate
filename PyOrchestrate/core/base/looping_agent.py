@@ -58,13 +58,23 @@ class LoopingAgent(BaseAgent[T]):
 
         # with limit
         else:
+            limit_reached = True
             for _ in range(self.config.limit):
                 if self._stop_event.is_set():
+                    limit_reached = False
                     break
                 self.safe_cycle()
-            self.logger.debug(f"Reached limit ({self.config.limit}).")
+
+            if limit_reached:
+                self.logger.debug(f"Reached limit ({self.config.limit}).")
 
     def safe_cycle(self):
+        """
+        Execute the agent's cycle logic to be executed in each iteration of the loop in a try-except block.
+
+        Returns:
+            None
+        """
         try:
             self.cycle()
         except RecoverableException as e:
