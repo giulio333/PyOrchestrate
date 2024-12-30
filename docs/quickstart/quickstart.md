@@ -2,7 +2,13 @@
 title: PyOrchestrate Framework
 ---
 
-PyOrchestrate è un framework concepito per semplificare la creazione e la gestione di architetture multi-processo e multi-thread in Python. La sua filosofia è quella di offrire un’infrastruttura versatile, in grado di adattarsi a diversi contesti operativi, dalla semplice esecuzione di un singolo task, alla gestione gerarchica di processi e thread multipli. Onestamente, è un approccio che sposa molto bene le necessità moderne di computing distribuito, evitando di reinventare continuamente la ruota.
+**PyOrchestrate** è un framework concepito per semplificare la creazione e la gestione di architetture multi-processo e 
+multi-thread in Python. La sua filosofia è quella di offrire un’infrastruttura versatile, in grado di adattarsi a 
+diversi contesti operativi, dalla semplice esecuzione di un singolo task, alla gestione gerarchica di processi e thread 
+multipli. 
+
+E' un approccio che sposa molto bene le necessità moderne di computing distribuito, evitando di 
+reinventare continuamente la ruota.
 
 ## Concetti di Base
 
@@ -32,6 +38,17 @@ L’idea chiave è che un Orchestrator possa agire come singolo punto di control
 
    **Esempio:**  
    Un Orchestrator principale avvia processi dedicati all’elaborazione di immagini di grandi dimensioni. Ogni processo lancia a sua volta thread multipli per analizzare porzioni dell’immagine in parallelo, riducendo i tempi di elaborazione.
+
+## Eventi e Gestione Reattiva
+
+PyOrchestrate supporta un sistema di eventi tramite la classe `OrchestratorEvent`, che consente di gestire stati e transizioni nel ciclo di vita degli Agent. Gli eventi principali includono:
+
+-   **AGENT\_STARTED**: Segnalato quando un Agent viene avviato.
+-   **AGENT\_TERMINATED**: Segnalato al termine di un Agent.
+-   **ALL\_AGENTS\_COMPLETED**: Emesso quando tutti gli Agent completano l'esecuzione.
+
+Questi eventi possono essere utilizzati per creare sistemi reattivi, come l’invio di notifiche o l’attivazione di azioni specifiche in risposta a cambiamenti dello stato degli Agent.
+
 
 ## Gerarchia delle Unità
 
