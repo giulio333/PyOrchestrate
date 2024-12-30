@@ -22,30 +22,32 @@ L’idea chiave è che un Orchestrator possa agire come singolo punto di control
 ## Scenari di Utilizzo
 
 1. **Agente di tipo processo indipendente**  
-   Un Agente di tipo processo può essere avviato ed eseguito senza alcun Orchestrator. Questo è particolarmente utile quando si ha un compito isolato: basta lanciare il processo e lasciare che svolga la sua attività fino al termine.
+    Un Agente di tipo processo può essere avviato ed eseguito senza alcun Orchestrator. Questo è particolarmente utile quando si ha un compito isolato: basta lanciare il processo e lasciare che svolga la sua attività fino al termine.
 
-   **Esempio:**  
-   Un processo che analizza un grande file di log, produce un report e poi termina. Non c’è bisogno di orchestrazione se l’attività è del tutto autonoma.
+    !!! example
+        Un processo che analizza un grande file di log, produce un report e poi termina. Non c’è bisogno di orchestrazione se l’attività è del tutto autonoma.
 
 2. **Orchestrator che gestisce Agenti di tipo processo**  
-   Un Orchestrator può coordinare molteplici processi, affidando a ciascuno un sottoinsieme di dati o un compito ben definito. Questo scenario è perfetto per implementare pipeline di elaborazione parallele, dove ogni processo svolge una parte del lavoro.
+    Un Orchestrator può coordinare molteplici processi, affidando a ciascuno un sottoinsieme di dati o un compito ben definito. Questo scenario è perfetto per implementare pipeline di elaborazione parallele, dove ogni processo svolge una parte del lavoro.
 
-   **Esempio:**  
-   Un Orchestrator riceve dati da sensori IoT e delega a diversi processi l’analisi di sottoinsiemi di questi dati, aggregando poi i risultati finali.
+    !!! example
+        Un Orchestrator riceve dati da sensori IoT e delega a diversi processi l’analisi di sottoinsiemi di questi dati, aggregando poi i risultati finali.
 
-3. **Orchestrator Gerarchico**  
-   Un livello ulteriore di complessità si ottiene quando un Orchestrator lancia Agenti di tipo processo, i quali a loro volta fungono da Orchestrator per un pool di thread. Questo consente di combinare la resilienza e l’isolamento dei processi con la leggerezza dei thread, massimizzando le prestazioni su hardware multi-core.
+3. **Orchestrator Gerarchico**
+    Un livello ulteriore di complessità si ottiene quando un Orchestrator lancia Agenti di tipo processo, i quali a loro volta fungono da Orchestrator per un pool di thread. Questo consente di combinare la resilienza e l’isolamento dei processi con la leggerezza dei thread, massimizzando le prestazioni su hardware multi-core.
 
-   **Esempio:**  
-   Un Orchestrator principale avvia processi dedicati all’elaborazione di immagini di grandi dimensioni. Ogni processo lancia a sua volta thread multipli per analizzare porzioni dell’immagine in parallelo, riducendo i tempi di elaborazione.
+    !!! example
+        Un Orchestrator principale avvia processi dedicati all’elaborazione di immagini di grandi dimensioni. Ogni processo lancia a sua volta thread multipli per analizzare porzioni dell’immagine in parallelo, riducendo i tempi di elaborazione.
 
 ## Eventi e Gestione Reattiva
 
 PyOrchestrate supporta un sistema di eventi tramite la classe `OrchestratorEvent`, che consente di gestire stati e transizioni nel ciclo di vita degli Agent. Gli eventi principali includono:
 
--   **AGENT\_STARTED**: Segnalato quando un Agent viene avviato.
--   **AGENT\_TERMINATED**: Segnalato al termine di un Agent.
--   **ALL\_AGENTS\_COMPLETED**: Emesso quando tutti gli Agent completano l'esecuzione.
+| Evento               | Descrizione                                           |
+|----------------------|-------------------------------------------------------|
+| AGENT_STARTED        | Segnalato quando un Agent viene avviato.              |
+| AGENT_TERMINATED     | Segnalato al termine di un Agent.                     |
+| ALL_AGENTS_COMPLETED | Emesso quando tutti gli Agent completano l'esecuzione |
 
 Questi eventi possono essere utilizzati per creare sistemi reattivi, come l’invio di notifiche o l’attivazione di azioni specifiche in risposta a cambiamenti dello stato degli Agent.
 

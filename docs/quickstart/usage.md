@@ -78,7 +78,7 @@ class WeatherCollector(PeriodicAgent, BaseProcessAgent):
 ## Avvio con un Orchestrator
 
 Dopo aver definito gli Agent in `models.py`, è possibile utilizzare un Orchestrator per avviarli come processi o thread,
-a seconda delle necessità. Nell’esempio seguente, si istanzia un Orchestrator, si registra il `WeatherCollector` e poi 
+a seconda delle necessità. Nell’esempio seguente, viene creata un'istanza di un Orchestrator, si registra il `WeatherCollector` e poi 
 si avvia l’esecuzione. L’Orchestrator si occuperà di caricare gli Agent definiti, di monitorarli e di gestirne il ciclo 
 di vita.
 
@@ -98,14 +98,14 @@ if __name__ == "__main__":
 ## Configurazione degli Agent
 
 Le Config sono un elemento chiave per personalizzare il comportamento degli Agent. Nel caso del `PeriodicAgent`, la
-`Config` fornisce i seguenti parametr:
+`Config` fornisce i seguenti parameter:
 
-| Parametro             | Descrizione                                                                 |
-|-----------------------|-----------------------------------------------------------------------------|
-| **execution_interval** | (in secondi) specifica la frequenza con cui l’Agent esegue il compito.      |
-| **delay_compensation** | se `True`, l’Agent tenterà di compensare eventuali ritardi mantenendo l’intervallo medio di esecuzione. |
-| **limit**             | il numero massimo di esecuzioni.                                            |
-| **logger**            | un dizionario che definisce il livello del logger, il formato dei messaggi e i gestori (ad es. `StreamHandler` per stampare su console). |
+| Parametro              | Descrizione                                                                                                                              |
+|------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| **execution_interval** | (in secondi) specifica la frequenza con cui l’Agent esegue il compito.                                                                   |
+| **delay_compensation** | se `True`, l’Agent tenterà di compensare eventuali ritardi mantenendo l’intervallo medio di esecuzione.                                  |
+| **limit**              | il numero massimo di esecuzioni.                                                                                                         |
+| **logger**             | un dizionario che definisce il livello del logger, il formato dei messaggi e i gestori. |
 
 Questi parametri possono essere modificati per adattarsi alle esigenze specifiche della propria applicazione, senza
 dover alterare la logica dell’Agent. Ad esempio, per aumentare la frequenza delle richieste, basterà ridurre `execution_interval`.

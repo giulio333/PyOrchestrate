@@ -1,11 +1,10 @@
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
 from PyOrchestrate.core.base.base_agent import ProcessAgent
-from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
 class FileWriter(PeriodicAgent["FileWriter.Config"], ProcessAgent["FileWriter.Config"]):
-    """Agent Class of type PeriodicAgent and ProcessAgent."""
+    """Agent Class that writes to a file periodically."""
 
     class Config(PeriodicAgent.Config):
         """Agent Configuration class."""
@@ -16,23 +15,23 @@ class FileWriter(PeriodicAgent["FileWriter.Config"], ProcessAgent["FileWriter.Co
 
     def setup(self):
         """
-        Imposta il FileWriter, creando la directory di log se necessario.
+        Setup method for the agent.
         """
         super().setup()
 
         self.logger.info(f"FileWriter {self.name} inizializzato.")
-        self.logger.info(f"Directory di output: {self.config.output_directory}")
 
     def runner(self):
+        """
+        Runner method for the agent.
+        """
         self.logger.debug("Doing some work")
 
 
 if __name__ == "__main__":
-    # orchestrator
-    OConfig = Orchestrator.Config(check=True)
-    orchestrator = Orchestrator("Orchestrator", OConfig)
+    orchestrator = Orchestrator("CoolOrchestrator")
 
-    # first agent with default configuration
+    # register agents
     orchestrator.register_agent(FileWriter, "FileWriter1")
 
     # second agent with custom configuration
@@ -42,11 +41,5 @@ if __name__ == "__main__":
     # start all agents
     orchestrator.start()
 
-    # first report
-    orchestrator.report()
-
     # wait for all agents to complete
     orchestrator.join()
-
-    # second report
-    orchestrator.report()
