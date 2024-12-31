@@ -107,6 +107,8 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
     def start(self):
         self.validate_dependencies()
 
+        # BUG: some times the agents are not started in the correct scheduled order
+
         all_agents = {agent.name for agent in self.memory.agents}
         in_degree = {agent_name: 0 for agent_name in all_agents}
         for agent_name, deps in self.dependencies.items():
