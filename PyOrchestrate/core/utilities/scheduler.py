@@ -215,7 +215,7 @@ if __name__ == "__main__":
     sched2 = Scheduler(
         funzione=saluta2,
         args=("Luisa",),
-        start_time="21:53:00",
+        start_time="18:53:00",
         interval=10,
         logger=logger,
     )
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     sched4 = Scheduler(
         funzione=saluta1,
         args=("Giulia",),
-        start_time="2024-10-17 21:55:00",
+        start_time="2025-10-17 18:55:00",
         logger=logger,
     )
 
