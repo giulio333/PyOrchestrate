@@ -238,19 +238,6 @@ class OMemory:
         self._agents[name] = entry
         self._agent_stats[name] = []
 
-    def get_agent_entry(self, name: str) -> Optional[AgentEntry]:
-        """
-        Ritorna l'oggetto `AgentEntry` corrispondente al nome fornito (se esiste).
-        """
-        return self._agents.get(name)
-
-    def get_agent_instance(self, name: str) -> Optional[BaseAgent]:
-        """
-        Ritorna l’istanza dell’agente (se esiste).
-        """
-        entry = self.get_agent_entry(name)
-        return entry.instance if entry else None
-
     def create_group(self, group_name: str) -> None:
         """
         Crea un gruppo vuoto, se non esiste già.
@@ -309,9 +296,27 @@ class OMemory:
         return self._agent_stats.get(agent_name)
 
     def get_agent(self, name: str) -> AgentEntry | None:
+        """
+        Get the `AgentEntry` object corresponding to the provided name.
+
+        Args:
+            name (str): The name of the agent to retrieve.
+
+        Returns:
+            AgentEntry | None: The `AgentEntry` object corresponding to the provided name, or None if not found.
+        """
         return self._agents.get(name)
 
     def get_agent_instance(self, name: str) -> ProcessAgent | ThreadAgent | None:
+        """
+        Get the agent instance for the provided name.
+
+        Args:
+            name (str): The name of the agent to retrieve.
+
+        Returns:
+            ProcessAgent | ThreadAgent | None: The agent instance, or None if not found.
+        """
         entry = self.get_agent(name)
         return entry.instance if entry else None
 
