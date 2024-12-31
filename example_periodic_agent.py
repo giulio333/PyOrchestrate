@@ -18,7 +18,7 @@ class FileWriter(PeriodicAgent["FileWriter.Config"], ProcessAgent["FileWriter.Co
         Setup method for the agent.
         """
         super().setup()
-        self.logger.info(f"FileWriter {self.name} inizializzato.")
+        self.logger.info(f"FileWriter {self.name} inizializzato. pid={self.pid}")
 
     def runner(self):
         """
@@ -34,8 +34,8 @@ if __name__ == "__main__":
     orchestrator.register_agent(FileWriter, "FileWriter1")
 
     # second agent with custom configuration
-    custom_config = FileWriter.Config(execution_interval=.1, limit=40)
-    orchestrator.register_agent(FileWriter, "FileWriter2", custom_config)
+    custom_config = FileWriter.Config(execution_interval=.1, limit=5)
+    orchestrator.register_agent(FileWriter, "FileWriter2", custom_config, delay=20)
 
     # start all agents
     orchestrator.start()
