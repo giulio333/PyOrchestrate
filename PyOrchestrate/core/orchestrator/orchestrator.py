@@ -1,6 +1,7 @@
 from typing import Type
 import time
 from collections import defaultdict, deque
+from datetime import datetime
 
 from .memory import OMemory
 from PyOrchestrate.core.utilities.event_manager import EventManager
@@ -14,47 +15,14 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
     """
     Orchestrator class to manages the agents.
 
-    Notes:
-        You can pass custom configuration, same as the agent configuration.
-
-    Examples:
-        >>> from PyOrchestrate.core.base.utilities import LoggerConfig
-        >>> Orchestrator.Config(logger=LoggerConfig("INFO", "Orchestrator"))
-
     Attributes:
         memory (OMemory): Memory to store the agents.
-
-    Methods:
-        register_agent: Register an agent on the orchestrator.
-        start: Start all the agents registered in the orchestrator.
-        stop: Terminates all registered agents.
-        join: Wait for all the agents to complete.
+        event_manager (EventManager): Manages events among agents.
+        dependencies (dict[str, list[str]]): Dependencies among agents.
+        agent_schedules (dict[str, float]): Mappa ogni agente a un ritardo (in secondi).
     """
 
     class Config(BaseClass.Config):
-        """
-        Orchestrator configuration class.
-
-        Attributes:
-            check_interval (float): Interval to check the agents.
-            logger (LoggerConfig): Logger configuration.
-
-        Notes:
-            Class attributes store default values for the configuration parameters. If you want to change the default
-            values, you can override them in the derived class or pass them as arguments to the constructor.
-
-            User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
-            overridden in the derived class.
-
-        Examples:
-            You can create a custom configuration class by inheriting from the OrchestratorConfig class and overriding the
-            desired attributes.
-
-            >>> class Config(Orchestrator.Config):
-            ...     check_interval = 2
-            >>> default_config = Config()
-            >>> custom_config = Config(check_interval=5)
-        """
         check_interval: float = 1
 
         def __init__(self, check: bool = False, check_interval: float = 1, **kwargs):
@@ -72,31 +40,41 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         self.setup_logger()
         self._info()
         self.config.validate()
+
         self.memory = OMemory()
         self.event_manager = EventManager()
-        self.dependencies: dict[str, list] = defaultdict(list)
+        self.dependencies: dict[str, list[str]] = defaultdict(list)
+
+        self.agent_schedules: dict[str, float] = defaultdict(float)
 
     def register_agent(
             self,
             agent_class: Type[ProcessAgent | ThreadAgent],
             name: str,
             custom_config: BaseClass.Config | None = None,
+            start_delay: float = 0.0,
+            start_time: datetime | None = None,
             **kwargs,
     ):
         """
-        Register an agent on current orchestrator.
+        Register an agent on the orchestrator.
 
         Args:
             agent_class: Class of the agent to register.
             name: Name of the agent.
             custom_config: Custom configuration for the agent.
-
-        Returns:
-            None
+            start_delay: Ritardo (in secondi) prima di avviare l'agente.
+            start_time: Orario di avvio dell'agente.
         """
 
         self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config, **kwargs)
         self.logger.info(f"Agent {name} registered.")
+
+        if start_time:
+            now = datetime.now().timestamp()
+            start_delay = start_time.timestamp() - now
+
+        self.agent_schedules[name] = start_delay
 
     def add_dependency(self, agent_name: str, depends_on: list[str]):
         if agent_name not in [agent.name for agent in self.memory.agents]:
@@ -108,9 +86,6 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         self.logger.info(f"Agent {agent_name} depends on {depends_on}.")
 
     def validate_dependencies(self):
-        """
-        Verifica che le dipendenze non abbiano cicli.
-        """
         visited = set()
         stack = set()
 
@@ -130,22 +105,9 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             visit(agent)
 
     def start(self):
-        """
-        Start all the agents registered in the orchestrator.
-
-        Notes:
-            This method will start all the agents registered in the orchestrator. It will check the dependencies between
-            the agents and start them in the correct order.
-
-        Raises:
-            ValueError: If an agent is registered as a dependency but is not registered in the orchestrator.
-            RuntimeError: If an agent cannot be started due to unsatisfied dependencies.
-        """
         self.validate_dependencies()
 
         all_agents = {agent.name for agent in self.memory.agents}
-
-        # in_degree: number of dependencies for each agent
         in_degree = {agent_name: 0 for agent_name in all_agents}
         for agent_name, deps in self.dependencies.items():
             for dep_name in deps:
@@ -154,32 +116,61 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
                 in_degree[agent_name] += 1
 
         queue = deque(agent for agent in in_degree if in_degree[agent] == 0)
+        start_times = {agent: 0.0 for agent in all_agents}
         started_agents = []
 
         while queue:
             current = queue.popleft()
             agent = self.memory.get_agent(current)
+
+            deps = self.dependencies[current]
+            if deps:
+                earliest_dep_start = max(start_times[dep] for dep in deps)
+            else:
+                earliest_dep_start = time.time()  # no dependencies, start immediately
+            desired_start = max(earliest_dep_start, time.time()) + self.agent_schedules[current]
+
+            while True:
+                now = time.time()
+                self._check_completed_agents()
+
+                if now >= desired_start:
+                    break  # exit and start the agent
+                else:
+                    time.sleep(self.config.check_interval)
+
             self.logger.info(f"Starting agent {agent.name}...")
-
             agent.start()
-
             self.event_manager.emit(OrchestratorEvent.AGENT_STARTED.value, agent_name=agent.name)
+
+            start_times[current] = time.time()
             started_agents.append(current)
 
-            # decrease in-degree of dependent agents
+            # update in-degree and queue
             for dependent_agent_name, deps in self.dependencies.items():
                 if current in deps:
                     in_degree[dependent_agent_name] -= 1
-                    # append to queue if in-degree is 0
                     if in_degree[dependent_agent_name] == 0:
                         queue.append(dependent_agent_name)
 
-        # check if all agents have been started
         if len(started_agents) != len(all_agents):
             missing = all_agents - set(started_agents)
-            raise RuntimeError("Some agents could not be started due to unsatisfied dependencies: " + str(missing))
+            raise RuntimeError(
+                "Some agents could not be started due to unsatisfied dependencies: " + str(missing)
+            )
 
-        self.logger.info("All agents started.")
+    def _check_completed_agents(self):
+        """
+        Piccolo metodo di utilità per controllare chi è morto e notificare subito.
+        """
+        for agent in self.memory.agents:
+
+            if not hasattr(agent, "instance"):
+                continue
+
+            if not agent.instance.is_alive():
+                self.logger.info(f"Agent {agent.name} ended.")
+                self.event_manager.emit(OrchestratorEvent.AGENT_TERMINATED.value, agent_name=agent.name)
 
     def stop(self):
         """Terminates all registered agents."""
@@ -188,27 +179,16 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             self.logger.info(f"Stopping agent {agent}.")
 
     def join(self):
-        """
-        Monitor and join all agents.
-
-        Notes:
-            This method will wait for all agents to complete. It will check the status of the stored agents at regular
-            intervals (config.check_interval).
-
-            When an agent completes, will emit the OrchestratorEvent.AGENT_TERMINATED vent.
-            When all agents are completed, will emit the OrchestratorEvent.ALL_AGENTS_COMPLETED event.
-        """
         active_agents = set(self.memory.agents)
 
         while active_agents:
             completed_agents = []
             for agent in active_agents:
                 if not agent.instance.is_alive():
-                    self.logger.info(f"Agent {agent} ended.")
+                    self.logger.info(f"Agent {agent.name} ended.")
                     self.event_manager.emit(OrchestratorEvent.AGENT_TERMINATED.value, agent_name=agent.name)
                     completed_agents.append(agent)
 
-            # refresh active agents list
             for agent in completed_agents:
                 active_agents.remove(agent)
 
