@@ -308,6 +308,13 @@ class OMemory:
         """
         return self._agent_stats.get(agent_name)
 
+    def get_agent(self, name: str) -> AgentEntry | None:
+        return self._agents.get(name)
+
+    def get_agent_instance(self, name: str) -> ProcessAgent | ThreadAgent | None:
+        entry = self.get_agent(name)
+        return entry.instance if entry else None
+
     def _record_event(self, agent_name: str, event_type: str) -> None:
         """
         Record an event for the specified agent.

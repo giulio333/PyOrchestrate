@@ -1,5 +1,6 @@
 from typing import Type
 import time
+from collections import defaultdict, deque
 
 from .memory import OMemory
 from PyOrchestrate.core.utilities.event_manager import EventManager
@@ -73,6 +74,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         self.config.validate()
         self.memory = OMemory()
         self.event_manager = EventManager()
+        self.dependencies: dict[str, list] = defaultdict(list)
 
     def register_agent(
             self,
@@ -96,12 +98,88 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config, **kwargs)
         self.logger.info(f"Agent {name} registered.")
 
+    def add_dependency(self, agent_name: str, depends_on: list[str]):
+        if agent_name not in [agent.name for agent in self.memory.agents]:
+            raise ValueError(f"Agent {agent_name} is not registered in the Orchestrator.")
+        for dependency in depends_on:
+            if dependency not in [agent.name for agent in self.memory.agents]:
+                raise ValueError(f"Dependency {dependency} is not registered in the Orchestrator.")
+        self.dependencies[agent_name].extend(depends_on)
+        self.logger.info(f"Agent {agent_name} depends on {depends_on}.")
+
+    def validate_dependencies(self):
+        """
+        Verifica che le dipendenze non abbiano cicli.
+        """
+        visited = set()
+        stack = set()
+
+        agents = list(self.dependencies.keys())
+
+        def visit(node):
+            if node in stack:
+                raise ValueError(f"Dependency cycle detected: {node} is part of a cycle.")
+            if node not in visited:
+                stack.add(node)
+                for neighbor in self.dependencies[node]:
+                    visit(neighbor)
+                stack.remove(node)
+                visited.add(node)
+
+        for agent in agents:
+            visit(agent)
+
     def start(self):
-        """Start all the agents registered in the orchestrator."""
-        for agent in self.memory.agents:
+        """
+        Start all the agents registered in the orchestrator.
+
+        Notes:
+            This method will start all the agents registered in the orchestrator. It will check the dependencies between
+            the agents and start them in the correct order.
+
+        Raises:
+            ValueError: If an agent is registered as a dependency but is not registered in the orchestrator.
+            RuntimeError: If an agent cannot be started due to unsatisfied dependencies.
+        """
+        self.validate_dependencies()
+
+        all_agents = {agent.name for agent in self.memory.agents}
+
+        # in_degree: number of dependencies for each agent
+        in_degree = {agent_name: 0 for agent_name in all_agents}
+        for agent_name, deps in self.dependencies.items():
+            for dep_name in deps:
+                if dep_name not in all_agents:
+                    raise ValueError(f"Agent {dep_name} is not registered in the Orchestrator.")
+                in_degree[agent_name] += 1
+
+        queue = deque(agent for agent in in_degree if in_degree[agent] == 0)
+        started_agents = []
+
+        while queue:
+            current = queue.popleft()
+            agent = self.memory.get_agent(current)
+            self.logger.info(f"Starting agent {agent.name}...")
+
             agent.start()
-            self.logger.info(f"Starting agent {agent}.")
+
             self.event_manager.emit(OrchestratorEvent.AGENT_STARTED.value, agent_name=agent.name)
+            started_agents.append(current)
+
+            # decrease in-degree of dependent agents
+            for dependent_agent_name, deps in self.dependencies.items():
+                if current in deps:
+                    in_degree[dependent_agent_name] -= 1
+                    # append to queue if in-degree is 0
+                    if in_degree[dependent_agent_name] == 0:
+                        queue.append(dependent_agent_name)
+
+        # check if all agents have been started
+        if len(started_agents) != len(all_agents):
+            missing = all_agents - set(started_agents)
+            raise RuntimeError("Some agents could not be started due to unsatisfied dependencies: " + str(missing))
+
+        self.logger.info("All agents started.")
 
     def stop(self):
         """Terminates all registered agents."""
