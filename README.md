@@ -35,6 +35,7 @@ here's a `WeatherCollector` agent that fetches data periodically:
 
 ``` python
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
+from PyOrchestrate.core.base.base_agent import ProcessAgent
 
 class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["WeatherCollector.Config"]):
     """Agent to collect weather data periodically."""
@@ -73,8 +74,10 @@ from PyOrchestrate.core.orchestrator import Orchestrator
 from models import WeatherCollector
 
 if __name__ == "__main__":
-    orchestrator = Orchestrator()
-    orchestrator.register_agent(WeatherCollector, "WeatherCollector1")
+    orchestrator = Orchestrator("Orchestrator")
+
+    orchestrator.register_agent(WeatherCollector, "WeatherCollector")
+
     orchestrator.start()
     orchestrator.join()
 ```
