@@ -1,5 +1,5 @@
-from typing import Type
 import time
+import threading
 from collections import defaultdict, deque
 from datetime import datetime
 
@@ -25,7 +25,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
     class Config(BaseClass.Config):
         check_interval: float = 1
 
-        def __init__(self, check: bool = False, check_interval: float = 1, **kwargs):
+        def __init__(self, check_interval: float = 1, **kwargs):
             super().__init__(**kwargs)
             self.check_interval: float = check_interval
 
@@ -43,13 +43,22 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
         self.memory = OMemory()
         self.event_manager = EventManager()
-        self.dependencies: dict[str, list[str]] = defaultdict(list)
 
+        # Mappa agent -> lista di stringhe (nomi agent da cui dipende)
+        self.dependencies: dict[str, list[str]] = defaultdict(list)
+        # Mappa agent -> ritardo di avvio (in secondi)
         self.agent_schedules: dict[str, float] = defaultdict(float)
+
+        # Terrà i Timer avviati
+        self._timers: list[threading.Timer] = []
+        # Per tracciare quando (timestamp) un agent è stato effettivamente schedulato
+        self._start_times: dict[str, float] = {}
+        # Per semplificare: segna se un agente è partito
+        self._started_agents: set[str] = set()
 
     def register_agent(
             self,
-            agent_class: Type[ProcessAgent | ThreadAgent],
+            agent_class: type[ProcessAgent | ThreadAgent],
             name: str,
             custom_config: BaseClass.Config | None = None,
             start_delay: float = 0.0,
@@ -66,26 +75,32 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             start_delay: Ritardo (in secondi) prima di avviare l'agente.
             start_time: Orario di avvio dell'agente.
         """
-
         self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config, **kwargs)
-        self.logger.info(f"Agent {name} registered.")
+        self.logger.info(f"Agent '{name}' registrato con start_delay={start_delay}.")
 
         if start_time:
             now = datetime.now().timestamp()
+            # se definisci start_time, calcoliamo quanto manca da "ora"
             start_delay = start_time.timestamp() - now
 
         self.agent_schedules[name] = start_delay
 
     def add_dependency(self, agent_name: str, depends_on: list[str]):
+        """
+        Aggiunge dipendenze: agent_name dipende da depends_on.
+        """
         if agent_name not in [agent.name for agent in self.memory.agents]:
-            raise ValueError(f"Agent {agent_name} is not registered in the Orchestrator.")
+            raise ValueError(f"Agent {agent_name} non è registrato nell'Orchestrator.")
         for dependency in depends_on:
             if dependency not in [agent.name for agent in self.memory.agents]:
-                raise ValueError(f"Dependency {dependency} is not registered in the Orchestrator.")
+                raise ValueError(f"Dipendenza {dependency} non è registrata nell'Orchestrator.")
         self.dependencies[agent_name].extend(depends_on)
-        self.logger.info(f"Agent {agent_name} depends on {depends_on}.")
+        self.logger.info(f"Agent '{agent_name}' dipende da {depends_on}.")
 
     def validate_dependencies(self):
+        """
+        Verifica se ci sono cicli nelle dipendenze (es. A -> B -> A).
+        """
         visited = set()
         stack = set()
 
@@ -93,7 +108,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
         def visit(node):
             if node in stack:
-                raise ValueError(f"Dependency cycle detected: {node} is part of a cycle.")
+                raise ValueError(f"Rilevato un ciclo di dipendenze: {node} è parte di un ciclo.")
             if node not in visited:
                 stack.add(node)
                 for neighbor in self.dependencies[node]:
@@ -104,99 +119,142 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         for agent in agents:
             visit(agent)
 
-    def start(self):
-        self.validate_dependencies()
-
-        # BUG: some times the agents are not started in the correct scheduled order
-
+    def _topological_sort_agents(self) -> list[str]:
+        """
+        Restituisce un elenco di agent in ordine topologico, in base alle dipendenze.
+        Se un agent non è presente in self.dependencies, lo aggiunge con lista vuota.
+        """
         all_agents = {agent.name for agent in self.memory.agents}
-        in_degree = {agent_name: 0 for agent_name in all_agents}
-        for agent_name, deps in self.dependencies.items():
-            for dep_name in deps:
-                if dep_name not in all_agents:
-                    raise ValueError(f"Agent {dep_name} is not registered in the Orchestrator.")
-                in_degree[agent_name] += 1
 
-        queue = deque(agent for agent in in_degree if in_degree[agent] == 0)
-        start_times = {agent: 0.0 for agent in all_agents}
-        started_agents = []
+        # Assicuriamoci che ognuno appaia nelle keys di self.dependencies
+        for ag in all_agents:
+            if ag not in self.dependencies:
+                self.dependencies[ag] = []  # non ha dipendenze
+
+        # Calcoliamo il classico in_degree
+        in_degree = {ag: 0 for ag in all_agents}
+        for ag, deps in self.dependencies.items():
+            for dep in deps:
+                in_degree[ag] += 1
+
+        # BFS
+        queue = deque(ag for ag in all_agents if in_degree[ag] == 0)
+        topo_order = []
 
         while queue:
-            current = queue.popleft()
-            agent = self.memory.get_agent(current)
+            node = queue.popleft()
+            topo_order.append(node)
+            # diminuisco l'in_degree dei "figli"
+            for child, deps in self.dependencies.items():
+                if node in deps:
+                    in_degree[child] -= 1
+                    if in_degree[child] == 0:
+                        queue.append(child)
 
-            deps = self.dependencies[current]
+        if len(topo_order) != len(all_agents):
+            # Se non abbiamo processato tutti, c'è un ciclo
+            raise ValueError("Non è possibile ottenere un ordinamento topologico: dipendenze cicliche?")
+
+        return topo_order
+
+    def start(self):
+        """
+        Avvia l'orchestrator usando i TimerThread per schedulare gli agent.
+        """
+        self.validate_dependencies()
+
+        # otteniamo un ordine topologico
+        ordered_agents = self._topological_sort_agents()
+
+        # Calcoliamo un "start_time" per ciascun agente
+        # se un agent ha dipendenze, parte dopo (max start_time dei deps) + start_delay
+        now = time.time()
+        for ag in ordered_agents:
+            deps = self.dependencies[ag]
             if deps:
-                earliest_dep_start = max(start_times[dep] for dep in deps)
+                earliest_dep_start = max(self._start_times.get(dep, now) for dep in deps)
             else:
-                earliest_dep_start = time.time()  # no dependencies, start immediately
-            desired_start = max(earliest_dep_start, time.time()) + self.agent_schedules[current]
+                earliest_dep_start = now
 
-            while True:
-                now = time.time()
-                self._check_completed_agents()
+            desired_start = earliest_dep_start + self.agent_schedules[ag]
+            self._start_times[ag] = desired_start
 
-                if now >= desired_start:
-                    break  # exit and start the agent
-                else:
-                    time.sleep(self.config.check_interval)
+        # Creiamo un Timer per ciascun agent
+        for ag in ordered_agents:
+            agent_obj = self.memory.get_agent(ag)
+            desired_start = self._start_times[ag]
+            delay = desired_start - time.time()
+            if delay < 0:
+                delay = 0
 
-            self.logger.info(f"Starting agent {agent.name}...")
-            agent.start()
-            self.event_manager.emit(OrchestratorEvent.AGENT_STARTED.value, agent_name=agent.name)
+            self.logger.info(f"Schedulo l'avvio di '{ag}' tra {delay:.2f} secondi.")
+            t = threading.Timer(delay, self._start_agent_callback, args=[ag])
+            t.start()
+            self._timers.append(t)
 
-            start_times[current] = time.time()
-            started_agents.append(current)
+    def _start_agent_callback(self, agent_name: str):
+        """
+        Funzione callback invocata dal Timer al momento di avviare l'agent.
+        """
+        if agent_name in self._started_agents:
+            # già partito, teoricamente non dovrebbe succedere
+            return
 
-            # update in-degree and queue
-            for dependent_agent_name, deps in self.dependencies.items():
-                if current in deps:
-                    in_degree[dependent_agent_name] -= 1
-                    if in_degree[dependent_agent_name] == 0:
-                        queue.append(dependent_agent_name)
+        agent = self.memory.get_agent(agent_name)
 
-        if len(started_agents) != len(all_agents):
-            missing = all_agents - set(started_agents)
-            raise RuntimeError(
-                "Some agents could not be started due to unsatisfied dependencies: " + str(missing)
-            )
+        self.logger.info(f"Starting agent {agent_name}... (delay={self.agent_schedules[agent_name]}s)")
+        agent.start()
+        self.event_manager.emit(OrchestratorEvent.AGENT_STARTED.value, agent_name=agent.name)
+
+        self._started_agents.add(agent_name)
 
     def _check_completed_agents(self):
         """
-        Piccolo metodo di utilità per controllare chi è morto e notificare subito.
+        Piccolo metodo di utilità per controllare chi è terminato e notificare subito.
         """
         for agent in self.memory.agents:
-
             if not hasattr(agent, "instance"):
                 continue
-
-            if not agent.instance.is_alive():
-                self.logger.info(f"Agent {agent.name} ended.")
+            if agent.instance and not agent.instance.is_alive():
+                self.logger.info(f"Agent '{agent.name}' ended.")
                 self.event_manager.emit(OrchestratorEvent.AGENT_TERMINATED.value, agent_name=agent.name)
 
     def stop(self):
         """Terminates all registered agents."""
         for agent in self.memory.agents:
             agent.stop()
-            self.logger.info(f"Stopping agent {agent}.")
+            self.logger.info(f"Stopping agent '{agent.name}'.")
+
+        # Se ci sono Timer ancora non scattati, li cancelliamo
+        for t in self._timers:
+            if t.is_alive():
+                t.cancel()
+        self._timers.clear()
 
     def join(self):
-        active_agents = set(self.memory.agents)
+        """
+        Se vuoi aspettare che tutti i Timer siano stati lanciati e che tutti gli agent siano terminati,
+        puoi fare una doppia 'join': prima su tutti i Timer, poi sugli agent stessi.
+        """
+        # 1) Aspettiamo che tutti i Timer scattino
+        for t in self._timers:
+            t.join()
 
-        while active_agents:
-            completed_agents = []
-            for agent in active_agents:
-                if not agent.instance.is_alive():
-                    self.logger.info(f"Agent {agent.name} ended.")
-                    self.event_manager.emit(OrchestratorEvent.AGENT_TERMINATED.value, agent_name=agent.name)
-                    completed_agents.append(agent)
+        # 2) Ora aspettiamo che gli agent completino
+        all_finished = False
+        while not all_finished:
+            self._check_completed_agents()
+            # se tutti i process/thread agent sono morti, ok
+            alive_count = 0
+            for ag in self.memory.agents:
+                if hasattr(ag, "instance") and ag.instance and ag.instance.is_alive():
+                    alive_count += 1
+            if alive_count == 0:
+                all_finished = True
+            else:
+                time.sleep(self.config.check_interval)
 
-            for agent in completed_agents:
-                active_agents.remove(agent)
-
-            time.sleep(self.config.check_interval)
-
-        self.logger.info("All agents completed.")
+        self.logger.info("Tutti gli agent hanno completato la loro esecuzione.")
         self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED.value)
 
     def report(self):
@@ -206,4 +264,4 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             self.logger.info(agent.status())
 
     def _info(self):
-        self.logger.debug(f"Config: check_interval: {self.config.check_interval}")
+        self.logger.debug(f"Config: check_interval={self.config.check_interval}")
