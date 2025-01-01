@@ -36,13 +36,15 @@ here's a `WeatherCollector` agent that fetches data periodically:
 ``` python
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
 
-class WeatherCollector(PeriodicAgent):
+class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["WeatherCollector.Config"]):
+    """Agent to collect weather data periodically."""
+
     class Config(PeriodicAgent.Config):
-        def __init__(self, output_file="weather_data.json", url="https://catfact.ninja/fact"):
-            super().__init__()
-            self.output_file = output_file
-            self.url = url
-            self.execution_interval = 10  # seconds
+        """Agent configuration."""
+        
+        output_file = output_file
+        url = url
+        execution_interval = 10  # seconds
 
     def setup(self):
         if not os.path.exists(self.config.output_file):
