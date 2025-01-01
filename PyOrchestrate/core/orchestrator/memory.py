@@ -88,7 +88,7 @@ class AgentEntry:
         """
         self.stop()
         self.join()
-        self.instance = self._create_instance()
+        self.instance = self.create_instance()
         self.start()
 
     def is_alive(self) -> bool:
@@ -295,7 +295,7 @@ class OMemory:
         """
         return self._agent_stats.get(agent_name)
 
-    def get_agent(self, name: str) -> AgentEntry | None:
+    def get_agent(self, name: str) -> AgentEntry:
         """
         Get the `AgentEntry` object corresponding to the provided name.
 
@@ -304,8 +304,16 @@ class OMemory:
 
         Returns:
             AgentEntry | None: The `AgentEntry` object corresponding to the provided name, or None if not found.
+
+        Raises:
+            ValueError: If the agent is not found.
         """
-        return self._agents.get(name)
+        _ = self._agents.get(name)
+
+        if not _:
+            raise ValueError(f"Agent '{name}' not found.")
+
+        return _
 
     def get_agent_instance(self, name: str) -> ProcessAgent | ThreadAgent | None:
         """
