@@ -208,17 +208,6 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
         self._started_agents.add(agent_name)
 
-    def _check_completed_agents(self):
-        """
-        Piccolo metodo di utilità per controllare chi è terminato e notificare subito.
-        """
-        for agent in self.memory.agents:
-            if not hasattr(agent, "instance"):
-                continue
-            if agent.instance and not agent.instance.is_alive():
-                self.logger.info(f"Agent '{agent.name}' ended.")
-                self.event_manager.emit(OrchestratorEvent.AGENT_TERMINATED.value, agent_name=agent.name)
-
     def stop(self):
         """Terminates all registered agents."""
         for agent in self.memory.agents:
@@ -231,30 +220,41 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
                 t.cancel()
         self._timers.clear()
 
-    def join(self):
+    def join(self) -> None:
         """
-        Se vuoi aspettare che tutti i Timer siano stati lanciati e che tutti gli agent siano terminati,
-        puoi fare una doppia 'join': prima su tutti i Timer, poi sugli agent stessi.
-        """
-        # 1) Aspettiamo che tutti i Timer scattino
-        for t in self._timers:
-            t.join()
+        Waits for all agents to complete.
 
-        # 2) Ora aspettiamo che gli agent completino
+        Notes:
+            This method blocks the current thread until all agents are completed.
+
+            - When agent is completed, it emits an `OrchestratorEvent.AGENT_TERMINATED` event.
+            - When all agents are completed, it emits an `OrchestratorEvent.ALL_AGENTS_COMPLETED` event.
+        """
+
         all_finished = False
+        notified = set()
+
         while not all_finished:
-            self._check_completed_agents()
-            # se tutti i process/thread agent sono morti, ok
             alive_count = 0
-            for ag in self.memory.agents:
-                if hasattr(ag, "instance") and ag.instance and ag.instance.is_alive():
+
+            for agent in self.memory.agents:
+                if not hasattr(agent, "instance"):
                     alive_count += 1
+                    continue
+                if not agent.instance.is_alive():
+                    if not agent.name in notified:
+                        self.logger.info(f"Agent '{agent.name}' ended.")
+                        self.event_manager.emit(OrchestratorEvent.AGENT_TERMINATED.value, agent_name=agent.name)
+                        notified.add(agent.name)
+                else:
+                    alive_count += 1
+
             if alive_count == 0:
                 all_finished = True
             else:
                 time.sleep(self.config.check_interval)
 
-        self.logger.info("Tutti gli agent hanno completato la loro esecuzione.")
+        self.logger.info("All agents have completed.")
         self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED.value)
 
     def report(self):
