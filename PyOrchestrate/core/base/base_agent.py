@@ -6,6 +6,7 @@ import threading
 import multiprocessing
 import time
 from abc import ABC, abstractmethod
+from time import sleep
 from typing import final, TypeVar
 
 from .base import BaseClass
@@ -45,6 +46,7 @@ class BaseAgent(BaseClass[T], ABC):
     def __init__(self, name: str | None, config: T, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
         self._stop_event = None
+        self._ready_event = None
 
     def validate_config(self):
         """
@@ -71,6 +73,8 @@ class BaseAgent(BaseClass[T], ABC):
             self.validate_config()
 
             self.logger.info("Starting...")
+
+            self._ready_event.set()
 
             self.execute()
         except Exception as ex:
@@ -128,11 +132,12 @@ class ThreadAgent(BaseAgent[T], threading.Thread):
         _info: Print the agent information.
     """
 
-    def __init__(self, config: T, name: str | None = None, **kwargs):
+    def __init__(self, config: T, name: str | None = None, ready_event=None, **kwargs):
         threading.Thread.__init__(self, name=name)
         BaseAgent.__init__(self, name=name, config=config, **kwargs)
 
         self._stop_event = threading.Event()  # type: ignore
+        self._ready_event = ready_event
 
     @final
     def run(self):
@@ -172,11 +177,12 @@ class ProcessAgent(BaseAgent[T], multiprocessing.Process):
     the agent's lifecycle management.
     """
 
-    def __init__(self, config: T, name: str | None = None, **kwargs):
+    def __init__(self, config: T, name: str | None = None, ready_event=None, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
         BaseAgent.__init__(self, name=name, config=config, **kwargs)
 
         self._stop_event = multiprocessing.Event()  # type: ignore
+        self._ready_event = ready_event
 
     def run(self):
         """

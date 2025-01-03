@@ -1,4 +1,6 @@
 import datetime
+import multiprocessing
+import threading
 from typing import Dict, List, Optional, Type, Any
 
 from ..base import BaseAgent, ProcessAgent, ThreadAgent, BaseClass
@@ -36,17 +38,30 @@ class AgentEntry:
         self.name = name
         self.config = config
         self.kwargs = kwargs
+        self.instance: ProcessAgent | ThreadAgent | None = None
+        self.ready_event: Any = None
 
         self._record_event_callback = record_event_callback
 
     def create_instance(self) -> ProcessAgent | ThreadAgent:
         """
         Create agent instance.
+
+        Notes:
+            If custom agent configuration is not provided, the default configuration will be used (agent_class.Config).
+
+        Returns:
+            ProcessAgent | ThreadAgent: The agent instance.
         """
         if self.config is None:
             self.config = self.agent_class.Config()
 
-        return self.agent_class(name=self.name, config=self.config, **self.kwargs)
+        if issubclass(self.agent_class, ProcessAgent):
+            self.ready_event = multiprocessing.Event()
+        else:
+            self.ready_event = threading.Event()
+
+        return self.agent_class(name=self.name, config=self.config, ready_event=self.ready_event, **self.kwargs)
 
     def _record_event(self, event_type: str) -> None:
         """
@@ -57,7 +72,7 @@ class AgentEntry:
 
     def start(self) -> None:
         """
-        Metodi “di comodo” per gestire l’agente
+        Start the agent instance, if supported.
         """
 
         self.instance = self.create_instance()
@@ -199,7 +214,7 @@ class OMemory:
         self._agent_stats: Dict[str, List[Dict[str, Any]]] = {}
 
     @property
-    def agents(self) -> List[AgentEntry]:
+    def agents(self) -> list[AgentEntry]:
         """
         Return the list of all `AgentEntry` objects.
 
