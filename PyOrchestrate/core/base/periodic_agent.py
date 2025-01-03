@@ -85,7 +85,7 @@ class PeriodicAgent(LoopingAgent[T]):
     def cycle(self):
         self.runner()
 
-        if self.timer.wait(self._stop_event):
+        if self.timer.wait(self.stop_event):
             # stopping the process
             return
 

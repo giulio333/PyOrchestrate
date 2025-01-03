@@ -1,3 +1,5 @@
+import time
+
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
 from PyOrchestrate.core.base.base_agent import ProcessAgent
@@ -24,7 +26,7 @@ class FileWriter(PeriodicAgent["FileWriter.Config"], ProcessAgent["FileWriter.Co
         """
         Runner method for the agent.
         """
-        self.logger.debug("Doing some work")
+        self.logger.info("Doing some work")
 
 
 if __name__ == "__main__":

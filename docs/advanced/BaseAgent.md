@@ -127,7 +127,7 @@ from PyOrchestrate.core.base.base_agent import ThreadAgent
 
 class CustomThreadAgent(ThreadAgent):
     def execute(self):
-        while not self._stop_event.is_set():
+        while not self.stop_event.is_set():
             self.logger.info("Esecuzione di CustomThreadAgent...")
             time.sleep(1)
 
@@ -149,7 +149,7 @@ from PyOrchestrate.core.base.base_agent import ProcessAgent
 
 class CustomProcessAgent(ProcessAgent):
     def execute(self):
-        while not self._stop_event.is_set():
+        while not self.stop_event.is_set():
             self.logger.info("Esecuzione di CustomProcessAgent...")
             time.sleep(1)
 
