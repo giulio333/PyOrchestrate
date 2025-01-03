@@ -36,8 +36,8 @@ if __name__ == "__main__":
     orchestrator.register_agent(FileWriter, "FileWriter1")
 
     # second agent with custom configuration
-    # custom_config = FileWriter.Config(execution_interval=.1, limit=5)
-    # orchestrator.register_agent(FileWriter, "FileWriter2", custom_config, start_delay=20)
+    custom_config = FileWriter.Config(execution_interval=.1, limit=5)
+    orchestrator.register_agent(FileWriter, "FileWriter2", custom_config, start_delay=10)
 
     # start all agents
     orchestrator.start()
