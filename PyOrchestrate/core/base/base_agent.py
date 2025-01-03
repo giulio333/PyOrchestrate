@@ -63,10 +63,11 @@ class BaseAgent(BaseClass[T], ABC):
             >>> custom_config = Config(value="new value")
         """
 
-    def __init__(self, name: str | None, config: T, stop_event, ready_event, **kwargs):
+    def __init__(self, name: str | None, config: T, stop_event, ready_event, close_event, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
         self._stop_event = stop_event
         self._ready_event = ready_event
+        self._close_event = close_event
 
     @property
     def stop_event(self):
@@ -87,6 +88,16 @@ class BaseAgent(BaseClass[T], ABC):
             threading.Event: The ready event.
         """
         return self._ready_event
+
+    @property
+    def close_event(self):
+        """
+        Event to signal that the agent is ready to close. The event is set after the agent is stopped.
+
+        Returns:
+            threading.Event: The close event.
+        """
+        return self._close_event
 
     def validate_config(self):
         """
@@ -128,6 +139,7 @@ class BaseAgent(BaseClass[T], ABC):
         except Exception as ex:
             self.logger.exception(f"[{self.name}] Errore durante l'esecuzione: {ex}")
         finally:
+            self.close_event.set()
             elapsed = time.time() - self.start_time
             self.logger.info(f"execution completed in {elapsed:.3f} seconds.")
 
