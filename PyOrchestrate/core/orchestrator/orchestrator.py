@@ -99,7 +99,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
     def validate_dependencies(self):
         """
-        Verifica se ci sono cicli nelle dipendenze (es. A -> B -> A).
+        Check dependencies error (es. A -> B -> A).
         """
         visited = set()
         stack = set()
@@ -107,6 +107,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         agents = list(self.dependencies.keys())
 
         def visit(node):
+            """Visit a node in the graph."""
             if node in stack:
                 raise ValueError(f"Rilevato un ciclo di dipendenze: {node} è parte di un ciclo.")
             if node not in visited:
@@ -121,18 +122,24 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
     def _topological_sort_agents(self) -> list[str]:
         """
-        Restituisce un elenco di agent in ordine topologico, in base alle dipendenze.
-        Se un agent non è presente in self.dependencies, lo aggiunge con lista vuota.
-        """
-        all_agents = {agent.name for agent in self.memory.agents}
+        Order agents topologically.
 
-        # Assicuriamoci che ognuno appaia nelle keys di self.dependencies
+        Notes:
+            This method uses a BFS algorithm to order the agents topologically.
+        
+        Returns:
+            list[str]: Ordered agents.
+
+        Raises:
+            ValueError: If there is a cyclic dependency
+        """
+        all_agents: set[str] = {agent.name for agent in self.memory.agents}
+
         for ag in all_agents:
             if ag not in self.dependencies:
-                self.dependencies[ag] = []  # non ha dipendenze
+                self.dependencies[ag] = []
 
-        # Calcoliamo il classico in_degree
-        in_degree = {ag: 0 for ag in all_agents}
+        in_degree: dict[str, int] = {ag: 0 for ag in all_agents}
         for ag, deps in self.dependencies.items():
             for dep in deps:
                 in_degree[ag] += 1
@@ -144,7 +151,6 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         while queue:
             node = queue.popleft()
             topo_order.append(node)
-            # diminuisco l'in_degree dei "figli"
             for child, deps in self.dependencies.items():
                 if node in deps:
                     in_degree[child] -= 1
@@ -152,22 +158,18 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
                         queue.append(child)
 
         if len(topo_order) != len(all_agents):
-            # Se non abbiamo processato tutti, c'è un ciclo
             raise ValueError("Non è possibile ottenere un ordinamento topologico: dipendenze cicliche?")
 
         return topo_order
 
     def start(self):
         """
-        Avvia l'orchestrator usando i TimerThread per schedulare gli agent.
+        Start all registered agents.
         """
         self.validate_dependencies()
 
-        # otteniamo un ordine topologico
         ordered_agents = self._topological_sort_agents()
 
-        # Calcoliamo un "start_time" per ciascun agente
-        # se un agent ha dipendenze, parte dopo (max start_time dei deps) + start_delay
         now = time.time()
         for ag in ordered_agents:
             deps = self.dependencies[ag]
@@ -179,7 +181,6 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             desired_start = earliest_dep_start + self.agent_schedules[ag]
             self._start_times[ag] = desired_start
 
-        # Creiamo un Timer per ciascun agent
         for ag in ordered_agents:
             agent_obj = self.memory.get_agent(ag)
             desired_start = self._start_times[ag]
@@ -194,10 +195,9 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
     def _start_agent_callback(self, agent_name: str):
         """
-        Funzione callback invocata dal Timer al momento di avviare l'agent.
+        Callback to start the agent.
         """
         if agent_name in self._started_agents:
-            # già partito, teoricamente non dovrebbe succedere
             return
 
         agent = self.memory.get_agent(agent_name)
@@ -238,9 +238,10 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             alive_count = 0
 
             for agent in self.memory.agents:
-                if not hasattr(agent, "instance"):
+                if not hasattr(agent, "instance") or agent.instance is None:
                     alive_count += 1
                     continue
+
                 if not agent.instance.is_alive():
                     if not agent.name in notified:
                         self.logger.info(f"Agent '{agent.name}' ended.")
