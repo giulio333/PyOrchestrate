@@ -46,7 +46,7 @@ class BaseAgent(BaseClass[T], ABC):
     def __init__(self, name: str | None, config: T, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
         self._stop_event = None
-        self._ready_event = None
+        self.ready_event = None
 
     def validate_config(self):
         """
@@ -60,8 +60,14 @@ class BaseAgent(BaseClass[T], ABC):
         """
         Main method to run the agent.
 
-        This method is called by the `run` method of the derived classes. So it can be considered the entry point for
-        the agent execution.
+        Warnings:
+            Do not override this method. If you need to implement custom logic when the agent is started, you can
+            override the `setup` and `execute` methods.
+
+        Notes:
+            This method is called by the `run` method of the derived classes. So it can be considered the entry point
+            for the agent execution.
+
         """
         self.start_time = time.time()
 
@@ -73,8 +79,6 @@ class BaseAgent(BaseClass[T], ABC):
             self.validate_config()
 
             self.logger.info("Starting...")
-
-            self._ready_event.set()
 
             self.execute()
         except Exception as ex:
@@ -88,7 +92,7 @@ class BaseAgent(BaseClass[T], ABC):
         """
         Abstract method to be implemented in derived classes: Agent specific execution logic.
         """
-        pass
+        self.setup()
 
     @abstractmethod
     def stop(self):
@@ -96,6 +100,19 @@ class BaseAgent(BaseClass[T], ABC):
         Event set to request the external stop of the process.
         """
         self.on_stop()
+
+    @abstractmethod
+    def setup(self):
+        """
+        Method called when the agent is started to perform the setup.
+
+        Warnings:
+            Make sure to call the parent method if you override it.
+
+        Notes:
+            Here you can implement the setup logic. This method is called once before the Agent cycle method.
+        """
+        pass
 
     def on_stop(self):
         """
@@ -137,7 +154,14 @@ class ThreadAgent(BaseAgent[T], threading.Thread):
         BaseAgent.__init__(self, name=name, config=config, **kwargs)
 
         self._stop_event = threading.Event()  # type: ignore
-        self._ready_event = ready_event
+        self.ready_event = ready_event
+
+    @final
+    def start(self):
+        """
+        Start current agent.
+        """
+        super().start()
 
     @final
     def run(self):
@@ -163,7 +187,8 @@ class ThreadAgent(BaseAgent[T], threading.Thread):
         """
         Abstract method to be implemented in derived classes: Agent execution logic.
         """
-        pass
+        super().execute()
+        self.ready_event.set()
 
     def _info(self):
         super()._info()
@@ -182,11 +207,22 @@ class ProcessAgent(BaseAgent[T], multiprocessing.Process):
         BaseAgent.__init__(self, name=name, config=config, **kwargs)
 
         self._stop_event = multiprocessing.Event()  # type: ignore
-        self._ready_event = ready_event
+        self.ready_event = ready_event
 
+    @final
+    def start(self):
+        """
+        Start current process agent.
+
+        Notes:
+            Internally, it calls the `run` method of the Process class.
+        """
+        super().start()
+
+    @final
     def run(self):
         """
-        Override of the `run` method of multiprocessing.Process: it calls the common logic `run_agent`.
+        Override of the `run` method of multiprocessing.Process.
         """
         self.run_agent()
 
@@ -206,7 +242,8 @@ class ProcessAgent(BaseAgent[T], multiprocessing.Process):
         """
         Abstract method to be implemented in derived classes: Agent execution logic.
         """
-        pass
+        super().execute()
+        self.ready_event.set()
 
     def _info(self):
         super()._info()
