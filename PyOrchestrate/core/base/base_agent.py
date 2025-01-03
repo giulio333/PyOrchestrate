@@ -63,11 +63,14 @@ class BaseAgent(BaseClass[T], ABC):
             >>> custom_config = Config(value="new value")
         """
 
-    def __init__(self, name: str | None, config: T, stop_event, ready_event, close_event, **kwargs):
+    def __init__(self, name: str | None, config: T, stop_event, ready_event, close_event, make_setup, make_execution,
+                 **kwargs):
         super().__init__(name=name, config=config, **kwargs)
         self._stop_event = stop_event
         self._ready_event = ready_event
         self._close_event = close_event
+        self._make_setup = make_setup
+        self._make_execution = make_execution
 
     @property
     def stop_event(self):
@@ -99,6 +102,26 @@ class BaseAgent(BaseClass[T], ABC):
         """
         return self._close_event
 
+    @property
+    def make_setup(self):
+        """
+        Event to signal that the agent can make the setup. The event is set after the agent is started.
+
+        Returns:
+            threading.Event: The make setup event.
+        """
+        return self._make_setup
+
+    @property
+    def make_execution(self):
+        """
+        Event to signal that the agent can make the execution. The event is set after the agent is started.
+
+        Returns:
+            threading.Event: The make execution event.
+        """
+        return self._make_execution
+
     def validate_config(self):
         """
         Validate the configuration.
@@ -129,9 +152,9 @@ class BaseAgent(BaseClass[T], ABC):
 
             self.validate_config()
 
-            self.logger.info("Starting...")
-
             self.setup()
+
+            self.logger.info("Starting...")
 
             self.ready_event.set()
 
@@ -148,7 +171,7 @@ class BaseAgent(BaseClass[T], ABC):
         """
         Abstract method to be implemented in derived classes: Agent specific execution logic.
         """
-        pass
+        self.make_execution.wait()
 
     @final
     def stop(self):
@@ -172,7 +195,7 @@ class BaseAgent(BaseClass[T], ABC):
         Notes:
             Here you can implement the setup logic. This method is called once before the agent `execute` method.
         """
-        pass
+        self.make_setup.wait()
 
     def on_stop(self):
         """
