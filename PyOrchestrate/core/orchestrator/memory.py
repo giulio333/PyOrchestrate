@@ -18,6 +18,8 @@ class AgentEntry:
         instance (BaseAgent): The agent instance.
         ready_event (Any): Event to signal that the agent is ready to start.
         close_event (Any): Event to signal that the agent is closing.
+        make_setup (Any): Event to signal that the agent can make the setup.
+        make_execution (Any): Event to signal that the agent can make the execution.
         _record_event_callback (Optional[Any]): Callback to record events.
 
     Methods:
@@ -43,6 +45,8 @@ class AgentEntry:
         self.instance: ProcessAgent | ThreadAgent | None = None
         self.ready_event: Any = None
         self.close_event: Any = None
+        self.make_setup: Any = None
+        self.make_execution: Any = None
         self._record_event_callback = record_event_callback
 
     def start(self) -> None:
@@ -137,12 +141,30 @@ class AgentEntry:
         if issubclass(self.agent_class, ProcessAgent):
             self.ready_event = multiprocessing.Event()
             self.close_event = multiprocessing.Event()
-        else:
+            self.make_setup = multiprocessing.Event()
+            self.make_execution = multiprocessing.Event()
+        elif issubclass(self.agent_class, ThreadAgent):
             self.ready_event = threading.Event()
             self.close_event = threading.Event()
+            self.make_setup = threading.Event()
+            self.make_execution = threading.Event()
+        else:
+            raise ValueError("Unknown agent type.")
 
-        return self.agent_class(name=self.name, config=self.config, ready_event=self.ready_event,
-                                close_event=self.close_event, **self.kwargs)
+        # Set the make_setup event to allow the agent to make the setup
+        self.make_setup.set()
+        self.make_execution.set()
+
+        params: dict[str, Any] = dict()
+        params["name"] = self.name
+        params["config"] = self.config
+        params["ready_event"] = self.ready_event
+        params["close_event"] = self.close_event
+        params["make_setup"] = self.make_setup
+        params["make_execution"] = self.make_execution
+        params.update(self.kwargs)
+
+        return self.agent_class(**params)
 
     def _record_event(self, event_type: str) -> None:
         """
