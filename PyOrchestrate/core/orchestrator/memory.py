@@ -56,6 +56,7 @@ class AgentEntry:
         """
         Arresta l’istanza, se supportato
         """
+        assert self.instance is not None
         self.instance.stop()
         self._record_event("stop")
 
@@ -63,6 +64,7 @@ class AgentEntry:
         """
         Join the agent instance.
         """
+        assert self.instance is not None
         self.instance.join()
         self._record_event("join")
 
@@ -82,6 +84,8 @@ class AgentEntry:
         Returns:
             bool: True if the agent instance is alive, False otherwise.
         """
+        assert self.instance is not None
+        
         return self.instance.is_alive()
 
     def status(self) -> str:

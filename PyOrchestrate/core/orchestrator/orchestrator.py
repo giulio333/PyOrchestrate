@@ -3,7 +3,7 @@ import threading
 from collections import defaultdict, deque
 from datetime import datetime
 
-from .memory import OMemory
+from .memory import OMemory, AgentEntry
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
@@ -199,7 +199,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         if agent_name in self._started_agents:
             return
 
-        agent = self.memory.get_agent(agent_name)
+        agent: AgentEntry = self.memory.get_agent(agent_name)
 
         self.logger.info(f"Starting agent {agent_name}... (delay={self.agent_schedules[agent_name]}s)")
         agent.start()

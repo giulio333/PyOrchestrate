@@ -33,7 +33,7 @@ if __name__ == "__main__":
     oConfig = Orchestrator.Config(
         logger_config=LoggerConfig("INFO", "Orchestrator")
     )
-    orchestrator = Orchestrator("Orchestrator", oConfig)
+    orchestrator = Orchestrator("Orchestrator")
 
     # Esempio 1: uso della config di default (senza passare agent_entry)
     orchestrator.register_agent(FileWriter, "FileWriter_Default")

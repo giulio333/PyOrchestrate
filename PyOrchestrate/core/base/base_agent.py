@@ -6,7 +6,6 @@ import threading
 import multiprocessing
 import time
 from abc import ABC, abstractmethod
-from time import sleep
 from typing import final, TypeVar
 
 from .base import BaseClass
@@ -17,6 +16,27 @@ T = TypeVar("T", bound="BaseClass.Config")
 class BaseAgent(BaseClass[T], ABC):
     """
     Abstract base class for all agents.
+
+    This class provides a common interface for the agent's lifecycle management. It defines the main methods that an
+    agent must implement to be executed correctly.
+
+    Warnings:
+        Always call the parent method when overriding a method (use super()).
+
+    Notes:
+        Derived classes must implement the `execute` method to define the agent's logic. You can also implement the
+        `setup` method to initialize some agent attributes before the cycle method.
+
+    Attributes:
+        stop_event (threading.Event): Event to request the external stop of the agent.
+        ready_event (threading.Event): Event to signal that the agent is ready to start.
+
+    Methods:
+        run: Main method to run the agent.
+        stop: Event set to request the external stop of the process.
+        setup: Method called when the agent is started to perform the setup.
+        on_stop: Method called when the agent is stopped.
+        _info: Print the agent information.
     """
 
     class Config(BaseClass.Config):
@@ -43,10 +63,30 @@ class BaseAgent(BaseClass[T], ABC):
             >>> custom_config = Config(value="new value")
         """
 
-    def __init__(self, name: str | None, config: T, **kwargs):
+    def __init__(self, name: str | None, config: T, stop_event, ready_event, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
-        self._stop_event = None
-        self.ready_event = None
+        self._stop_event = stop_event
+        self._ready_event = ready_event
+
+    @property
+    def stop_event(self):
+        """
+        Event to request the external stop of the agent.
+
+        Returns:
+            threading.Event: The stop event.
+        """
+        return self._stop_event
+
+    @property
+    def ready_event(self):
+        """
+        Event to signal that the agent is ready to start. The event is set after the setup method is called.
+
+        Returns:
+            threading.Event: The ready event.
+        """
+        return self._ready_event
 
     def validate_config(self):
         """
@@ -56,7 +96,7 @@ class BaseAgent(BaseClass[T], ABC):
         self.logger.debug(f"Self configuration validated.")
 
     @final
-    def run_agent(self):
+    def run(self):
         """
         Main method to run the agent.
 
@@ -80,6 +120,10 @@ class BaseAgent(BaseClass[T], ABC):
 
             self.logger.info("Starting...")
 
+            self.setup()
+
+            self.ready_event.set()
+
             self.execute()
         except Exception as ex:
             self.logger.exception(f"[{self.name}] Errore durante l'esecuzione: {ex}")
@@ -92,14 +136,18 @@ class BaseAgent(BaseClass[T], ABC):
         """
         Abstract method to be implemented in derived classes: Agent specific execution logic.
         """
-        self.setup()
+        pass
 
-    @abstractmethod
+    @final
     def stop(self):
         """
-        Event set to request the external stop of the process.
+        Event set to request the external stop of the thread.
+
+        Warning:
+            Do not override this method. If you need to implement custom logic when the agent is stopped, you can
+            override the `on_stop` method.
         """
-        self.on_stop()
+        self.stop_event.set()
 
     @abstractmethod
     def setup(self):
@@ -110,7 +158,7 @@ class BaseAgent(BaseClass[T], ABC):
             Make sure to call the parent method if you override it.
 
         Notes:
-            Here you can implement the setup logic. This method is called once before the Agent cycle method.
+            Here you can implement the setup logic. This method is called once before the agent `execute` method.
         """
         pass
 
@@ -140,7 +188,7 @@ class ThreadAgent(BaseAgent[T], threading.Thread):
 
 
     Attributes:
-        _stop_event (threading.Event): Event to request the external stop of the process.
+        stop_event (threading.Event): Event to request the external stop of the process.
 
     Methods:
         run: Override of the `run` method of threading.Thread: it calls the common logic `run_agent`.
@@ -151,36 +199,21 @@ class ThreadAgent(BaseAgent[T], threading.Thread):
 
     def __init__(self, config: T, name: str | None = None, ready_event=None, **kwargs):
         threading.Thread.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name, config=config, **kwargs)
-
-        self._stop_event = threading.Event()  # type: ignore
-        self.ready_event = ready_event
+        BaseAgent.__init__(self, name=name, config=config, stop_event=threading.Event(), ready_event=ready_event,
+                           **kwargs)
 
     @final
     def start(self):
         """
-        Start current agent.
+        Start current process agent.
+
+        Notes:
+            Internally, it calls the `run` method of the agent in a new thread.
+
+        Returns:
+            None
         """
         super().start()
-
-    @final
-    def run(self):
-        """
-        Override of the `run` method of threading.Thread: it calls the common logic `run_agent`.
-        """
-        self.run_agent()
-
-    @final
-    def stop(self):
-        """
-        Event set to request the external stop of the thread.
-
-        Warning:
-            Do not override this method. If you need to implement custom logic when the agent is stopped, you can
-            override the `on_stop` method.
-        """
-        super().stop()
-        self._stop_event.set()
 
     @abstractmethod
     def execute(self):
@@ -204,10 +237,8 @@ class ProcessAgent(BaseAgent[T], multiprocessing.Process):
 
     def __init__(self, config: T, name: str | None = None, ready_event=None, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name, config=config, **kwargs)
-
-        self._stop_event = multiprocessing.Event()  # type: ignore
-        self.ready_event = ready_event
+        BaseAgent.__init__(self, name=name, config=config, stop_event=multiprocessing.Event(), ready_event=ready_event,
+                           **kwargs)
 
     @final
     def start(self):
@@ -215,27 +246,12 @@ class ProcessAgent(BaseAgent[T], multiprocessing.Process):
         Start current process agent.
 
         Notes:
-            Internally, it calls the `run` method of the Process class.
+            Internally, it calls the `run` method of the agent in a new process.
+
+        Returns:
+            None
         """
         super().start()
-
-    @final
-    def run(self):
-        """
-        Override of the `run` method of multiprocessing.Process.
-        """
-        self.run_agent()
-
-    def stop(self):
-        """
-        Event set to request the external stop of the process.
-
-        Warning:
-            Do not override this method. If you need to implement custom logic when the agent is stopped, you can
-            override the `on_stop` method.
-        """
-        super().stop()
-        self._stop_event.set()
 
     @abstractmethod
     def execute(self):
