@@ -16,6 +16,8 @@ class AgentEntry:
         config (Optional[BaseConfig]): Custom configuration for the agent.
         kwargs (Any): Additional keyword arguments for the agent.
         instance (BaseAgent): The agent instance.
+        ready_event (Any): Event to signal that the agent is ready to start.
+        close_event (Any): Event to signal that the agent is closing.
         _record_event_callback (Optional[Any]): Callback to record events.
 
     Methods:
@@ -40,7 +42,7 @@ class AgentEntry:
         self.kwargs = kwargs
         self.instance: ProcessAgent | ThreadAgent | None = None
         self.ready_event: Any = None
-
+        self.close_event: Any = None
         self._record_event_callback = record_event_callback
 
     def start(self) -> None:
@@ -85,7 +87,7 @@ class AgentEntry:
             bool: True if the agent instance is alive, False otherwise.
         """
         assert self.instance is not None
-        
+
         return self.instance.is_alive()
 
     def status(self) -> str:
@@ -134,10 +136,13 @@ class AgentEntry:
 
         if issubclass(self.agent_class, ProcessAgent):
             self.ready_event = multiprocessing.Event()
+            self.close_event = multiprocessing.Event()
         else:
             self.ready_event = threading.Event()
+            self.close_event = threading.Event()
 
-        return self.agent_class(name=self.name, config=self.config, ready_event=self.ready_event, **self.kwargs)
+        return self.agent_class(name=self.name, config=self.config, ready_event=self.ready_event,
+                                close_event=self.close_event, **self.kwargs)
 
     def _record_event(self, event_type: str) -> None:
         """
