@@ -43,58 +43,27 @@ class AgentEntry:
 
         self._record_event_callback = record_event_callback
 
-    def create_instance(self) -> ProcessAgent | ThreadAgent:
-        """
-        Create agent instance.
-
-        Notes:
-            If custom agent configuration is not provided, the default configuration will be used (agent_class.Config).
-
-        Returns:
-            ProcessAgent | ThreadAgent: The agent instance.
-        """
-        if self.config is None:
-            self.config = self.agent_class.Config()
-
-        if issubclass(self.agent_class, ProcessAgent):
-            self.ready_event = multiprocessing.Event()
-        else:
-            self.ready_event = threading.Event()
-
-        return self.agent_class(name=self.name, config=self.config, ready_event=self.ready_event, **self.kwargs)
-
-    def _record_event(self, event_type: str) -> None:
-        """
-        Invochiamo la callback se è presente.
-        """
-        if self._record_event_callback is not None:
-            self._record_event_callback(self.name, event_type)
-
     def start(self) -> None:
         """
         Start the agent instance, if supported.
         """
 
-        self.instance = self.create_instance()
-
-        if hasattr(self.instance, 'start'):
-            self.instance.start()
+        self.instance = self._create_instance()
+        self.instance.start()
         self._record_event("start")
 
     def stop(self) -> None:
         """
         Arresta l’istanza, se supportato
         """
-        if hasattr(self.instance, 'stop'):
-            self.instance.stop()
+        self.instance.stop()
         self._record_event("stop")
 
     def join(self) -> None:
         """
         Join the agent instance.
         """
-        if hasattr(self.instance, 'join'):
-            self.instance.join()
+        self.instance.join()
         self._record_event("join")
 
     def restart(self) -> None:
@@ -103,7 +72,7 @@ class AgentEntry:
         """
         self.stop()
         self.join()
-        self.instance = self.create_instance()
+        self.instance = self._create_instance()
         self.start()
 
     def is_alive(self) -> bool:
@@ -145,6 +114,33 @@ class AgentEntry:
             raise ValueError("Unknown agent type.")
 
         return f"{self.instance.name} -> alive: {alive} daemon: {daemon} ident: {ident} pid: {pid}"
+
+    def _create_instance(self) -> ProcessAgent | ThreadAgent:
+        """
+        Create agent instance.
+
+        Notes:
+            If custom agent configuration is not provided, the default configuration will be used (agent_class.Config).
+
+        Returns:
+            ProcessAgent | ThreadAgent: The agent instance.
+        """
+        if self.config is None:
+            self.config = self.agent_class.Config()
+
+        if issubclass(self.agent_class, ProcessAgent):
+            self.ready_event = multiprocessing.Event()
+        else:
+            self.ready_event = threading.Event()
+
+        return self.agent_class(name=self.name, config=self.config, ready_event=self.ready_event, **self.kwargs)
+
+    def _record_event(self, event_type: str) -> None:
+        """
+        Invochiamo la callback se è presente.
+        """
+        if self._record_event_callback is not None:
+            self._record_event_callback(self.name, event_type)
 
     def __str__(self):
         return self.name
@@ -236,6 +232,9 @@ class OMemory:
         Store an agent in the orchestrator memory.
 
         Data will be stored as an `AgentEntry` object, which contains metadata and the agent instance.
+
+        Notes:
+            Agent instances are not created until the agent is started.
 
         Args:
             agent_class (Type[BaseAgent]): The class of the agent to store.

@@ -45,11 +45,12 @@ class LoopingAgent(BaseAgent[T]):
 
     @final
     def execute(self):
-        """Execute the agent cycle method in a loop.
+        """
+        Execute the agent cycle method in a loop.
+
         If the limit is set, the loop will stop after reaching that, otherwise it will run indefinitely.
         """
-
-        self.setup()
+        super().execute()
 
         # without limit
         if self.config.limit is None:
@@ -88,14 +89,7 @@ class LoopingAgent(BaseAgent[T]):
         """Define the agent's cycle logic to be executed in each iteration of the loop."""
 
     def setup(self):
-        """
-        Abstract method to be implemented in derived classes: Agent setup logic.
-
-        Notes:
-            Here you can implement the setup logic.
-            This method is called once before the Agent cycle method.
-        """
-        pass
+        super().setup()
 
     @abstractmethod
     def _info(self):

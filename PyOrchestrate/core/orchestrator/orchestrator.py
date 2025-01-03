@@ -80,7 +80,6 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
         if start_time:
             now = datetime.now().timestamp()
-            # se definisci start_time, calcoliamo quanto manca da "ora"
             start_delay = start_time.timestamp() - now
 
         self.agent_schedules[name] = start_delay
