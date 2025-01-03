@@ -2,8 +2,18 @@ import datetime
 import multiprocessing
 import threading
 from typing import Dict, List, Optional, Type, Any
+from dataclasses import dataclass, field
 
 from ..base import BaseAgent, ProcessAgent, ThreadAgent, BaseClass
+
+
+@dataclass
+class AgentEvents:
+    """Available events for an agent."""
+    ready_event: Any = None
+    close_event: Any = None
+    make_setup: Any = None
+    make_execution: Any = None
 
 
 class AgentEntry:
@@ -36,6 +46,7 @@ class AgentEntry:
             name: str,
             config: Optional[BaseClass.Config] = None,
             record_event_callback: Optional[Any] = None,
+            agent_events: Optional[AgentEvents] = None,
             **kwargs: Any
     ):
         self.agent_class = agent_class
@@ -43,11 +54,15 @@ class AgentEntry:
         self.config = config
         self.kwargs = kwargs
         self.instance: ProcessAgent | ThreadAgent | None = None
-        self.ready_event: Any = None
-        self.close_event: Any = None
-        self.make_setup: Any = None
-        self.make_execution: Any = None
         self._record_event_callback = record_event_callback
+
+        if not agent_events:
+            agent_events = AgentEvents()
+
+        self.ready_event = agent_events.ready_event
+        self.close_event = agent_events.close_event
+        self.make_setup = agent_events.make_setup
+        self.make_execution = agent_events.make_execution
 
     def start(self) -> None:
         """
@@ -137,23 +152,6 @@ class AgentEntry:
         """
         if self.config is None:
             self.config = self.agent_class.Config()
-
-        if issubclass(self.agent_class, ProcessAgent):
-            self.ready_event = multiprocessing.Event()
-            self.close_event = multiprocessing.Event()
-            self.make_setup = multiprocessing.Event()
-            self.make_execution = multiprocessing.Event()
-        elif issubclass(self.agent_class, ThreadAgent):
-            self.ready_event = threading.Event()
-            self.close_event = threading.Event()
-            self.make_setup = threading.Event()
-            self.make_execution = threading.Event()
-        else:
-            raise ValueError("Unknown agent type.")
-
-        # Set the make_setup event to allow the agent to make the setup
-        self.make_setup.set()
-        self.make_execution.set()
 
         params: dict[str, Any] = dict()
         params["name"] = self.name
@@ -267,17 +265,34 @@ class OMemory:
         Notes:
             Agent instances are not created until the agent is started.
 
+            Every agent has a set of events that can be used to control its lifecycle. By default, all events are set to
+            ready.
+
         Args:
             agent_class (Type[BaseAgent]): The class of the agent to store.
             name (str): The name of the agent.
             custom_config (Optional[BaseConfig], optional): Custom configuration for the agent. Defaults to None.
         """
 
+        if issubclass(agent_class, ProcessAgent):
+            event = multiprocessing.Event
+        elif issubclass(agent_class, ThreadAgent):
+            event = threading.Event  # type: ignore
+        else:
+            raise ValueError("Unknown agent type.")
+
+        agent_events = AgentEvents(ready_event=event(), close_event=event(), make_setup=event(), make_execution=event())
+
+        # default set to ready
+        agent_events.make_setup.set()
+        agent_events.make_execution.set()
+
         entry = AgentEntry(
             agent_class=agent_class,
             name=name,
             config=custom_config,
             record_event_callback=self._record_event,
+            agent_events=agent_events,
             **kwargs
         )
         self._agents[name] = entry

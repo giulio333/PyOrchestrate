@@ -75,6 +75,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             start_delay: Ritardo (in secondi) prima di avviare l'agente.
             start_time: Orario di avvio dell'agente.
         """
+
         self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config, **kwargs)
         self.logger.info(f"Agent '{name}' registrato con start_delay={start_delay}.")
 
