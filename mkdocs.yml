@@ -11,16 +11,16 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: indigo
+      primary: purple
+      accent: purple
       toggle:
         icon: material/lightbulb
         name: Switch to dark mode
 
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: purple
+      accent: purple
       toggle:
         icon: material/lightbulb-outline
         name: Switch to system preference
