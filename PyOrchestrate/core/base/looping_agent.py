@@ -54,14 +54,14 @@ class LoopingAgent(BaseAgent[T]):
 
         # without limit
         if self.config.limit is None:
-            while not self.stop_event.is_set():
+            while not self.control_events.stop_event.is_set():
                 self.safe_cycle()
 
         # with limit
         else:
             limit_reached = True
             for _ in range(self.config.limit):
-                if self.stop_event.is_set():
+                if self.control_events.stop_event.is_set():
                     limit_reached = False
                     break
                 self.safe_cycle()
@@ -82,7 +82,7 @@ class LoopingAgent(BaseAgent[T]):
             self.logger.error(f"Recoverable error: {e}")
         except NonRecoverableException as e:
             self.logger.error(f"Non-recoverable error: {e}")
-            self.stop_event.set()
+            self.events.stop_event.set()
 
     @abstractmethod
     def cycle(self):

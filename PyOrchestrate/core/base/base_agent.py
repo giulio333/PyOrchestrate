@@ -20,6 +20,10 @@ class BaseAgent(BaseClass[T], ABC):
     This class provides a common interface for the agent's lifecycle management. It defines the main methods that an
     agent must implement to be executed correctly.
 
+    Every agent has a set of events to manage the internal state and the external commands. The `state_events` attribute
+    contains the events related to the internal state of the agent, while the `control_events` attribute contains the
+    events related to external commands.
+
     Warnings:
         Always call the parent method when overriding a method (use super()).
 
@@ -28,8 +32,8 @@ class BaseAgent(BaseClass[T], ABC):
         `setup` method to initialize some agent attributes before the cycle method.
 
     Attributes:
-        stop_event (threading.Event): Event to request the external stop of the agent.
-        ready_event (threading.Event): Event to signal that the agent is ready to start.
+        state_events (StateEvents): Events related to the internal state of the agent.
+        control_events (ControlEvents): Events related to external commands.
 
     Methods:
         run: Main method to run the agent.
@@ -63,64 +67,50 @@ class BaseAgent(BaseClass[T], ABC):
             >>> custom_config = Config(value="new value")
         """
 
-    def __init__(self, name: str | None, config: T, stop_event, ready_event, close_event, make_setup, make_execution,
-                 **kwargs):
+    class StateEvents:
+        """
+        Events related to the internal state of the agent:
+
+        Attributes:
+            ready_event: Event to signal that the agent is ready to start the execution.
+            close_event: Event to signal that the agent has completed the execution.
+        """
+
+        def __init__(self, ready_event, close_event):
+            self.ready_event = ready_event
+            self.close_event = close_event
+
+    class ControlEvents:
+        """
+        Events related to external commands:
+
+        Attributes:
+            setup_event: Event to signal that the agent can make the setup.
+            execute_event: Event to signal that the agent can make the execution.
+            stop_event: Event to signal that the agent must stop.
+        """
+
+        def __init__(self, setup_event, execute_event, stop_event):
+            self.setup_event = setup_event
+            self.execute_event = execute_event
+            self.stop_event = stop_event
+
+    def __init__(self, name: str | None, config: T, a_type: str, control_events: ControlEvents,
+                 state_events: StateEvents, **kwargs):
+        """
+        BaseAgent constructor.
+
+        Args:
+            name: The agent name.
+            config: The agent configuration.
+            a_type: The agent type.
+            emit_setup: Event to signal that the agent can make the setup.
+            emit_execution: Event to signal that the agent can make the execution.
+        """
         super().__init__(name=name, config=config, **kwargs)
-        self._stop_event = stop_event
-        self._ready_event = ready_event
-        self._close_event = close_event
-        self._make_setup = make_setup
-        self._make_execution = make_execution
 
-    @property
-    def stop_event(self):
-        """
-        Event to request the external stop of the agent.
-
-        Returns:
-            threading.Event: The stop event.
-        """
-        return self._stop_event
-
-    @property
-    def ready_event(self):
-        """
-        Event to signal that the agent is ready to start. The event is set after the setup method is called.
-
-        Returns:
-            threading.Event: The ready event.
-        """
-        return self._ready_event
-
-    @property
-    def close_event(self):
-        """
-        Event to signal that the agent is ready to close. The event is set after the agent is stopped.
-
-        Returns:
-            threading.Event: The close event.
-        """
-        return self._close_event
-
-    @property
-    def make_setup(self):
-        """
-        Event to signal that the agent can make the setup. The event is set after the agent is started.
-
-        Returns:
-            threading.Event: The make setup event.
-        """
-        return self._make_setup
-
-    @property
-    def make_execution(self):
-        """
-        Event to signal that the agent can make the execution. The event is set after the agent is started.
-
-        Returns:
-            threading.Event: The make execution event.
-        """
-        return self._make_execution
+        self.state_events = state_events
+        self.control_events = control_events
 
     def validate_config(self):
         """
@@ -156,13 +146,13 @@ class BaseAgent(BaseClass[T], ABC):
 
             self.logger.info("Starting...")
 
-            self.ready_event.set()
+            self.state_events.ready_event.set()
 
             self.execute()
         except Exception as ex:
             self.logger.exception(f"[{self.name}] Errore durante l'esecuzione: {ex}")
         finally:
-            self.close_event.set()
+            self.state_events.close_event.set()
             elapsed = time.time() - self.start_time
             self.logger.info(f"execution completed in {elapsed:.3f} seconds.")
 
@@ -171,7 +161,7 @@ class BaseAgent(BaseClass[T], ABC):
         """
         Abstract method to be implemented in derived classes: Agent specific execution logic.
         """
-        self.make_execution.wait()
+        self.control_events.execute_event.wait()
 
     @final
     def stop(self):
@@ -182,7 +172,7 @@ class BaseAgent(BaseClass[T], ABC):
             Do not override this method. If you need to implement custom logic when the agent is stopped, you can
             override the `on_stop` method.
         """
-        self.stop_event.set()
+        self.control_events.stop_event.set()
 
     @abstractmethod
     def setup(self):
@@ -194,8 +184,12 @@ class BaseAgent(BaseClass[T], ABC):
 
         Notes:
             Here you can implement the setup logic. This method is called once before the agent `execute` method.
+
+            You can control this phase using the `setup_event` attribute of the `control_events` object.
+
+            When the setup is completed, the agent emits the `ready_event` event of the `state_events` object.
         """
-        self.make_setup.wait()
+        self.control_events.setup_event.wait()
 
     def on_stop(self):
         """
@@ -219,12 +213,6 @@ class ThreadAgent(BaseAgent[T], threading.Thread):
     This class is a base class for all agents that need to run in a separate thread. It provides a common interface for
     the agent's lifecycle management.
 
-    Notes:
-
-
-    Attributes:
-        stop_event (threading.Event): Event to request the external stop of the process.
-
     Methods:
         run: Override of the `run` method of threading.Thread: it calls the common logic `run_agent`.
         stop: Event set to request the external stop of the process.
@@ -232,10 +220,9 @@ class ThreadAgent(BaseAgent[T], threading.Thread):
         _info: Print the agent information.
     """
 
-    def __init__(self, config: T, name: str | None = None, ready_event=None, **kwargs):
+    def __init__(self, config: T, name: str | None = None, **kwargs):
         threading.Thread.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name, config=config, stop_event=threading.Event(), ready_event=ready_event,
-                           **kwargs)
+        BaseAgent.__init__(self, name=name, config=config, a_type="thread", **kwargs)
 
     @final
     def start(self):
@@ -256,7 +243,7 @@ class ThreadAgent(BaseAgent[T], threading.Thread):
         Abstract method to be implemented in derived classes: Agent execution logic.
         """
         super().execute()
-        self.ready_event.set()
+        # self.control_events.execute_event.set()
 
     def _info(self):
         super()._info()
@@ -270,10 +257,9 @@ class ProcessAgent(BaseAgent[T], multiprocessing.Process):
     the agent's lifecycle management.
     """
 
-    def __init__(self, config: T, name: str | None = None, ready_event=None, **kwargs):
+    def __init__(self, config: T, name: str | None = None, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name, config=config, stop_event=multiprocessing.Event(), ready_event=ready_event,
-                           **kwargs)
+        BaseAgent.__init__(self, name=name, config=config, a_type="process", **kwargs)
 
     @final
     def start(self):
@@ -294,7 +280,7 @@ class ProcessAgent(BaseAgent[T], multiprocessing.Process):
         Abstract method to be implemented in derived classes: Agent execution logic.
         """
         super().execute()
-        self.ready_event.set()
+        # self.events.ready_event.set()
 
     def _info(self):
         super()._info()

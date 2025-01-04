@@ -7,15 +7,6 @@ from dataclasses import dataclass, field
 from ..base import BaseAgent, ProcessAgent, ThreadAgent, BaseClass
 
 
-@dataclass
-class AgentEvents:
-    """Available events for an agent."""
-    ready_event: Any = None
-    close_event: Any = None
-    make_setup: Any = None
-    make_execution: Any = None
-
-
 class AgentEntry:
     """
     AgentEntry is a class that stores metadata and the instance of an agent.
@@ -26,10 +17,6 @@ class AgentEntry:
         config (Optional[BaseConfig]): Custom configuration for the agent.
         kwargs (Any): Additional keyword arguments for the agent.
         instance (BaseAgent): The agent instance.
-        ready_event (Any): Event to signal that the agent is ready to start.
-        close_event (Any): Event to signal that the agent is closing.
-        make_setup (Any): Event to signal that the agent can make the setup.
-        make_execution (Any): Event to signal that the agent can make the execution.
         _record_event_callback (Optional[Any]): Callback to record events.
 
     Methods:
@@ -44,9 +31,11 @@ class AgentEntry:
             self,
             agent_class: Type[ProcessAgent | ThreadAgent],
             name: str,
+            control_events: BaseAgent.ControlEvents,
+            state_events: BaseAgent.StateEvents,
             config: Optional[BaseClass.Config] = None,
             record_event_callback: Optional[Any] = None,
-            agent_events: Optional[AgentEvents] = None,
+
             **kwargs: Any
     ):
         self.agent_class = agent_class
@@ -56,13 +45,8 @@ class AgentEntry:
         self.instance: ProcessAgent | ThreadAgent | None = None
         self._record_event_callback = record_event_callback
 
-        if not agent_events:
-            agent_events = AgentEvents()
-
-        self.ready_event = agent_events.ready_event
-        self.close_event = agent_events.close_event
-        self.make_setup = agent_events.make_setup
-        self.make_execution = agent_events.make_execution
+        self.control_events = control_events
+        self.state_events = state_events
 
     def start(self) -> None:
         """
@@ -156,10 +140,8 @@ class AgentEntry:
         params: dict[str, Any] = dict()
         params["name"] = self.name
         params["config"] = self.config
-        params["ready_event"] = self.ready_event
-        params["close_event"] = self.close_event
-        params["make_setup"] = self.make_setup
-        params["make_execution"] = self.make_execution
+        params["control_events"] = self.control_events
+        params["state_events"] = self.state_events
         params.update(self.kwargs)
 
         return self.agent_class(**params)
@@ -281,18 +263,20 @@ class OMemory:
         else:
             raise ValueError("Unknown agent type.")
 
-        agent_events = AgentEvents(ready_event=event(), close_event=event(), make_setup=event(), make_execution=event())
+        control_events = agent_class.ControlEvents(setup_event=event(), execute_event=event(), stop_event=event())
+        state_events = agent_class.StateEvents(ready_event=event(), close_event=event())
 
         # default set to ready
-        agent_events.make_setup.set()
-        agent_events.make_execution.set()
+        control_events.setup_event.set()
+        control_events.execute_event.set()
 
         entry = AgentEntry(
             agent_class=agent_class,
             name=name,
+            control_events=control_events,
+            state_events=state_events,
             config=custom_config,
             record_event_callback=self._record_event,
-            agent_events=agent_events,
             **kwargs
         )
         self._agents[name] = entry
