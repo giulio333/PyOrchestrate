@@ -31,13 +31,13 @@ Valida la configurazione dell'Agent.
 Questo chiama il metodo `config.validate()` dove sarà possibile definire la logica di validazione della configurazione.
 La validazione della configurazione è facoltativa e può essere implementata nelle sottoclassi di `BaseConfig`.
 
-La validazione viene eseguita automaticamente all'avvio dell'Agent nel metodo `run_agent` subito dopo la configurazione
+La validazione viene eseguita automaticamente all'avvio dell'Agent nel metodo `run` subito dopo la configurazione
 del logger.
 
-#### run_agent()
+#### run()
 
 !!! Abstract "Code"
-    ::: PyOrchestrate.core.base.base_agent.BaseAgent.run_agent
+    ::: PyOrchestrate.core.base.base_agent.BaseAgent.run
         options:
             heading_level: 0
             

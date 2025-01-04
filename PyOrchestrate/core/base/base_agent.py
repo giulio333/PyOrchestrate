@@ -110,7 +110,9 @@ class BaseAgent(BaseClass[T], ABC):
         super().__init__(name=name, config=config, **kwargs)
 
         self.state_events = state_events
+        """Events related to the internal state of the agent."""
         self.control_events = control_events
+        """Events related to external commands."""
 
     def validate_config(self):
         """
