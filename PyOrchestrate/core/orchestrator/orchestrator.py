@@ -46,15 +46,6 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
         # Mappa agent -> lista di stringhe (nomi agent da cui dipende)
         self.dependencies: dict[str, list[str]] = defaultdict(list)
-        # Mappa agent -> ritardo di avvio (in secondi)
-        self.agent_schedules: dict[str, float] = defaultdict(float)
-
-        # Terrà i Timer avviati
-        self._timers: list[threading.Timer] = []
-        # Per tracciare quando (timestamp) un agent è stato effettivamente schedulato
-        self._start_times: dict[str, float] = {}
-        # Per semplificare: segna se un agente è partito
-        self._started_agents: set[str] = set()
 
     def register_agent(
             self,
@@ -83,7 +74,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             now = datetime.now().timestamp()
             start_delay = start_time.timestamp() - now
 
-        self.agent_schedules[name] = start_delay
+        return self.memory.get_agent(name)
 
     def add_dependency(self, agent_name: str, depends_on: list[str]):
         """
@@ -172,53 +163,23 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
         now = time.time()
         for ag in ordered_agents:
-            deps = self.dependencies[ag]
-            if deps:
-                earliest_dep_start = max(self._start_times.get(dep, now) for dep in deps)
-            else:
-                earliest_dep_start = now
-
-            desired_start = earliest_dep_start + self.agent_schedules[ag]
-            self._start_times[ag] = desired_start
-
-        for ag in ordered_agents:
-            agent_obj = self.memory.get_agent(ag)
-            desired_start = self._start_times[ag]
-            delay = desired_start - time.time()
-            if delay < 0:
-                delay = 0
-
-            self.logger.info(f"Schedulo l'avvio di '{ag}' tra {delay:.2f} secondi.")
-            t = threading.Timer(delay, self._start_agent_callback, args=[ag])
-            t.start()
-            self._timers.append(t)
+            self._start_agent_callback(ag)
 
     def _start_agent_callback(self, agent_name: str):
         """
         Callback to start the agent.
         """
-        if agent_name in self._started_agents:
-            return
-
         agent: AgentEntry = self.memory.get_agent(agent_name)
 
-        self.logger.info(f"Starting agent {agent_name}... (delay={self.agent_schedules[agent_name]}s)")
+        self.logger.info(f"Starting agent {agent_name}...")
         agent.start()
         self.event_manager.emit(OrchestratorEvent.AGENT_STARTED.value, agent_name=agent.name)
-
-        self._started_agents.add(agent_name)
 
     def stop(self):
         """Terminates all registered agents."""
         for agent in self.memory.agents:
             agent.stop()
             self.logger.info(f"Stopping agent '{agent.name}'.")
-
-        # Se ci sono Timer ancora non scattati, li cancelliamo
-        for t in self._timers:
-            if t.is_alive():
-                t.cancel()
-        self._timers.clear()
 
     def join(self) -> None:
         """
