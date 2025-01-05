@@ -1,0 +1,9 @@
+services:
+  code-in-mind:
+    container_name: code-in-mind
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run docs:dev
+    ports:
+      - "8080:7891"

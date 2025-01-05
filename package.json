@@ -1,0 +1,13 @@
+{
+  "devDependencies": {
+    "markdown-it-mathjax3": "^4.3.2",
+    "mermaid": "^10.9.1",
+    "vitepress": "^1.5.0",
+    "vitepress-plugin-mermaid": "^2.0.16"
+  },
+  "scripts": {
+    "docs:dev": "vitepress dev docs --port 7891 --host 0.0.0.0",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  }
+}
