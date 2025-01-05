@@ -11,10 +11,10 @@ architecture, providing advanced features for dependency management, lifecycle c
 
 ## Registering Agents
 
-One of the first steps in using the Orchestrator is registering agents.
+One of the first steps in using the **Orchestrator** is **registering agents**.
 
-When an agent is registered with `register_agent` a new `AgentEntry` object is created and stored in memory. This object
-contains all the metadata and configuration required to create and manage the agent during execution.
+What does it mean to register an agent? You are telling the Orchestrator to create a new agent instance from a specific
+class.
 
 ```python
 from PyOrchestrate.core.orchestrator import Orchestrator
@@ -22,44 +22,53 @@ from PyOrchestrate.core.orchestrator.memory import AgentEntry
 from models import MyAgent
 
 orchestrator = Orchestrator("MyOrchestrator")
-fw_agent: AgentEntry = orchestrator.register_agent(MyAgent, "MyAgent")
+fw_agent1: AgentEntry = orchestrator.register_agent(MyAgent, "MyAgent1")
+fw_agent2: AgentEntry = orchestrator.register_agent(MyAgent, "MyAgent2")
+fw_agent3: AgentEntry = orchestrator.register_agent(MyAgent, "MyAgent3")
 ``` 
 
-The simplest way to register an agent is to provide the agent class and a unique name. The `register_agent` method 
-returns the `AgentEntry` object just created.
+So you can create many agents from the same class and give them a unique name. All these agents will be the same, but
+each one will have its own lifecycle and state.
 
-!!! tip
-    When a new agent is registered, its instance is not created immediately. Instead, an `AgentEntry` object is stored 
-    in memory with all the metadata and configuration required to create the agent later. This approach ensures that:
+!!! tip "Agent and AgentEntry"
+    In the above example you can see that the `register_agent` method returns an `AgentEntry` object instead of the
+    agent **instance**.
     
-    1. **Thread Agents Are Created in the Correct Context**: For thread-based agents, the instance is created directly 
-        in the process that will execute it, avoiding the need to pass thread-agent instances between processes, which
-        can lead to pickling issues.
-    
-    2. **Optimized Resource Management**: Resources are only allocated when the agent is started, preventing unnecessary 
-        overhead for agents that may not be executed.
+    This object contains all the metadata and configuration required to create and manage the agent during execution.
+    An important data stored in the `AgentEntry` is the agent's **instance**.
+
+What if you want to create multiple agents from the same class but with different configurations?
         
-    See [Starting Agents](#starting-agents) for more details on agent creation.
-        
-More in depth, this method allows to pass a custom configuration object to the agent. This object can be used to
-customize the agent's behavior.
+This method allows to pass a custom configuration object to the agent during registration.
+
+```python
+from PyOrchestrate.core.orchestrator import Orchestrator
+from models import MyAgent # type: ignore
+
+orchestrator = Orchestrator("MyOrchestrator")
+custom_config2 = MyAgent.Config(execution_interval=2)
+custom_config3 = MyAgent.Config(execution_interval=3)
+
+orchestrator.register_agent(MyAgent, "MyAgent1")
+orchestrator.register_agent(MyAgent, "MyAgent2", custom_config=custom_config2)
+orchestrator.register_agent(MyAgent, "MyAgent3", custom_config=custom_config3)
+```
 
 If not specified, all agents made from the same class will share the same configuration object. If a different
 configuration is needed, it can be passed as a parameter to the `register_agent` method.
 
-```python
-from PyOrchestrate.core.orchestrator import Orchestrator
-from models import MyAgent
+``` mermaid
+sequenceDiagram
+    participant User
+    participant Orchestrator
+    participant OMemory
 
-orchestrator = Orchestrator("MyOrchestrator")
-custom_config = MyAgent.Config(execution_interval=2)
-
-orchestrator.register_agent(MyAgent, "MyAgent1")
-orchestrator.register_agent(MyAgent, "MyAgent2", custom_config=custom_config)
+    User->>Orchestrator: register_agent(class, name, config)
+    Orchestrator->>OMemory: add_agent(class, name, config)
+    OMemory-->>OMemory: initialize_agent()
+    OMemory-->>Orchestrator: Return AgentEntry
+    Orchestrator-->>User: Return AgentEntr
 ```
-
-In this example, `MyAgent1` will use the default configuration of `MyAgent.Confi`, while `MyAgent2` will use the custom.
-
 
         
 ??? Abstract "See More"
