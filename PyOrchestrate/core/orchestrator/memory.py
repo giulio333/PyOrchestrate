@@ -11,13 +11,29 @@ class AgentEntry:
     """
     AgentEntry is a class that stores metadata and the instance of an agent.
 
+    Notes:
+        You can access state and control events to manage the agent's lifecycle.
+
+    Examples:
+        >>> from PyOrchestrate.core.orchestrator import Orchestrator
+        >>> from models import FileWriter
+        >>>
+        >>> orchestrator = Orchestrator("CoolOrchestrator")
+        >>> fw_agent: AgentEntry = orchestrator.register_agent(FileWriter, "FileWriter")
+        >>> orchestrator.start()
+        >>> fw_agent.state_events.ready_event.wait()
+        >>> print("agent is now ready")
+
+
     Attributes:
         agent_class (Type[BaseAgent]): The class of the agent.
         name (str): The name of the agent.
+        control_events (BaseAgent.ControlEvents): Control events for the agent.
+        state_events (BaseAgent.StateEvents): State events for the agent.
         config (Optional[BaseConfig]): Custom configuration for the agent.
+        _record_event_callback (Optional[Any]): Callback to record events.
         kwargs (Any): Additional keyword arguments for the agent.
         instance (BaseAgent): The agent instance.
-        _record_event_callback (Optional[Any]): Callback to record events.
 
     Methods:
         start: Start the agent instance.
@@ -54,8 +70,7 @@ class AgentEntry:
         Notes:
             The agent instance is created if it does not already exist.
         """
-
-        self.instance = self._create_instance()
+        assert self.instance is not None, "Agent instance not initialized yet."
         self.instance.start()
         self._record_event("start")
 
@@ -81,7 +96,7 @@ class AgentEntry:
         """
         self.stop()
         self.join()
-        self.instance = self._create_instance()
+        # self.instance = self._create_instance()
         self.start()
 
     def is_alive(self) -> bool:
@@ -126,7 +141,7 @@ class AgentEntry:
 
         return f"{self.instance.name} -> alive: {alive} daemon: {daemon} ident: {ident} pid: {pid}"
 
-    def _create_instance(self) -> ProcessAgent | ThreadAgent:
+    def initialize_agent(self) -> None:
         """
         Create agent instance.
 
@@ -134,7 +149,7 @@ class AgentEntry:
             If custom agent configuration is not provided, the default configuration will be used (agent_class.Config).
 
         Returns:
-            ProcessAgent | ThreadAgent: The agent instance.
+            None
         """
         if self.config is None:
             self.config = self.agent_class.Config()
@@ -146,7 +161,7 @@ class AgentEntry:
         params["state_events"] = self.state_events
         params.update(self.kwargs)
 
-        return self.agent_class(**params)
+        self.instance = self.agent_class(**params)
 
     def _record_event(self, event_type: str) -> None:
         """
@@ -247,8 +262,6 @@ class OMemory:
         Data will be stored as an `AgentEntry` object, which contains metadata and the agent instance.
 
         Notes:
-            Agent instances are not created until the agent is started.
-
             Every agent has a set of events that can be used to control its lifecycle. By default, all events are set to
             ready.
 
@@ -286,6 +299,8 @@ class OMemory:
         )
         self._agents[name] = entry
         self._agent_stats[name] = []
+
+        entry.initialize_agent()
 
         return entry
 

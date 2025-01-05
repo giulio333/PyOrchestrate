@@ -71,7 +71,6 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
         agent_entry = self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config, **kwargs)
         self.logger.debug(f"Agent '{name}' registered.")
-
         return agent_entry
 
     def add_dependency(self, agent_name: str, depends_on: list[str]):
