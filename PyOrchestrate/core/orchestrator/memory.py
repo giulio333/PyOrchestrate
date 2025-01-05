@@ -2,7 +2,6 @@ import datetime
 import multiprocessing
 import threading
 from typing import Dict, List, Optional, Type, Any
-from dataclasses import dataclass, field
 
 from ..base import BaseAgent, ProcessAgent, ThreadAgent, BaseClass
 
@@ -16,7 +15,7 @@ class AgentEntry:
 
     Examples:
         >>> from PyOrchestrate.core.orchestrator import Orchestrator
-        >>> from models import FileWriter
+        >>> from models import FileWriter # type: ignore
         >>>
         >>> orchestrator = Orchestrator("CoolOrchestrator")
         >>> fw_agent: AgentEntry = orchestrator.register_agent(FileWriter, "FileWriter")
@@ -259,7 +258,8 @@ class OMemory:
         """
         Store an agent in the orchestrator memory.
 
-        Data will be stored as an `AgentEntry` object, which contains metadata and the agent instance.
+        Data will be stored as an `AgentEntry` object, which contains metadata and the agent instance. The agent will be
+        initialized and its control events will be set to ready by default.
 
         Notes:
             Every agent has a set of events that can be used to control its lifecycle. By default, all events are set to
