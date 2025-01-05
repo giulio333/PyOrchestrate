@@ -35,7 +35,6 @@ class AgentEntry:
             state_events: BaseAgent.StateEvents,
             config: Optional[BaseClass.Config] = None,
             record_event_callback: Optional[Any] = None,
-
             **kwargs: Any
     ):
         self.agent_class = agent_class
@@ -50,7 +49,10 @@ class AgentEntry:
 
     def start(self) -> None:
         """
-        Start the agent instance, if supported.
+        Start the agent instance.
+
+        Notes:
+            The agent instance is created if it does not already exist.
         """
 
         self.instance = self._create_instance()
@@ -238,7 +240,7 @@ class OMemory:
             name: str,
             custom_config: Optional[BaseClass.Config] = None,
             **kwargs: Any
-    ) -> None:
+    ) -> AgentEntry:
         """
         Store an agent in the orchestrator memory.
 
@@ -254,6 +256,9 @@ class OMemory:
             agent_class (Type[BaseAgent]): The class of the agent to store.
             name (str): The name of the agent.
             custom_config (Optional[BaseConfig], optional): Custom configuration for the agent. Defaults to None.
+
+        Returns:
+            AgentEntry: The `AgentEntry` object corresponding to the stored agent.
         """
 
         if issubclass(agent_class, ProcessAgent):
@@ -281,6 +286,8 @@ class OMemory:
         )
         self._agents[name] = entry
         self._agent_stats[name] = []
+
+        return entry
 
     def create_group(self, group_name: str) -> None:
         """
