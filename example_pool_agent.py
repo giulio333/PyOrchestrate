@@ -1,3 +1,5 @@
+import time
+
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.orchestrator.memory import AgentEntry
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
@@ -8,8 +10,8 @@ from PyOrchestrate.core.base.utilities import LoggerConfig
 
 class MyThread(PeriodicAgent, ThreadAgent):
     class Config(PeriodicAgent.Config):
-        def __init__(self, limit: int = 5, **kwargs):
-            super().__init__(limit=limit, execution_interval=.2, **kwargs)
+        limit = 5
+        execution_interval = .2
 
     def runner(self):
         self.logger.debug(f"Thread {self.name} running")
@@ -17,7 +19,7 @@ class MyThread(PeriodicAgent, ThreadAgent):
 
 class FileWriter(PoolAgent["FileWriter.Config"], ProcessAgent["FileWriter.Config"]):
     class Config(PoolAgent.Config):
-        agents_entry = [AgentEntry(MyThread, "DefaultThread")]
+        agents_entry = [AgentEntry(MyThread, "DefaultThread", control_events=None, state_events=None)]
         auto_reboot = True
 
     def setup(self):
@@ -36,12 +38,12 @@ if __name__ == "__main__":
     orchestrator = Orchestrator("Orchestrator")
 
     # Esempio 1: uso della config di default (senza passare agent_entry)
-    orchestrator.register_agent(FileWriter, "FileWriter_Default")
+    a = orchestrator.register_agent(FileWriter, "FileWriter_Default")
 
     # Esempio 2: config custom con agent personalizzati
     fw2_config = FileWriter.Config(
         agents_entry=[
-            AgentEntry(MyThread, "ThreadCustom1"),
+            AgentEntry(MyThread, "ThreadCustom1", control_events=None, state_events=None),
         ], auto_reboot=False
     )
     orchestrator.register_agent(FileWriter, "FileWriter_Custom", custom_config=fw2_config)
