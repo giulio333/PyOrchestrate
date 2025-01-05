@@ -1,6 +1,6 @@
 services:
-  code-in-mind:
-    container_name: code-in-mind
+  PyOrchestrate-Documentation:
+    container_name: PyOrchestrate-Documentation
     build:
       context: .
       dockerfile: Dockerfile

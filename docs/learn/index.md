@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: "Math & Engineering"
+  name: "Learn"
   image:
     light: /eng_l.png
     dark: /eng_d.png

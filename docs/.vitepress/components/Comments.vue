@@ -9,7 +9,7 @@ const { title } = useData()
     <component
       :is="'script'"
       src="https://giscus.app/client.js"
-      data-repo="giulio333/CodeInMind"
+      data-repo="giulio333/PyOrchestrateDocumentation"
       data-repo-id="R_kgDOMuiTjw"
       data-category="General"
       data-category-id="DIC_kwDOMuiTj84Ciex5"

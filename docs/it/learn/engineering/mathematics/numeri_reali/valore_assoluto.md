@@ -1,2 +1,0 @@
-# Valore Assoluto
-

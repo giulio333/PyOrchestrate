@@ -1,17 +1,16 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid';
-import { itConfig } from './config/it';
 import { enConfig } from './config/en';
 
 // https://vitepress.dev/reference/site-config
 export default withMermaid({
-  base: '/CodeInMind/',
-  title: "Code In Mind",
-  description: "Code In Mind",
+  base: '/PyOrchestrate/',
+  title: "PyOrchestrate Documentation",
+  description: "PyOrchestrate Documentation",
   lastUpdated: true,
   head: [
     ['link', 
-      { rel: 'icon', href: '/CodeInMind/favicon.ico' }
+      { rel: 'icon', href: '/PyOrchestrateDocumentation/favicon.ico' }
     ]
   ],
   markdown: {
@@ -22,7 +21,6 @@ export default withMermaid({
   },
   locales: {
     root: enConfig,
-    it: itConfig
   },
   themeConfig: {
     logo: '/logo.png',
@@ -37,15 +35,16 @@ export default withMermaid({
     editLink: {
       pattern: ({ filePath }) => {
         if (filePath.startsWith('packages/')) {
-          return `https://github.com/giulio333/CodeInMind/edit/main/${filePath}`
+          return `https://github.com/giulio333/PyOrchestrateDocumentation
+/edit/main/${filePath}`
         } else {
-          return `https://github.com/giulio333/CodeInMind/edit/main/docs/${filePath}`
+          return `https://github.com/giulio333/PyOrchestrateDocumentation/edit/main/docs/${filePath}`
         }
       }
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/giulio333/CodeInMind' }
+      { icon: 'github', link: 'https://github.com/giulio333/PyOrchestrateDocumentation' }
     ]
   },
   mermaid: {
