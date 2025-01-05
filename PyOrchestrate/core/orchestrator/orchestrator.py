@@ -1,7 +1,5 @@
 import time
-import threading
 from collections import defaultdict, deque
-from datetime import datetime
 
 from .memory import OMemory, AgentEntry
 from PyOrchestrate.core.utilities.event_manager import EventManager
@@ -19,7 +17,6 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         memory (OMemory): Memory to store the agents.
         event_manager (EventManager): Manages events among agents.
         dependencies (dict[str, list[str]]): Dependencies among agents.
-        agent_schedules (dict[str, float]): Mappa ogni agente a un ritardo (in secondi).
     """
 
     class Config(BaseClass.Config):
@@ -44,7 +41,6 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         self.memory = OMemory()
         self.event_manager = EventManager()
 
-        # Mappa agent -> lista di stringhe (nomi agent da cui dipende)
         self.dependencies: dict[str, list[str]] = defaultdict(list)
 
     def register_agent(
@@ -52,29 +48,31 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             agent_class: type[ProcessAgent | ThreadAgent],
             name: str,
             custom_config: BaseClass.Config | None = None,
-            start_delay: float = 0.0,
-            start_time: datetime | None = None,
             **kwargs,
-    ):
+    ) -> AgentEntry:
         """
         Register an agent on the orchestrator.
+
+        Notes:
+            After registering the agent, you can call the `start` method to start all agents.
+
+        Warnings:
+            agent_name must be unique.
 
         Args:
             agent_class: Class of the agent to register.
             name: Name of the agent.
             custom_config: Custom configuration for the agent.
-            start_delay: Ritardo (in secondi) prima di avviare l'agente.
-            start_time: Orario di avvio dell'agente.
+            kwargs: Additional arguments for the agent.
+
+        Returns:
+            AgentEntry: The agent entry object stored in the memory.
         """
 
-        self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config, **kwargs)
-        self.logger.info(f"Agent '{name}' registrato con start_delay={start_delay}.")
+        agent_entry = self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config, **kwargs)
+        self.logger.debug(f"Agent '{name}' registered.")
 
-        if start_time:
-            now = datetime.now().timestamp()
-            start_delay = start_time.timestamp() - now
-
-        return self.memory.get_agent(name)
+        return agent_entry
 
     def add_dependency(self, agent_name: str, depends_on: list[str]):
         """
@@ -155,19 +153,26 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
     def start(self):
         """
-        Start all registered agents.
+        Start all registered agents in the topological order of their dependencies.
+
+        Notes:
+            Before starting the agents, it validates the dependencies among agents.
+            After starting the agents, it emits an `OrchestratorEvent.AGENT_STARTED` event for each agent. Only at this
+            point will be created the agent instances.
         """
         self.validate_dependencies()
 
         ordered_agents = self._topological_sort_agents()
 
-        now = time.time()
         for ag in ordered_agents:
             self._start_agent_callback(ag)
 
     def _start_agent_callback(self, agent_name: str):
         """
         Callback to start the agent.
+
+        Notes:
+            This method is used to start the agent and emit an `OrchestratorEvent.AGENT_STARTED` event for the agent.
         """
         agent: AgentEntry = self.memory.get_agent(agent_name)
 

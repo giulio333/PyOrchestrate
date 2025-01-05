@@ -69,7 +69,7 @@ class BaseAgent(BaseClass[T], ABC):
 
     class StateEvents:
         """
-        Events related to the internal state of the agent:
+        Events related to the internal state of the agent.
 
         Attributes:
             ready_event: Event to signal that the agent is ready to start the execution.
@@ -82,7 +82,7 @@ class BaseAgent(BaseClass[T], ABC):
 
     class ControlEvents:
         """
-        Events related to external commands:
+        Events related to external commands.
 
         Attributes:
             setup_event: Event to signal that the agent can make the setup.
