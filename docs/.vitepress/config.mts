@@ -5,7 +5,7 @@ import { enConfig } from './config/en';
 // https://vitepress.dev/reference/site-config
 export default withMermaid({
   base: '/PyOrchestrateDocumentation/',
-  title: "PyOrchestrate Documentation",
+  title: "PyOrchestrate",
   description: "PyOrchestrate Documentation",
   lastUpdated: true,
   head: [
