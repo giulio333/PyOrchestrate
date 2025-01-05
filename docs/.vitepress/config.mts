@@ -4,7 +4,7 @@ import { enConfig } from './config/en';
 
 // https://vitepress.dev/reference/site-config
 export default withMermaid({
-  base: '/PyOrchestrate/',
+  base: '/PyOrchestrateDocumentation/',
   title: "PyOrchestrate Documentation",
   description: "PyOrchestrate Documentation",
   lastUpdated: true,
@@ -35,8 +35,7 @@ export default withMermaid({
     editLink: {
       pattern: ({ filePath }) => {
         if (filePath.startsWith('packages/')) {
-          return `https://github.com/giulio333/PyOrchestrateDocumentation
-/edit/main/${filePath}`
+          return `https://github.com/giulio333/PyOrchestrateDocumentation/edit/main/${filePath}`
         } else {
           return `https://github.com/giulio333/PyOrchestrateDocumentation/edit/main/docs/${filePath}`
         }
