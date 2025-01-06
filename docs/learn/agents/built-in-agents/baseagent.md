@@ -103,7 +103,7 @@ To implement custom logic during the agent’s shutdown, override the on_stop me
 
 The `BaseAgent` class is a subclass of `BaseClass`.
 
-Click [here]() to learn more about.
+Click here to learn more about.
 
 ## Advanced Usage
 
