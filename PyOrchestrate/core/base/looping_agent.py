@@ -49,6 +49,10 @@ class LoopingAgent(BaseAgent[T]):
         Execute the agent cycle method in a loop.
 
         If the limit is set, the loop will stop after reaching that, otherwise it will run indefinitely.
+
+        Warnings:
+            Do not override this method. If you need to implement custom logic when the agent is started, you can
+            override the `setup` and `cycle` methods.
         """
         super().execute()
 
@@ -86,7 +90,12 @@ class LoopingAgent(BaseAgent[T]):
 
     @abstractmethod
     def cycle(self):
-        """Define the agent's cycle logic to be executed in each iteration of the loop."""
+        """
+        Define the agent's cycle logic to be executed in each iteration of the loop.
+
+        Notes:
+
+        """
 
     def setup(self):
         super().setup()
