@@ -92,8 +92,7 @@ class PeriodicAgent(LoopingAgent[T]):
     @abstractmethod
     def runner(self):
         """
-        Here you have to implement the logic to be executed
-        periodically.
+        Here you have to implement the logic to be executed periodically.
         """
         pass
 

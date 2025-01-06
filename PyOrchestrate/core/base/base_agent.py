@@ -13,6 +13,16 @@ from .base import BaseClass
 T = TypeVar("T", bound="BaseClass.Config")
 
 
+class ValidationError(Exception):
+    """
+    Exception raised for errors in the configuration validation.
+    """
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+
 class BaseAgent(BaseClass[T], ABC):
     """
     Abstract base class for all agents.
@@ -118,7 +128,13 @@ class BaseAgent(BaseClass[T], ABC):
         """
         Validate the configuration.
         """
-        self.config.validate()
+
+        try:
+            self.config.validate()
+        except Exception as ex:
+            self.logger.error(f"Configuration validation failed: {ex}")
+            raise ValidationError(str(ex))
+
         self.logger.debug(f"Self configuration validated.")
 
     @final
@@ -133,7 +149,6 @@ class BaseAgent(BaseClass[T], ABC):
         Notes:
             This method is called by the `run` method of the derived classes. So it can be considered the entry point
             for the agent execution.
-
         """
         self.start_time = time.time()
 
@@ -158,10 +173,12 @@ class BaseAgent(BaseClass[T], ABC):
             elapsed = time.time() - self.start_time
             self.logger.info(f"execution completed in {elapsed:.3f} seconds.")
 
-    @abstractmethod
     def execute(self):
         """
-        Abstract method to be implemented in derived classes: Agent specific execution logic.
+        Method called to execute the agent logic.
+
+        Warnings:
+            Make sure to call the parent method if you override it.
         """
         self.control_events.execute_event.wait()
 
@@ -176,9 +193,10 @@ class BaseAgent(BaseClass[T], ABC):
         """
         self.control_events.stop_event.set()
 
-    @abstractmethod
     def setup(self):
         """
+        @templatemethod
+
         Method called when the agent is started to perform the setup.
 
         Warnings:
@@ -187,9 +205,9 @@ class BaseAgent(BaseClass[T], ABC):
         Notes:
             Here you can implement the setup logic. This method is called once before the agent `execute` method.
 
-            You can control this phase using the `setup_event` attribute of the `control_events` object.
+            You can control this phase using the `control_events.setup_event` event.
 
-            When the setup is completed, the agent emits the `ready_event` event of the `state_events` object.
+            When the setup is completed, the agent emits the `state_events.ready_event` event.
         """
         self.control_events.setup_event.wait()
 

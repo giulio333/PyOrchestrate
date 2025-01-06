@@ -1,5 +1,3 @@
-from time import sleep
-
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
 from PyOrchestrate.core.base.base_agent import ProcessAgent
@@ -7,11 +5,10 @@ from PyOrchestrate.core.orchestrator.memory import AgentEntry
 
 
 class FileWriter(PeriodicAgent["FileWriter.Config"], ProcessAgent["FileWriter.Config"]):
-    """Agent Class that writes to a file periodically."""
+    """Agent Class that logs a message periodically."""
 
     class Config(PeriodicAgent.Config):
         """Agent Configuration class."""
-
         limit = 5
         execution_interval = 1
         output_directory = "output"
@@ -22,7 +19,6 @@ class FileWriter(PeriodicAgent["FileWriter.Config"], ProcessAgent["FileWriter.Co
         """
         super().setup()
         self.logger.info(f"FileWriter {self.name} initialized. pid={self.pid}")
-        sleep(4)
 
     def runner(self):
         """
@@ -36,7 +32,6 @@ class FileReader(PeriodicAgent["FileReader.Config"], ProcessAgent["FileReader.Co
 
     class Config(PeriodicAgent.Config):
         """Agent Configuration class."""
-
         limit = 5
         execution_interval = 1
         input_directory = "input"
