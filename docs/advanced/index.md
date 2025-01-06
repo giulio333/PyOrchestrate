@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: "Learn"
+  name: "Advanced"
   image:
     light: /eng_l.png
     dark: /eng_d.png
@@ -17,7 +17,7 @@ features:
       light: /mathematics.png
       dark: /mathematics.png
     title: Agents
-    link: ./agents
+    link: ./built-in-agents
   - icon: 
       light: /physics.png
       dark: /physics.png

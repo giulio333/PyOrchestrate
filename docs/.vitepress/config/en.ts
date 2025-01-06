@@ -23,6 +23,7 @@ export const enConfig = {
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Learn', link: '/learn/' },
+      { text: 'Advanced', link: '/advanced/' },
     ],
     sidebar: {
       '/learn/agents': [
@@ -46,7 +47,21 @@ export const enConfig = {
           ]
         }
       ],
-      
+      '/advanced/built-in-agents': [
+        {
+          text: 'Advanced Agents',
+          items: [
+            {
+              text: 'Built-in Agents',
+              collapsed: true,
+              items: [
+                { text: 'BaseAgent', link: '/advanced/built-in-agents/baseagent' },
+                { text: 'LoopingAgent', link: '/advanced/built-in-agents/loopingagent' },
+              ]
+            }
+          ]
+        }
+      ],
     },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/giulio333/PyOrchestrateDocumentation' }

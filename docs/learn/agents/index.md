@@ -5,27 +5,229 @@ editLink: true
 
 # Agents
 
-In PyOrchestrate, **agents** are the core building blocks. 
+In PyOrchestrate, **agents** are the fundamental components, running as **processes** or **threads**.
 
-Each agent runs as a **process** or a **thread** and acts as a container for your custom logic. Whether you need continuous execution, periodic tasks, or one-shot operations, agents are designed to fit a variety of scenarios and adapt to your workflows.
+The framework provides a range of [built-in agents](./built-in-agents/baseagent.md) designed as extensible templates, allowing you to implement your own custom logic while leveraging their predefined structure and behavior.
 
-Before diving into the **built-in agents**, let’s take a moment to understand some core concepts that define how agents work in PyOrchestrate.
+All you need to do is choose the agent that best fits your requirements and inherit from it to create your own custom agent.
+
+Here’s an example of a custom agent that inherits from `PeriodicAgent` and `ProcessAgent`.
+
+```python
+class MyAgent(PeriodicAgent, ProcessAgent):
+    """Agent Class that logs a message periodically."""
+
+    class Config(PeriodicAgent.Config):
+        """Agent Configuration class."""
+        limit = 5
+        execution_interval = 1
+        output_directory = "output"
+
+    def setup(self):
+        """
+        Setup method for the agent.
+        """
+        super().setup()
+        self.logger.info(f"FileWriter {self.name} initialized. pid={self.pid}")
+
+    def runner(self):
+        """
+        Runner method for the agent.
+        """
+        self.logger.info("Doing some work")
+```
+
+[[toc]]
+
+## Overview
+
+Agents in PyOrchestrate are the core building blocks of the framework. You can think of an agent as a **container** for your custom logic, encapsulating how it runs, what it does, and how it interacts with other agents.
+
+Click [here](./built-in-agents/baseagent.md) to view some examples of agents that might be useful to understand the concept.
+
+### Agent Behavior
+
+Agents are designed to handle a variety of use cases, such as:
+
+-   **Run once**: Perform a single operation.
+-   **Loop indefinitely**: Continuously execute logic.
+-   **Trigger-based**: React to specific events.
+-   **Acting as a pool**: Manage multiple concurrent agents.
+
+### Execution Modes
+
+Every agent runs as either a **process** or a **thread**, providing flexibility to meet different architectural needs.
+
+### Configuration and Events
+
+Each agent comes with:
+
+-   A **dedicated configuration object**, enabling you to define both required and custom attributes.
+-   A set of **events**:
+    -   **ControlEvents**: Manage external commands like `setup` and `stop`.
+    -   **StateEvents**: Track internal states such as `ready` or `terminated`.
+
+### Why Use Agents?
+
+Agents save you from reinventing the wheel by offering ready-made solutions for common architectural challenges, such as managing threads/processes, synchronizing events, and handling errors.
+
+Before exploring the **built-in agents**, let’s review the core principles that underpin how agents operate.
+
+## Configuration
+
+Every agent has a set of **parameters** that define its own data. These parameters are stored in a `Config` object.
+
+The `Config` class is used by the agent to **create a configuration object for itself**. 
+
+It serves three main purposes:
+
+| Purpose       | Description |
+| ------------- |  :---- |
+| built-in attributes | can be customized by users to control the agent’s behavior. |
+| user-defined attributes | provides a flexible space for users to add custom attributes. |
+| attributes validation | provides a validate method that can be overridden to implement custom validation logic. |
+
+::: tip
+In every agent, `Config` class inherits from respective parent agent's `Config` class. This allows you to customize the agent's configuration while retaining the parent agent's configuration.
+
+For example `MyAgent` class define its own configuration class via parent agent's `Config` class.
+
+```python
+class MyAgent(PeriodicAgent, ProcessAgent):
+    """Agent Class that logs a message periodically."""
+
+    class Config(PeriodicAgent.Config): # [!code focus]
+        """Agent Configuration class."""
+        limit = 5
+        execution_interval = 1
+        output_directory = "output"
+```
+:::
+
+::: tip
+Every **built-in agent** has its own `Config` class. You can learn more about available options in the [built-in agents](./built-in-agents/baseagent.md) section.
+:::
+
+## **StateEvents**
+
+Every agent has a set of **events** that signal its internal state. These events are stored in a `StateEvents` object and allow external components to **understand the agent's current state**.
+
+The `StateEvents` class is used by the agent to **define its own state events**.
+
+Some of the **built-in** state events are:
+
+| State       | Description |
+| ------------- |  :---- |
+| `ready_event` | Event to signal that the agent is ready to start the execution. |
+| `close_event` | Event to signal that the agent has completed the execution. |
+
+::: tip 
+In every agent, the `StateEvents` class inherits from the respective parent agent's `StateEvents` class. This allows you to customize the agent's state events while retaining the built-in ones.
+
+In our example, we didn't define any custom state events. We will discuss customizing these in more advanced topics.
+:::
+
+## **ControlEvents**
+
+Every agent has a set of **events** that are used to send commands to the agent. These events are stored in a `StateEvents` object and allow external systems to **control the agent’s behavior**.
+
+The `ControlEvents` class is used by the agent to **define its own control events**.
+
+Some of the **built-in** control events are:
+
+| State       | Description |
+| ------------- |  :---- |
+| `setup_event` | Event to signal that the agent can be set up. |
+| `execute_event` | Event to signal that the agent can execute its logic. |
+| `stop_event` | Event to signal that the agent must stop. |
+
+::: tip 
+In every agent, the `ControlEvents` class inherits from the respective parent agent's `ControlEvents` class. This allows you to customize the agent's control events while retaining the built-in ones.
+
+In our example, we didn't define any custom control events. We will discuss customizing these in more advanced topics.
+:::
+
+## Extend and Customize
+
+Every agent provides `@abstractmethod` that you need to override to define the agent’s behavior. These methods are where you implement the logic that makes your agent unique.
+
+::: tip
+In the example we made before, we are inheriting from `PeriodicAgent`. 
+
+This means we must override the `runner` method, which is an `@abstractmethod`, as mentioned in the [PeriodicAgent]() documentation.
+
+```python
+class MyAgent(PeriodicAgent, ProcessAgent):
+    """Agent Class that logs a message periodically."""
+
+    class Config(PeriodicAgent.Config):
+        """Agent Configuration class."""
+        limit = 5
+        execution_interval = 1
+        output_directory = "output"
+
+    def setup(self):
+        """
+        Setup method for the agent.
+        """
+        super().setup()
+        self.logger.info(f"FileWriter {self.name} initialized. pid={self.pid}")
+
+    def runner(self): # [!code focus]
+        """ # [!code focus]
+        Runner method for the agent. # [!code focus]
+        """ # [!code focus]
+        self.logger.info("Doing some work") # [!code focus]
+```
+:::
+
+Other methods are **optional** and can be overridden to customize the agent’s behavior further. They will be marked as `@templatemethod` in the agent’s documentation.
+
+::: tip
+In the example we made before, we are inheriting from `PeriodicAgent`. 
+
+This means we can override the `setup` method, which is a `@templatemethod`, ensuring we call `super().setup()` at the beginning, as mentioned in the [PeriodicAgent]() documentation.
+
+```python
+class MyAgent(PeriodicAgent, ProcessAgent):
+    """Agent Class that logs a message periodically."""
+
+    class Config(PeriodicAgent.Config):
+        """Agent Configuration class."""
+        limit = 5
+        execution_interval = 1
+        output_directory = "output"
+
+    def setup(self): # [!code focus]
+        """ # [!code focus]
+        Setup method for the agent. # [!code focus]
+        """ # [!code focus]
+        super().setup() # [!code focus]
+        self.logger.info(f"FileWriter {self.name} initialized. pid={self.pid}") # [!code focus]
+
+    def runner(self):
+        """
+        Runner method for the agent.
+        """
+        self.logger.info("Doing some work")
+```
+:::
+
+You can also **add new methods** to extend the agent’s capabilities.
+
+This structure gives you the freedom to build highly tailored solutions while leveraging the framework’s core capabilities.
 
 ## Dual Inheritance: Behavior and Execution Mode
 
 Agents in PyOrchestrate are defined by their **behavior** and their **execution mode**. 
 
-The behavior is determined by a group of hierarchical classes (e.g., OneShotAgent, LoopingAgent), while the execution mode is chosen from a smaller set of classes (ThreadAgent or ProcessAgent). 
+The **behavior** is determined by a group of hierarchical classes (OneShotAgent, LoopingAgent, ecc), while the **execution mode** is chosen from a set of two classes (ThreadAgent, ProcessAgent).
 
 All user-defined agent must inherit first from a behavior class and then from an execution mode class.
 
-This means **higher-level agents** come with more built-in functionality but are less customizable, while **lower-level agents** require more work but give you full control. 
+Keep in mind that **higher-level agents** (bottom) come with more built-in functionality but are less customizable, while **lower-level agents** (top) require more work but give you more control. 
 
-::: tip
 The challenge is finding the highest-level agent that fits your needs with minimal customization.
-:::
-
-By choosing the right agent, you can balance ease of use and flexibility based on your requirements.
 
 ```mermaid
 graph TD
@@ -40,7 +242,7 @@ graph TD
     PeriodicAgent --> PoolAgent
 ```
 
-The hierarchical structure you see above represents only the **behavior** of an agent. Below you can see available execution-mode class.
+The hierarchical structure you see above represents only the **behavior** of an agent.
 
 ```mermaid
 graph TD
@@ -48,20 +250,22 @@ graph TD
     BaseAgent --> ProcessAgent
 ```
 
-For example, if you want to create a looping agent that runs as a process:
+The hierarchical structure you see above represents only the **execution mode** of an agent.
+
+::: tip
+In the example we made before, `MyAgent` class inherits from `PeriodicAgent` and `ProcessAgent` classes. This means that `MyAgent` will have the behavior of a `PeriodicAgent` and the execution mode of a `ProcessAgent`.
 
 ```python
-class MyAgent(LoopingAgent, ProcessAgent):
-    pass
+class MyAgent(PeriodicAgent, ProcessAgent): # [!code focus]
+    """Agent Class that logs a message periodically."""
+
+    class Config(PeriodicAgent.Config): 
+        """Agent Configuration class."""
+        limit = 5
+        execution_interval = 1
+        output_directory = "output"
 ```
-
-## Customizing Agent Behavior
-
-Every agent provides abstract methods that you need to override to define the agent’s behavior. These methods are where you implement the logic that makes your agent unique.
-
-For example, in a `PeriodicAgent`, you override the `runner()` method to specify what the agent should do at each interval.
-
-This structure gives you the freedom to build highly tailored solutions while leveraging the framework’s core capabilities.
+:::
 
 ## Communication and Coordination
 
@@ -78,3 +282,9 @@ They can communicate, synchronize, and even have dependency relationships. PyOrc
 This interconnected design makes it easy to build complex workflows where agents collaborate effectively.
 
 In the next section, we’ll dive into the details of the built-in agents and their specific functionalities.
+
+## BaseAgent
+
+The `BaseAgent` class is the foundation for all agents in PyOrchestrate. It provides the basic structure and functionality that all agents inherit.
+
+Click [here](./built-in-agents/baseagent.md) to learn more about the `BaseAgent`.
