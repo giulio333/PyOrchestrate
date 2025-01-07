@@ -6,6 +6,27 @@ title: BaseAgent
 
 The **BaseAgent** is the foundation of all other agents in PyOrchestrate. It provides the basic structure for any custom agent. Use it as a starting point to create your own agents with completely custom behavior.
 
+## Usage
+
+After importing the `BaseAgent` class, create a new class that inherits from it.
+
+| Method | Description | Override |
+|--------|-------------| ---------|
+| [execute](#execute) | Define the core logic of the agent. | Required :green_circle: |
+| [setup](#setup) | Perform any setup operations required by the agent. | Optional :orange_circle: |
+| [on_stop](#on_stop) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
+
+::: tip Important
+Make sure to call the parent method **for each overridden** method.
+
+```python{3}
+class CustomAgent(BaseAgent):
+    def setup(self):
+        super().setup()
+        # Custom setup logic
+```
+:::
+
 ## Class Diagram
 
 The `BaseAgent` class is defined in the `base_agent.py`.
@@ -14,12 +35,11 @@ The `BaseAgent` class is defined in the `base_agent.py`.
 classDiagram
     class BaseAgent {
         +run()
+        +setup()
         +execute()
         +stop()
-        +setup()
         +validate_config()
         +on_stop()
-        +_info()
     }
 
     class Config {
@@ -47,7 +67,7 @@ Click [here](/learn/agents/index#configuration) to learn more about configuratio
 
 When no predefined agent meets your requirements, the `BaseAgent` is ideal for implementing custom logic.
 
-## Key Features
+## Methods
 
 ### run
 
@@ -64,6 +84,9 @@ Marked as `@final` to prevent overriding in derived class ensuring that the core
 :::
 
 ### setup
+```python
+@templatemethod
+```
 
 This method is called before the agent starts running. It can be overridden to perform any setup operations required by the agent.
 
@@ -71,7 +94,7 @@ This method is called before the agent starts running. It can be overridden to p
 The setup method waits for the `control_events.setup_event` to be triggered, giving external systems the ability to manage when the setup phase starts.
 :::
 
-::: warning Override
+::: warning
 Make sure to call the parent method if you override it.
 :::
 
@@ -82,6 +105,10 @@ Make sure to call the parent method if you override it.
 ```
 
 This method is called by the `run()` method to execute the core logic of the agent. It must be overridden by the derived class to define the agent's behavior.
+
+::: tip 
+Be sure to override this method in your derived class to define the core logic of the agent.
+:::
 
 ### stop
 
@@ -96,8 +123,72 @@ Marked as `@final` to prevent overriding in derived class ensuring that the core
 :::
 
 ::: tip
-To implement custom logic during the agent’s shutdown, override the on_stop method in your derived class.
+To implement custom logic during the agent’s shutdown, override the [on_stop](#on_stop) method in your derived class.
 :::
+
+### validate configuration
+
+```python
+@final
+```
+
+This method is called to validate the agent's configuration.
+
+::: warning Do not override
+Marked as `@final` to prevent overriding in derived class ensuring that the core logic remains consistent across all agents.
+:::
+
+::: tip
+To implement custom validation logic, override `validate` method of your `Config` class.
+:::
+
+### on_stop
+
+```python
+@templatemethod
+```
+
+This method is called when the agent is stopped. It can be overridden to implement custom logic during the agent’s shutdown.
+
+::: warning
+Make sure to call the parent method if you override it.
+:::
+
+This method is called to get the agent's information.
+
+## Attributes
+
+### Logger
+
+```python
+logger: Logger
+```
+
+The logger object for the agent. Available levels are `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR`, and `CRITICAL`.
+
+### State Events
+
+```python
+state_events: BaseAgent.StateEvents
+```
+
+The state events object for the agent. It provides access to the state events of the agent.
+
+### Control Events
+
+```python
+control_events: BaseAgent.ControlEvents
+```
+
+The control events object for the agent. It provides access to the control events of the agent.
+
+### Config
+
+```python
+config: BaseAgent.Config
+```
+
+The configuration object for the agent. It provides access to the agent's configuration.
 
 ## Inheritance
 
@@ -108,3 +199,54 @@ Click here to learn more about.
 ## Advanced Usage
 
 For a deeper dive into how agents work and their advanced use cases, explore the **Advanced Insights section**.
+
+## Example
+
+In this example, we create a custom agent that monitors a log file for a specific keyword.
+
+Ju
+
+```python
+from PyOrchestrate.core.base.base_agent import BaseAgent, ProcessAgent
+
+class LogMonitorAgent(BaseAgent["LogMonitorAgent.Config"], ProcessAgent["LogMonitorAgent.Config"]):
+    class Config(BaseAgent.Config):
+        log_file: str = "application.log"
+        keyword: str = "ERROR"
+
+    def setup(self):
+        """
+        Ensure the log file exists.
+        """
+        super().setup()
+        
+        self.logger.info(f"Initializing LogMonitorAgent for file: {self.config.log_file}")
+        try:
+            with open(self.config.log_file, "r") as f:
+                self.logger.info("Log file found.")
+        except FileNotFoundError:
+            self.logger.error(f"Log file {self.config.log_file} does not exist.")
+            raise
+
+    def execute(self):
+        """
+        Monitor the log file for the specified keyword.
+        """
+        super().execute()
+
+        self.logger.info(f"Monitoring for keyword: '{self.config.keyword}'")
+        try:
+            with open(self.config.log_file, "r") as f:
+                for line in f:
+                    if self.config.keyword in line:
+                        self.logger.warning(f"Keyword found: {line.strip()}")
+        except Exception as e:
+            self.logger.error(f"Error reading the log file: {e}")
+
+    def on_stop(self):
+        """
+        Log the agent's shutdown.
+        """
+        super().on_stop()
+        self.logger.info("LogMonitorAgent stopped.")
+```

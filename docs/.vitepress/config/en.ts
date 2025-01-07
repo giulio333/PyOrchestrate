@@ -6,7 +6,7 @@ export const enConfig = {
     outline: 'deep',
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2024-present Evan You'
+      copyright: 'Copyright © 2025-present Evan You'
     },
     search: {
       provider: 'local',
@@ -53,7 +53,7 @@ export const enConfig = {
           items: [
             {
               text: 'Built-in Agents',
-              collapsed: true,
+              collapsed: false,
               items: [
                 { text: 'BaseAgent', link: '/advanced/built-in-agents/baseagent' },
                 { text: 'LoopingAgent', link: '/advanced/built-in-agents/loopingagent' },
