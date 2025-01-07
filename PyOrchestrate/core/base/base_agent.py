@@ -47,10 +47,11 @@ class BaseAgent(BaseClass[T], ABC):
 
     Methods:
         run: Main method to run the agent.
-        stop: Event set to request the external stop of the process.
         setup: Method called when the agent is started to perform the setup.
+        execute: Method called to execute the agent logic.
+        stop: Method to request the external stop of the agent.
+        validate_config: Validate the configuration.
         on_stop: Method called when the agent is stopped.
-        _info: Print the agent information.
     """
 
     class Config(BaseClass.Config):
@@ -124,19 +125,6 @@ class BaseAgent(BaseClass[T], ABC):
         self.control_events = control_events
         """Events related to external commands."""
 
-    def validate_config(self):
-        """
-        Validate the configuration.
-        """
-
-        try:
-            self.config.validate()
-        except Exception as ex:
-            self.logger.error(f"Configuration validation failed: {ex}")
-            raise ValidationError(str(ex))
-
-        self.logger.debug(f"Self configuration validated.")
-
     @final
     def run(self):
         """
@@ -173,26 +161,6 @@ class BaseAgent(BaseClass[T], ABC):
             elapsed = time.time() - self.start_time
             self.logger.info(f"execution completed in {elapsed:.3f} seconds.")
 
-    def execute(self):
-        """
-        Method called to execute the agent logic.
-
-        Warnings:
-            Make sure to call the parent method if you override it.
-        """
-        self.control_events.execute_event.wait()
-
-    @final
-    def stop(self):
-        """
-        Event set to request the external stop of the thread.
-
-        Warning:
-            Do not override this method. If you need to implement custom logic when the agent is stopped, you can
-            override the `on_stop` method.
-        """
-        self.control_events.stop_event.set()
-
     def setup(self):
         """
         @templatemethod
@@ -211,6 +179,44 @@ class BaseAgent(BaseClass[T], ABC):
         """
         self.control_events.setup_event.wait()
 
+    def execute(self):
+        """
+        Method called to execute the agent logic.
+
+        Warnings:
+            Make sure to call the parent method if you override it.
+        """
+        self.control_events.execute_event.wait()
+
+    @final
+    def stop(self):
+        """
+        Event set to request the external stop of the thread.
+
+        Notes:
+            If you need to implement custom logic when the agent is being stopped, you can override the `on_stop` method.
+        Warning:
+            Do not override this method.
+        """
+        self.control_events.stop_event.set()
+
+    @final
+    def validate_config(self):
+        """
+        Validate the configuration.
+
+        Warning:
+            Do not override this method.
+        """
+
+        try:
+            self.config.validate()
+        except Exception as ex:
+            self.logger.error(f"Configuration validation failed: {ex}")
+            raise ValidationError(str(ex))
+
+        self.logger.debug(f"Self configuration validated.")
+
     def on_stop(self):
         """
         Method called when the agent is stopped.
@@ -221,7 +227,6 @@ class BaseAgent(BaseClass[T], ABC):
         """
         pass
 
-    @abstractmethod
     def _info(self):
         pass
 
