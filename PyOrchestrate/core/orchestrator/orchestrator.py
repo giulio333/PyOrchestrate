@@ -20,6 +20,13 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
     """
 
     class Config(BaseClass.Config):
+        """
+        Orchestrator configuration class.
+
+        Attributes:
+            check_interval (float): The interval to check the agents.
+            logger (LoggerConfig): Logger configuration.
+        """
         check_interval: float = 1
 
         def __init__(self, check_interval: float = 1, **kwargs):
@@ -201,8 +208,8 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             - When all agents are completed, it emits an `OrchestratorEvent.ALL_AGENTS_COMPLETED` event.
         """
 
-        all_finished = False
-        notified = set()
+        all_finished: bool = False
+        notified: set = set()
 
         while not all_finished:
             alive_count = 0

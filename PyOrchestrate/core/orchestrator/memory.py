@@ -167,7 +167,7 @@ class AgentEntry:
 
     def _record_event(self, event_type: str) -> None:
         """
-        Invochiamo la callback se è presente.
+        Record an event for the agent.
         """
         if self._record_event_callback is not None:
             self._record_event_callback(self.name, event_type)
