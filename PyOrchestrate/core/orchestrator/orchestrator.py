@@ -244,44 +244,6 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         self.logger.info("All processes or threads have completed.")
         self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED.value)
 
-    def complex_join(self) -> None:
-        """
-        Complex join method to check the status of each agent before and after joining.
-        Logs the status of each agent and ensures that all agents have completed successfully.
-        """
-        all_finished: bool = False
-        notified: set = set()
-
-        while not all_finished:
-            alive_count = 0
-
-            for agent in self.memory.agents:
-                self.logger.info(f"Checking status of agent '{agent.name}' before joining.")
-                self.logger.info(agent.status())
-                if not hasattr(agent, "instance") or agent.instance is None:
-                    alive_count += 1
-                    continue
-
-                if not agent.instance.is_alive():
-                    if not agent.name in notified:
-                        self.logger.info(f"Agent '{agent.name}' ended.")
-                        self.event_manager.emit(OrchestratorEvent.AGENT_TERMINATED.value, agent_name=agent.name)
-                        notified.add(agent.name)
-                else:
-                    alive_count += 1
-
-            if alive_count == 0:
-                all_finished = True
-            else:
-                time.sleep(self.config.check_interval)
-
-        for agent in self.memory.agents:
-            self.logger.info(f"Checking status of agent '{agent.name}' after joining.")
-            self.logger.info(agent.status())
-
-        self.logger.info("All agents have completed successfully.")
-        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED.value)
-
     def report(self):
         """Report the status of all agents."""
         self.logger.info(f"Reporting {len(self.memory.agents)} agents status.")
