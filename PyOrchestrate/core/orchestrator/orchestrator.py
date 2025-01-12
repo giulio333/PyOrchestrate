@@ -55,8 +55,8 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             agent_class,
             name: str,
             custom_config: BaseClass.Config | None = None,
-            control_events: BaseAgent.ControlEvents = None,
-            state_events: BaseAgent.StateEvents = None,
+            control_events: BaseAgent.ControlEvents | None = None,
+            state_events: BaseAgent.StateEvents | None = None,
             **kwargs,
     ) -> AgentEntry:
         """
