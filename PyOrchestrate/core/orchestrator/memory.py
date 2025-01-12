@@ -256,8 +256,8 @@ class OMemory:
             agent_class: Type[BaseAgent],
             name: str,
             custom_config: Optional[BaseClass.Config] = None,
-            control_events: BaseAgent.ControlEvents = None,
-            state_events: BaseAgent.StateEvents = None,
+            control_events: Optional[BaseAgent.ControlEvents] = None,
+            state_events: Optional[BaseAgent.StateEvents] = None,
             **kwargs: Any
     ) -> AgentEntry:
         """
@@ -273,7 +273,7 @@ class OMemory:
         Args:
             agent_class (Type[BaseAgent]): The class of the agent to store.
             name (str): The name of the agent.
-            custom_config (Optional[BaseConfig], optional): Custom configuration for the agent. Defaults to None.
+            custom_config (BaseConfig, optional): Custom configuration for the agent. Defaults to None.
             control_events (BaseAgent.ControlEvents, optional): Control events for the agent. Defaults to None.
             state_events (BaseAgent.StateEvents, optional): State events for the agent. Defaults to None.
             kwargs (Any): Additional keyword arguments for the agent.
