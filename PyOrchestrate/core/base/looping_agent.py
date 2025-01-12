@@ -42,6 +42,11 @@ class LoopingAgent(BaseAgent[T]):
             if limit is not None:
                 self.limit: int = limit
 
+        def validate(self):
+            super().validate()
+            if self.limit is not None and self.limit <= 0:
+                raise ValueError("Limit must be greater than 0.")
+
     def __init__(self, name: str, config: T, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
 

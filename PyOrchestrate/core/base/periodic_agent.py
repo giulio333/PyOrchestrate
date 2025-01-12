@@ -67,6 +67,13 @@ class PeriodicAgent(LoopingAgent[T]):
             if delay_compensation is not None:
                 self.delay_compensation: bool = delay_compensation
 
+        def validate(self):
+            super().validate()
+            if self.execution_interval <= 0:
+                raise ValueError("Execution interval must be greater than 0.")
+            if not isinstance(self.delay_compensation, bool):
+                raise ValueError("Delay compensation must be a boolean.")
+
     def __init__(self, name: str, config: T, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
 
