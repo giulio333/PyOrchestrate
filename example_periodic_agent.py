@@ -1,13 +1,12 @@
 from PyOrchestrate.core.orchestrator import Orchestrator
-from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
-from PyOrchestrate.core.base.base_agent import ProcessAgent
+from PyOrchestrate.core.base.periodic_agent import PeriodicProcessAgent
 from PyOrchestrate.core.orchestrator.memory import AgentEntry
 
 
-class FileWriter(PeriodicAgent["FileWriter.Config"], ProcessAgent["FileWriter.Config"]):
+class FileWriter(PeriodicProcessAgent["FileWriter.Config"]):
     """Agent Class that logs a message periodically."""
 
-    class Config(PeriodicAgent.Config):
+    class Config(PeriodicProcessAgent.Config):
         """Agent Configuration class."""
         limit = 5
         execution_interval = 1
@@ -27,10 +26,10 @@ class FileWriter(PeriodicAgent["FileWriter.Config"], ProcessAgent["FileWriter.Co
         self.logger.info("Doing some work")
 
 
-class FileReader(PeriodicAgent["FileReader.Config"], ProcessAgent["FileReader.Config"]):
+class FileReader(PeriodicProcessAgent["FileReader.Config"]):
     """Agent Class that reads from a file periodically."""
 
-    class Config(PeriodicAgent.Config):
+    class Config(PeriodicProcessAgent.Config):
         """Agent Configuration class."""
         limit = 5
         execution_interval = 1

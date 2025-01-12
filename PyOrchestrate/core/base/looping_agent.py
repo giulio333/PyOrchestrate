@@ -1,5 +1,7 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import final, TypeVar
+import multiprocessing
+import threading
 
 from .exceptions import RecoverableException, NonRecoverableException
 from .base_agent import BaseAgent
@@ -104,3 +106,19 @@ class LoopingAgent(BaseAgent[T]):
     def _info(self):
         super()._info()
         self.logger.debug(f"Config: limit: {self.config.limit}")
+
+
+class LoopingProcessAgent(LoopingAgent[T], multiprocessing.Process, ABC):
+    a_type: str = "process"
+
+    def __init__(self, name: str, config: T, **kwargs):
+        multiprocessing.Process.__init__(self, name=name)
+        LoopingAgent.__init__(self, name=name, config=config, a_type="process", **kwargs)
+
+
+class LoopingThreadAgent(LoopingAgent[T], threading.Thread, ABC):
+    a_type: str = "thread"
+
+    def __init__(self, name: str, config: T, **kwargs):
+        threading.Thread.__init__(self, name=name)
+        LoopingAgent.__init__(self, name=name, config=config, a_type="thread", **kwargs)

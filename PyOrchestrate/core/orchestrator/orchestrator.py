@@ -5,7 +5,6 @@ from .memory import OMemory, AgentEntry
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
-from ..base.base_agent import ProcessAgent, ThreadAgent
 from ..base.base import BaseClass
 
 
@@ -45,7 +44,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
     def register_agent(
             self,
-            agent_class: type[ProcessAgent | ThreadAgent],
+            agent_class,
             name: str,
             custom_config: BaseClass.Config | None = None,
             **kwargs,

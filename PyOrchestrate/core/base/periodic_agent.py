@@ -1,5 +1,6 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import final, TypeVar
+import multiprocessing
 
 from .looping_agent import LoopingAgent
 from ...utilities.periodic_timer import PeriodicTimer
@@ -100,3 +101,19 @@ class PeriodicAgent(LoopingAgent[T]):
         super()._info()
         self.logger.debug(f"Config: execution_interval: {self.interval}")
         self.logger.debug(f"Config: delay_compensation: {self.compensate_delay}")
+
+
+class PeriodicProcessAgent(PeriodicAgent[T], multiprocessing.Process, ABC):
+    a_type: str = "process"
+
+    def __init__(self, name: str, config: T, **kwargs):
+        multiprocessing.Process.__init__(self, name=name)
+        PeriodicAgent.__init__(self, name=name, config=config, a_type=self.a_type, **kwargs)
+
+
+class PeriodicThreadAgent(PeriodicAgent[T], multiprocessing.Process, ABC):
+    a_type: str = "thread"
+
+    def __init__(self, name: str, config: T, **kwargs):
+        multiprocessing.Process.__init__(self, name=name)
+        PeriodicAgent.__init__(self, name=name, config=config, a_type=self.a_type, **kwargs)

@@ -3,7 +3,7 @@ import multiprocessing
 import threading
 from typing import Dict, List, Optional, Type, Any
 
-from ..base import BaseAgent, ProcessAgent, ThreadAgent, BaseClass
+from ..base import BaseAgent, BaseClass
 
 
 class AgentEntry:
@@ -44,7 +44,7 @@ class AgentEntry:
 
     def __init__(
             self,
-            agent_class: Type[ProcessAgent | ThreadAgent],
+            agent_class,
             name: str,
             control_events: BaseAgent.ControlEvents,
             state_events: BaseAgent.StateEvents,
@@ -56,7 +56,7 @@ class AgentEntry:
         self.name = name
         self.config = config
         self.kwargs = kwargs
-        self.instance: ProcessAgent | ThreadAgent | None = None
+        self.instance = None
         self._record_event_callback = record_event_callback
 
         self.control_events = control_events
@@ -125,12 +125,15 @@ class AgentEntry:
             str: Agent status.
         """
 
-        if isinstance(self.instance, ProcessAgent):
+        if not self.instance:
+            raise ValueError("Agent instance not initialized yet.")
+
+        if self.instance.a_type == "process":
             alive: bool = self.instance.is_alive()
             daemon: bool = self.instance.daemon
             ident: int | None = self.instance.ident
             pid: int | None = self.instance.pid
-        elif isinstance(self.instance, ThreadAgent):
+        elif self.instance.a_type == "thread":
             alive = self.instance.is_alive()
             daemon = self.instance.daemon
             ident = None
@@ -250,7 +253,7 @@ class OMemory:
 
     def add_agent(
             self,
-            agent_class: Type[ProcessAgent | ThreadAgent],
+            agent_class: Type[BaseAgent],
             name: str,
             custom_config: Optional[BaseClass.Config] = None,
             **kwargs: Any
@@ -274,9 +277,9 @@ class OMemory:
             AgentEntry: The `AgentEntry` object corresponding to the stored agent.
         """
 
-        if issubclass(agent_class, ProcessAgent):
+        if agent_class.a_type == "process":
             event = multiprocessing.Event
-        elif issubclass(agent_class, ThreadAgent):
+        elif agent_class.a_type == "thread":
             event = threading.Event  # type: ignore
         else:
             raise ValueError("Unknown agent type.")
@@ -333,7 +336,7 @@ class OMemory:
         """
         return self._groups.get(group_name)
 
-    def get_group_agents(self, group_name: str) -> List[ThreadAgent | ProcessAgent]:
+    def get_group_agents(self, group_name: str) -> List:
         """
         Ritorna la lista delle istanze degli agenti appartenenti al gruppo.
         """
@@ -381,7 +384,7 @@ class OMemory:
 
         return _
 
-    def get_agent_instance(self, name: str) -> ProcessAgent | ThreadAgent | None:
+    def get_agent_instance(self, name: str):
         """
         Get the agent instance for the provided name.
 
