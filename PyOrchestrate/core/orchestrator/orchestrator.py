@@ -1,6 +1,7 @@
 import time
 from collections import defaultdict, deque
 
+from PyOrchestrate.core.base.base_agent import BaseAgent
 from .memory import OMemory, AgentEntry
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
@@ -47,6 +48,8 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             agent_class,
             name: str,
             custom_config: BaseClass.Config | None = None,
+            control_events: BaseAgent.ControlEvents = None,
+            state_events: BaseAgent.StateEvents = None,
             **kwargs,
     ) -> AgentEntry:
         """
@@ -62,13 +65,16 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             agent_class: Class of the agent to register.
             name: Name of the agent.
             custom_config: Custom configuration for the agent.
+            control_events: Control events for the agent.
+            state_events: State events for the agent.
             kwargs: Additional arguments for the agent.
 
         Returns:
             AgentEntry: The agent entry object stored in the memory.
         """
 
-        agent_entry = self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config, **kwargs)
+        agent_entry = self.memory.add_agent(agent_class=agent_class, name=name, custom_config=custom_config,
+                                            control_events=control_events, state_events=state_events, **kwargs)
         self.logger.debug(f"Agent '{name}' registered.")
         return agent_entry
 
