@@ -292,7 +292,7 @@ class OMemory:
         if not control_events:
             control_events = agent_class.ControlEvents(setup_event=event(), execute_event=event(), stop_event=event())
 
-        if not control_events:
+        if not state_events:
             state_events = agent_class.StateEvents(ready_event=event(), close_event=event())
 
         # default set to ready
