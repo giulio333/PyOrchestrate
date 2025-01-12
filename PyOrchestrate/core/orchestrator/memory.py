@@ -256,6 +256,8 @@ class OMemory:
             agent_class: Type[BaseAgent],
             name: str,
             custom_config: Optional[BaseClass.Config] = None,
+            control_events: BaseAgent.ControlEvents = None,
+            state_events: BaseAgent.StateEvents = None,
             **kwargs: Any
     ) -> AgentEntry:
         """
@@ -272,6 +274,9 @@ class OMemory:
             agent_class (Type[BaseAgent]): The class of the agent to store.
             name (str): The name of the agent.
             custom_config (Optional[BaseConfig], optional): Custom configuration for the agent. Defaults to None.
+            control_events (BaseAgent.ControlEvents, optional): Control events for the agent. Defaults to None.
+            state_events (BaseAgent.StateEvents, optional): State events for the agent. Defaults to None.
+            kwargs (Any): Additional keyword arguments for the agent.
 
         Returns:
             AgentEntry: The `AgentEntry` object corresponding to the stored agent.
@@ -284,8 +289,11 @@ class OMemory:
         else:
             raise ValueError("Unknown agent type.")
 
-        control_events = agent_class.ControlEvents(setup_event=event(), execute_event=event(), stop_event=event())
-        state_events = agent_class.StateEvents(ready_event=event(), close_event=event())
+        if not control_events:
+            control_events = agent_class.ControlEvents(setup_event=event(), execute_event=event(), stop_event=event())
+
+        if not control_events:
+            state_events = agent_class.StateEvents(ready_event=event(), close_event=event())
 
         # default set to ready
         control_events.setup_event.set()
