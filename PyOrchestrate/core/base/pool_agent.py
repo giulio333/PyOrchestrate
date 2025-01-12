@@ -1,4 +1,7 @@
+from abc import ABC
 from typing import final, TypeVar
+import threading
+import multiprocessing
 
 from ..base.periodic_agent import PeriodicAgent
 from ..orchestrator.orchestrator import Orchestrator
@@ -114,3 +117,19 @@ class PoolAgent(PeriodicAgent[T]):
         super()._info()
         self.logger.debug(f"Config: auto_reboot: {self.config.auto_reboot}")
         self.logger.debug(f"Config: agents_entry: {self.config.agents_entry}")
+
+
+class PoolProcessAgent(PoolAgent[T], multiprocessing.Process, ABC):
+    a_type: str = "process"
+
+    def __init__(self, name: str, config: T, **kwargs):
+        multiprocessing.Process.__init__(self, name=name)
+        PoolAgent.__init__(self, name=name, config=config, a_type="process", **kwargs)
+
+
+class PoolThreadAgent(PoolAgent[T], threading.Thread, ABC):
+    a_type: str = "thread"
+
+    def __init__(self, name: str, config: T, **kwargs):
+        threading.Thread.__init__(self, name=name)
+        PoolAgent.__init__(self, name=name, config=config, a_type="thread", **kwargs)

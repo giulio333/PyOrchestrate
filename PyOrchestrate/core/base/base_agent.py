@@ -53,6 +53,7 @@ class BaseAgent(BaseClass[T], ABC):
         validate_config: Validate the configuration.
         on_stop: Method called when the agent is stopped.
     """
+    a_type: str = ""
 
     class Config(BaseClass.Config):
         """
@@ -124,6 +125,7 @@ class BaseAgent(BaseClass[T], ABC):
         """Events related to the internal state of the agent."""
         self.control_events = control_events
         """Events related to external commands."""
+        self.a_type = a_type
 
     @final
     def run(self):
@@ -151,13 +153,15 @@ class BaseAgent(BaseClass[T], ABC):
 
             self.logger.info("Starting...")
 
-            self.state_events.ready_event.set()
+            if self.state_events is not None:
+                self.state_events.ready_event.set()
 
             self.execute()
         except Exception as ex:
             self.logger.exception(f"[{self.name}] Errore durante l'esecuzione: {ex}")
         finally:
-            self.state_events.close_event.set()
+            if self.state_events is not None:
+                self.state_events.close_event.set()
             elapsed = time.time() - self.start_time
             self.logger.info(f"execution completed in {elapsed:.3f} seconds.")
 
@@ -177,7 +181,8 @@ class BaseAgent(BaseClass[T], ABC):
 
             When the setup is completed, the agent emits the `state_events.ready_event` event.
         """
-        self.control_events.setup_event.wait()
+        if self.control_events is not None:
+            self.control_events.setup_event.wait()
 
     def execute(self):
         """
@@ -186,7 +191,8 @@ class BaseAgent(BaseClass[T], ABC):
         Warnings:
             Make sure to call the parent method if you override it.
         """
-        self.control_events.execute_event.wait()
+        if self.control_events is not None:
+            self.control_events.execute_event.wait()
 
     @final
     def stop(self):
@@ -200,13 +206,14 @@ class BaseAgent(BaseClass[T], ABC):
         """
         self.control_events.stop_event.set()
 
-    @final
     def validate_config(self):
         """
         Validate the configuration.
 
-        Warning:
-            Do not override this method.
+        You can override this method to add custom validation logic.
+
+        Raises:
+            ValidationError: If the configuration is not valid.
         """
 
         try:
@@ -231,81 +238,13 @@ class BaseAgent(BaseClass[T], ABC):
         pass
 
 
-class ThreadAgent(BaseAgent[T], threading.Thread):
-    """
-    ThreadAgent base on BaseAgent and threading.Thread.
-
-    This class is a base class for all agents that need to run in a separate thread. It provides a common interface for
-    the agent's lifecycle management.
-
-    Methods:
-        run: Override of the `run` method of threading.Thread: it calls the common logic `run_agent`.
-        stop: Event set to request the external stop of the process.
-        execute: Abstract method to be implemented in derived classes: Agent execution logic.
-        _info: Print the agent information.
-    """
-
-    def __init__(self, config: T, name: str | None = None, **kwargs):
-        threading.Thread.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name, config=config, a_type="thread", **kwargs)
-
-    @final
-    def start(self):
-        """
-        Start current process agent.
-
-        Notes:
-            Internally, it calls the `run` method of the agent in a new thread.
-
-        Returns:
-            None
-        """
-        super().start()
-
-    @abstractmethod
-    def execute(self):
-        """
-        Abstract method to be implemented in derived classes: Agent execution logic.
-        """
-        super().execute()
-        # self.control_events.execute_event.set()
-
-    def _info(self):
-        super()._info()
-
-
-class ProcessAgent(BaseAgent[T], multiprocessing.Process):
-    """
-    Agent class based on multiprocessing.Process.
-
-    This class is a base class for all agents that need to run in a separate process. It provides a common interface for
-    the agent's lifecycle management.
-    """
-
-    def __init__(self, config: T, name: str | None = None, **kwargs):
+class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):
+    def __init__(self, name: str | None, config: T, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name, config=config, a_type="process", **kwargs)
+        BaseAgent.__init__(self, name=name, config=config, **kwargs)
 
-    @final
-    def start(self):
-        """
-        Start current process agent.
 
-        Notes:
-            Internally, it calls the `run` method of the agent in a new process.
-
-        Returns:
-            None
-        """
-        super().start()
-
-    @abstractmethod
-    def execute(self):
-        """
-        Abstract method to be implemented in derived classes: Agent execution logic.
-        """
-        super().execute()
-        # self.events.ready_event.set()
-
-    def _info(self):
-        super()._info()
+class BaseThreadAgent(BaseAgent, threading.Thread, ABC):
+    def __init__(self, name: str | None, config: T, **kwargs):
+        threading.Thread.__init__(self, name=name)
+        BaseAgent.__init__(self, name=name, config=config, **kwargs)

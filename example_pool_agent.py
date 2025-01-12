@@ -2,14 +2,13 @@ import time
 
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.orchestrator.memory import AgentEntry
-from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
-from PyOrchestrate.core.base.pool_agent import PoolAgent
-from PyOrchestrate.core.base.base_agent import ProcessAgent, ThreadAgent
+from PyOrchestrate.core.base.periodic_agent import PeriodicThreadAgent
+from PyOrchestrate.core.base.pool_agent import PoolProcessAgent
 from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
-class MyThread(PeriodicAgent, ThreadAgent):
-    class Config(PeriodicAgent.Config):
+class MyThread(PeriodicThreadAgent):
+    class Config(PeriodicThreadAgent.Config):
         limit = 5
         execution_interval = .2
 
@@ -17,8 +16,8 @@ class MyThread(PeriodicAgent, ThreadAgent):
         self.logger.debug(f"Thread {self.name} running")
 
 
-class FileWriter(PoolAgent["FileWriter.Config"], ProcessAgent["FileWriter.Config"]):
-    class Config(PoolAgent.Config):
+class FileWriter(PoolProcessAgent["FileWriter.Config"]):
+    class Config(PoolProcessAgent.Config):
         agents_entry = [AgentEntry(MyThread, "DefaultThread", control_events=None, state_events=None)]
         auto_reboot = True
 
