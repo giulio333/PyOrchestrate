@@ -235,6 +235,15 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         self.logger.info("All agents have completed.")
         self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED.value)
 
+    def simple_join(self) -> None:
+        """
+        Simple join method to wait for all processes or threads to complete their execution.
+        """
+        for agent in self.memory.agents:
+            agent.join()
+        self.logger.info("All processes or threads have completed.")
+        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED.value)
+
     def report(self):
         """Report the status of all agents."""
         self.logger.info(f"Reporting {len(self.memory.agents)} agents status.")

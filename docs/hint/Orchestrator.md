@@ -202,4 +202,32 @@ The Orchestrator is a flexible and robust component designed to simplify the man
 multi-thread systems. Its modular structure and use of advanced mechanisms like dependency management, continuous 
 monitoring, and event emission make it a powerful tool for developers seeking scalable and efficient solutions.
 
+## Simple Join Method
 
+The `Orchestrator` class includes a simple `join` method that joins all processes or threads managed by the orchestrator. This method waits for all the agents to complete their execution.
+
+### Usage
+
+```python
+from PyOrchestrate.core.orchestrator import Orchestrator
+
+orchestrator = Orchestrator("MyOrchestrator")
+# Register agents
+orchestrator.start()
+orchestrator.join()
+```
+
+## Complex Join Method
+
+The `Orchestrator` class also includes a more complex `join` method that not only joins the processes or threads but also checks the status of each agent before and after joining. This method logs the status of each agent and ensures that all agents have completed successfully.
+
+### Usage
+
+```python
+from PyOrchestrate.core.orchestrator import Orchestrator
+
+orchestrator = Orchestrator("MyOrchestrator")
+# Register agents
+orchestrator.start()
+orchestrator.complex_join()
+```
