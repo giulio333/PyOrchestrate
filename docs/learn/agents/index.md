@@ -14,10 +14,10 @@ All you need to do is choose the agent that best fits your requirements and inhe
 Here’s an example of a custom agent that inherits from `PeriodicAgent` and `ProcessAgent`.
 
 ```python
-class MyAgent(PeriodicAgent, ProcessAgent):
+class MyAgent(PeriodicProcessAgent):
     """Agent Class that logs a message periodically."""
 
-    class Config(PeriodicAgent.Config):
+    class Config(PeriodicProcessAgent.Config):
         """Agent Configuration class."""
         limit = 5
         execution_interval = 1
@@ -53,10 +53,6 @@ Agents are designed to handle a variety of use cases, such as:
 -   **Loop indefinitely**: Continuously execute logic.
 -   **Trigger-based**: React to specific events.
 -   **Acting as a pool**: Manage multiple concurrent agents.
-
-### Execution Modes
-
-Every agent runs as either a **process** or a **thread**, providing flexibility to meet different architectural needs.
 
 ### Configuration and Events
 
