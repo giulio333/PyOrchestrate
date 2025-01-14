@@ -1,3 +1,4 @@
+import threading
 from abc import abstractmethod, ABC
 from typing import final, TypeVar
 import multiprocessing
@@ -118,9 +119,9 @@ class PeriodicProcessAgent(PeriodicAgent[T], multiprocessing.Process, ABC):
         PeriodicAgent.__init__(self, name=name, config=config, a_type=self.a_type, **kwargs)
 
 
-class PeriodicThreadAgent(PeriodicAgent[T], multiprocessing.Process, ABC):
+class PeriodicThreadAgent(PeriodicAgent[T], threading.Thread, ABC):
     a_type: str = "thread"
 
     def __init__(self, name: str, config: T, **kwargs):
-        multiprocessing.Process.__init__(self, name=name)
+        threading.Thread.__init__(self, name=name)
         PeriodicAgent.__init__(self, name=name, config=config, a_type=self.a_type, **kwargs)

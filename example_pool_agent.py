@@ -39,13 +39,7 @@ if __name__ == "__main__":
     # Esempio 1: uso della config di default (senza passare agent_entry)
     a = orchestrator.register_agent(FileWriter, "FileWriter_Default")
 
-    # Esempio 2: config custom con agent personalizzati
-    fw2_config = FileWriter.Config(
-        agents_entry=[
-            AgentEntry(MyThread, "ThreadCustom1", control_events=None, state_events=None),
-        ], auto_reboot=False
-    )
-    orchestrator.register_agent(FileWriter, "FileWriter_Custom", custom_config=fw2_config)
+    # orchestrator.register_agent(FileWriter, "FileWriter_Custom", custom_config=fw2_config)
 
     # Avvio degli agent
     orchestrator.start()
