@@ -3,7 +3,7 @@ import multiprocessing
 import threading
 from typing import Dict, List, Optional, Type, Any
 
-from ..base import BaseAgent, BaseClass
+from ..base import BaseAgent, BaseClass, AgentProtocol
 
 
 class AgentEntry:
@@ -56,28 +56,34 @@ class AgentEntry:
         self.name = name
         self.config = config
         self.kwargs = kwargs
-        self.instance = None
+        self._instance = None
         self._record_event_callback = record_event_callback
 
         self.control_events = control_events
         self.state_events = state_events
 
+    @property
+    def instance(self) -> AgentProtocol:
+        """
+        Get the agent instance.
+
+        Returns:
+            BaseAgent: The agent instance.
+        """
+        assert self._instance is not None, "Agent instance not initialized yet."
+        return self._instance
+
     def start(self) -> None:
         """
         Start the agent instance.
-
-        Notes:
-            The agent instance is created if it does not already exist.
         """
-        assert self.instance is not None, "Agent instance not initialized yet."
         self.instance.start()
         self._record_event("start")
 
     def stop(self) -> None:
         """
-        Arresta l’istanza, se supportato
+        Stop the agent instance.
         """
-        assert self.instance is not None
         self.instance.stop()
         self._record_event("stop")
 
@@ -85,7 +91,6 @@ class AgentEntry:
         """
         Join the agent instance.
         """
-        assert self.instance is not None
         self.instance.join()
         self._record_event("join")
 
@@ -105,8 +110,6 @@ class AgentEntry:
         Returns:
             bool: True if the agent instance is alive, False otherwise.
         """
-        assert self.instance is not None
-
         return self.instance.is_alive()
 
     def status(self) -> str:
@@ -163,7 +166,7 @@ class AgentEntry:
         params["state_events"] = self.state_events
         params.update(self.kwargs)
 
-        self.instance = self.agent_class(**params)
+        self._instance = self.agent_class(**params)
 
     def _record_event(self, event_type: str) -> None:
         """
