@@ -311,8 +311,6 @@ class OMemory:
         self._agents[name] = entry
         self._agent_stats[name] = []
 
-        entry.initialize_agent()
-
         return entry
 
     def create_group(self, group_name: str) -> None:

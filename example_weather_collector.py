@@ -2,9 +2,8 @@ import requests
 import json
 import os
 import logging
-from PyOrchestrate.core.base.base_agent import ProcessAgent
 from PyOrchestrate.core.orchestrator import Orchestrator
-from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
+from PyOrchestrate.core.base.periodic_agent import PeriodicProcessAgent
 from PyOrchestrate.core.base.exceptions import RecoverableException
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
@@ -45,8 +44,8 @@ def on_all_agents_stopped():
     send_telegram_message(message)
 
 
-class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["WeatherCollector.Config"]):
-    class Config(PeriodicAgent.Config):
+class WeatherCollector(PeriodicProcessAgent["WeatherCollector.Config"]):
+    class Config(PeriodicProcessAgent.Config):
         limit: int = 2
         execution_interval: float = 2
         url: str = "https://catfact.ninja/fact"

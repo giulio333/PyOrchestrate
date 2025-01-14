@@ -188,6 +188,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
         agent: AgentEntry = self.memory.get_agent(agent_name)
 
         self.logger.info(f"Starting agent {agent_name}...")
+        agent.initialize_agent()
         agent.start()
         self.event_manager.emit(OrchestratorEvent.AGENT_STARTED.value, agent_name=agent.name)
 
