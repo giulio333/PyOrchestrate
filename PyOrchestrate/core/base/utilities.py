@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass
@@ -16,7 +17,7 @@ class LoggerConfig:
         filename (str): File name for logging. Defaults to empty string.
     """
 
-    level: str = "DEBUG"
+    level: Literal["TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"] = "DEBUG"
     """
     Logging level. Defaults to DEBUG.
     """

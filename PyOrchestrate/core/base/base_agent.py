@@ -5,8 +5,8 @@ BaseAgent module.
 import threading
 import multiprocessing
 import time
-from abc import ABC, abstractmethod
-from typing import final, TypeVar
+from abc import ABC
+from typing import final, TypeVar, Protocol
 
 from .base import BaseClass
 
@@ -60,7 +60,7 @@ class BaseAgent(BaseClass[T], ABC):
         Base agent configuration class.
 
         Attributes:
-            logger (LoggerConfig): Logger configuration.
+            logger_config (LoggerConfig): Logger configuration.
 
         Notes:
             Class attributes store default values for the configuration parameters. If you want to change the default
@@ -167,7 +167,7 @@ class BaseAgent(BaseClass[T], ABC):
 
     def setup(self):
         """
-        @templatemethod
+        @template
 
         Method called when the agent is started to perform the setup.
 
@@ -234,8 +234,16 @@ class BaseAgent(BaseClass[T], ABC):
         """
         pass
 
-    def _info(self):
-        pass
+    def _info(self) -> None:
+        """
+        @template
+
+        Log the agent configurations.
+
+        Returns:
+            None
+        """
+        self.logger.debug(f"Config: logger_level: {self.config.logger_config.level}")
 
 
 class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):
@@ -248,3 +256,42 @@ class BaseThreadAgent(BaseAgent, threading.Thread, ABC):
     def __init__(self, name: str | None, config: T, **kwargs):
         threading.Thread.__init__(self, name=name)
         BaseAgent.__init__(self, name=name, config=config, **kwargs)
+
+
+class AgentProtocol(Protocol):
+    """
+    Protocol that defines the methods and attributes required for an agent.
+    """
+
+    a_type: str
+    name: str
+    daemon: bool
+    ident: int | None
+    pid: int | None
+
+    def run(self) -> None:
+        ...
+
+    def setup(self) -> None:
+        ...
+
+    def execute(self) -> None:
+        ...
+
+    def start(self) -> None:
+        ...
+
+    def stop(self) -> None:
+        ...
+
+    def join(self) -> None:
+        ...
+
+    def is_alive(self) -> bool:
+        ...
+
+    def validate_config(self) -> None:
+        ...
+
+    def on_stop(self) -> None:
+        ...

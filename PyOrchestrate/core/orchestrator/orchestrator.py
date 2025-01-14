@@ -38,7 +38,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             if self.check_interval <= 0:
                 raise ValueError("Check interval must be greater than 0.")
 
-    def __init__(self, name: str):
+    def __init__(self, name: str | None = None):
         super().__init__(name=name, config=Orchestrator.Config())
 
         self.setup_logger()
@@ -200,7 +200,7 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
 
     def join(self) -> None:
         """
-        Waits for all agents to complete.
+        Check the status of all agents and wait for them to complete.
 
         Notes:
             This method blocks the current thread until all agents are completed.
@@ -216,9 +216,6 @@ class Orchestrator(BaseClass["Orchestrator.Config"]):
             alive_count = 0
 
             for agent in self.memory.agents:
-                if not hasattr(agent, "instance") or agent.instance is None:
-                    alive_count += 1
-                    continue
 
                 if not agent.instance.is_alive():
                     if not agent.name in notified:

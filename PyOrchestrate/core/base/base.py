@@ -21,7 +21,7 @@ class BaseClass(Generic[T]):
         BaseClass configuration class.
 
         Attributes:
-            logger (LoggerConfig): Logger configuration.
+            logger_config (LoggerConfig): Logger configuration.
 
         Notes:
             Class attributes store default values for the configuration parameters. If you want to change the default
@@ -39,11 +39,11 @@ class BaseClass(Generic[T]):
             >>> default_config = Config()
             >>> custom_config = Config(logger=LoggerConfig(level="INFO"))
         """
-        logger = LoggerConfig()
+        logger_config: LoggerConfig = LoggerConfig()
 
         def __init__(self, logger_config: LoggerConfig | None = None, **kwargs):
             if logger_config is not None:
-                self.logger = logger_config
+                self.logger_config = logger_config
 
             # store user-defined attributes
             for key, value in kwargs.items():
@@ -75,7 +75,7 @@ class BaseClass(Generic[T]):
         if hasattr(self, "logger"):
             return
 
-        logger_cfg = self.config.logger
+        logger_cfg = self.config.logger_config
         logging_level = getattr(logging, logger_cfg.level.upper(), "DEBUG")
         log_name = logger_cfg.filename or self.name
 

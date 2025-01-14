@@ -1,1 +1,1 @@
-from .base_agent import BaseAgent, BaseClass
+from .base_agent import BaseAgent, BaseClass, AgentProtocol
