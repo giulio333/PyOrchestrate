@@ -157,13 +157,21 @@ class BaseAgent(BaseClass[T], ABC):
                 self.state_events.ready_event.set()
 
             self.execute()
+
         except Exception as ex:
-            self.logger.exception(f"[{self.name}] Errore durante l'esecuzione: {ex}")
+            self.logger.exception(f"[{self.name}] Error during execution: {ex}")
+
         finally:
+
+            self.logger.info("Execution completed.")
+
+            self.on_close()
+
             if self.state_events is not None:
                 self.state_events.close_event.set()
+
             elapsed = time.time() - self.start_time
-            self.logger.info(f"execution completed in {elapsed:.3f} seconds.")
+            self.logger.debug(f"Agent lifecycle completed in {elapsed:.3f} seconds.")
 
     def setup(self):
         """
@@ -186,6 +194,8 @@ class BaseAgent(BaseClass[T], ABC):
 
     def execute(self):
         """
+        @template
+
         Method called to execute the agent logic.
 
         Warnings:
@@ -204,6 +214,7 @@ class BaseAgent(BaseClass[T], ABC):
         Warning:
             Do not override this method.
         """
+        self.on_stop()
         self.control_events.stop_event.set()
 
     def validate_config(self):
@@ -226,11 +237,25 @@ class BaseAgent(BaseClass[T], ABC):
 
     def on_stop(self):
         """
+        @optional
+
         Method called when the agent is stopped.
 
         Notes:
             This method can be overridden in the derived class to implement custom logic to be executed when the agent
             is stopped.
+        """
+        pass
+
+    def on_close(self):
+        """
+        @optional
+
+        Method called when the agent is closing.
+
+        Notes:
+            This method can be overridden in the derived class to implement custom logic to be executed when the agent
+            is closing.
         """
         pass
 
@@ -246,16 +271,20 @@ class BaseAgent(BaseClass[T], ABC):
         self.logger.debug(f"Config: logger_level: {self.config.logger_config.level}")
 
 
-class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):
+class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):
+    a_type: str = "process"
+
     def __init__(self, name: str | None, config: T, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name, config=config, **kwargs)
+        BaseAgent.__init__(self, name=name, config=config, a_type="process", **kwargs)
 
 
-class BaseThreadAgent(BaseAgent, threading.Thread, ABC):
+class BaseThreadAgent(BaseAgent[T], threading.Thread, ABC):
+    a_type: str = "thread"
+
     def __init__(self, name: str | None, config: T, **kwargs):
         threading.Thread.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name, config=config, **kwargs)
+        BaseAgent.__init__(self, name=name, config=config, a_type="thread", **kwargs)
 
 
 class AgentProtocol(Protocol):
