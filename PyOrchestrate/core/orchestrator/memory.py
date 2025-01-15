@@ -46,8 +46,8 @@ class AgentEntry:
             self,
             agent_class,
             name: str,
-            control_events: BaseAgent.ControlEvents,
-            state_events: BaseAgent.StateEvents,
+            control_events: Optional[BaseAgent.ControlEvents] = None,
+            state_events: Optional[BaseAgent.StateEvents] = None,
             config: Optional[BaseClass.Config] = None,
             record_event_callback: Optional[Any] = None,
             **kwargs: Any

@@ -94,7 +94,8 @@ class PoolAgent(PeriodicAgent[T]):
             return
 
         for agent in self.config.agents_entry:
-            self.orchestrator.register_agent(agent.agent_class, agent.name, agent.config)
+            self.orchestrator.register_agent(agent.agent_class, agent.name, agent.config, agent.control_events,
+                                             agent.state_events)
         self.orchestrator.start()
 
     @final

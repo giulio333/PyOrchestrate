@@ -20,7 +20,7 @@ class MyThread(PeriodicThreadAgent):
 class FileWriter(PoolProcessAgent["FileWriter.Config"]):
     class Config(PoolProcessAgent.Config):
         agents_entry = [
-            AgentEntry(MyThread, "DefaultThread", control_events=None, state_events=None)]
+            AgentEntry(MyThread, "DefaultThread")]
         auto_reboot = True
 
     def setup(self):
