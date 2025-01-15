@@ -6,15 +6,76 @@ title: BaseAgent
 
 The **BaseAgent** is the foundation of all other agents in PyOrchestrate. It provides the basic structure for any custom agent. Use it as a starting point to create your own agents with completely custom behavior.
 
+## Inheritance
+
+The `BaseProcessAgent` and `BaseThreadAgent` classes inherit from the `BaseAgent` class.
+
+This is the shared structure of both classes.
+
+```mermaid
+classDiagram
+    class BaseClass {
+    }
+
+    class BaseAgent {
+        +run()
+        +setup()
+        +execute()
+        +stop()
+        +validate_config()
+        +on_stop()
+        +on_close()
+    }
+
+    class BaseProcessAgent {
+    }
+    class BaseThreadAgent {
+    }
+
+    BaseClass <|-- BaseAgent
+    BaseAgent <|-- BaseProcessAgent
+    BaseAgent <|-- BaseThreadAgent
+```
+
+To learn more about `BaseClass` click here.
+
+## Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Agent as BaseAgent
+    participant Config as Config
+    participant StateEvents as StateEvents
+    participant ControlEvents as ControlEvents
+
+    Agent->>Config: validate_config()
+    Agent->>ControlEvents: setup_event.wait()
+    activate ControlEvents
+    ControlEvents-->>Agent: control event triggered
+    deactivate ControlEvents
+    Agent->>Agent: setup()
+    Agent->>StateEvents: ready_event.set()
+    Agent->>ControlEvents: execute_event.wait()
+    activate ControlEvents
+    ControlEvents-->>Agent: control event triggered
+    deactivate ControlEvents
+    Agent->>Agent: execute()
+    Agent->>Agent: on_close()
+    Agent->>StateEvents: close_event.set()
+```
+
+To learn more about BaseClass click here.
+
 ## Usage
 
-After importing the `BaseAgent` class, create a new class that inherits from it.
+You can create a custom agent by inheriting from the `BaseProcessAgent` or `BaseThreadAgent` class.
 
 | Method | Description | Override |
 |--------|-------------| ---------|
 | [execute](#execute) | Define the core logic of the agent. | Required :green_circle: |
 | [setup](#setup) | Perform any setup operations required by the agent. | Optional :orange_circle: |
-| [on_stop](#on_stop) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
+| [on_stop](#on-stop) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
+| [on_close](#on-close) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
 
 ::: tip Important
 Make sure to call the parent method **for each overridden** method.
@@ -26,35 +87,6 @@ class CustomAgent(BaseAgent):
         # Custom setup logic
 ```
 :::
-
-## Class Diagram
-
-The `BaseAgent` class is defined in the `base_agent.py`.
-
-```mermaid
-classDiagram
-    class BaseAgent {
-        +run()
-        +setup()
-        +execute()
-        +stop()
-        +validate_config()
-        +on_stop()
-    }
-
-    class Config {
-    }
-
-    class StateEvents {
-    }
-
-    class ControlEvents {
-    }
-
-    BaseAgent <|-- Config
-    BaseAgent <|-- StateEvents
-    BaseAgent <|-- ControlEvents
-```
 
 ## Configuration
 
@@ -85,7 +117,7 @@ Marked as `@final` to prevent overriding in derived class ensuring that the core
 
 ### setup
 ```python
-@templatemethod
+@template
 ```
 
 This method is called before the agent starts running. It can be overridden to perform any setup operations required by the agent.
@@ -145,16 +177,18 @@ To implement custom validation logic, override `validate` method of your `Config
 ### on_stop
 
 ```python
-@templatemethod
+@optional
 ```
 
 This method is called when the agent is stopped. It can be overridden to implement custom logic during the agent’s shutdown.
 
-::: warning
-Make sure to call the parent method if you override it.
-:::
+### on_close
 
-This method is called to get the agent's information.
+```python
+@optional
+```
+
+This method is called when the agent is closed. It can be overridden to implement custom logic during the agent’s shutdown.
 
 ## Attributes
 
@@ -190,27 +224,16 @@ config: BaseAgent.Config
 
 The configuration object for the agent. It provides access to the agent's configuration.
 
-## Inheritance
-
-The `BaseAgent` class is a subclass of `BaseClass`.
-
-Click here to learn more about.
-
-## Advanced Usage
-
-For a deeper dive into how agents work and their advanced use cases, explore the **Advanced Insights section**.
-
 ## Example
 
 In this example, we create a custom agent that monitors a log file for a specific keyword.
 
-Ju
 
 ```python
-from PyOrchestrate.core.base.base_agent import BaseAgent, ProcessAgent
+from PyOrchestrate.core.agent import BaseProcessAgent
 
-class LogMonitorAgent(BaseAgent["LogMonitorAgent.Config"], ProcessAgent["LogMonitorAgent.Config"]):
-    class Config(BaseAgent.Config):
+class LogMonitorAgent(BaseProcessAgent["LogMonitorAgent.Config"]):
+    class Config(BaseProcessAgent.Config):
         log_file: str = "application.log"
         keyword: str = "ERROR"
 
@@ -219,7 +242,7 @@ class LogMonitorAgent(BaseAgent["LogMonitorAgent.Config"], ProcessAgent["LogMoni
         Ensure the log file exists.
         """
         super().setup()
-        
+
         self.logger.info(f"Initializing LogMonitorAgent for file: {self.config.log_file}")
         try:
             with open(self.config.log_file, "r") as f:
@@ -247,6 +270,34 @@ class LogMonitorAgent(BaseAgent["LogMonitorAgent.Config"], ProcessAgent["LogMoni
         """
         Log the agent's shutdown.
         """
-        super().on_stop()
         self.logger.info("LogMonitorAgent stopped.")
+```
+
+## Advanced Usage
+
+For a deeper dive into how agents work and their advanced use cases, explore the **Advanced Insights section**.
+
+## Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Agent as BaseAgent
+    participant Config as Config
+    participant StateEvents as StateEvents
+    participant ControlEvents as ControlEvents
+
+    Agent->>Config: validate_config()
+    Agent->>ControlEvents: setup_event.wait()
+    activate ControlEvents
+    ControlEvents-->>Agent: control event triggered
+    deactivate ControlEvents
+    Agent->>Agent: setup()
+    Agent->>StateEvents: ready_event.set()
+    Agent->>ControlEvents: execute_event.wait()
+    activate ControlEvents
+    ControlEvents-->>Agent: control event triggered
+    deactivate ControlEvents
+    Agent->>Agent: execute()
+    Agent->>Agent: on_close()
+    Agent->>StateEvents: close_event.set()
 ```

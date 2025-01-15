@@ -11,6 +11,10 @@ The framework provides a range of [built-in agents](./built-in-agents/baseagent.
 
 All you need to do is choose the agent that best fits your requirements and inherit from it to create your own custom agent.
 
+[[toc]]
+
+## Usage
+
 Here’s an example of a custom agent that inherits from `PeriodicAgent` and `ProcessAgent`.
 
 ```python
@@ -37,7 +41,6 @@ class MyAgent(PeriodicProcessAgent):
         self.logger.info("Doing some work")
 ```
 
-[[toc]]
 
 ## Overview
 
