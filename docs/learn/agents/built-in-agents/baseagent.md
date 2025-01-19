@@ -77,6 +77,9 @@ You can create a custom agent by inheriting from the `BaseProcessAgent` or `Base
 | [on_stop](#on-stop) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
 | [on_close](#on-close) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
 
+![alt text](visual_light.png){.light-only}
+![alt text](visual_dark.png){.dark-only}
+
 ::: tip Important
 Make sure to call the parent method **for each overridden** method.
 
@@ -191,6 +194,9 @@ This method is called when the agent is stopped. It can be overridden to impleme
 This method is called when the agent is closed. It can be overridden to implement custom logic during the agent’s shutdown.
 
 ## Attributes
+
+![](attribute_light.png){.light-only}
+![](attribute_dark.png){.dark-only}
 
 ### Logger
 
