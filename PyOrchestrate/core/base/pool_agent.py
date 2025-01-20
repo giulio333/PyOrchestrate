@@ -7,7 +7,62 @@ from ..base.periodic_agent import PeriodicAgent
 from ..orchestrator.orchestrator import Orchestrator
 from ..orchestrator.memory import AgentEntry
 
-T = TypeVar('T', bound="PoolAgent.Config")
+
+class PoolAgentConfig(PeriodicAgent.Config):
+    """
+    Pool agent configuration class.
+
+    Attributes:
+        auto_reboot (bool): Flag to enable automatic reboot of agents.
+        agents_entry (list[AgentEntry]): List of agents to be registered.
+        execution_interval (float): The interval of checking the agents.
+        delay_compensation (bool): Compensate the delay in the execution.
+        logger (LoggerConfig): Logger configuration.
+
+    Notes:
+        Class attributes store default values for the configuration parameters. If you want to change the default
+        values, you can override them in the derived class or pass them as arguments to the constructor.
+
+        User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
+        overridden in the derived class.
+
+    Examples:
+        You can create a custom configuration class by inheriting from the PoolAgentConfig class and overriding the
+        desired attributes.
+
+        >>> class Config(PoolAgent.Config):
+        ...     agent_entry = [AgentEntry(...), AgentEntry(...)]
+        ...     auto_reboot = True
+        >>> default_config = Config()
+        >>> custom_config = Config(auto_reboot=False)
+    """
+
+    agent_entry: list[AgentEntry] | None = None
+    auto_reboot: bool = False
+
+    def __init__(
+        self,
+        agents_entry: list[AgentEntry] | None = None,
+        auto_reboot: bool | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+
+        if auto_reboot is not None:
+            self.auto_reboot: bool = auto_reboot
+
+        if agents_entry is not None:
+            self.agents_entry: list[AgentEntry] = agents_entry
+
+    def validate(self):
+        super().validate()
+        if self.limit is not None:
+            raise ValueError("PoolAgent does not support limit parameter.")
+        if not self.agents_entry:
+            raise ValueError("No agents to register.")
+
+
+T = TypeVar("T", bound=PoolAgentConfig)
 
 
 class PoolAgent(PeriodicAgent[T]):
@@ -17,52 +72,7 @@ class PoolAgent(PeriodicAgent[T]):
     This agent is an orchestrator of BaseThreadAgent instances.
     """
 
-    class Config(PeriodicAgent.Config):
-        """
-        Pool agent configuration class.
-
-        Attributes:
-            auto_reboot (bool): Flag to enable automatic reboot of agents.
-            agents_entry (list[AgentEntry]): List of agents to be registered.
-            execution_interval (float): The interval of checking the agents.
-            delay_compensation (bool): Compensate the delay in the execution.
-            logger (LoggerConfig): Logger configuration.
-
-        Notes:
-            Class attributes store default values for the configuration parameters. If you want to change the default
-            values, you can override them in the derived class or pass them as arguments to the constructor.
-
-            User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
-            overridden in the derived class.
-
-        Examples:
-            You can create a custom configuration class by inheriting from the PoolAgentConfig class and overriding the
-            desired attributes.
-
-            >>> class Config(PoolAgent.Config):
-            ...     agent_entry = [AgentEntry(...), AgentEntry(...)]
-            ...     auto_reboot = True
-            >>> default_config = Config()
-            >>> custom_config = Config(auto_reboot=False)
-        """
-        agent_entry: list[AgentEntry] | None = None
-        auto_reboot: bool = False
-
-        def __init__(self, agents_entry: list[AgentEntry] | None = None, auto_reboot: bool | None = None, **kwargs):
-            super().__init__(**kwargs)
-
-            if auto_reboot is not None:
-                self.auto_reboot: bool = auto_reboot
-
-            if agents_entry is not None:
-                self.agents_entry: list[AgentEntry] = agents_entry
-
-        def validate(self):
-            super().validate()
-            if self.limit is not None:
-                raise ValueError("PoolAgent does not support limit parameter.")
-            if not self.agents_entry:
-                raise ValueError("No agents to register.")
+    Config = PoolAgentConfig
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
@@ -94,8 +104,14 @@ class PoolAgent(PeriodicAgent[T]):
             return
 
         for agent in self.config.agents_entry:
-            self.orchestrator.register_agent(agent.agent_class, agent.name, agent.config, agent.control_events,
-                                             agent.state_events)
+            self.orchestrator.register_agent(
+                agent.agent_class,
+                agent.name,
+                agent.config,
+                agent.control_events,
+                agent.state_events,
+                **agent.kwargs,
+            )
         self.orchestrator.start()
 
     @final
@@ -103,7 +119,9 @@ class PoolAgent(PeriodicAgent[T]):
         """
         Check the status of the agents and restart them if necessary.
         """
-        if all(not agent.instance.is_alive() for agent in self.orchestrator.memory.agents):
+        if all(
+            not agent.instance.is_alive() for agent in self.orchestrator.memory.agents
+        ):
             self.logger.info("All agents are stopped.")
             self.stop()
             return

@@ -3,10 +3,64 @@ from abc import abstractmethod, ABC
 from typing import final, TypeVar
 import multiprocessing
 
-from .looping_agent import LoopingAgent
+from .looping_agent import LoopingAgent, LoopingAgentConfig
 from ...utilities.periodic_timer import PeriodicTimer
 
-T = TypeVar('T', bound="PeriodicAgent.Config")
+
+class PeriodicAgentConfig(LoopingAgentConfig):
+    """
+    Periodic agent configuration class.
+
+    Attributes:
+        execution_interval (float): The interval between two consecutive executions.
+        delay_compensation (bool): Compensate the delay in the execution.
+        limit (int): The maximum number of iterations.
+        logger (LoggerConfig): Logger configuration.
+
+    Notes:
+        Class attributes store default values for the configuration parameters. If you want to change the default
+        values, you can override them in the derived class or pass them as arguments to the constructor.
+
+        User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
+        overridden in the derived class.
+
+    Examples:
+        You can create a custom configuration class by inheriting from the PeriodicAgent.Config class and overriding the
+        desired attributes.
+
+        >>> class Config(PeriodicAgent.Config):
+        ...     execution_interval = 2
+        ...     delay_compensation = True
+        >>> default_config = Config()
+        >>> custom_config = Config(execution_interval=.2)
+    """
+
+    execution_interval: float = 1
+    delay_compensation: bool = False
+
+    def __init__(
+        self,
+        execution_interval: float | None = None,
+        delay_compensation: bool | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+
+        if execution_interval is not None:
+            self.execution_interval: float = execution_interval
+
+        if delay_compensation is not None:
+            self.delay_compensation: bool = delay_compensation
+
+    def validate(self):
+        super().validate()
+        if self.execution_interval <= 0:
+            raise ValueError("Execution interval must be greater than 0.")
+        if not isinstance(self.delay_compensation, bool):
+            raise ValueError("Delay compensation must be a boolean.")
+
+
+T = TypeVar("T", bound=PeriodicAgentConfig)
 
 
 class PeriodicAgent(LoopingAgent[T]):
@@ -29,51 +83,7 @@ class PeriodicAgent(LoopingAgent[T]):
             This method must be implemented in the derived class.
     """
 
-    class Config(LoopingAgent.Config):
-        """
-        Periodic agent configuration class.
-
-        Attributes:
-            execution_interval (float): The interval between two consecutive executions.
-            delay_compensation (bool): Compensate the delay in the execution.
-            limit (int): The maximum number of iterations.
-            logger (LoggerConfig): Logger configuration.
-
-        Notes:
-            Class attributes store default values for the configuration parameters. If you want to change the default
-            values, you can override them in the derived class or pass them as arguments to the constructor.
-
-            User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
-            overridden in the derived class.
-
-        Examples:
-            You can create a custom configuration class by inheriting from the PeriodicAgent.Config class and overriding the
-            desired attributes.
-
-            >>> class Config(PeriodicAgent.Config):
-            ...     execution_interval = 2
-            ...     delay_compensation = True
-            >>> default_config = Config()
-            >>> custom_config = Config(execution_interval=.2)
-        """
-        execution_interval: float = 1
-        delay_compensation: bool = False
-
-        def __init__(self, execution_interval: float | None = None, delay_compensation: bool | None = None, **kwargs):
-            super().__init__(**kwargs)
-
-            if execution_interval is not None:
-                self.execution_interval: float = execution_interval
-
-            if delay_compensation is not None:
-                self.delay_compensation: bool = delay_compensation
-
-        def validate(self):
-            super().validate()
-            if self.execution_interval <= 0:
-                raise ValueError("Execution interval must be greater than 0.")
-            if not isinstance(self.delay_compensation, bool):
-                raise ValueError("Delay compensation must be a boolean.")
+    Config = PeriodicAgentConfig
 
     def __init__(self, name: str, config: T, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
@@ -116,7 +126,9 @@ class PeriodicProcessAgent(PeriodicAgent[T], multiprocessing.Process, ABC):
 
     def __init__(self, name: str, config: T, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
-        PeriodicAgent.__init__(self, name=name, config=config, a_type=self.a_type, **kwargs)
+        PeriodicAgent.__init__(
+            self, name=name, config=config, a_type=self.a_type, **kwargs
+        )
 
 
 class PeriodicThreadAgent(PeriodicAgent[T], threading.Thread, ABC):
@@ -124,4 +136,6 @@ class PeriodicThreadAgent(PeriodicAgent[T], threading.Thread, ABC):
 
     def __init__(self, name: str, config: T, **kwargs):
         threading.Thread.__init__(self, name=name)
-        PeriodicAgent.__init__(self, name=name, config=config, a_type=self.a_type, **kwargs)
+        PeriodicAgent.__init__(
+            self, name=name, config=config, a_type=self.a_type, **kwargs
+        )

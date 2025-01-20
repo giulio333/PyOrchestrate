@@ -1,51 +1,57 @@
 from abc import abstractmethod, ABC
-from typing import final, TypeVar
+from typing import final, TypeVar, Type
 import multiprocessing
 import threading
 
 from .exceptions import RecoverableException, NonRecoverableException
 from .base_agent import BaseAgent
 
-T = TypeVar('T', bound="LoopingAgent.Config")
+
+class LoopingAgentConfig(BaseAgent.Config):
+    """
+    Looping agent configuration class.
+
+    Attributes:
+        limit (int): The maximum number of iterations.
+        logger (LoggerConfig): Logger configuration.
+
+    Notes:
+        Class attributes store default values for the configuration parameters. If you want to change the default
+        values, you can override them in the derived class or pass them as arguments to the constructor.
+
+        User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
+        overridden in the derived class.
+
+    Examples:
+        You can create a custom configuration class by inheriting from the LoopingAgent.Config class and overriding the
+        desired attributes.
+
+        >>> class Config(LoopingAgent.Config):
+        ...     limit = 10
+        >>> default_config = Config()
+        >>> custom_config = Config(limit=5)
+    """
+
+    limit: int | None = None
+
+    def __init__(self, limit: int | None = None, **kwargs):
+        super().__init__(**kwargs)
+
+        if limit is not None:
+            self.limit: int = limit
+
+    def validate(self):
+        super().validate()
+        if self.limit is not None and self.limit <= 0:
+            raise ValueError("Limit must be greater than 0.")
+
+
+T = TypeVar("T", bound=LoopingAgentConfig)
 
 
 class LoopingAgent(BaseAgent[T]):
-    class Config(BaseAgent.Config):
-        """
-        Looping agent configuration class.
 
-        Attributes:
-            limit (int): The maximum number of iterations.
-            logger (LoggerConfig): Logger configuration.
-
-        Notes:
-            Class attributes store default values for the configuration parameters. If you want to change the default
-            values, you can override them in the derived class or pass them as arguments to the constructor.
-
-            User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
-            overridden in the derived class.
-
-        Examples:
-            You can create a custom configuration class by inheriting from the LoopingAgent.Config class and overriding the
-            desired attributes.
-
-            >>> class Config(LoopingAgent.Config):
-            ...     limit = 10
-            >>> default_config = Config()
-            >>> custom_config = Config(limit=5)
-        """
-        limit: int | None = None
-
-        def __init__(self, limit: int | None = None, **kwargs):
-            super().__init__(**kwargs)
-
-            if limit is not None:
-                self.limit: int = limit
-
-        def validate(self):
-            super().validate()
-            if self.limit is not None and self.limit <= 0:
-                raise ValueError("Limit must be greater than 0.")
+    Config = LoopingAgentConfig
 
     def __init__(self, name: str, config: T, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
@@ -118,7 +124,9 @@ class LoopingProcessAgent(LoopingAgent[T], multiprocessing.Process, ABC):
 
     def __init__(self, name: str, config: T, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
-        LoopingAgent.__init__(self, name=name, config=config, a_type="process", **kwargs)
+        LoopingAgent.__init__(
+            self, name=name, config=config, a_type="process", **kwargs
+        )
 
 
 class LoopingThreadAgent(LoopingAgent[T], threading.Thread, ABC):
