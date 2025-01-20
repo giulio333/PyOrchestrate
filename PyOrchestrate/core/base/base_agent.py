@@ -10,7 +10,33 @@ from typing import final, TypeVar, Protocol
 
 from .base import BaseClass
 
-T = TypeVar("T", bound="BaseClass.Config")
+
+class BaseAgentConfig(BaseClass.Config):
+    """
+    Base agent configuration class.
+
+    Attributes:
+        logger_config (LoggerConfig): Logger configuration.
+
+    Notes:
+        Class attributes store default values for the configuration parameters. If you want to change the default
+        values, you can override them in the derived class or pass them as arguments to the constructor.
+
+        User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
+        overridden in the derived class.
+
+    Examples:
+        You can create a custom configuration class by inheriting from the BaseAgent.Config class and overriding the
+        desired attributes.
+
+        >>> class Config(BaseClass.Config):
+        ...     value = "value"
+        >>> default_config = Config()
+        >>> custom_config = Config(value="new value")
+    """
+
+
+T = TypeVar("T", bound=BaseAgentConfig)
 
 
 class ValidationError(Exception):
@@ -53,31 +79,10 @@ class BaseAgent(BaseClass[T], ABC):
         validate_config: Validate the configuration.
         on_stop: Method called when the agent is stopped.
     """
+
     a_type: str = ""
 
-    class Config(BaseClass.Config):
-        """
-        Base agent configuration class.
-
-        Attributes:
-            logger_config (LoggerConfig): Logger configuration.
-
-        Notes:
-            Class attributes store default values for the configuration parameters. If you want to change the default
-            values, you can override them in the derived class or pass them as arguments to the constructor.
-
-            User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
-            overridden in the derived class.
-
-        Examples:
-            You can create a custom configuration class by inheriting from the BaseAgent.Config class and overriding the
-            desired attributes.
-
-            >>> class Config(BaseClass.Config):
-            ...     value = "value"
-            >>> default_config = Config()
-            >>> custom_config = Config(value="new value")
-        """
+    Config = BaseAgentConfig
 
     class StateEvents:
         """
@@ -107,8 +112,15 @@ class BaseAgent(BaseClass[T], ABC):
             self.execute_event = execute_event
             self.stop_event = stop_event
 
-    def __init__(self, name: str | None, config: T, a_type: str, control_events: ControlEvents,
-                 state_events: StateEvents, **kwargs):
+    def __init__(
+        self,
+        name: str | None,
+        config: T,
+        a_type: str,
+        control_events: ControlEvents,
+        state_events: StateEvents,
+        **kwargs,
+    ):
         """
         BaseAgent constructor.
 
@@ -298,29 +310,20 @@ class AgentProtocol(Protocol):
     ident: int | None
     pid: int | None
 
-    def run(self) -> None:
-        ...
+    def run(self) -> None: ...
 
-    def setup(self) -> None:
-        ...
+    def setup(self) -> None: ...
 
-    def execute(self) -> None:
-        ...
+    def execute(self) -> None: ...
 
-    def start(self) -> None:
-        ...
+    def start(self) -> None: ...
 
-    def stop(self) -> None:
-        ...
+    def stop(self) -> None: ...
 
-    def join(self) -> None:
-        ...
+    def join(self) -> None: ...
 
-    def is_alive(self) -> bool:
-        ...
+    def is_alive(self) -> bool: ...
 
-    def validate_config(self) -> None:
-        ...
+    def validate_config(self) -> None: ...
 
-    def on_stop(self) -> None:
-        ...
+    def on_stop(self) -> None: ...

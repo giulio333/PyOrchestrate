@@ -7,17 +7,14 @@ from PyOrchestrate.core.base.periodic_agent import PeriodicProcessAgent
 from PyOrchestrate.core.base.exceptions import RecoverableException
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
-# Configura il bot di Telegram
+# Telegram configuration
 TELEGRAM_TOKEN = "***REMOVED_TELEGRAM_TOKEN***"
 TELEGRAM_CHAT_ID = "***REMOVED_TELEGRAM_CHAT_ID***"
 
 
 def send_telegram_message(message: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message
-    }
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     try:
         response = requests.post(url, json=payload)
         response.raise_for_status()
@@ -44,13 +41,17 @@ def on_all_agents_stopped():
     send_telegram_message(message)
 
 
-class WeatherCollector(PeriodicProcessAgent["WeatherCollector.Config"]):
-    class Config(PeriodicProcessAgent.Config):
-        limit: int = 2
-        execution_interval: float = 2
-        url: str = "https://catfact.ninja/fact"
-        output_file: str = "weather_data.json"
-        print_result: bool = False
+class WCConfig(PeriodicProcessAgent.Config):
+    limit: int = 2
+    execution_interval: float = 2
+    url: str = "https://catfact.ninja/fact"
+    output_file: str = "weather_data.json"
+    print_result: bool = False
+
+
+class WeatherCollector(PeriodicProcessAgent[WCConfig]):
+
+    Config = WCConfig
 
     def setup(self):
         super().setup()
@@ -74,7 +75,9 @@ class WeatherCollector(PeriodicProcessAgent["WeatherCollector.Config"]):
                 file.seek(0)
                 json.dump(records, file, indent=4)  # type: ignore
 
-            self.logger.info(f"Dati salvati correttamente in {self.config.output_file}.")
+            self.logger.info(
+                f"Dati salvati correttamente in {self.config.output_file}."
+            )
 
             if self.config.print_result:
                 self.logger.info(f"Risultato: {data}")
@@ -86,9 +89,15 @@ class WeatherCollector(PeriodicProcessAgent["WeatherCollector.Config"]):
 if __name__ == "__main__":
     orchestrator = Orchestrator("Orchestrator")
 
-    orchestrator.event_manager.connect(OrchestratorEvent.AGENT_STARTED.value, on_agent_started)
-    orchestrator.event_manager.connect(OrchestratorEvent.AGENT_TERMINATED.value, on_agent_stopped)
-    orchestrator.event_manager.connect(OrchestratorEvent.ALL_AGENTS_COMPLETED.value, on_all_agents_stopped)
+    orchestrator.event_manager.connect(
+        OrchestratorEvent.AGENT_STARTED.value, on_agent_started
+    )
+    orchestrator.event_manager.connect(
+        OrchestratorEvent.AGENT_TERMINATED.value, on_agent_stopped
+    )
+    orchestrator.event_manager.connect(
+        OrchestratorEvent.ALL_AGENTS_COMPLETED.value, on_all_agents_stopped
+    )
 
     orchestrator.register_agent(WeatherCollector, "WeatherCollector1")
 

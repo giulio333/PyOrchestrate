@@ -3,18 +3,26 @@ from PyOrchestrate.core.orchestrator import AgentEntry
 from PyOrchestrate.core.agent import BaseProcessAgent
 
 
-class LogMonitorAgent(BaseProcessAgent["LogMonitorAgent.Config"]):
-    class Config(BaseProcessAgent.Config):
-        log_file: str = "application.log"
-        keyword: str = "ERROR"
+class MyConfig(BaseProcessAgent.Config):
+    log_file: str = "application.log"
+    keyword: str = "ERROR"
 
-    def setup(self):
+
+class LogMonitorAgent(BaseProcessAgent[MyConfig]):
+
+    Config = MyConfig
+
+    def setup(self) -> None:
         """
         Ensure the log file exists.
         """
         super().setup()
 
-        self.logger.info(f"Initializing LogMonitorAgent for file: {self.config.log_file}")
+        self.config.logger_config.level = "INFO"
+
+        self.logger.info(
+            f"Initializing LogMonitorAgent for file: {self.config.log_file}"
+        )
         try:
             with open(self.config.log_file, "r") as f:
                 self.logger.info("Log file found.")
@@ -22,7 +30,7 @@ class LogMonitorAgent(BaseProcessAgent["LogMonitorAgent.Config"]):
             self.logger.error(f"Log file {self.config.log_file} does not exist.")
             raise
 
-    def execute(self):
+    def execute(self) -> None:
         """
         Monitor the log file for the specified keyword.
         """
@@ -45,10 +53,12 @@ class LogMonitorAgent(BaseProcessAgent["LogMonitorAgent.Config"]):
 
 
 if __name__ == "__main__":
-    orchestrator = Orchestrator("CoolOrchestrator")
+    orchestrator = Orchestrator()
 
     # register agents
-    fw_agent: AgentEntry = orchestrator.register_agent(LogMonitorAgent, "LogMonitorAgent")
+    fw_agent: AgentEntry = orchestrator.register_agent(
+        LogMonitorAgent, "LogMonitorAgent"
+    )
 
     # start all agents
     orchestrator.start()
