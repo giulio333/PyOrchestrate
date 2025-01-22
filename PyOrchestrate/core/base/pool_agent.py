@@ -119,12 +119,30 @@ class PoolAgent(PeriodicAgent[T]):
         """
         Check the status of the agents and restart them if necessary.
         """
+        self.pre_runner()
         if all(
             not agent.instance.is_alive() for agent in self.orchestrator.memory.agents
         ):
             self.logger.info("All agents are stopped.")
             self.stop()
             return
+        self.post_runner()
+
+    def pre_runner(self):
+        """
+        @temaplate
+
+        Run before the runner method.
+        """
+        pass
+
+    def post_runner(self):
+        """
+        @template
+
+        Run after the runner method.
+        """
+        pass
 
     @property
     def orchestrator(self) -> Orchestrator:
