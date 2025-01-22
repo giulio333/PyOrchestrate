@@ -11,21 +11,21 @@ The framework provides a range of [built-in agents](./built-in-agents/baseagent.
 
 All you need to do is choose the agent that best fits your requirements and inherit from it to create your own custom agent.
 
+![alt text](assets/agents_l.svg){.light-only}
+![alt text](assets/agents_d.svg){.dark-only}
+
 [[toc]]
 
 ## Usage
 
-Here’s an example of a custom agent that inherits from `PeriodicAgent` and `ProcessAgent`.
+Here’s an example of a custom agent that inherits from `PeriodicProcessAgent`.
+
+![alt text](assets/example_1_l.svg){.light-only}
+![alt text](assets/example_1_d.svg){.dark-only}
 
 ```python
 class MyAgent(PeriodicProcessAgent):
     """Agent Class that logs a message periodically."""
-
-    class Config(PeriodicProcessAgent.Config):
-        """Agent Configuration class."""
-        limit = 5
-        execution_interval = 1
-        output_directory = "output"
 
     def setup(self):
         """
@@ -45,6 +45,9 @@ class MyAgent(PeriodicProcessAgent):
 ## Overview
 
 Agents in PyOrchestrate are the core building blocks of the framework. You can think of an agent as a **container** for your custom logic, encapsulating how it runs, what it does, and how it interacts with other agents.
+
+![alt text](assets/structure_l.svg){.light-only}
+![alt text](assets/structure_d.svg){.dark-only}
 
 Click [here](./built-in-agents/baseagent.md) to view some examples of agents that might be useful to understand the concept.
 
