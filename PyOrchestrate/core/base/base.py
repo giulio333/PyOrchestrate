@@ -69,6 +69,7 @@ class BaseClass(Generic[T]):
         self.config = config
         self.name = name if name else self.__class__.__name__
 
+        # store user-defined attributes
         for key, value in kwargs.items():
             setattr(self, key, value)
 
