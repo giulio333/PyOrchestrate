@@ -5,41 +5,58 @@ from PyOrchestrate.core.orchestrator.memory import AgentEntry
 from PyOrchestrate.core.base.periodic_agent import PeriodicThreadAgent
 from PyOrchestrate.core.base.pool_agent import PoolProcessAgent
 from PyOrchestrate.core.base.utilities import LoggerConfig
-from multiprocessing import Queue
+
+# from multiprocessing import Queue
+from queue import Queue
 
 
-class ThreadConfig(PeriodicThreadAgent.Config):
+class ThreadConfig1(PeriodicThreadAgent.Config):
     """Thread agent configuration class."""
 
     execution_interval = 0.1
     limit = 5
 
 
-class MyThread(PeriodicThreadAgent[ThreadConfig]):
+class ThreadConfig2(PeriodicThreadAgent.Config):
+    """Thread agent configuration class."""
 
-    Config = ThreadConfig
+    execution_interval = 1
+    limit = 5
+
+
+class MyThread(PeriodicThreadAgent[ThreadConfig1]):
+
+    Config = ThreadConfig1
+
+    def __init__(self, name: str, config: ThreadConfig1, queue, **kwargs):
+        super().__init__(name, config, **kwargs)
+        self.my_queue = queue
+
+        self.media = 0
+        self.counter = 0
 
     def runner(self) -> None:
         self.logger.debug(f"Thread {self.name} writing to queue.")
-        self.queue.put("Hello")
 
+        heavy_data = "a" * 1000000000
 
-class OtherThread(PeriodicThreadAgent[ThreadConfig]):
-    Config = ThreadConfig
+        _start = time.time()
+        self.my_queue.put(heavy_data)
+        self.media += time.time() - _start
 
-    def runner(self) -> None:
-        _ = self.queue.get()
-        self.logger.debug(f"Thread {self.name} received {_}")
+        self.counter += 1
+
+    def on_close(self):
+        self.logger.info(f"Thread {self.name} media: {self.media/self.counter}")
 
 
 class FileWriterConfig(PoolProcessAgent.Config):
     """Process agent configuration class."""
 
     queue = Queue()
-    execution_interval = 0.1
+    execution_interval = 1
     agents_entry: list[AgentEntry] = [
         AgentEntry(MyThread, "MyThread1", queue=queue),
-        AgentEntry(OtherThread, "OtherThread1", queue=queue),
     ]
 
 
@@ -47,9 +64,20 @@ class FileWriter(PoolProcessAgent[FileWriterConfig]):
 
     Config = FileWriterConfig
 
+    def __init__(self, name: str, config: FileWriterConfig, **kwargs):
+        super().__init__(name, config, **kwargs)
+
     def setup(self) -> None:
         super().setup()
         self.logger.info(f"FileWriter {self.name} inizializzato.")
+
+    def on_stop(self):
+        while not self.config.queue.empty():
+            try:
+                self.config.queue.get_nowait()
+            except:
+                print("Queue is empty.")
+                break
 
 
 if __name__ == "__main__":
