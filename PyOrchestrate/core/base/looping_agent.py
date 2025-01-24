@@ -4,7 +4,7 @@ import multiprocessing
 import threading
 
 from .exceptions import RecoverableException, NonRecoverableException
-from .base_agent import BaseAgent
+from ..agent.base_agent import BaseAgent
 
 
 class LoopingAgentConfig(BaseAgent.Config):

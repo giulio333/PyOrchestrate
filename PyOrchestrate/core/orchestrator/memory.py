@@ -3,7 +3,8 @@ import multiprocessing
 import threading
 from typing import Dict, List, Optional, Type, Any
 
-from ..base import BaseAgent, BaseClass, AgentProtocol
+from ..agent import BaseAgent, AgentProtocol
+from ..base import BaseClass
 
 
 class AgentEntry:
@@ -43,14 +44,14 @@ class AgentEntry:
     """
 
     def __init__(
-            self,
-            agent_class,
-            name: str,
-            control_events: Optional[BaseAgent.ControlEvents] = None,
-            state_events: Optional[BaseAgent.StateEvents] = None,
-            config: Optional[BaseClass.Config] = None,
-            record_event_callback: Optional[Any] = None,
-            **kwargs: Any
+        self,
+        agent_class,
+        name: str,
+        control_events: Optional[BaseAgent.ControlEvents] = None,
+        state_events: Optional[BaseAgent.StateEvents] = None,
+        config: Optional[BaseClass.Config] = None,
+        record_event_callback: Optional[Any] = None,
+        **kwargs: Any,
     ):
         self.agent_class = agent_class
         self.name = name
@@ -255,13 +256,13 @@ class OMemory:
         return list(self._agents.values())
 
     def add_agent(
-            self,
-            agent_class: Type[BaseAgent],
-            name: str,
-            custom_config: Optional[BaseClass.Config] = None,
-            control_events: Optional[BaseAgent.ControlEvents] = None,
-            state_events: Optional[BaseAgent.StateEvents] = None,
-            **kwargs: Any
+        self,
+        agent_class: Type[BaseAgent],
+        name: str,
+        custom_config: Optional[BaseClass.Config] = None,
+        control_events: Optional[BaseAgent.ControlEvents] = None,
+        state_events: Optional[BaseAgent.StateEvents] = None,
+        **kwargs: Any,
     ) -> AgentEntry:
         """
         Store an agent in the orchestrator memory.
@@ -293,10 +294,14 @@ class OMemory:
             raise ValueError("Unknown agent type.")
 
         if not control_events:
-            control_events = agent_class.ControlEvents(setup_event=event(), execute_event=event(), stop_event=event())
+            control_events = agent_class.ControlEvents(
+                setup_event=event(), execute_event=event(), stop_event=event()
+            )
 
         if not state_events:
-            state_events = agent_class.StateEvents(ready_event=event(), close_event=event())
+            state_events = agent_class.StateEvents(
+                ready_event=event(), close_event=event()
+            )
 
         # default set to ready
         control_events.setup_event.set()
@@ -309,7 +314,7 @@ class OMemory:
             state_events=state_events,
             config=custom_config,
             record_event_callback=self._record_event,
-            **kwargs
+            **kwargs,
         )
         self._agents[name] = entry
         self._agent_stats[name] = []
@@ -420,10 +425,7 @@ class OMemory:
             None
         """
         now = datetime.datetime.now()
-        event = {
-            "timestamp": now,
-            "event": event_type
-        }
+        event = {"timestamp": now, "event": event_type}
         if agent_name not in self._agent_stats:
             self._agent_stats[agent_name] = []
         self._agent_stats[agent_name].append(event)

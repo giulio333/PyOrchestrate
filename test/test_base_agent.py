@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from PyOrchestrate.core.base.base_agent import (
+from PyOrchestrate.core.agent.base_agent import (
     BaseAgent,
     ValidationError,
     BaseAgentConfig,
@@ -30,6 +30,7 @@ class TestBaseAgent(unittest.TestCase):
             a_type="process",
             state_events=self.state_events,
             control_events=self.control_events,
+            custom_attr="custom_value",
         )
 
     def test_initialization(self):
@@ -37,6 +38,7 @@ class TestBaseAgent(unittest.TestCase):
         self.assertEqual(self.agent.name, "test_agent")
         self.assertEqual(self.agent.a_type, "process")
         self.assertEqual(self.agent.config, self.config)
+        self.assertEqual(self.agent.custom_attr, "custom_value")  # type:ignore
         self.assertEqual(self.agent.state_events, self.state_events)
         self.assertEqual(self.agent.control_events, self.control_events)
         self.assertEqual(
@@ -54,6 +56,17 @@ class TestBaseAgent(unittest.TestCase):
         self.assertEqual(
             self.agent.control_events.stop_event, self.control_events.stop_event
         )
+
+    def test_initialization_with_default_name(self):
+        """Test agent initialization with default name"""
+        agent = BaseAgent(
+            name=None,
+            config=self.config,
+            a_type="process",
+            state_events=self.state_events,
+            control_events=self.control_events,
+        )
+        self.assertEqual(agent.name, "BaseAgent")
 
     def test_stop(self):
         """Test stop method"""
