@@ -66,6 +66,18 @@ class BaseClass(Generic[T]):
     start_time: float
 
     def __init__(self, config: T, name: str | None = None, **kwargs):
+        """
+        Initializes the class with the configuration and the name.
+
+        Notes:
+            - The name is used to identify the class in the logs.
+            - The configuration object is used to store the class configuration.
+            - Any additional keyword arguments are stored as instance attributes.
+
+        Args:
+            config (T): Configuration object.
+            name (str | None, optional): Class name. Defaults to None.
+        """
         self.config = config
         self.name = name if name else self.__class__.__name__
 

@@ -6,9 +6,10 @@ import threading
 import multiprocessing
 import time
 from abc import ABC
-from typing import final, TypeVar, Protocol
+from typing import final, TypeVar, Protocol, Literal
 
-from .base import BaseClass
+
+from ..base.base import BaseClass
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -116,20 +117,29 @@ class BaseAgent(BaseClass[T], ABC):
         self,
         name: str | None,
         config: T,
-        a_type: str,
+        a_type: Literal["process", "thread"],
         control_events: ControlEvents,
         state_events: StateEvents,
         **kwargs,
     ):
         """
-        BaseAgent constructor.
+        Creates an agent with the specified configuration and event handlers. The agent can be
+        identified by its name in logs and uses events to manage its lifecycle and respond to
+        external commands. The agent type determines whether it will run as a process or thread.
+
+        The agent's behavior is defined by two types of events:
+        - State events track the agent's internal state transitions
+        - Control events handle external commands and execution flow
+
+        Additional keyword arguments are automatically stored as instance attributes,
+        allowing for flexible extension of the agent's properties.
 
         Args:
-            name: The agent name.
-            config: The agent configuration.
-            a_type: The agent type.
-            control_events: Events related to external commands.
-            state_events: Events related to the internal state of the agent.
+            name (str | None): A unique identifier for the agent used in logging
+            config (T): Configuration parameters that define the agent's behavior
+            a_type (Literal["process", "thread"]): Determines if agent runs as process or thread
+            control_events (ControlEvents): Signals for external command handling
+            state_events (StateEvents): Signals for internal state management
         """
         super().__init__(name=name, config=config, **kwargs)
 

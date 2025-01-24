@@ -1,1 +1,1 @@
-from ..base.base_agent import BaseThreadAgent, BaseProcessAgent
+from .base_agent import BaseThreadAgent, BaseProcessAgent, BaseAgent, AgentProtocol

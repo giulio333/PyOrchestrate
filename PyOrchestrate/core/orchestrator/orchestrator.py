@@ -1,7 +1,7 @@
 import time
 from collections import defaultdict, deque
 
-from PyOrchestrate.core.base.base_agent import BaseAgent
+from PyOrchestrate.core.agent.base_agent import BaseAgent
 from .memory import OMemory, AgentEntry
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
