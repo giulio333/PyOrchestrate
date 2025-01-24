@@ -42,8 +42,8 @@ class LoopingAgentConfig(BaseAgent.Config):
 
     def validate(self):
         super().validate()
-        if self.limit is not None and self.limit <= 0:
-            raise ValueError("Limit must be greater than 0.")
+        if self.limit < -1:
+            raise ValueError("Limit must be greater than 0 or equal to -1.")
 
 
 T = TypeVar("T", bound=LoopingAgentConfig)
@@ -70,7 +70,7 @@ class LoopingAgent(BaseAgent[T]):
         super().execute()
 
         # without limit
-        if self.config.limit is None:
+        if self.config.limit == -1:
             while not self.control_events.stop_event.is_set():
                 self.safe_cycle()
 

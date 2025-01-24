@@ -56,7 +56,7 @@ class PoolAgentConfig(PeriodicAgent.Config):
 
     def validate(self):
         super().validate()
-        if self.limit is not None:
+        if self.limit != -1:
             raise ValueError("PoolAgent does not support limit parameter.")
         if not self.agents_entry:
             raise ValueError("No agents to register.")
