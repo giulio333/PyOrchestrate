@@ -29,7 +29,7 @@ def on_agent_started(agent_name: str, event_date, event_time):
     send_telegram_message(message)
 
 
-def on_agent_stopped(agent_name: str, **kwargs):
+def on_agent_stopped(agent_name: str):
     message = f"Agent {agent_name} stopped."
     print(message)
     send_telegram_message(message)
@@ -55,11 +55,11 @@ class WeatherCollector(PeriodicProcessAgent[WCConfig]):
 
     def setup(self):
         super().setup()
-        self.logger.info("Configurazione iniziale del WeatherCollector...")
+        self.logger.info("Initial configuration of the WeatherCollector...")
         if not os.path.exists(self.config.output_file):
             with open(self.config.output_file, "w") as file:
                 json.dump([], file)  # type: ignore
-            self.logger.info(f"Creato file di output: {self.config.output_file}")
+            self.logger.info(f"Output file created: {self.config.output_file}")
 
     def runner(self):
         self.logger.info(f"Making request to {self.config.url}...")
@@ -75,9 +75,7 @@ class WeatherCollector(PeriodicProcessAgent[WCConfig]):
                 file.seek(0)
                 json.dump(records, file, indent=4)  # type: ignore
 
-            self.logger.info(
-                f"Dati salvati correttamente in {self.config.output_file}."
-            )
+            self.logger.info(f"Data successfully saved in {self.config.output_file}.")
 
             if self.config.print_result:
                 self.logger.info(f"Risultato: {data}")
