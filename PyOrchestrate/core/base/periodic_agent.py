@@ -47,10 +47,10 @@ class PeriodicAgentConfig(LoopingAgentConfig):
         super().__init__(**kwargs)
 
         if execution_interval is not None:
-            self.execution_interval: float = execution_interval
+            self.execution_interval = execution_interval
 
         if delay_compensation is not None:
-            self.delay_compensation: bool = delay_compensation
+            self.delay_compensation = delay_compensation
 
     def validate(self):
         super().validate()
@@ -88,13 +88,13 @@ class PeriodicAgent(LoopingAgent[T]):
     def __init__(self, name: str, config: T, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
 
-        self.timer = None
+        self._timer = None
         self.interval = self.config.execution_interval
         self.compensate_delay = self.config.delay_compensation
 
     def setup(self):
         super().setup()
-        self.timer = PeriodicTimer(
+        self._timer = PeriodicTimer(
             logger=self.logger,
             interval=self.interval,
             compensate_delay=self.compensate_delay,
@@ -102,6 +102,13 @@ class PeriodicAgent(LoopingAgent[T]):
 
     @final
     def cycle(self):
+        """
+        Execute the agent cycle method in a loop.
+
+        Raises:
+            ValueError: _description_
+        """
+
         self.runner()
 
         if self.timer.wait(self.control_events.stop_event):
@@ -119,6 +126,19 @@ class PeriodicAgent(LoopingAgent[T]):
         super()._info()
         self.logger.debug(f"Config: execution_interval: {self.interval}")
         self.logger.debug(f"Config: delay_compensation: {self.compensate_delay}")
+
+    @property
+    def timer(self) -> PeriodicTimer:
+        if not self._timer:
+            raise RuntimeError(
+                "Timer is not initialized. Did you forget to call setup()?"
+            )
+
+        return self._timer
+
+    @timer.setter
+    def timer(self, value):
+        self._timer: PeriodicTimer | None = value
 
 
 class PeriodicProcessAgent(PeriodicAgent[T], multiprocessing.Process, ABC):
