@@ -42,11 +42,3 @@ jobs:
         name: pytest-results-${{ matrix.python-version }}
         path: junit/test-results-${{ matrix.python-version }}.xml
       if: ${{ always() }}
-
-    - name: Publish test results to GitHub
-      uses: dorny/test-reporter@v1
-      with:
-        name: Pytest results (Python ${{ matrix.python-version }})
-        path: junit/test-results-${{ matrix.python-version }}.xml
-        reporter: junit
-        fail-on-error: false
