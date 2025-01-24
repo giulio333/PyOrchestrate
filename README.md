@@ -1,5 +1,7 @@
 # PyOrchestrate Framework
 
+[![PyOrchestrate Test](https://github.com/giulio333/PyOrchestrate/actions/workflows/python-app.yml/badge.svg)](https://github.com/giulio333/PyOrchestrate/actions/workflows/python-app.yml)
+
 **PyOrchestrate** is a Python framework designed to simplify the creation and management of multi-process and
 multi-thread architectures. It provides a structured approach to orchestrating tasks, allowing developers to focus on
 logic while the framework handles complexities like process and thread management.
