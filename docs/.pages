@@ -1,7 +1,4 @@
 nav:
-        - quickstart
-        - hint
-        - advanced
-        - examples
+
         - release
         - code
