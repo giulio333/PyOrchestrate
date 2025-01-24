@@ -35,7 +35,7 @@ here's a `WeatherCollector` agent that fetches data periodically:
 
 ``` python
 from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
-from PyOrchestrate.core.base.base_agent import ProcessAgent
+from PyOrchestrate.core.agent.base_agent import ProcessAgent
 
 class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["WeatherCollector.Config"]):
     """Agent to collect weather data periodically."""

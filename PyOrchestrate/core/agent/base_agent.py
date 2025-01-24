@@ -17,18 +17,17 @@ class BaseAgentConfig(BaseClass.Config):
     Base agent configuration class.
 
     Attributes:
-        logger_config (LoggerConfig): Logger configuration.
+        logger_config (LoggerConfig): Configuration for the logger.
 
     Notes:
-        Class attributes store default values for the configuration parameters. If you want to change the default
-        values, you can override them in the derived class or pass them as arguments to the constructor.
+        Class attributes store default values for configuration parameters. These values can be
+        overridden either in derived classes or through constructor arguments.
 
-        User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
-        overridden in the derived class.
+        User-defined attributes follow the same pattern - they can be set via constructor
+        arguments or overridden in derived classes.
 
     Examples:
-        You can create a custom configuration class by inheriting from the BaseAgent.Config class and overriding the
-        desired attributes.
+        Creating a custom configuration by inheriting from BaseAgent.Config:
 
         >>> class Config(BaseClass.Config):
         ...     value = "value"
@@ -54,31 +53,32 @@ class BaseAgent(BaseClass[T], ABC):
     """
     Abstract base class for all agents.
 
-    This class provides a common interface for the agent's lifecycle management. It defines the main methods that an
-    agent must implement to be executed correctly.
+    This class provides a common interface for agent lifecycle management, defining
+    the essential methods that an agent must implement.
 
-    Every agent has a set of events to manage the internal state and the external commands. The `state_events` attribute
-    contains the events related to the internal state of the agent, while the `control_events` attribute contains the
-    events related to external commands.
+    Each agent manages two types of events:
+    - state_events: For managing the agent's internal state
+    - control_events: For handling external commands
 
     Warnings:
-        Always call the parent method when overriding a method (use super()).
+        When overriding methods, always call the parent implementation using super().
 
     Notes:
-        Derived classes must implement the `execute` method to define the agent's logic. You can also implement the
-        `setup` method to initialize some agent attributes before the cycle method.
+        Derived classes must implement the `execute` method to define their core logic.
+        The `setup` method can be optionally overridden to perform initialization
+        before the execution cycle begins.
 
     Attributes:
-        state_events (StateEvents): Events related to the internal state of the agent.
-        control_events (ControlEvents): Events related to external commands.
+        state_events (StateEvents): Events for internal state management.
+        control_events (ControlEvents): Events for external command handling.
 
     Methods:
-        run: Main method to run the agent.
-        setup: Method called when the agent is started to perform the setup.
-        execute: Method called to execute the agent logic.
-        stop: Method to request the external stop of the agent.
-        validate_config: Validate the configuration.
-        on_stop: Method called when the agent is stopped.
+        run: Main entry point for agent execution.
+        setup: Performs initialization when the agent starts.
+        execute: Implements the agent's core logic.
+        stop: Requests external termination of the agent.
+        validate_config: Validates the configuration.
+        on_stop: Handles cleanup when the agent is stopped.
     """
 
     a_type: str = ""
@@ -128,6 +128,7 @@ class BaseAgent(BaseClass[T], ABC):
         external commands. The agent type determines whether it will run as a process or thread.
 
         The agent's behavior is defined by two types of events:
+
         - State events track the agent's internal state transitions
         - Control events handle external commands and execution flow
 
@@ -198,18 +199,16 @@ class BaseAgent(BaseClass[T], ABC):
     def setup(self):
         """
         @template
-
-        Method called when the agent is started to perform the setup.
+        Performs initialization when the agent starts.
 
         Warnings:
-            Make sure to call the parent method if you override it.
+            When overriding, ensure to call the parent implementation.
 
         Notes:
-            Here you can implement the setup logic. This method is called once before the agent `execute` method.
+            Implement setup logic here. This method runs once before `execute`.
 
-            You can control this phase using the `control_events.setup_event` event.
-
-            When the setup is completed, the agent emits the `state_events.ready_event` event.
+            - Uses `control_events.setup_event` for execution control.
+            - Triggers `state_events.ready_event` upon completion.
         """
         if self.control_events is not None:
             self.control_events.setup_event.wait()
@@ -217,11 +216,10 @@ class BaseAgent(BaseClass[T], ABC):
     def execute(self):
         """
         @template
-
-        Method called to execute the agent logic.
+        Implements the agent's core logic.
 
         Warnings:
-            Make sure to call the parent method if you override it.
+            When overriding, ensure to call the parent implementation.
         """
         if self.control_events is not None:
             self.control_events.execute_event.wait()
@@ -243,12 +241,12 @@ class BaseAgent(BaseClass[T], ABC):
     def validate_config(self):
         """
         @template
-        Validate the configuration.
+        Validates the agent configuration.
 
-        You can override this method to add custom validation logic.
+        Override this method to implement custom validation logic.
 
         Raises:
-            ValidationError: If the configuration is not valid.
+            ValidationError: If the configuration is invalid.
         """
 
         try:
@@ -261,33 +259,27 @@ class BaseAgent(BaseClass[T], ABC):
 
     def on_stop(self):
         """
-        @optional
-
-        Method called when the agent is stopped.
+        Handles cleanup when the agent is stopped.
 
         Notes:
-            This method can be overridden in the derived class to implement custom logic to be executed when the agent
-            is stopped.
+            Override this method to implement custom cleanup logic
+            that should execute when the agent is stopped.
         """
         pass
 
     def on_close(self):
         """
-        @optional
-
-        Method called when the agent is closing.
+        Performs final cleanup when the agent is closing.
 
         Notes:
-            This method can be overridden in the derived class to implement custom logic to be executed when the agent
-            is closing.
+            Override this method to implement custom cleanup logic
+            that should execute during agent shutdown.
         """
         pass
 
     def _info(self) -> None:
         """
-        @template
-
-        Log the agent configurations.
+        Logs the agent configuration details.
 
         Returns:
             None
@@ -327,7 +319,10 @@ class BaseThreadAgent(BaseAgent[T], threading.Thread, ABC):
 
 class AgentProtocol(Protocol):
     """
-    Protocol that defines the methods and attributes required for an agent.
+    Protocol defining the required interface for agent implementations.
+
+    This protocol specifies the methods and attributes that any agent
+    implementation must provide.
     """
 
     a_type: str

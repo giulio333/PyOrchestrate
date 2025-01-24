@@ -1,1 +1,1 @@
-::: PyOrchestrate.core.base.base_agent
+::: PyOrchestrate.core.agent.base_agent

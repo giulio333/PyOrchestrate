@@ -8,8 +8,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from PyOrchestrate.core.agent.base_agent import (
     BaseAgent,
     ValidationError,
-    BaseAgentConfig,
 )
+from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
 class TestBaseAgent(unittest.TestCase):
@@ -21,7 +21,7 @@ class TestBaseAgent(unittest.TestCase):
         )
 
         # Create test config
-        self.config = BaseAgentConfig()
+        self.config = BaseAgent.Config()
 
         # Initialize test agent
         self.agent = BaseAgent(
@@ -35,10 +35,14 @@ class TestBaseAgent(unittest.TestCase):
 
     def test_initialization(self):
         """Test agent initialization"""
+
+        # Check agent attributes
         self.assertEqual(self.agent.name, "test_agent")
         self.assertEqual(self.agent.a_type, "process")
         self.assertEqual(self.agent.config, self.config)
         self.assertEqual(self.agent.custom_attr, "custom_value")  # type:ignore
+
+        # Check agent events
         self.assertEqual(self.agent.state_events, self.state_events)
         self.assertEqual(self.agent.control_events, self.control_events)
         self.assertEqual(
@@ -57,6 +61,9 @@ class TestBaseAgent(unittest.TestCase):
             self.agent.control_events.stop_event, self.control_events.stop_event
         )
 
+        # Default logger configuration
+        self.assertEqual(self.agent.config.logger_config, LoggerConfig())
+
     def test_initialization_with_default_name(self):
         """Test agent initialization with default name"""
         agent = BaseAgent(
@@ -68,11 +75,29 @@ class TestBaseAgent(unittest.TestCase):
         )
         self.assertEqual(agent.name, "BaseAgent")
 
+    def test_initialization_with_custom_config(self):
+        """Test agent initialization with custom configuration"""
+        custom_config = BaseAgent.Config(
+            logger_config=LoggerConfig(level="WARNING", filename="test.log")
+        )
+
+        agent = BaseAgent(
+            name="test_agent",
+            config=custom_config,
+            a_type="process",
+            state_events=self.state_events,
+            control_events=self.control_events,
+        )
+        self.assertEqual(agent.config.logger_config.level, "WARNING")
+        self.assertEqual(agent.config.logger_config.filename, "test.log")
+
     def test_stop(self):
         """Test stop method"""
         self.agent.logger = MagicMock()
+        self.agent.on_stop = MagicMock()
         self.agent.stop()
         self.control_events.stop_event.set.assert_called_once()
+        self.agent.on_stop.assert_called_once()
 
     def test_validate_config_success(self):
         """Test successful config validation"""

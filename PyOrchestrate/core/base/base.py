@@ -7,21 +7,19 @@ from ..base.utilities import LoggerConfig
 
 class BaseClassConfig:
     """
-    Base class configuration.
+    Base class for configuration settings.
 
     Attributes:
-        logger_config (LoggerConfig): Logger configuration.
+        logger_config (LoggerConfig): Configuration for the logger component.
 
     Notes:
-        Class attributes store default values for the configuration parameters. If you want to change the default
-        values, you can override them in the derived class or pass them as arguments to the constructor.
-
-        User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
-        overridden in the derived class.
+        Default configuration values are stored as class attributes. These defaults can be:
+        - Overridden in derived classes
+        - Modified through constructor arguments
+        - Extended with additional user-defined attributes
 
     Examples:
-        You can create a custom configuration class by inheriting from the BaseClass.Config class and overriding the
-        desired attributes.
+        Create a custom configuration by subclassing BaseClass.Config:
 
         >>> class Config(BaseClass.Config):
         ...     logger = LoggerConfig(level="DEBUG")
@@ -41,9 +39,10 @@ class BaseClassConfig:
 
     def validate(self):
         """
-        Validates certain conditions related to the class. This method is intended to
-        ensure the integrity or correctness of parameters or
-        state and can be overridden in subclasses to customize validation logic.
+        Validates the configuration settings.
+
+        This method should be overridden in subclasses to implement
+        specific validation logic for configuration parameters.
         """
         pass
 
@@ -56,9 +55,12 @@ T = TypeVar("T", bound="BaseClassConfig")
 
 class BaseClass(Generic[T]):
     """
-    Base class for all classes.
+    Base class providing core functionality.
 
-    Every class has a logger and a configuration object.
+    Features:
+        - Configured through a type-safe configuration object
+        - Built-in logging support
+        - Extensible through inheritance
     """
 
     Config = BaseClassConfig
@@ -67,16 +69,15 @@ class BaseClass(Generic[T]):
 
     def __init__(self, config: T, name: str | None = None, **kwargs):
         """
-        Initializes the class with the configuration and the name.
-
-        Notes:
-            - The name is used to identify the class in the logs.
-            - The configuration object is used to store the class configuration.
-            - Any additional keyword arguments are stored as instance attributes.
+        Initialize a new instance.
 
         Args:
-            config (T): Configuration object.
-            name (str | None, optional): Class name. Defaults to None.
+            config (T): Configuration object controlling class behavior
+            name (str | None): Identifier used for logging. Defaults to class name if None
+            **kwargs: Additional attributes to set on the instance
+
+        Note:
+            All kwargs are set as instance attributes directly.
         """
         self.config = config
         self.name = name if name else self.__class__.__name__
@@ -87,10 +88,10 @@ class BaseClass(Generic[T]):
 
     def setup_logger(self):
         """
-        Set up the logger.
+        Initialize the logger instance.
 
-        Notes:
-            Logger configuration is read from the `config.logger` attribute.
+        The logger is configured using settings from config.logger_config.
+        If a logger is already set up, this method has no effect.
         """
 
         if hasattr(self, "logger"):
