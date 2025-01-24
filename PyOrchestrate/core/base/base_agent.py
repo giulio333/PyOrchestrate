@@ -128,8 +128,8 @@ class BaseAgent(BaseClass[T], ABC):
             name: The agent name.
             config: The agent configuration.
             a_type: The agent type.
-            emit_setup: Event to signal that the agent can make the setup.
-            emit_execution: Event to signal that the agent can make the execution.
+            control_events: Events related to external commands.
+            state_events: Events related to the internal state of the agent.
         """
         super().__init__(name=name, config=config, **kwargs)
 
@@ -219,11 +219,12 @@ class BaseAgent(BaseClass[T], ABC):
     @final
     def stop(self):
         """
-        Event set to request the external stop of the thread.
+        Method to request the external stop of the agent.
 
         Notes:
             If you need to implement custom logic when the agent is being stopped, you can override the `on_stop` method.
-        Warning:
+
+        Warnings:
             Do not override this method.
         """
         self.on_stop()
@@ -287,6 +288,13 @@ class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):
     a_type: str = "process"
 
     def __init__(self, name: str | None, config: T, **kwargs):
+        """
+        BaseProcessAgent constructor.
+
+        Args:
+            name: The agent name.
+            config: The agent configuration.
+        """
         multiprocessing.Process.__init__(self, name=name)
         BaseAgent.__init__(self, name=name, config=config, a_type="process", **kwargs)
 
@@ -295,6 +303,13 @@ class BaseThreadAgent(BaseAgent[T], threading.Thread, ABC):
     a_type: str = "thread"
 
     def __init__(self, name: str | None, config: T, **kwargs):
+        """
+        BaseThreadAgent constructor.
+
+        Args:
+            name: The agent name.
+            config: The agent configuration.
+        """
         threading.Thread.__init__(self, name=name)
         BaseAgent.__init__(self, name=name, config=config, a_type="thread", **kwargs)
 
