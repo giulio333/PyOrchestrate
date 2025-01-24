@@ -5,9 +5,9 @@ from PyOrchestrate.utilities.logguru import LoggerFactory
 from ..base.utilities import LoggerConfig
 
 
-class BaseAgentConfig:
+class BaseClassConfig:
     """
-    BaseClass configuration class.
+    Base class configuration.
 
     Attributes:
         logger_config (LoggerConfig): Logger configuration.
@@ -51,7 +51,7 @@ class BaseAgentConfig:
         return f"<{self.__class__.__name__} {self.__dict__}>"
 
 
-T = TypeVar("T", bound="BaseAgentConfig")
+T = TypeVar("T", bound="BaseClassConfig")
 
 
 class BaseClass(Generic[T]):
@@ -61,7 +61,7 @@ class BaseClass(Generic[T]):
     Every class has a logger and a configuration object.
     """
 
-    Config = BaseAgentConfig
+    Config = BaseClassConfig
 
     start_time: float
 
