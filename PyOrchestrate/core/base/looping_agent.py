@@ -32,13 +32,13 @@ class LoopingAgentConfig(BaseAgent.Config):
         >>> custom_config = Config(limit=5)
     """
 
-    limit: int | None = None
+    limit: int = -1
 
     def __init__(self, limit: int | None = None, **kwargs):
         super().__init__(**kwargs)
 
         if limit is not None:
-            self.limit: int = limit
+            self.limit = limit
 
     def validate(self):
         super().validate()
@@ -99,7 +99,7 @@ class LoopingAgent(BaseAgent[T]):
             self.logger.error(f"Recoverable error: {e}")
         except NonRecoverableException as e:
             self.logger.error(f"Non-recoverable error: {e}")
-            self.events.stop_event.set()
+            self.control_events.stop_event.set()
 
     @abstractmethod
     def cycle(self):
