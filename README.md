@@ -33,35 +33,39 @@ git clone https://github.com/yourusername/pyorchestrate.git cd pyorchestrate pip
 ### Defining an Agent
 
 Define a custom agent by inheriting from predefined agent classes like `PeriodicAgent` or `LoopingAgent`. For example,
-here's a `WeatherCollector` agent that fetches data periodically:
+here's a `FileWriter` agent that logs a message periodically:
 
 ``` python
-from PyOrchestrate.core.base.periodic_agent import PeriodicAgent
-from PyOrchestrate.core.agent.base_agent import ProcessAgent
+from PyOrchestrate.core.orchestrator import Orchestrator
+from PyOrchestrate.core.base.periodic_agent import PeriodicProcessAgent
 
-class WeatherCollector(PeriodicAgent["WeatherCollector.Config"], ProcessAgent["WeatherCollector.Config"]):
-    """Agent to collect weather data periodically."""
 
-    class Config(PeriodicAgent.Config):
-        """Agent configuration."""
-        
-        output_file = output_file
-        url = url
-        execution_interval = 10  # seconds
+class FileWriterConfig(PeriodicProcessAgent.Config):
+    """Process agent configuration class."""
+
+    limit = 5
+    execution_interval = 1
+    directory = "/tmp"
+
+
+class FileWriter(PeriodicProcessAgent[FileWriterConfig]):
+    """Agent Class that logs a message periodically."""
+
+    Config = FileWriterConfig
 
     def setup(self):
-        if not os.path.exists(self.config.output_file):
-            with open(self.config.output_file, "w") as f:
-                json.dump([], f)
+        """
+        Setup method for the agent.
+        """
+        super().setup()
+        self.logger.info(f"FileWriter {self.name} initialized. pid={self.pid}")
+        self.logger.info(f"Working with directory: {self.config.directory}")
 
     def runner(self):
-        response = requests.get(self.config.url)
-        data = response.json()
-        with open(self.config.output_file, "r+") as f:
-            records = json.load(f)
-            records.append(data)
-            f.seek(0)
-            json.dump(records, f, indent=4)
+        """
+        Runner method for the agent.
+        """
+        self.logger.info("Doing some work")
 
 ```
 
@@ -73,14 +77,17 @@ The **Orchestrator** coordinates agents and manages their lifecycle. Below is an
 
 ``` python
 from PyOrchestrate.core.orchestrator import Orchestrator
-from models import WeatherCollector
 
 if __name__ == "__main__":
-    orchestrator = Orchestrator("Orchestrator")
+    orchestrator = Orchestrator("CoolOrchestrator")
 
-    orchestrator.register_agent(WeatherCollector, "WeatherCollector")
+    # register agents
+    orchestrator.register_agent(FileWriter, "FileWriter")
 
+    # start agent
     orchestrator.start()
+
+    # wait for agent to complete
     orchestrator.join()
 ```
 
@@ -91,7 +98,7 @@ if __name__ == "__main__":
 Each agent has a `Config` class to customize behavior.
 
 ``` python
-class CustomConfig(PeriodicAgent.Config):
+class CustomConfig(PeriodicProcessAgent.Config):
     def __init__(self):
         super().__init__()
         self.execution_interval = 5  # every 5 seconds
@@ -108,7 +115,7 @@ class CustomConfig(PeriodicAgent.Config):
    The main orchestrator manages agents that themselves spawn threads for subtasks.
 
 3. **Periodic Data Collection**  
-   Use `PeriodicAgent` to collect sensor data every N seconds and save it to a database.
+   Use `PeriodicProcessAgent` to collect sensor data every N seconds and save it to a database.
 
 * * *
 
