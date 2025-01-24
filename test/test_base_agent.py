@@ -1,0 +1,155 @@
+import unittest
+import sys
+import os
+from unittest.mock import MagicMock, patch
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from PyOrchestrate.core.base.base_agent import (
+    BaseAgent,
+    ValidationError,
+    BaseAgentConfig,
+)
+
+
+class TestBaseAgent(unittest.TestCase):
+    def setUp(self):
+        # Mock
+        self.state_events = BaseAgent.StateEvents(MagicMock(), MagicMock())
+        self.control_events = BaseAgent.ControlEvents(
+            MagicMock(), MagicMock(), MagicMock()
+        )
+
+        # Create test config
+        self.config = BaseAgentConfig()
+
+        # Initialize test agent
+        self.agent = BaseAgent(
+            name="test_agent",
+            config=self.config,
+            a_type="process",
+            state_events=self.state_events,
+            control_events=self.control_events,
+        )
+
+    def test_initialization(self):
+        """Test agent initialization"""
+        self.assertEqual(self.agent.name, "test_agent")
+        self.assertEqual(self.agent.a_type, "process")
+        self.assertEqual(self.agent.config, self.config)
+        self.assertEqual(self.agent.state_events, self.state_events)
+        self.assertEqual(self.agent.control_events, self.control_events)
+        self.assertEqual(
+            self.agent.state_events.ready_event, self.state_events.ready_event
+        )
+        self.assertEqual(
+            self.agent.state_events.close_event, self.state_events.close_event
+        )
+        self.assertEqual(
+            self.agent.control_events.setup_event, self.control_events.setup_event
+        )
+        self.assertEqual(
+            self.agent.control_events.execute_event, self.control_events.execute_event
+        )
+        self.assertEqual(
+            self.agent.control_events.stop_event, self.control_events.stop_event
+        )
+
+    def test_stop(self):
+        """Test stop method"""
+        self.agent.logger = MagicMock()
+        self.agent.stop()
+        self.control_events.stop_event.set.assert_called_once()
+
+    def test_validate_config_success(self):
+        """Test successful config validation"""
+        self.agent.logger = MagicMock()
+        self.config.validate = MagicMock()
+        self.agent.validate_config()
+        self.config.validate.assert_called_once()
+
+    def test_validate_config_failure(self):
+        """Test failed config validation"""
+        self.agent.logger = MagicMock()
+        self.config.validate = MagicMock(side_effect=Exception("Invalid config"))
+        with self.assertRaises(ValidationError):
+            self.agent.validate_config()
+
+    def test_setup(self):
+        """Test setup method"""
+        self.agent.logger = MagicMock()
+        self.agent.setup()
+        self.control_events.setup_event.wait.assert_called_once()
+
+    def test_execute(self):
+        """Test execute method"""
+        self.agent.logger = MagicMock()
+        self.agent.execute()
+        self.control_events.execute_event.wait.assert_called_once()
+
+    def test_run_lifecycle(self):
+        """Test complete run lifecycle"""
+        self.agent.setup = MagicMock()
+        self.agent.execute = MagicMock()
+        self.agent.validate_config = MagicMock()
+
+        self.agent.run()
+
+        self.agent.setup.assert_called_once()
+        self.agent.execute.assert_called_once()
+        self.agent.validate_config.assert_called_once()
+        self.state_events.ready_event.set.assert_called_once()
+        self.state_events.close_event.set.assert_called_once()
+
+    def test_run_with_exception(self):
+        """Test run method with exception"""
+        self.agent.execute = MagicMock(side_effect=Exception("Test error"))
+        self.agent.run()
+        self.state_events.close_event.set.assert_called_once()
+
+    def test_on_stop_is_called(self):
+        """Test on_stop method is called during stop."""
+        self.agent.logger = MagicMock()
+        self.agent.on_stop = MagicMock()
+        self.agent.stop()
+        self.agent.on_stop.assert_called_once()
+
+    def test_on_close_is_called(self):
+        """Test on_close method is called during run."""
+        self.agent.logger = MagicMock()
+        self.agent.on_close = MagicMock()
+        self.agent.run()
+        self.agent.on_close.assert_called_once()
+
+    @patch.object(BaseAgent, "_info")
+    def test_info_is_called_during_run(self, mock_info):
+        """Test _info method is called during run."""
+        self.agent.logger = MagicMock()
+        self.agent.run()
+        mock_info.assert_called_once()
+
+    def test_run_with_missing_events(self):
+        """Test run method with missing events."""
+        agent_missing = BaseAgent(
+            name="test_agent_missing_events",
+            config=self.config,
+            a_type="process",
+            control_events=None,  # type:ignore
+            state_events=None,  # type:ignore
+        )
+        agent_missing.logger = MagicMock()
+
+        agent_missing.run()
+
+        agent_missing.logger.exception.assert_not_called()
+
+    def test_run_with_exception_in_setup(self):
+        """Test run method con eccezione in setup."""
+        self.agent.setup = MagicMock(side_effect=Exception("Test setup error"))
+
+        self.agent.run()
+        self.state_events.close_event.set.assert_called_once()
+
+
+if __name__ == "__main__":
+    unittest.main()

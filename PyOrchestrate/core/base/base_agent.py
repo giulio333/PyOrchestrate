@@ -232,6 +232,7 @@ class BaseAgent(BaseClass[T], ABC):
 
     def validate_config(self):
         """
+        @template
         Validate the configuration.
 
         You can override this method to add custom validation logic.
