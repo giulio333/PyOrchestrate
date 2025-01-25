@@ -127,5 +127,57 @@ class CustomConfig(PeriodicProcessAgent.Config):
 
 * * *
 
+## Using the `start` Command
+
+The PyOrchestrate framework includes a `start` command to create a new project structure. This command initializes a new project with the specified app name, creating the necessary directories and files.
+
+### Command
+
+``` bash
+pyorchestrate start <app_name>
+```
+
+### Options
+
+- `--help` or `-h`: Displays help information about the command.
+- `--version` or `-v`: Displays the version of the PyOrchestrate framework.
+
+### Project Structure
+
+The `start` command creates the following project structure:
+
+```
+<app_name>/
+    ├── models/
+    ├── configurations/
+    └── starter.py
+```
+
+- **App directory**: This is the main directory for the generated project, named after the specified app name.
+  - `models`: A subdirectory where the user will insert the models of the specialized agents they want to create.
+  - `configurations`: A subdirectory for storing the configurations of the agents.
+  - `starter.py`: A file where the definition of how the orchestrator will manage the agents is provided.
+
+### Example
+
+To create a new project named `MyApp`, run the following command:
+
+``` bash
+pyorchestrate start MyApp
+```
+
+This will create a directory named `MyApp` with the necessary subdirectories and a `starter.py` file.
+
+* * *
+
+## Troubleshooting the `start` Command
+
+If you encounter issues with the `start` command, here are some common problems and their solutions:
+
+1. **Command not found**: Ensure that the `pyorchestrate` command is available in your PATH. You may need to install the package or adjust your environment variables.
+2. **Permission denied**: Check your file system permissions. You may need to run the command with elevated privileges (e.g., using `sudo` on Unix-based systems).
+3. **Invalid app name**: Ensure that the app name provided is a valid directory name and does not contain any restricted characters.
+4. **Directory already exists**: If the specified app directory already exists, the command will not overwrite it. Choose a different app name or manually delete the existing directory.
+
 For more details, refer to the documentation in the repository or the `usage.md` file.
 
