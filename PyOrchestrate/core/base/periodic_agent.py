@@ -3,7 +3,7 @@ from abc import abstractmethod, ABC
 from typing import final, TypeVar
 import multiprocessing
 
-from .looping_agent import LoopingAgent, LoopingAgentConfig
+from ..agent.looping_agent import LoopingAgent, LoopingAgentConfig
 from ...utilities.periodic_timer import PeriodicTimer
 
 

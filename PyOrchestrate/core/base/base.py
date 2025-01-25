@@ -1,5 +1,5 @@
 import logging
-from typing import Generic, TypeVar, Type
+from typing import Generic, TypeVar, Any
 
 from PyOrchestrate.utilities.logguru import LoggerFactory
 from ..base.utilities import LoggerConfig
@@ -34,17 +34,26 @@ class BaseClassConfig:
             self.logger_config = logger_config
 
         # store user-defined attributes
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+        self._custom_attr: dict[str, Any] = kwargs
 
     def validate(self):
         """
         Validates the configuration settings.
 
-        This method should be overridden in subclasses to implement
-        specific validation logic for configuration parameters.
+        This method should be overridden in subclasses to implement specific validation logic for configuration parameters.
+
+        Raises:
+            ValueError: If the configuration is invalid.
         """
         pass
+
+    def __getattr__(self, key: str) -> Any:
+        custom_attr = self.__dict__.get("_custom_attr", {})
+        if key in custom_attr:
+            return custom_attr[key]
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{key}'"
+        )
 
     def __str__(self):
         return f"<{self.__class__.__name__} {self.__dict__}>"
@@ -83,8 +92,7 @@ class BaseClass(Generic[T]):
         self.name = name if name else self.__class__.__name__
 
         # store user-defined attributes
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+        self._custom_attr: dict[str, Any] = kwargs
 
     def setup_logger(self):
         """
@@ -103,4 +111,12 @@ class BaseClass(Generic[T]):
 
         self.logger = LoggerFactory.create_logger(
             log_identifier=log_name, logger_name=log_name, level=logging_level
+        )
+
+    def __getattr__(self, key: str) -> Any:
+        custom_attr = self.__dict__.get("_custom_attr", {})
+        if key in custom_attr:
+            return custom_attr[key]
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{key}'"
         )

@@ -12,6 +12,27 @@ from PyOrchestrate.core.agent.base_agent import (
 from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
+class TestBaseAgentConfig(unittest.TestCase):
+    def test_default_values(self):
+        """Test default configuration values"""
+        config = BaseAgent.Config()
+        self.assertEqual(config.logger_config, LoggerConfig())
+
+    def test_custom_values(self):
+        """Test custom configuration values"""
+        custom_logger_config = LoggerConfig(level="DEBUG")
+        custom_value = "custom_value"
+        config = BaseAgent.Config(
+            logger_config=custom_logger_config, custom_value=custom_value
+        )
+        self.assertEqual(config.logger_config, custom_logger_config)
+        self.assertEqual(config.custom_value, custom_value)
+
+    def test_invalid_limit(self):
+        """Test validation with invalid limit"""
+        pass
+
+
 class TestBaseAgent(unittest.TestCase):
     def setUp(self):
         # Mock
@@ -25,7 +46,7 @@ class TestBaseAgent(unittest.TestCase):
 
         # Initialize test agent
         self.agent = BaseAgent(
-            name="test_agent",
+            name="test_base_agent",
             config=self.config,
             a_type="process",
             state_events=self.state_events,
@@ -37,7 +58,7 @@ class TestBaseAgent(unittest.TestCase):
         """Test agent initialization"""
 
         # Check agent attributes
-        self.assertEqual(self.agent.name, "test_agent")
+        self.assertEqual(self.agent.name, "test_base_agent")
         self.assertEqual(self.agent.a_type, "process")
         self.assertEqual(self.agent.config, self.config)
         self.assertEqual(self.agent.custom_attr, "custom_value")  # type:ignore
