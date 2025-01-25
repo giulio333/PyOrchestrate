@@ -5,7 +5,7 @@ BaseAgent module.
 import threading
 import multiprocessing
 import time
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import final, TypeVar, Protocol, Literal
 
 
@@ -16,23 +16,32 @@ class BaseAgentConfig(BaseClass.Config):
     """
     Base agent configuration class.
 
+    Class attributes store default values for configuration parameters. These values can be
+    overridden either in derived classes or through constructor arguments.
+
+    User-defined attributes follow the same pattern, they can be set via constructor
+    arguments or overridden in derived classes.
+
     Attributes:
         logger_config (LoggerConfig): Configuration for the logger.
 
-    Notes:
-        Class attributes store default values for configuration parameters. These values can be
-        overridden either in derived classes or through constructor arguments.
-
-        User-defined attributes follow the same pattern - they can be set via constructor
-        arguments or overridden in derived classes.
-
     Examples:
-        Creating a custom configuration by inheriting from BaseAgent.Config:
+        Creating a custom configuration for a ChatAgent:
 
-        >>> class Config(BaseClass.Config):
-        ...     value = "value"
-        >>> default_config = Config()
-        >>> custom_config = Config(value="new value")
+        >>> class ChatAgentConfig(BaseAgent.Config):
+        ...     model_name = "gpt-3.5-turbo"  # Default model name
+        ...     max_tokens = 1000             # Default maximum tokens per request
+        ...     temperature = 0.7             # Default temperature for sampling
+
+        >>> # Default configuration
+        >>> default_chat_config = ChatAgentConfig()
+
+        >>> # Custom configuration
+        >>> custom_chat_config = ChatAgentConfig(
+        ...     model_name="gpt-4",
+        ...     max_tokens=2000,
+        ...     temperature=0.9
+        ... )
     """
 
 
@@ -57,16 +66,17 @@ class BaseAgent(BaseClass[T], ABC):
     the essential methods that an agent must implement.
 
     Each agent manages two types of events:
+
     - state_events: For managing the agent's internal state
     - control_events: For handling external commands
 
     Warnings:
         When overriding methods, always call the parent implementation using super().
 
-    Notes:
+    Usage:
         Derived classes must implement the `execute` method to define their core logic.
         The `setup` method can be optionally overridden to perform initialization
-        before the execution cycle begins.
+        before the execution begins.
 
     Attributes:
         state_events (StateEvents): Events for internal state management.

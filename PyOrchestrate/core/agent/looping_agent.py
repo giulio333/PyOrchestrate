@@ -3,33 +3,43 @@ from typing import final, TypeVar, Type
 import multiprocessing
 import threading
 
-from .exceptions import RecoverableException, NonRecoverableException
-from ..agent.base_agent import BaseAgent
+from ..base.exceptions import RecoverableException, NonRecoverableException
+from .base_agent import BaseAgent
 
 
 class LoopingAgentConfig(BaseAgent.Config):
     """
     Looping agent configuration class.
 
+    Class attributes store default values for configuration parameters. These values can be
+    overridden either in derived classes or through constructor arguments.
+
+    User-defined attributes follow the same pattern, they can be set via constructor
+    arguments or overridden in derived classes.
+
     Attributes:
-        limit (int): The maximum number of iterations.
+        limit (int): The maximum number of iterations, defaults to -1 (infinite).
         logger (LoggerConfig): Logger configuration.
 
-    Notes:
-        Class attributes store default values for the configuration parameters. If you want to change the default
-        values, you can override them in the derived class or pass them as arguments to the constructor.
-
-        User-defined attributes follow the same pattern. They can be passed as arguments to the constructor or
-        overridden in the derived class.
-
     Examples:
-        You can create a custom configuration class by inheriting from the LoopingAgent.Config class and overriding the
-        desired attributes.
+        Creating a custom configuration for a ChatAgent:
 
-        >>> class Config(LoopingAgent.Config):
-        ...     limit = 10
-        >>> default_config = Config()
-        >>> custom_config = Config(limit=5)
+        >>> class ChatAgentConfig(LoopingAgent.Config):
+        ...     limit: int = 10               # Default limit for the number of iterations
+        ...     model_name = "gpt-3.5-turbo"  # Default model name
+        ...     max_tokens = 1000             # Default maximum tokens per request
+        ...     temperature = 0.7             # Default temperature for sampling
+
+        >>> # Default configuration
+        >>> default_chat_config = ChatAgentConfig()
+
+        >>> # Custom configuration
+        >>> custom_chat_config = ChatAgentConfig(
+        ...     limit=5,
+        ...     model_name="gpt-4",
+        ...     max_tokens=2000,
+        ...     temperature=0.9
+        ... )
     """
 
     limit: int = -1
@@ -50,6 +60,34 @@ T = TypeVar("T", bound=LoopingAgentConfig)
 
 
 class LoopingAgent(BaseAgent[T]):
+    """
+    LoopingAgent class.
+
+    This class provides a common interface for agents that execute a cycle method in a loop.
+
+    Each agent manages two types of events:
+
+    - state_events: For managing the agent's internal state
+    - control_events: For handling external commands
+
+    Warnings:
+        When overriding methods, always call the parent implementation using super().
+
+    Notes:
+        Derived classes must implement the `cycle` method to define their core logic.
+        The `setup` method can be optionally overridden to perform initialization
+        before the execution cycle begins.
+
+    Attributes:
+        state_events (StateEvents): Events for internal state management.
+        control_events (ControlEvents): Events for external command handling.
+
+    Methods:
+        execute: Executes the agent's core logic in a loop.
+        safe_cycle: Executes the agent's cycle method in a try-except block.
+        cycle: Defines the agent's core logic to be executed in each iteration of the loop.
+        _info: Logs the agent's configuration.
+    """
 
     Config = LoopingAgentConfig
 
@@ -86,6 +124,7 @@ class LoopingAgent(BaseAgent[T]):
             if limit_reached:
                 self.logger.debug(f"Reached limit ({self.config.limit}).")
 
+    @final
     def safe_cycle(self):
         """
         Execute the agent's cycle logic to be executed in each iteration of the loop in a try-except block.
@@ -109,9 +148,6 @@ class LoopingAgent(BaseAgent[T]):
         Notes:
 
         """
-
-    def setup(self):
-        super().setup()
 
     @abstractmethod
     def _info(self):
