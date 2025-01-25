@@ -1,6 +1,7 @@
 import argparse
 import os
 
+
 def create_project_structure(app_name):
     """
     Create the project structure for the specified app name.
@@ -10,32 +11,29 @@ def create_project_structure(app_name):
     with open(f"{app_name}/starter.py", "w") as f:
         f.write(starter_template)
 
-starter_template = """# starter.py template
+
+starter_template = """import os, sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Imports
 from PyOrchestrate.core.orchestrator import Orchestrator
-from PyOrchestrate.core.agent import BaseAgent
 
-# Define Agents
-class MyAgent(BaseAgent):
-    def setup(self):
-        pass
+if __name__ == "__main__":
 
-    def execute(self):
-        pass
+    # Initialize Orchestrator
+    orchestrator = Orchestrator()
 
-# Initialize Orchestrator
-orchestrator = Orchestrator()
+    # Register Agents
+    # orchestrator.register_agent(YouAgent)
 
-# Register Agents
-orchestrator.register_agent(MyAgent, "MyAgent")
+    # Start Orchestrator
+    orchestrator.start()
 
-# Start Orchestrator
-orchestrator.start()
-
-# Join Orchestrator
-orchestrator.join()
+    # Join Agents
+    orchestrator.join()
 """
+
 
 def main():
     parser = argparse.ArgumentParser(description="PyOrchestrate CLI")
@@ -55,6 +53,7 @@ def main():
     else:
         print(f"Unknown command: {args.command}")
         parser.print_help()
+
 
 if __name__ == "__main__":
     main()
