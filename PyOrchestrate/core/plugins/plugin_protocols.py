@@ -55,20 +55,14 @@ class CommunicationPlugin(Plugin):
         receive: Receives a message.
     """
 
-    def send(self, message: str):
+    def send(self, message):
         """
         Sends a message.
-
-        Args:
-            message (str): The message to send.
         """
         pass
 
-    def receive(self) -> str:
+    def receive(self):
         """
         Receives a message.
-
-        Returns:
-            str: The received message.
         """
         pass
