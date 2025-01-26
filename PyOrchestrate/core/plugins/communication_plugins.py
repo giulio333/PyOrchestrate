@@ -18,17 +18,30 @@ class ZeroMQPlugin(CommunicationPlugin):
         socket (zmq.Socket): The ZeroMQ socket.
     """
 
-    def __init__(self, address: str, socket_type: int):
+    def __init__(self, address: str, socket_type: int, subscribe_topic: bytes = b""):
         """
         Initializes the ZeroMQPlugin.
 
         Args:
             address (str): The address to bind/connect the socket.
-            socket_type (int): The type of ZeroMQ socket (e.g., zmq.REQ, zmq.REP).
+            socket_type (int): The type of ZeroMQ socket (e.g., zmq.REQ, zmq.REP, zmq.PUB, zmq.SUB).
+            subscribe_topic (bytes): The topic to subscribe to (only for zmq.SUB). Defaults to b"" (all topics).
         """
         self.context = zmq.Context()
         self.socket = self.context.socket(socket_type)
-        self.socket.connect(address)
+
+        if socket_type in [zmq.PUB, zmq.REP]:
+            # Server sockets bind to the address
+            self.socket.bind(address)
+        elif socket_type in [zmq.SUB, zmq.REQ]:
+            # Client sockets connect to the address
+            self.socket.connect(address)
+
+            # Configure topic filter if the socket is SUB
+            if socket_type == zmq.SUB:
+                self.socket.setsockopt(zmq.SUBSCRIBE, subscribe_topic)
+        else:
+            raise ValueError("Unsupported socket type for ZeroMQPlugin")
 
     def initialize(self):
         """
@@ -169,7 +182,7 @@ class FileBasedPlugin(CommunicationPlugin):
         Args:
             message (str): The message to send.
         """
-        with open(self.file_path, 'w') as file:
+        with open(self.file_path, "w") as file:
             file.write(message)
 
     def receive(self) -> str:
@@ -179,5 +192,5 @@ class FileBasedPlugin(CommunicationPlugin):
         Returns:
             str: The received message.
         """
-        with open(self.file_path, 'r') as file:
+        with open(self.file_path, "r") as file:
             return file.read()
