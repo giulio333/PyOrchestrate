@@ -27,14 +27,24 @@ class PoolAgentConfig(PeriodicAgent.Config):
         overridden in the derived class.
 
     Examples:
-        You can create a custom configuration class by inheriting from the PoolAgentConfig class and overriding the
-        desired attributes.
+        Creating a custom configuration for a PoolAgent:
 
-        >>> class Config(PoolAgent.Config):
-        ...     agent_entry = [AgentEntry(...), AgentEntry(...)]
-        ...     auto_reboot = True
-        >>> default_config = Config()
-        >>> custom_config = Config(auto_reboot=False)
+        >>> class PoolAgentConfig(PeriodicAgent.Config):
+        ...     auto_reboot = True  # Default auto reboot flag
+        ...     agents_entry = [AgentEntry(...), AgentEntry(...)]  # Default agents entry list
+        ...     execution_interval = 2  # Default execution interval
+        ...     delay_compensation = True  # Default delay compensation
+
+        >>> # Default configuration
+        >>> default_pool_config = PoolAgentConfig()
+
+        >>> # Custom configuration
+        >>> custom_pool_config = PoolAgentConfig(
+        ...     auto_reboot=False,
+        ...     agents_entry=[AgentEntry(...), AgentEntry(...)],
+        ...     execution_interval=1,
+        ...     delay_compensation=False
+        ... )
     """
 
     agent_entry: list[AgentEntry] | None = None

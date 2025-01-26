@@ -25,14 +25,22 @@ class PeriodicAgentConfig(LoopingAgentConfig):
         overridden in the derived class.
 
     Examples:
-        You can create a custom configuration class by inheriting from the PeriodicAgent.Config class and overriding the
-        desired attributes.
+        Creating a custom configuration for a PeriodicAgent:
 
-        >>> class Config(PeriodicAgent.Config):
-        ...     execution_interval = 2
-        ...     delay_compensation = True
-        >>> default_config = Config()
-        >>> custom_config = Config(execution_interval=.2)
+        >>> class PeriodicAgentConfig(PeriodicAgent.Config):
+        ...     execution_interval = 2  # Default execution interval
+        ...     delay_compensation = True  # Default delay compensation
+        ...     limit = 10  # Default limit for the number of iterations
+
+        >>> # Default configuration
+        >>> default_periodic_config = PeriodicAgentConfig()
+
+        >>> # Custom configuration
+        >>> custom_periodic_config = PeriodicAgentConfig(
+        ...     execution_interval=0.5,
+        ...     delay_compensation=False,
+        ...     limit=5
+        ... )
     """
 
     execution_interval: float = 1
