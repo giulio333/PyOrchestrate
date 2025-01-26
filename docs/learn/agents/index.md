@@ -5,16 +5,12 @@ editLink: true
 
 # Agents
 
-In PyOrchestrate, **agents** are the fundamental components, running as **processes** or **threads**.
+Agents in PyOrchestrate are the core building blocks of the framework. You can think of an agent as a **container** for your custom logic, encapsulating how it runs, what it does, and how it interacts with other agents.
 
-The framework provides a range of [built-in agents](./built-in-agents/baseagent.md) designed as extensible templates, allowing you to implement your own custom logic while leveraging their predefined structure and behavior.
-
-All you need to do is choose the agent that best fits your requirements and inherit from it to create your own custom agent.
 
 ![alt text](assets/agents_l.svg){.light-only}
 ![alt text](assets/agents_d.svg){.dark-only}
 
-[[toc]]
 
 ## Usage
 
@@ -46,12 +42,18 @@ class MyAgent(PeriodicProcessAgent):
 
 Agents in PyOrchestrate are the core building blocks of the framework. You can think of an agent as a **container** for your custom logic, encapsulating how it runs, what it does, and how it interacts with other agents.
 
+The framework provides a range of [built-in agents](./built-in-agents/baseagent.md) designed as extensible templates, allowing you to implement your own custom logic while leveraging their predefined structure and behavior.
+
+All you need to do is choose the agent that best fits your requirements and inherit from it to create your own custom agent.
+
 ![alt text](assets/structure_l.svg){.light-only}
 ![alt text](assets/structure_d.svg){.dark-only}
 
 Click [here](./built-in-agents/baseagent.md) to view some examples of agents that might be useful to understand the concept.
 
 ### Agent Behavior
+
+In PyOrchestrate, **agents** are the fundamental components, running as **processes** or **threads**.
 
 Agents are designed to handle a variety of use cases, such as:
 
