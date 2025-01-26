@@ -6,10 +6,10 @@ import threading
 import multiprocessing
 import time
 from abc import ABC, abstractmethod
-from typing import final, TypeVar, Protocol, Literal
-
+from typing import final, TypeVar, Protocol, Literal, List, Dict, Type
 
 from ..base.base import BaseClass
+from ..plugins.plugin_protocols import Plugin
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -81,6 +81,7 @@ class BaseAgent(BaseClass[T], ABC):
     Attributes:
         state_events (StateEvents): Events for internal state management.
         control_events (ControlEvents): Events for external command handling.
+        plugins (Dict[str, Plugin]): Registered plugins.
 
     Methods:
         run: Main entry point for agent execution.
@@ -89,6 +90,9 @@ class BaseAgent(BaseClass[T], ABC):
         stop: Requests external termination of the agent.
         validate_config: Validates the configuration.
         on_stop: Handles cleanup when the agent is stopped.
+        register_plugin: Registers a plugin.
+        unregister_plugin: Unregisters a plugin.
+        get_plugin: Retrieves a registered plugin.
     """
 
     a_type: str = ""
@@ -159,6 +163,9 @@ class BaseAgent(BaseClass[T], ABC):
         self.control_events = control_events
         """Events related to external commands."""
         self.a_type = a_type
+        """The agent type (process or thread)."""
+        self.plugins: Dict[str, Plugin] = {}
+        """Registered plugins."""
 
     @final
     def run(self):
@@ -295,6 +302,48 @@ class BaseAgent(BaseClass[T], ABC):
             None
         """
         self.logger.debug(f"Config: logger_level: {self.config.logger_config.level}")
+
+    def register_plugin(self, plugin: Plugin):
+        """
+        Registers a plugin.
+
+        Args:
+            plugin (Plugin): The plugin to register.
+        """
+        plugin_name = plugin.__class__.__name__
+        self.plugins[plugin_name] = plugin
+        plugin.initialize()
+        self.logger.info(f"Plugin '{plugin_name}' registered.")
+
+    def unregister_plugin(self, plugin_name: str):
+        """
+        Unregisters a plugin.
+
+        Args:
+            plugin_name (str): The name of the plugin to unregister.
+        """
+        if plugin_name in self.plugins:
+            plugin = self.plugins.pop(plugin_name)
+            plugin.finalize()
+            self.logger.info(f"Plugin '{plugin_name}' unregistered.")
+
+    def get_plugin(self, plugin_name: str) -> Plugin:
+        """
+        Retrieves a registered plugin.
+
+        Args:
+            plugin_name (str): The name of the plugin to retrieve.
+
+        Returns:
+            Plugin: The registered plugin.
+
+        Raises:
+            KeyError: If the plugin is not found.
+        """
+        if plugin_name not in self.plugins:
+            raise KeyError(f"Plugin '{plugin_name}' not found.")
+
+        return self.plugins[plugin_name]
 
 
 class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):
