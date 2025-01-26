@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from typing import final, TypeVar, Protocol, Literal, List, Dict, Type
 
 from ..base.base import BaseClass
-from ..plugins.plugin_protocols import Plugin
+from ..plugins.plugin_protocols import CommunicationPlugin
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -178,8 +178,8 @@ class BaseAgent(BaseClass[T], ABC):
         """Events related to external commands."""
         self.a_type = a_type
         """The agent type (process or thread)."""
-        self.plugins: Dict[str, Plugin] = {}
-        """Registered plugins."""
+        self._com = None
+        """Communication plugin for the agent."""
 
     @final
     def run(self):
@@ -317,47 +317,44 @@ class BaseAgent(BaseClass[T], ABC):
         """
         self.logger.debug(f"Config: logger_level: {self.config.logger_config.level}")
 
-    def register_plugin(self, plugin: Plugin):
+    def register_com_plugin(self, plugin: CommunicationPlugin):
         """
-        Registers a plugin.
+        Registers a communication plugin.
 
         Args:
             plugin (Plugin): The plugin to register.
         """
-        plugin_name = plugin.__class__.__name__
-        self.plugins[plugin_name] = plugin
-        plugin.initialize()
-        self.logger.info(f"Plugin '{plugin_name}' registered.")
+        self._com = plugin
+        self.com.initialize()
+        self.logger.info(
+            f"Communication plugin '{plugin.__class__.__name__}' registered."
+        )
 
-    def unregister_plugin(self, plugin_name: str):
+    def unregister_com_plugin(self):
         """
         Unregisters a plugin.
 
         Args:
             plugin_name (str): The name of the plugin to unregister.
         """
-        if plugin_name in self.plugins:
-            plugin = self.plugins.pop(plugin_name)
-            plugin.finalize()
-            self.logger.info(f"Plugin '{plugin_name}' unregistered.")
+        plugin_name = self._com.__class__.__name__
+        self.com.finalize()
+        self._com = None
+        self.logger.info(f"Communication plugin '{plugin_name}' unregistered.")
 
-    def get_plugin(self, plugin_name: str) -> Plugin:
+    @property
+    def com(self) -> CommunicationPlugin:
         """
-        Retrieves a registered plugin.
-
-        Args:
-            plugin_name (str): The name of the plugin to retrieve.
+        Communication plugin for the agent.
 
         Returns:
-            Plugin: The registered plugin.
-
-        Raises:
-            KeyError: If the plugin is not found.
+            Plugin: The communication plugin.
+        Rasies:
+            AttributeError: If the communication plugin is not registered.
         """
-        if plugin_name not in self.plugins:
-            raise KeyError(f"Plugin '{plugin_name}' not found.")
-
-        return self.plugins[plugin_name]
+        if self._com is None:
+            raise AttributeError("Communication plugin not registered.")
+        return self._com
 
 
 class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):

@@ -23,7 +23,7 @@ class LogMonitorAgent(BaseProcessAgent[MyConfig]):
         super().setup()
 
         zmqPlugin = ZeroMQPlugin("tcp://localhost:5555", zmq.PUB)
-        self.register_plugin(zmqPlugin)
+        self.register_com_plugin(zmqPlugin)
 
         self.logger.info(
             f"Initializing LogMonitorAgent for file: {self.config.log_file}."
@@ -50,15 +50,13 @@ class LogMonitorAgent(BaseProcessAgent[MyConfig]):
                 for line in f:
                     if self.config.keyword in line:
                         self.logger.warning(f"Keyword found: {line.strip()}")
-                        cm = self.get_plugin("ZeroMQPlugin")
-                        cm.send(f"Keyword found: {line.strip()}")  # type: ignore
+                        self.com.send(f"Keyword found: {line.strip()}")
 
         except Exception as e:
             self.logger.exception(f"Error reading the log file: {e}")
         finally:
-            cm = self.get_plugin("ZeroMQPlugin")
-            cm.send("STOP")  # type: ignore
-            cm.finalize()
+            self.com.send("STOP")
+            self.unregister_com_plugin()
 
     def on_stop(self):
         """
@@ -77,7 +75,7 @@ class LogReceiverAgent(BaseProcessAgent[MyConfig]):
         super().setup()
 
         zmqPlugin = ZeroMQPlugin("tcp://localhost:5555", zmq.SUB)
-        self.register_plugin(zmqPlugin)
+        self.register_com_plugin(zmqPlugin)
 
         self.config.logger_config.level = "INFO"
 
@@ -93,9 +91,8 @@ class LogReceiverAgent(BaseProcessAgent[MyConfig]):
 
         self.logger.info(f"Monitoring for keyword: '{self.config.keyword}'")
         try:
-            cm = self.get_plugin("ZeroMQPlugin")
             while True:
-                message = cm.receive()  # type: ignore
+                message = self.com.receive()
                 self.logger.success(f"Received message: {message}")
 
                 if message == "STOP":
@@ -104,8 +101,7 @@ class LogReceiverAgent(BaseProcessAgent[MyConfig]):
         except Exception as e:
             self.logger.exception(f"Error reading the log file: {e}")
         finally:
-            cm = self.get_plugin("ZeroMQPlugin")
-            cm.finalize()
+            self.unregister_com_plugin()
 
     def on_stop(self):
         """
@@ -115,6 +111,8 @@ class LogReceiverAgent(BaseProcessAgent[MyConfig]):
 
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method("spawn")
+
     orchestrator = Orchestrator()
 
     # register agents
