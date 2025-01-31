@@ -1,131 +1,142 @@
-from PyOrchestrate.core.orchestrator import Orchestrator
-from PyOrchestrate.core.orchestrator import AgentEntry
+import time
+import multiprocessing
+import requests
+import zmq
+
+from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
 from PyOrchestrate.core.agent import BaseProcessAgent
 from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPlugin
 
-import zmq
-import time
-import multiprocessing
-
 
 class MyConfig(BaseProcessAgent.Config):
-    log_file: str = "application.log"
-    keyword: str = "ERROR"
+    # URL della API di esempio (restituisce dati JSON)
+    api_url: str = "https://catfact.ninja/fact"
+    # Keyword da cercare nella risposta
+    keyword: str = "and"
+    # Intervallo di polling (in secondi)
+    poll_interval: float = 1.0
 
 
-class LogMonitorAgent(BaseProcessAgent[MyConfig]):
-
+class APIFetchAgent(BaseProcessAgent[MyConfig]):
     Config = MyConfig
 
     def setup(self) -> None:
         """
-        Ensure the log file exists.
+        Inizializzazione dell'agente: registra il plugin di comunicazione e logga il setup.
         """
         super().setup()
-
-        zmqPlugin = ZeroMQPlugin("tcp://localhost:5555", zmq.PUB)
-        self.plugin_manager.register(zmqPlugin)
-
+        zmq_plugin = ZeroMQPlugin("tcp://localhost:5555", zmq.PUB)
+        self.plugin_manager.register(zmq_plugin)
         self.logger.info(
-            f"Initializing LogMonitorAgent for file: {self.config.log_file}."
+            f"Inizializzazione di APIFetchAgent con API: {self.config.api_url}"
         )
-
-        self.logger.info("Waiting for receiver to connect...")
         time.sleep(1)
-
-        try:
-            with open(self.config.log_file, "r") as f:
-                self.logger.info("Log file found.")
-        except FileNotFoundError:
-            self.logger.error(f"Log file {self.config.log_file} does not exist.")
 
     def execute(self) -> None:
         """
-        Monitor the log file for the specified keyword.
+        Effettua il polling dell'API esterna e, se la keyword viene trovata nei dati,
+        invia un messaggio all'altro agente.
         """
         super().execute()
-
-        self.logger.info(f"Monitoring for keyword: '{self.config.keyword}'")
+        self.logger.info(
+            f"Inizio polling dell'API ogni {self.config.poll_interval} secondi per la keyword: '{self.config.keyword}'"
+        )
         try:
-            with open(self.config.log_file, "r") as f:
-                for line in f:
-                    if self.config.keyword in line:
-                        self.logger.warning(f"Keyword found: {line.strip()}")
-                        self.com.send(f"Keyword found: {line.strip()}")
-
+            # Ad esempio, eseguiamo 5 richieste
+            for _ in range(5):
+                self.logger.info("Richiedo i dati dall'API esterna...")
+                response = requests.get(self.config.api_url)
+                if response.status_code == 200:
+                    json_data = response.json()
+                    # Costruiamo una stringa contenente alcune informazioni utili
+                    message_str = f"Corpo: {json_data.get('fact', '')}"
+                    self.logger.info("Dati ricevuti dall'API:")
+                    self.logger.info(message_str)
+                    # Verifica se la keyword è presente nella stringa
+                    if self.config.keyword in message_str:
+                        self.logger.warning(f"Keyword '{self.config.keyword}' trovata!")
+                        self.com.send(
+                            f"Keyword '{self.config.keyword}' trovata: {message_str}"
+                        )
+                    else:
+                        self.logger.info("Keyword non trovata in questo ciclo.")
+                else:
+                    self.logger.error(
+                        f"Errore nell'accesso all'API: codice {response.status_code}"
+                    )
+                time.sleep(self.config.poll_interval)
         except Exception as e:
-            self.logger.exception(f"Error reading the log file: {e}")
+            self.logger.exception(f"Errore durante il polling dell'API: {e}")
         finally:
+            # Al termine del ciclo, invia un segnale di STOP all'altro agente
             self.com.send("STOP")
             self.plugin_manager.unregister()
 
     def on_stop(self):
         """
-        Log the agent's shutdown.
+        Log della terminazione dell'agente.
         """
-        self.logger.info("LogMonitorAgent stopped.")
+        self.logger.info("APIFetchAgent terminato.")
 
 
-class LogReceiverAgent(BaseProcessAgent[MyConfig]):
+class APIAlertAgent(BaseProcessAgent[MyConfig]):
     Config = MyConfig
 
     def setup(self) -> None:
         """
-        Ensure the log file exists.
+        Inizializza l'agente per la ricezione dei messaggi.
         """
         super().setup()
-
-        zmqPlugin = ZeroMQPlugin("tcp://localhost:5555", zmq.SUB)
-        self.plugin_manager.register(zmqPlugin)
-
+        zmq_plugin = ZeroMQPlugin("tcp://localhost:5555", zmq.SUB)
+        self.plugin_manager.register(zmq_plugin)
+        # Impostiamo il livello di log a INFO
         self.config.logger_config.level = "INFO"
-
         self.logger.info(
-            f"Initializing LogReceiverAgent for file: {self.config.log_file}"
+            "Inizializzazione di APIAlertAgent per la ricezione degli alert dall'API."
         )
 
     def execute(self) -> None:
         """
-        Monitor the log file for the specified keyword.
+        Resta in ascolto dei messaggi provenienti da APIFetchAgent.
         """
         super().execute()
-
-        self.logger.info(f"Monitoring for keyword: '{self.config.keyword}'")
+        self.logger.info("In ascolto dei messaggi inviati da APIFetchAgent...")
         try:
             while True:
                 message = self.com.receive()
-                self.logger.success(f"Received message: {message}")
-
+                self.logger.success(f"Messaggio ricevuto: {message}")
                 if message == "STOP":
+                    self.logger.info("Ricevuto segnale di STOP.")
                     break
-
         except Exception as e:
-            self.logger.exception(f"Error reading the log file: {e}")
+            self.logger.exception(f"Errore durante la ricezione dei messaggi: {e}")
         finally:
             self.plugin_manager.unregister()
 
     def on_stop(self):
         """
-        Log the agent's shutdown.
+        Log della terminazione dell'agente.
         """
-        self.logger.info("LogReceiverAgent stopped.")
+        self.logger.info("APIAlertAgent terminato.")
 
 
 if __name__ == "__main__":
+    # Necessario per il supporto al multiprocessing
     multiprocessing.set_start_method("spawn")
 
+    # Inizializzazione dell'orchestrator
     orchestrator = Orchestrator()
 
-    # register agents
-    lr_agent: AgentEntry = orchestrator.register_agent(
-        LogReceiverAgent, "LogReceiverAgent"
+    # Registrazione degli agenti
+    fetch_agent: AgentEntry = orchestrator.register_agent(
+        APIFetchAgent, "APIFetchAgent"
     )
-    fw_agent: AgentEntry = orchestrator.register_agent(
-        LogMonitorAgent, "LogMonitorAgent"
+    alert_agent: AgentEntry = orchestrator.register_agent(
+        APIAlertAgent, "APIAlertAgent"
     )
 
-    # start all agents
+    # Avvio degli agenti
     orchestrator.start()
 
-    # wait for all agents to complete
+    # Attesa della terminazione degli agenti
     orchestrator.join()
