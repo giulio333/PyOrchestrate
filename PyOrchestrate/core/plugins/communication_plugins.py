@@ -7,11 +7,11 @@ import requests
 from .plugin_protocols import CommunicationPlugin
 
 
-class ZeroMQPlugin(CommunicationPlugin):
+class ZeroMQPubSub(CommunicationPlugin):
     """
-    ZeroMQ communication plugin.
+    ZeroMQ Pub/Sub communication plugin.
 
-    This plugin provides communication using ZeroMQ sockets.
+    This plugin provides communication using ZeroMQ Pub/Sub sockets.
 
     Attributes:
         context (zmq.Context): The ZeroMQ context.
@@ -111,118 +111,3 @@ class ZeroMQPlugin(CommunicationPlugin):
             value: The value to set.
         """
         self.socket.setsockopt(option, value)
-
-
-class HTTPPlugin(CommunicationPlugin):
-    """
-    HTTP communication plugin.
-
-    This plugin provides communication using HTTP requests.
-
-    Attributes:
-        url (str): The URL for HTTP requests.
-    """
-
-    def __init__(self, url: str):
-        """
-        Initializes the HTTPPlugin.
-
-        Args:
-            url (str): The URL for HTTP requests.
-        """
-        self.url = url
-
-    def initialize(self):
-        """
-        Initializes the HTTP plugin.
-        """
-        pass
-
-    def execute(self):
-        """
-        Executes the HTTP plugin's core logic.
-        """
-        pass
-
-    def finalize(self):
-        """
-        Finalizes the HTTP plugin.
-        """
-        pass
-
-    def send_string(self, message: str):
-        """
-        Sends a message using HTTP POST request.
-
-        Args:
-            message (str): The message to send.
-        """
-        requests.post(self.url, data=message)
-
-    def recv_string(self) -> str:
-        """
-        Receives a message using HTTP GET request.
-
-        Returns:
-            str: The received message.
-        """
-        response = requests.get(self.url)
-        return response.text
-
-
-class FileBasedPlugin(CommunicationPlugin):
-    """
-    File-based communication plugin.
-
-    This plugin provides communication using file-based message passing.
-
-    Attributes:
-        file_path (str): The file path for message passing.
-    """
-
-    def __init__(self, file_path: str):
-        """
-        Initializes the FileBasedPlugin.
-
-        Args:
-            file_path (str): The file path for message passing.
-        """
-        self.file_path = file_path
-
-    def initialize(self):
-        """
-        Initializes the file-based plugin.
-        """
-        pass
-
-    def execute(self):
-        """
-        Executes the file-based plugin's core logic.
-        """
-        pass
-
-    def finalize(self):
-        """
-        Finalizes the file-based plugin.
-        """
-        pass
-
-    def send_string(self, message: str):
-        """
-        Sends a message by writing to a file.
-
-        Args:
-            message (str): The message to send.
-        """
-        with open(self.file_path, "w") as file:
-            file.write(message)
-
-    def recv_string(self) -> str:
-        """
-        Receives a message by reading from a file.
-
-        Returns:
-            str: The received message.
-        """
-        with open(self.file_path, "r") as file:
-            return file.read()

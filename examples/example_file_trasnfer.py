@@ -3,7 +3,7 @@ import multiprocessing
 import zmq
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
-from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPlugin
+from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
 from PyOrchestrate.core.base.periodic_agent import PeriodicProcessAgent
 
 ############################################################
@@ -28,7 +28,7 @@ class FileSendAgent(PeriodicProcessAgent[FileSendConfig]):
     def setup(self) -> None:
         super().setup()
         # Configuriamo il plugin ZeroMQ in modalità PUB e lo "bindiamo" su tcp://0.0.0.0:5555
-        zmq_plugin = ZeroMQPlugin("tcp://0.0.0.0:5555", zmq.PUB)
+        zmq_plugin = ZeroMQPubSub("tcp://0.0.0.0:5555", zmq.PUB)
         self.plugin_manager.register(zmq_plugin)
         self.logger.info(
             f"Inizializzazione di FileSendAgent. File da inviare: {self.config.file_path}"
@@ -84,7 +84,7 @@ class FileReceiveAgent(PeriodicProcessAgent[FileReceiveConfig]):
     def setup(self) -> None:
         super().setup()
         # Configuriamo il plugin ZeroMQ in modalità SUB e ci connettiamo al publisher
-        zmq_plugin = ZeroMQPlugin("tcp://localhost:5555", zmq.SUB)
+        zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
         self.plugin_manager.register(zmq_plugin)
         # Sottoscriviamo a tutti i messaggi
         self.com.setsockopt(zmq.SUBSCRIBE, b"")

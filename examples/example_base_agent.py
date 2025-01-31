@@ -5,7 +5,7 @@ import zmq
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
 from PyOrchestrate.core.agent import BaseProcessAgent
-from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPlugin
+from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
 
 
 class MyConfig(BaseProcessAgent.Config):
@@ -25,7 +25,7 @@ class APIFetchAgent(BaseProcessAgent[MyConfig]):
         Inizializzazione dell'agente: registra il plugin di comunicazione e logga il setup.
         """
         super().setup()
-        zmq_plugin = ZeroMQPlugin("tcp://localhost:5555", zmq.PUB)
+        zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
         self.plugin_manager.register(zmq_plugin)
         self.logger.info(
             f"Inizializzazione di APIFetchAgent con API: {self.config.api_url}"
@@ -87,7 +87,7 @@ class APIAlertAgent(BaseProcessAgent[MyConfig]):
         Inizializza l'agente per la ricezione dei messaggi.
         """
         super().setup()
-        zmq_plugin = ZeroMQPlugin("tcp://localhost:5555", zmq.SUB)
+        zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
         self.plugin_manager.register(zmq_plugin)
         # Impostiamo il livello di log a INFO
         self.config.logger_config.level = "INFO"
