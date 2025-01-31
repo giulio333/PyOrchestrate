@@ -5,11 +5,13 @@ BaseAgent module.
 import threading
 import multiprocessing
 import time
-from abc import ABC, abstractmethod
-from typing import final, TypeVar, Protocol, Literal, List, Dict, Type
+from abc import ABC
+from typing import final, TypeVar, Protocol, Literal
+
+from PyOrchestrate.core.plugins.plugin_protocols import CommunicationPlugin
 
 from ..base.base import BaseClass
-from ..plugins.plugin_protocols import CommunicationPlugin
+from ..plugins.plugin_manager import PluginManager
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -178,8 +180,8 @@ class BaseAgent(BaseClass[T], ABC):
         """Events related to external commands."""
         self.a_type = a_type
         """The agent type (process or thread)."""
-        self._com = None
-        """Communication plugin for the agent."""
+        self.plugin_manager = PluginManager()
+        """Manages the agent's plugins."""
 
     @final
     def run(self):
@@ -317,44 +319,20 @@ class BaseAgent(BaseClass[T], ABC):
         """
         self.logger.debug(f"Config: logger_level: {self.config.logger_config.level}")
 
-    def register_com_plugin(self, plugin: CommunicationPlugin):
-        """
-        Registers a communication plugin.
-
-        Args:
-            plugin (Plugin): The plugin to register.
-        """
-        self._com = plugin
-        self.com.initialize()
-        self.logger.info(
-            f"Communication plugin '{plugin.__class__.__name__}' registered."
-        )
-
-    def unregister_com_plugin(self):
-        """
-        Unregisters a plugin.
-
-        Args:
-            plugin_name (str): The name of the plugin to unregister.
-        """
-        plugin_name = self._com.__class__.__name__
-        self.com.finalize()
-        self._com = None
-        self.logger.info(f"Communication plugin '{plugin_name}' unregistered.")
-
     @property
     def com(self) -> CommunicationPlugin:
         """
-        Communication plugin for the agent.
+        Communication plugin.
+
+        Raises:
+            AttributeError: If the communication plugin is not registered.
 
         Returns:
-            Plugin: The communication plugin.
-        Rasies:
-            AttributeError: If the communication plugin is not registered.
+            CommunicationPlugin: The communication plugin.
         """
-        if self._com is None:
+        if self.plugin_manager.com is None:
             raise AttributeError("Communication plugin not registered.")
-        return self._com
+        return self.plugin_manager.com
 
 
 class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):

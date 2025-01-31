@@ -24,7 +24,7 @@ class LogMonitorAgent(BaseProcessAgent[MyConfig]):
         super().setup()
 
         zmqPlugin = ZeroMQPlugin("tcp://localhost:5555", zmq.PUB)
-        self.register_com_plugin(zmqPlugin)
+        self.plugin_manager.register(zmqPlugin)
 
         self.logger.info(
             f"Initializing LogMonitorAgent for file: {self.config.log_file}."
@@ -57,7 +57,7 @@ class LogMonitorAgent(BaseProcessAgent[MyConfig]):
             self.logger.exception(f"Error reading the log file: {e}")
         finally:
             self.com.send("STOP")
-            self.unregister_com_plugin()
+            self.plugin_manager.unregister()
 
     def on_stop(self):
         """
@@ -76,7 +76,7 @@ class LogReceiverAgent(BaseProcessAgent[MyConfig]):
         super().setup()
 
         zmqPlugin = ZeroMQPlugin("tcp://localhost:5555", zmq.SUB)
-        self.register_com_plugin(zmqPlugin)
+        self.plugin_manager.register(zmqPlugin)
 
         self.config.logger_config.level = "INFO"
 
@@ -102,7 +102,7 @@ class LogReceiverAgent(BaseProcessAgent[MyConfig]):
         except Exception as e:
             self.logger.exception(f"Error reading the log file: {e}")
         finally:
-            self.unregister_com_plugin()
+            self.plugin_manager.unregister()
 
     def on_stop(self):
         """

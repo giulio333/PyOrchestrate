@@ -1,5 +1,31 @@
 """
 Plugin protocols module.
+
+This module defines the core protocols (interfaces) for the plugin system in PyOrchestrate.
+Plugin protocols provide a standardized way to define and implement plugins, ensuring
+consistency and interoperability across the entire framework.
+
+The module implements two main protocols:
+
+- Plugin: The base protocol that all plugins must implement, defining the basic
+  lifecycle methods (initialize, execute, finalize).
+  
+- CommunicationPlugin: A specialized protocol for plugins that handle communication,
+  extending the base Plugin protocol with additional messaging capabilities.
+
+These protocols serve as contracts that plugin implementations must fulfill, making
+the plugin system both extensible and maintainable. By following these protocols,
+developers can create new plugins that seamlessly integrate with the PyOrchestrate
+framework.
+
+Example:
+    To create a new plugin, implement either the Plugin or CommunicationPlugin
+    protocol based on your needs:
+
+    class MyPlugin(Plugin):
+        def initialize(self):
+            # Setup code
+            pass
 """
 
 from typing import Protocol
