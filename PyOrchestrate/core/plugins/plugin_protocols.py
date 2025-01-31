@@ -81,14 +81,32 @@ class CommunicationPlugin(Plugin):
         receive: Receives a message.
     """
 
+    def send_string(self, message):
+        """
+        Sends a message.
+        """
+        pass
+
+    def recv_string(self):
+        """
+        Receives a message.
+        """
+        pass
+
+    def recv(self, flags: int = 0):
+        """
+        Receives a message.
+        """
+        pass
+
     def send(self, message):
         """
         Sends a message.
         """
         pass
 
-    def receive(self):
+    def setsockopt(self, option, value):
         """
-        Receives a message.
+        Set a socket option.
         """
         pass
