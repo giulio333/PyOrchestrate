@@ -39,24 +39,26 @@ class Plugin(Protocol):
     the essential methods that a plugin must implement.
 
     Methods:
-        initialize: Initializes the plugin.
-        execute: Executes the plugin's core logic.
-        finalize: Finalizes the plugin.
+        initialize: Initializes the plugin and sets up necessary resources.
+        execute: Executes the main logic of the plugin.
+        finalize: Finalizes the plugin, cleaning up resources.
     """
 
     def initialize(self):
         """
         Initializes the plugin.
 
-        This method is called once when the plugin is registered.
+        Called once when the plugin is registered.
+        Perform all necessary setup operations here.
         """
         pass
 
     def execute(self):
         """
-        Executes the plugin's core logic.
+        Executes the main logic of the plugin.
 
-        This method is called during the agent's execution.
+        Called during the plugin's execution cycle.
+        This method should contain the primary functionality of the plugin.
         """
         pass
 
@@ -64,7 +66,8 @@ class Plugin(Protocol):
         """
         Finalizes the plugin.
 
-        This method is called once when the plugin is unregistered.
+        Called when the plugin is unregistered.
+        Perform cleanup operations, such as closing connections and releasing resources.
         """
         pass
 
@@ -73,40 +76,78 @@ class CommunicationPlugin(Plugin):
     """
     Protocol for communication plugins.
 
-    This protocol provides a common interface for communication plugins, defining
-    the essential methods that a communication plugin must implement.
+    This protocol extends the base Plugin protocol by adding methods for sending and
+    receiving messages, similar to those provided by PyZMQ. It is designed to facilitate
+    flexible and effective communication between components.
 
     Methods:
-        send: Sends a message.
-        receive: Receives a message.
+        send_string: Sends a message encoded as a UTF-8 string.
+        recv_string: Receives a message and decodes it as a UTF-8 string.
+        recv: Receives a message, optionally using flags as defined in PyZMQ.
+        send: Sends a message (typically in bytes or serialized format).
+        setsockopt: Sets a socket option, as defined by PyZMQ.
     """
 
     def send_string(self, message):
         """
-        Sends a message.
+        Sends a message as a string.
+
+        Converts the message to a UTF-8 encoded string and sends it through the socket.
+        Useful for transmitting textual data.
+
+        Parameters:
+            message: The message to be sent (str).
         """
         pass
 
     def recv_string(self):
         """
-        Receives a message.
+        Receives a message and decodes it as a string.
+
+        Waits for a message, decodes it using UTF-8 encoding, and returns the resulting string.
+
+        Returns:
+            The received message as a string.
         """
         pass
 
     def recv(self, flags: int = 0):
         """
-        Receives a message.
+        Receives a message from the socket.
+
+        Uses PyZMQ's receive method, allowing the use of flags to customize the behavior
+        (e.g., non-blocking reception). Refer to the PyZMQ documentation for details on flags.
+
+        Parameters:
+            flags (int): Optional flags for the receive operation (default: 0).
+
+        Returns:
+            The received message, typically in bytes.
         """
         pass
 
     def send(self, message):
         """
-        Sends a message.
+        Sends a message through the socket.
+
+        The message can be already in bytes or serialized as bytes.
+        This method wraps the sending functionality provided by PyZMQ.
+
+        Parameters:
+            message: The message to be sent (typically bytes or serialized into bytes).
         """
         pass
 
     def setsockopt(self, option, value):
         """
-        Set a socket option.
+        Sets a socket option.
+
+        Allows configuration of the socket by setting specific options as defined by the PyZMQ library.
+        For more details on available options, refer to the PyZMQ documentation
+        at this link: https://pyzmq.readthedocs.io/en/latest/api/zmq.html#zmq.Socket.setsockopt
+
+        Parameters:
+            option: The socket option to set (e.g., zmq.SUBSCRIBE).
+            value: The value to assign to the option.
         """
         pass
