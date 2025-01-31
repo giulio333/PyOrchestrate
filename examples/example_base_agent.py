@@ -103,7 +103,7 @@ class APIAlertAgent(BaseProcessAgent[MyConfig]):
         self.logger.info("In ascolto dei messaggi inviati da APIFetchAgent...")
         try:
             while True:
-                message = self.com.receive()
+                message = self.com.recv()
                 self.logger.success(f"Messaggio ricevuto: {message}")
                 if message == "STOP":
                     self.logger.info("Ricevuto segnale di STOP.")
