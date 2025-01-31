@@ -62,7 +62,7 @@ class ZeroMQPlugin(CommunicationPlugin):
         self.socket.close()
         self.context.term()
 
-    def send(self, message: str):
+    def send_string(self, message: str):
         """
         Sends a message using ZeroMQ.
 
@@ -71,7 +71,7 @@ class ZeroMQPlugin(CommunicationPlugin):
         """
         self.socket.send_string(message)
 
-    def receive(self) -> str:
+    def recv_string(self) -> str:
         """
         Receives a message using ZeroMQ.
 
@@ -79,6 +79,38 @@ class ZeroMQPlugin(CommunicationPlugin):
             str: The received message.
         """
         return self.socket.recv_string()
+
+    def recv(self, flags: int = 0):
+        """
+        Receives a message using ZeroMQ.
+
+        Args:
+            flags (int): The flags to use for the receive operation.
+
+        Returns:
+            Any: The received message.
+        """
+        return self.socket.recv(flags)
+
+    def send(self, message, flags: int = 0):
+        """
+        Sends a message using ZeroMQ.
+
+        Args:
+            message: The message to send.
+            flags (int): The flags to use for the send operation.
+        """
+        self.socket.send(message, flags)
+
+    def setsockopt(self, option, value):
+        """
+        Sets a socket option.
+
+        Args:
+            option: The option to set.
+            value: The value to set.
+        """
+        self.socket.setsockopt(option, value)
 
 
 class HTTPPlugin(CommunicationPlugin):
@@ -118,7 +150,7 @@ class HTTPPlugin(CommunicationPlugin):
         """
         pass
 
-    def send(self, message: str):
+    def send_string(self, message: str):
         """
         Sends a message using HTTP POST request.
 
@@ -127,7 +159,7 @@ class HTTPPlugin(CommunicationPlugin):
         """
         requests.post(self.url, data=message)
 
-    def receive(self) -> str:
+    def recv_string(self) -> str:
         """
         Receives a message using HTTP GET request.
 
@@ -175,7 +207,7 @@ class FileBasedPlugin(CommunicationPlugin):
         """
         pass
 
-    def send(self, message: str):
+    def send_string(self, message: str):
         """
         Sends a message by writing to a file.
 
@@ -185,7 +217,7 @@ class FileBasedPlugin(CommunicationPlugin):
         with open(self.file_path, "w") as file:
             file.write(message)
 
-    def receive(self) -> str:
+    def recv_string(self) -> str:
         """
         Receives a message by reading from a file.
 
