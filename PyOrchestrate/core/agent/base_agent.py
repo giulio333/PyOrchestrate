@@ -5,11 +5,13 @@ BaseAgent module.
 import threading
 import multiprocessing
 import time
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import final, TypeVar, Protocol, Literal
 
+from PyOrchestrate.core.plugins.plugin_protocols import CommunicationPlugin
 
 from ..base.base import BaseClass
+from ..plugins.plugin_manager import PluginManager
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -81,6 +83,7 @@ class BaseAgent(BaseClass[T], ABC):
     Attributes:
         state_events (StateEvents): Events for internal state management.
         control_events (ControlEvents): Events for external command handling.
+        plugins (Dict[str, Plugin]): Registered plugins.
 
     Methods:
         run: Main entry point for agent execution.
@@ -89,6 +92,9 @@ class BaseAgent(BaseClass[T], ABC):
         stop: Requests external termination of the agent.
         validate_config: Validates the configuration.
         on_stop: Handles cleanup when the agent is stopped.
+        register_plugin: Registers a plugin.
+        unregister_plugin: Unregisters a plugin.
+        get_plugin: Retrieves a registered plugin.
     """
 
     a_type: str = ""
@@ -151,6 +157,20 @@ class BaseAgent(BaseClass[T], ABC):
             a_type (Literal["process", "thread"]): Determines if agent runs as process or thread
             control_events (ControlEvents): Signals for external command handling
             state_events (StateEvents): Signals for internal state management
+
+        Methods:
+            run: Main entry point for agent execution.
+            setup: Performs initialization when the agent starts
+            execute: Implements the agent's core logic
+            stop: Requests external termination of the agent
+            validate_config: Validates the configuration
+            on_stop: Handles cleanup when the agent is stopped
+            on_close: Performs final cleanup when the agent is closing
+            _info: Logs the agent configuration details
+            register_plugin: Registers a plugin
+            unregister_plugin: Unregisters a plugin
+            get_plugin: Retrieves a registered plugin
+
         """
         super().__init__(name=name, config=config, **kwargs)
 
@@ -159,6 +179,9 @@ class BaseAgent(BaseClass[T], ABC):
         self.control_events = control_events
         """Events related to external commands."""
         self.a_type = a_type
+        """The agent type (process or thread)."""
+        self.plugin_manager = PluginManager()
+        """Manages the agent's plugins."""
 
     @final
     def run(self):
@@ -295,6 +318,21 @@ class BaseAgent(BaseClass[T], ABC):
             None
         """
         self.logger.debug(f"Config: logger_level: {self.config.logger_config.level}")
+
+    @property
+    def com(self) -> CommunicationPlugin:
+        """
+        Communication plugin.
+
+        Raises:
+            AttributeError: If the communication plugin is not registered.
+
+        Returns:
+            CommunicationPlugin: The communication plugin.
+        """
+        if self.plugin_manager.com is None:
+            raise AttributeError("Communication plugin not registered.")
+        return self.plugin_manager.com
 
 
 class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):
