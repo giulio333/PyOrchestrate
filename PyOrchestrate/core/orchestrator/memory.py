@@ -274,6 +274,10 @@ class OMemory:
             Every agent has a set of events that can be used to control its lifecycle. By default, all events are set to
             ready.
 
+        Warning:
+            If no ControlEvents or StateEvents are provided, default events will be created.
+            In addition, default ControlEvents will be set to ready.
+
         Args:
             agent_class (Type[BaseAgent]): The class of the agent to store.
             name (str): The name of the agent.
@@ -298,14 +302,14 @@ class OMemory:
                 setup_event=event(), execute_event=event(), stop_event=event()
             )
 
+            # default set to ready
+            control_events.setup_event.set()
+            control_events.execute_event.set()
+
         if not state_events:
             state_events = agent_class.StateEvents(
                 ready_event=event(), close_event=event()
             )
-
-        # default set to ready
-        control_events.setup_event.set()
-        control_events.execute_event.set()
 
         entry = AgentEntry(
             agent_class=agent_class,
