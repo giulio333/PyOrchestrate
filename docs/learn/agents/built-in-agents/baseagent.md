@@ -41,6 +41,8 @@ To learn more about `BaseClass` click here.
 
 ## Sequence Diagram
 
+The sequence diagram below illustrates the lifecycle of the `BaseAgent` after it is started.
+
 ```mermaid
 sequenceDiagram
     participant Agent as BaseAgent
@@ -64,8 +66,6 @@ sequenceDiagram
     Agent->>StateEvents: close_event.set()
 ```
 
-To learn more about BaseClass click here.
-
 ## Usage
 
 You can create a custom agent by inheriting from the `BaseProcessAgent` or `BaseThreadAgent` class.
@@ -74,7 +74,9 @@ You can create a custom agent by inheriting from the `BaseProcessAgent` or `Base
 |--------|-------------| ---------|
 | [execute](#execute) | Define the core logic of the agent. | Required :green_circle: |
 | [setup](#setup) | Perform any setup operations required by the agent. | Optional :orange_circle: |
-| [on_stop](#on-stop) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
+| [stop](#stop) | Stop the agent. | Prohibited :red_circle: |
+| [validate_config](#validate_config) | Validate the agent's configuration. | Optional :orange_circle: |
+| [on_stop](#on-stop) | Implement custom logic during external shutdown request. | Optional :orange_circle: |
 | [on_close](#on-close) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
 
 ![alt text](visual_light.png){.light-only}
@@ -129,8 +131,8 @@ This method is called before the agent starts running. It can be overridden to p
 The setup method waits for the `control_events.setup_event` to be triggered, giving external systems the ability to manage when the setup phase starts.
 :::
 
-::: warning
-Make sure to call the parent method if you override it.
+::: tip
+Be sure to call the parent method if you override it.
 :::
 
 ### execute
@@ -141,8 +143,8 @@ Make sure to call the parent method if you override it.
 
 This method is called by the `run()` method to execute the core logic of the agent. It must be overridden by the derived class to define the agent's behavior.
 
-::: tip 
-Be sure to override this method in your derived class to define the core logic of the agent.
+::: tip
+Be sure to call the parent method.
 :::
 
 ### stop
@@ -151,7 +153,9 @@ Be sure to override this method in your derived class to define the core logic o
 @final
 ```
 
-This method is called to stop the agent.
+This method is called to stop the agent from external systems. 
+
+Keep in mind that agents will not stop immediately. They will complete the current iteration of the `execute` method before stopping.
 
 ::: warning Do not override
 Marked as `@final` to prevent overriding in derived class ensuring that the core logic remains consistent across all agents.
@@ -161,7 +165,7 @@ Marked as `@final` to prevent overriding in derived class ensuring that the core
 To implement custom logic during the agent’s shutdown, override the [on_stop](#on_stop) method in your derived class.
 :::
 
-### validate configuration
+### validate_config
 
 ```python
 @final
@@ -282,28 +286,3 @@ class LogMonitorAgent(BaseProcessAgent["LogMonitorAgent.Config"]):
 ## Advanced Usage
 
 For a deeper dive into how agents work and their advanced use cases, explore the **Advanced Insights section**.
-
-## Sequence Diagram
-
-```mermaid
-sequenceDiagram
-    participant Agent as BaseAgent
-    participant Config as Config
-    participant StateEvents as StateEvents
-    participant ControlEvents as ControlEvents
-
-    Agent->>Config: validate_config()
-    Agent->>ControlEvents: setup_event.wait()
-    activate ControlEvents
-    ControlEvents-->>Agent: control event triggered
-    deactivate ControlEvents
-    Agent->>Agent: setup()
-    Agent->>StateEvents: ready_event.set()
-    Agent->>ControlEvents: execute_event.wait()
-    activate ControlEvents
-    ControlEvents-->>Agent: control event triggered
-    deactivate ControlEvents
-    Agent->>Agent: execute()
-    Agent->>Agent: on_close()
-    Agent->>StateEvents: close_event.set()
-```
