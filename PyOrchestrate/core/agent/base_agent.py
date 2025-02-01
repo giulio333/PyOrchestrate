@@ -5,7 +5,7 @@ BaseAgent module.
 import threading
 import multiprocessing
 import time
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import final, TypeVar, Protocol, Literal
 
 from PyOrchestrate.core.plugins.plugin_protocols import CommunicationPlugin
@@ -174,6 +174,8 @@ class BaseAgent(BaseClass[T], ABC):
         """
         super().__init__(name=name, config=config, **kwargs)
 
+        self.start_time = 0
+        """The start time of the agent."""
         self.state_events = state_events
         """Events related to the internal state of the agent."""
         self.control_events = control_events
@@ -232,6 +234,7 @@ class BaseAgent(BaseClass[T], ABC):
     def setup(self):
         """
         @template
+
         Performs initialization when the agent starts.
 
         Warnings:
@@ -246,6 +249,7 @@ class BaseAgent(BaseClass[T], ABC):
         if self.control_events is not None:
             self.control_events.setup_event.wait()
 
+    @abstractmethod
     def execute(self):
         """
         @template
@@ -260,6 +264,8 @@ class BaseAgent(BaseClass[T], ABC):
     @final
     def stop(self):
         """
+        @final
+
         Method to request the external stop of the agent.
 
         Notes:
@@ -271,12 +277,20 @@ class BaseAgent(BaseClass[T], ABC):
         self.on_stop()
         self.control_events.stop_event.set()
 
+    @final
     def validate_config(self):
         """
-        @template
+        @final
+
         Validates the agent configuration.
 
-        Override this method to implement custom validation logic.
+        Notes:
+            This method is called during the agent's initialization to validate the configuration.
+            If the configuration is invalid, a `ValidationError` is raised.
+
+        Warning:
+            Do not override this method. If you need to implement custom validation logic, override the `validate` method
+            in the `Config` class.
 
         Raises:
             ValidationError: If the configuration is invalid.
