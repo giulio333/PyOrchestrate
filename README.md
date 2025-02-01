@@ -291,3 +291,59 @@ In this example, the `LogMonitorAgent` registers four communication plugins: `Ze
 The PyOrchestrate framework provides a powerful and flexible way to manage multi-process and multi-thread architectures. With the addition of the plugin system, it is now even easier to extend agent functionalities dynamically. Whether you need to add communication capabilities, logging, or other features, the plugin system makes it simple and efficient.
 
 For more information and detailed documentation, please refer to the repository and the `docs` directory.
+
+* * *
+
+## Code Formatting and Style Guidelines
+
+To maintain a consistent code style and improve readability, we use `black` for code formatting and `flake8` for linting. Follow these guidelines to ensure your code adheres to the project's standards.
+
+### Code Formatting with `black`
+
+We use `black` to automatically format our code. To format your code with `black`, run the following command:
+
+```bash
+black .
+```
+
+### Linting with `flake8`
+
+We use `flake8` to catch formatting issues and enforce coding standards. To lint your code with `flake8`, run the following command:
+
+```bash
+flake8 .
+```
+
+### Setting Up Pre-Commit Hooks
+
+To ensure that code formatting and linting are enforced before each commit, we use `pre-commit` hooks. Follow these steps to set up `pre-commit` hooks in your local repository:
+
+1. Install `pre-commit`:
+
+```bash
+pip install pre-commit
+```
+
+2. Create a `.pre-commit-config.yaml` file in the root of your repository with the following content:
+
+```yaml
+repos:
+  - repo: https://github.com/psf/black
+    rev: 21.9b0
+    hooks:
+      - id: black
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.9.2
+    hooks:
+      - id: flake8
+```
+
+3. Install the pre-commit hooks:
+
+```bash
+pre-commit install
+```
+
+Now, every time you make a commit, `black` and `flake8` will automatically run to check your code for formatting and linting issues.
+
+* * *
