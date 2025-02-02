@@ -95,15 +95,20 @@ class LoopingAgent(BaseAgent[T]):
         super().__init__(name=name, config=config, **kwargs)
 
     @final
-    def execute(self):
+    def execute(self) -> None:
         """
+        @final
+
         Execute the agent cycle method in a loop.
 
         If the limit is set, the loop will stop after reaching that, otherwise it will run indefinitely.
 
         Warnings:
-            Do not override this method. If you need to implement custom logic when the agent is started, you can
-            override the `setup` and `cycle` methods.
+            Do not override this method.
+
+        Notes:
+            This method is a wrapper around the `safe_cycle` method that runs the agent's cycle logic in a loop.
+            It is used to ensure that the agent continues running even if well wknown exceptions are raised.
         """
         super().execute()
 
@@ -125,9 +130,21 @@ class LoopingAgent(BaseAgent[T]):
                 self.logger.debug(f"Reached limit ({self.config.limit}).")
 
     @final
-    def safe_cycle(self):
+    def safe_cycle(self) -> None:
         """
-        Execute the agent's cycle logic to be executed in each iteration of the loop in a try-except block.
+        @final
+
+        Execute the agent's cycle logic to be executed in each iteration of
+        the loop in a try-except block.
+
+        Warning:
+            Do not override this method.
+
+        Notes:
+            This method is a wrapper around the `cycle` method that catches exceptions and logs them.
+            It is used to ensure that the agent continues running even if an exception is raised.
+            If a `RecoverableException` is raised, it will be logged as an error and the agent will continue.
+            If a `NonRecoverableException` is raised, it will be logged as an error and the agent will stop
 
         Returns:
             None
@@ -141,24 +158,61 @@ class LoopingAgent(BaseAgent[T]):
             self.control_events.stop_event.set()
 
     @abstractmethod
-    def cycle(self):
+    def cycle(self) -> None:
         """
+        @abstractmethod
+
         Define the agent's cycle logic to be executed in each iteration of the loop.
 
-        Notes:
+        Warnings:
+            This method must be implemented in derived classes.
 
+        Notes:
+            This method must be implemented in derived classes.
+
+        Returns:
+            None
         """
 
     @abstractmethod
-    def _info(self):
+    def _info(self) -> None:
+        """
+        @abstractmethod
+
+        Logs the agent's configuration.
+
+        Warnings:
+            This method must be implemented in derived classes.
+
+        Returns:
+            None
+        """
         super()._info()
         self.logger.debug(f"Config: limit: {self.config.limit}")
 
 
 class LoopingProcessAgent(LoopingAgent[T], multiprocessing.Process, ABC):
+    """
+    LoopingProcessAgent class.
+
+    This class provides a common interface for agents that execute a cycle method in a loop using a separate process.
+
+    Args:
+        LoopingAgent (_type_): LoopingAgent class.
+        multiprocessing (_type_): multiprocessing module.
+        ABC (_type_): ABC module.
+    """
+
     a_type: str = "process"
 
     def __init__(self, name: str, config: T, **kwargs):
+        """
+        Initialize a new LoopingProcessAgent.
+
+        Args:
+            name (str): The agent's name.
+            config (T): The agent's configuration.
+        """
         multiprocessing.Process.__init__(self, name=name)
         LoopingAgent.__init__(
             self, name=name, config=config, a_type="process", **kwargs
@@ -166,8 +220,26 @@ class LoopingProcessAgent(LoopingAgent[T], multiprocessing.Process, ABC):
 
 
 class LoopingThreadAgent(LoopingAgent[T], threading.Thread, ABC):
+    """
+    LoopingThreadAgent class.
+
+    This class provides a common interface for agents that execute a cycle method in a loop using a separate thread.
+
+    Args:
+        LoopingAgent (_type_): LoopingAgent class.
+        threading (_type_): threading module.
+        ABC (_type_): ABC module.
+    """
+
     a_type: str = "thread"
 
     def __init__(self, name: str, config: T, **kwargs):
+        """
+        Initialize a new LoopingThreadAgent.
+
+        Args:
+            name (str): The agent's name.
+            config (T): The agent's configuration.
+        """
         threading.Thread.__init__(self, name=name)
         LoopingAgent.__init__(self, name=name, config=config, a_type="thread", **kwargs)
