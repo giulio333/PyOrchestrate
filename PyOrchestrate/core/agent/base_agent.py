@@ -186,8 +186,10 @@ class BaseAgent(BaseClass[T], ABC):
         """Manages the agent's plugins."""
 
     @final
-    def run(self):
+    def run(self) -> None:
         """
+        @final
+
         Main method to run the agent.
 
         Warnings:
@@ -197,6 +199,9 @@ class BaseAgent(BaseClass[T], ABC):
         Notes:
             This method is called by the `run` method of the derived classes. So it can be considered the entry point
             for the agent execution.
+
+        Returns:
+            None
         """
         self.start_time = time.time()
 
@@ -350,6 +355,17 @@ class BaseAgent(BaseClass[T], ABC):
 
 
 class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):
+    """
+    BaseProcessAgent class.
+
+    This class provides a common interface for agents that run in a separate process.
+
+    Args:
+        BaseAgent (_type_): BaseAgent class.
+        multiprocessing (_type_): multiprocessing module.
+        ABC (_type_): ABC module.
+    """
+
     a_type: str = "process"
 
     def __init__(self, name: str | None, config: T, **kwargs):
@@ -365,6 +381,15 @@ class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):
 
 
 class BaseThreadAgent(BaseAgent[T], threading.Thread, ABC):
+    """
+    BaseThreadAgent class.
+
+    Args:
+        BaseAgent (_type_): BaseAgent class.
+        threading (_type_): threading module.
+        ABC (_type_): ABC module."
+    """
+
     a_type: str = "thread"
 
     def __init__(self, name: str | None, config: T, **kwargs):
