@@ -4,7 +4,7 @@ import zmq
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
 from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
-from PyOrchestrate.core.base.periodic_agent import PeriodicProcessAgent
+from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
 
 ############################################################
 # FILE SEND AGENT

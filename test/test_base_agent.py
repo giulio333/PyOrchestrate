@@ -156,7 +156,7 @@ class TestBaseAgent(unittest.TestCase):
         """Test complete run lifecycle"""
         self.agent.setup = MagicMock()
         self.agent.execute = MagicMock()
-        self.agent.validate_config = MagicMock()
+        self.agent.validate_config = MagicMock()  # type:ignore
 
         self.agent.run()
 
