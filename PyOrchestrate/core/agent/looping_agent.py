@@ -19,7 +19,7 @@ class LoopingAgentConfig(BaseAgent.Config):
 
     Attributes:
         limit (int): The maximum number of iterations, defaults to -1 (infinite).
-        logger (LoggerConfig): Logger configuration.
+        logger_config (LoggerConfig): Logger configuration.
 
     Examples:
         Creating a custom configuration for a ChatAgent:
