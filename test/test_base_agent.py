@@ -12,6 +12,12 @@ from PyOrchestrate.core.agent.base_agent import (
 from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
+class MyBaseAgent(BaseAgent):
+
+    def execute(self):
+        super().execute()
+
+
 class TestBaseAgentConfig(unittest.TestCase):
     def test_default_values(self):
         """Test default configuration values"""
@@ -45,7 +51,7 @@ class TestBaseAgent(unittest.TestCase):
         self.config = BaseAgent.Config()
 
         # Initialize test agent
-        self.agent = BaseAgent(
+        self.agent = MyBaseAgent(
             name="test_base_agent",
             config=self.config,
             a_type="process",
@@ -87,14 +93,14 @@ class TestBaseAgent(unittest.TestCase):
 
     def test_initialization_with_default_name(self):
         """Test agent initialization with default name"""
-        agent = BaseAgent(
+        agent = MyBaseAgent(
             name=None,
             config=self.config,
             a_type="process",
             state_events=self.state_events,
             control_events=self.control_events,
         )
-        self.assertEqual(agent.name, "BaseAgent")
+        self.assertEqual(agent.name, "MyBaseAgent")
 
     def test_initialization_with_custom_config(self):
         """Test agent initialization with custom configuration"""
@@ -102,7 +108,7 @@ class TestBaseAgent(unittest.TestCase):
             logger_config=LoggerConfig(level="WARNING", filename="test.log")
         )
 
-        agent = BaseAgent(
+        agent = MyBaseAgent(
             name="test_agent",
             config=custom_config,
             a_type="process",
@@ -189,7 +195,7 @@ class TestBaseAgent(unittest.TestCase):
 
     def test_run_with_missing_events(self):
         """Test run method with missing events."""
-        agent_missing = BaseAgent(
+        agent_missing = MyBaseAgent(
             name="test_agent_missing_events",
             config=self.config,
             a_type="process",
