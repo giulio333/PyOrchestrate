@@ -7,17 +7,20 @@ class LoggerConfig:
     """
     Logger configuration class.
 
-    If not specified, default values will be used.
+    This class defines the configuration settings for the logger component.
 
     Notes:
-        If not specified, the log file will be named like the Agent.
+        - If not specified, default values will be used.
+        - If not specified, the log file will be named like the Agent.
 
     Attributes:
         level (int): Logging level. Defaults to DEBUG.
         filename (str): File name for logging. Defaults to empty string.
     """
 
-    level: Literal["TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"] = "DEBUG"
+    level: Literal[
+        "TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"
+    ] = "DEBUG"
     """
     Logging level. Defaults to DEBUG.
     """
