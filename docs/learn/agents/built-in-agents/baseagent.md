@@ -74,10 +74,9 @@ You can create a custom agent by inheriting from the `BaseProcessAgent` or `Base
 |--------|-------------| ---------|
 | [execute](#execute) | Define the core logic of the agent. | Required :green_circle: |
 | [setup](#setup) | Perform any setup operations required by the agent. | Optional :orange_circle: |
-| [stop](#stop) | Stop the agent. | Prohibited :red_circle: |
-| [validate_config](#validate_config) | Validate the agent's configuration. | Optional :orange_circle: |
 | [on_stop](#on-stop) | Implement custom logic during external shutdown request. | Optional :orange_circle: |
 | [on_close](#on-close) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
+| [validate_config](#validate_config) | Validate the agent's configuration. | Optional :orange_circle: |
 
 ![alt text](visual_light.png){.light-only}
 ![alt text](visual_dark.png){.dark-only}
@@ -86,7 +85,7 @@ You can create a custom agent by inheriting from the `BaseProcessAgent` or `Base
 Make sure to call the parent method **for each overridden** method.
 
 ```python{3}
-class CustomAgent(BaseAgent):
+class CustomAgent(BaseProcessAgent):
     def setup(self):
         super().setup()
         # Custom setup logic
@@ -97,8 +96,34 @@ class CustomAgent(BaseAgent):
 
 The `BaseAgent` class defines its own configuration object via the `Config` class.
 
-Click [here](/learn/agents/index#configuration) to learn more about configuration objects.
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| logger_config | `LoggerConfig` | Defines configuration for the logger. |
 
+To learn more about the configuration object, click [here](../index.md#configuration).
+
+## Control Events
+
+The `BaseAgent` class defines its own control events object via the `ControlEvents` class.
+
+| Attribute | Description |
+|-----------|-------------|
+| setup_event | Event to trigger the setup phase. |
+| execute_event | Event to trigger the execution phase. |
+| stop_event | Event to trigger the stop phase. |
+
+To learn more about control events, click [here](../index.md#controlevents).
+
+## State Events
+
+The `BaseAgent` class defines its own state events object via the `StateEvents` class.
+
+| Attribute | Description |
+|-----------|-------------|
+| ready_event | Event to signal that the agent is ready to start. |
+| close_event | Event to signal that the agent is closing. |
+
+To learn more about state events, click [here](../index.md#stateevents).
 
 ## Use Case
 
@@ -218,13 +243,6 @@ state_events: BaseAgent.StateEvents
 
 The state events object for the agent.
 
-| Attribute | Description |
-|-----------|-------------|
-| ready_event | Event to signal that the agent is ready to start. |
-| close_event | Event to signal that the agent is closing. |
-
-To learn more about state events, click [here](../index.md#stateevents).
-
 ### Control Events
 
 ```python
@@ -233,14 +251,6 @@ control_events: BaseAgent.ControlEvents
 
 The control events object for the agent.
 
-| Attribute | Description |
-|-----------|-------------|
-| setup_event | Event to trigger the setup phase. |
-| execute_event | Event to trigger the execution phase. |
-| stop_event | Event to trigger the stop phase. |
-
-To learn more about control events, click [here](../index.md#controlevents).
-
 ### Config
 
 ```python
@@ -248,12 +258,6 @@ config: BaseAgent.Config
 ```
 
 The configuration object for the agent.
-
-| Attribute | Default | Description |
-|-----------|---------|-------------|
-| logger_config | `LoggerConfig` | Defines configuration for the logger. |
-
-To learn more about the configuration object, click [here](../index.md#configuration).
 
 ## Example
 
