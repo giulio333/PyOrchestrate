@@ -85,9 +85,11 @@ It serves three main purposes:
 | user-defined attributes | provides a flexible space for users to add custom attributes. |
 | attributes validation | provides a validate method that can be overridden to implement custom validation logic. |
 
-::: tip
-In every agent, `Config` class inherits from respective parent agent's `Config` class. This allows you to customize the agent's configuration while retaining the parent agent's configuration.
+::: tip 
+In every agent, the `Config` class inherits from the respective parent agent's `Config` class. This allows you to customize the agent's configuration while retaining the built-in ones.
+:::
 
+::: info Example
 For example `MyAgent` class define its own configuration class via parent agent's `Config` class.
 
 ```python
@@ -100,9 +102,7 @@ class MyAgent(PeriodicProcessAgent):
 ```
 :::
 
-::: tip 
-In every agent, the `Config` class inherits from the respective parent agent's `Config` class. This allows you to customize the agent's configuration while retaining the built-in ones.
-:::
+
 
 ## **StateEvents**
 
@@ -119,7 +119,9 @@ Some of the **built-in** state events are:
 
 ::: tip 
 In every agent, the `StateEvents` class inherits from the respective parent agent's `StateEvents` class. This allows you to customize the agent's state events while retaining the built-in ones.
+:::
 
+::: info Example
 In our example, we didn't define any custom state events. We will discuss customizing these in more advanced topics.
 :::
 
@@ -139,15 +141,30 @@ Some of the **built-in** control events are:
 
 ::: tip 
 In every agent, the `ControlEvents` class inherits from the respective parent agent's `ControlEvents` class. This allows you to customize the agent's control events while retaining the built-in ones.
+:::
 
+::: info Example
 In our example, we didn't define any custom control events. We will discuss customizing these in more advanced topics.
 :::
 
 ## Extend and Customize
 
+But **how do you create an agent** that fits your specific needs?
+
 Agents are designed to be **extensible** and **customizable**. You can inherit from a built-in agent and override its methods to create your own custom agent.
 
+::: tip
 You can also **add new methods** to extend the agent’s capabilities.
+:::
+
+There are two types of methods you can override:
+
+-   [abstract methods](#abstract-methods): These methods are required and must be overridden to define the agent’s behavior.
+-   [template methods](#template-methods): These methods are optional and can be overridden to customize the agent’s behavior further.
+
+::: warning
+Be sure to call `super().method()` when overriding to ensure the agent’s core functionality is preserved.
+:::
 
 ### Abstract methods
 
@@ -187,9 +204,7 @@ class MyAgent(PeriodicProcessAgent):
 
 Other methods are **optional** and can be overridden to customize the agent’s behavior further. They will be marked as `@templatemethod` in the agent’s documentation.
 
-::: warning
-Be sure to call `super().method()` at the beginning of `@templatemethod` to ensure the agent’s core functionality is preserved.
-:::
+
 
 ::: tip
 In the example we made before, we are inheriting from `PeriodicAgent`. 
