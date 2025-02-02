@@ -3,7 +3,7 @@ from typing import final, TypeVar
 import threading
 import multiprocessing
 
-from ..base.periodic_agent import PeriodicAgent
+from ..agent.periodic_agent import PeriodicAgent
 from ..orchestrator.orchestrator import Orchestrator
 from ..orchestrator.memory import AgentEntry
 

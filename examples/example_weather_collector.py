@@ -3,7 +3,7 @@ import json
 import os
 import logging
 from PyOrchestrate.core.orchestrator import Orchestrator
-from PyOrchestrate.core.base.periodic_agent import PeriodicProcessAgent
+from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
 from PyOrchestrate.core.base.exceptions import RecoverableException
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
 

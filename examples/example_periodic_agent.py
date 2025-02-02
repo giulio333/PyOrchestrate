@@ -1,5 +1,5 @@
 from PyOrchestrate.core.orchestrator import Orchestrator
-from PyOrchestrate.core.base.periodic_agent import PeriodicProcessAgent
+from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
 
 
 class FileWriterConfig(PeriodicProcessAgent.Config):
