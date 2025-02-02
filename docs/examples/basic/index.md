@@ -2,23 +2,21 @@
 title: Weather Collector Agent
 ---
 
-Let's start with some basic examples to get you started with PyOrchestrate. These examples are simple and easy to understand, and they cover the basic concepts of PyOrchestrate.
+# Weather Collector Agent Example
 
-# Simple Weather Collector Agent
+This example demonstrates how to create an agent that periodically collects weather data from a weather API and logs the result.
 
-Imagine you want to create an agent that collects weather data from a weather API every 10 seconds. This agent should print the weather data to log.
+Imagine you require an agent that fetches weather information every 10 seconds. In this scenario, the built-in `PeriodicAgent` is ideal since it executes a function at regular intervals.
 
-In this case, the built-in `PeriodicAgent` is a good choice. It is a simple agent that runs a function periodically.
+### Project Initialization
 
-### Initialize Project
-
-First, create a PyOrchestrate project using the following command:
+Start by creating a new PyOrchestrate project with the following command:
 
 ```bash
 PyOrchestrate.cli start weather_collector
 ```
 
-You should see the following project structure:
+After execution, your project structure should look like this:
 
 ```plaintext
 weather_collector/
@@ -27,13 +25,12 @@ weather_collector/
 ├── starter.py
 ```
 
-### Create Config
+### Configuration Setup
 
-Create a new configuration class called `WCConfig` in the `models` directory:
+In the `models` directory, create a configuration class named `WCConfig`:
 
 ```python
 from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
-
 
 class WCConfig(PeriodicProcessAgent.Config):
     limit: int = 2
@@ -41,15 +38,11 @@ class WCConfig(PeriodicProcessAgent.Config):
     url: str = "https://catfact.ninja/fact"
 ```
 
-As you can see, the `WCConfig` class inherits from `PeriodicProcessAgent.Config` since we are creating a periodic agent. 
+Here, `WCConfig` inherits from `PeriodicProcessAgent.Config`. The properties `limit` and `execution_interval` are provided by the base class, while `url` is a custom field. This configuration enables the agent to query the provided URL every `execution_interval` seconds for a maximum of `limit` iterations.
 
-The `limit` and `execution_interval` are built-in attributes of the `PeriodicProcessAgent.Config` class. The `url` and `print_result` attributes are custom attributes that we added to the configuration.
+### Agent Implementation
 
-So the agent will make a request to the `url` every `execution_interval` seconds for `limit=2` times.
-
-### Create Agent
-
-Now, create a new agent called `WeatherCollector` in the `models` directory:
+Next, in the `models` directory, create an agent called `WeatherCollector`:
 
 ```python
 import requests
@@ -58,41 +51,35 @@ from PyOrchestrate.core.base.exceptions import RecoverableException
 
 from configurations.weather_config import WCConfig
 
-
 class WeatherCollector(PeriodicProcessAgent[WCConfig]):
 
-    Config = WCConfig # Assign the configuration class to the agent
+    Config = WCConfig  # Associate the configuration class with the agent
 
     def setup(self):
         super().setup()
-        self.logger.info("Initial configuration of the WeatherCollector...")
+        self.logger.info("Initializing WeatherCollector configuration...")
 
     def runner(self):
-        self.logger.info(f"Making request to {self.config.url}...")
+        self.logger.info(f"Requesting data from {self.config.url}...")
 
         try:
             response = requests.get(self.config.url)
             response.raise_for_status()
             data = response.json()
-
-            self.logger.info(f"Response: {data}")
-
+            self.logger.info(f"Received data: {data}")
         except requests.RequestException as e:
-            raise RecoverableException(f"Error while requesting: {e}")
+            raise RecoverableException(f"Request error: {e}")
 ```
 
-Our new agent inherits from `PeriodicProcessAgent`. The `runner` method is the method that will be executed periodically. 
+The `runner` method executes periodically and logs the response. If any request fails, it raises a `RecoverableException` which prevents the agent from stopping.
 
-If an exception is raised, the agent will raise a `RecoverableException`, which will not stop the agent (for demonstration purposes).
-
-::: tip Config
-When defining a new agent, you can override the `Config` class to use a custom configuration class. Just keep in mind that configuration 
-classes must inherit from the base agent configuration class. In this case, from `PeriodicProcessAgent.Config` class.
+::: tip Configuration Tip
+When adding a new agent, you can override the `Config` attribute to use a custom configuration class, as shown with `WCConfig`.
 :::
 
-## Orchestrator
+### Orchestrator Integration
 
-Now wen can import our new agent in the `starter.py` file:
+Finally, update `starter.py` to register the new agent:
 
 ```python
 import os, sys
@@ -104,18 +91,10 @@ from PyOrchestrate.core.orchestrator import Orchestrator
 from models.weathercollector import WeatherCollector
 
 if __name__ == "__main__":
-
-    # Initialize Orchestrator
     orchestrator = Orchestrator()
-
-    # Register Agents
     orchestrator.register_agent(WeatherCollector, "WeatherCollector")
-
-    # Start Orchestrator
     orchestrator.start()
-
-    # Join Agents
     orchestrator.join()
 ```
 
-All you need to do is to import the new agent and register it in the orchestrator. The orchestrator will take care of the rest.
+This setup imports and registers the `WeatherCollector` agent with the orchestrator, which then manages its execution.
