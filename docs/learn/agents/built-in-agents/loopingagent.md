@@ -10,7 +10,7 @@ It does not provide any sleep or delay mechanism. The derived class must impleme
 
 ## Why use LoopingAgent?
 
-This agent provides both limited and unlimited looping capabilities in efficient and structured manner. The loop can be stopped externally in a thread-safe manner.
+The LoopingAgent is ideal for developers who need an efficient, **thread-safe mechanism** to execute repetitive tasks. Whether running as a process or a thread, it employs appropriate event controls to manage execution reliably. It supports both **finite** and **infinite loops**, and you can always use the `stop` method to halt the agent safely.
 
 ## Inheritance
 
