@@ -216,7 +216,14 @@ The logger object for the agent. Available levels are `DEBUG`, `INFO`, `SUCCESS`
 state_events: BaseAgent.StateEvents
 ```
 
-The state events object for the agent. It provides access to the state events of the agent.
+The state events object for the agent.
+
+| Attribute | Description |
+|-----------|-------------|
+| ready_event | Event to signal that the agent is ready to start. |
+| close_event | Event to signal that the agent is closing. |
+
+To learn more about state events, click [here](../index.md#stateevents).
 
 ### Control Events
 
@@ -224,7 +231,15 @@ The state events object for the agent. It provides access to the state events of
 control_events: BaseAgent.ControlEvents
 ```
 
-The control events object for the agent. It provides access to the control events of the agent.
+The control events object for the agent.
+
+| Attribute | Description |
+|-----------|-------------|
+| setup_event | Event to trigger the setup phase. |
+| execute_event | Event to trigger the execution phase. |
+| stop_event | Event to trigger the stop phase. |
+
+To learn more about control events, click [here](../index.md#controlevents).
 
 ### Config
 
@@ -232,7 +247,13 @@ The control events object for the agent. It provides access to the control event
 config: BaseAgent.Config
 ```
 
-The configuration object for the agent. It provides access to the agent's configuration.
+The configuration object for the agent.
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| logger_config | `LoggerConfig` | Defines configuration for the logger. |
+
+To learn more about the configuration object, click [here](../index.md#configuration).
 
 ## Example
 
