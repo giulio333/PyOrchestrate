@@ -1,23 +1,302 @@
-## LoopingAgent
+---
+title: LoopingAgent
+---
 
-The **LoopingAgent** is a specialized agent designed for continuous execution. It repeatedly runs its logic in a loop until explicitly stopped or a condition is met.
+# LoopingAgent
 
-### Key Features:
+The **LoopingAgent** is basically a `BaseAgent` that loops through its core logic until it is stopped. It is ideal for implementing custom logic that needs to run continuously.
 
--   Infinite or conditional looping logic.
--   Ideal for daemon-like tasks.
--   Provides hooks for custom start and stop conditions.
+It does not provide any sleep or delay mechanism. The derived class must implement its own delay mechanism to control the frequency of the loop.
 
-### Use Case:
+## Why use LoopingAgent?
 
-Monitoring a directory for file changes or running a custom server that operates indefinitely.
+This agent provides both limited and unlimited looping capabilities in efficient and structured manner. The loop can be stopped externally in a thread-safe manner.
 
-### Example:
+## Inheritance
+
+The `LoopingProcessAgent` and `LoopingThreadAgent` classes inherit from the `LoopingAgent` class.
+
+This is the shared structure of both classes.
+
+```mermaid
+classDiagram
+    class BaseAgent {
+    }
+
+    class LoopingAgent {
+        +execute()
+        +setup()
+        +cycle()
+    }
+
+    class BaseProcessAgent {
+    }
+    class BaseThreadAgent {
+    }
+
+    BaseAgent <|-- LoopingAgent
+    LoopingAgent <|-- BaseProcessAgent
+    LoopingAgent <|-- BaseThreadAgent
+```
+
+To learn more about `BaseAgent` click [here](baseagent.md).
+
+## Sequence Diagram
+
+The sequence diagram below illustrates the lifecycle of the `LoopingAgent` after it is started.
+
+```mermaid
+sequenceDiagram
+    participant Agent as LoopingAgent
+    participant Config as Config
+    participant StateEvents as StateEvents
+    participant ControlEvents as ControlEvents
+
+    Agent->>Config: validate_config()
+    Agent->>ControlEvents: setup_event.wait()
+    activate ControlEvents
+    ControlEvents-->>Agent: control event triggered
+    deactivate ControlEvents
+    Agent->>Agent: setup()
+    Agent->>StateEvents: ready_event.set()
+    Agent->>ControlEvents: execute_event.wait()
+    activate ControlEvents
+    ControlEvents-->>Agent: control event triggered
+    deactivate ControlEvents
+    Agent->>Agent: execute()
+    alt limit -1
+    loop Forever
+        Agent-->Agent: cycle()
+    end
+    else limit > 0
+    loop limit times
+        Agent-->Agent: cycle()
+    end
+    end
+
+    Agent->>Agent: on_close()
+    Agent->>StateEvents: close_event.set()
+```
+
+## Usage
+
+You can create a custom `LoopingAgent` by inheriting from the `LoopingProcessAgent` or `LoopingThreadAgent` class.
+
+| Method | Description | Override |
+|--------|-------------| ---------|
+| [cycle](#cycle) | Implement the repeated logic of the agent. | Required :green_circle: |
+| [setup](#setup) | Perform any setup operations required by the agent. | Optional :orange_circle: |
+| [on_stop](#on-stop) | Implement custom logic during external shutdown request. | Optional :orange_circle: |
+| [on_close](#on-close) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
+| [validate_config](#validate_config) | Validate the agent's configuration. | Optional :orange_circle: |
+
+::: tip Important
+Make sure to call the parent method **for each overridden** method.
+
+```python{3}
+class CustomAgent(LoopingProcessAgent):
+    def setup(self):
+        super().setup()
+        # Custom setup logic
+```
+:::
+
+## Configuration
+
+The `LoopingAgent` class defines its own configuration object via the `Config` class.
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| logger_config | `LoggerConfig` | Defines configuration for the logger. |
+| limit | -1 | The number of times the agent will cycle. A value of -1 means the agent will run indefinitely. |
+
+
+Click [here](/learn/agents/index#configuration) to learn more about configuration objects.
+
+
+## Use Case
+
+When you need to create an agent that performs a specific task repeatedly, the `LoopingAgent` is the ideal choice. It provides a structure that allows you to focus on the core logic of the agent.
+
+## Methods
+
+### run
 
 ```python
-from pyorchestrate import LoopingAgent
-
-class FileMonitorAgent(LoopingAgent):
-    def runner(self):
-        print("Monitoring files...")
+@final
 ```
+
+This is the entry point for all agents, encapsulating their entire lifecycle and handling the low-level execution logic. In essence, the `run()` method in LoopingAgent overrides the run method from `threading.Thread` or `multiprocessing.Process`.
+
+It provides [execute](#execute) method to be overridden by the derived class to define the core logic of the agent.
+
+::: warning Do not override
+Marked as `@final` to prevent overriding in derived class ensuring that the core logic remains consistent across all agents.
+:::
+
+### setup
+```python
+@template
+```
+
+This method is called before the agent starts running. It can be overridden to perform any setup operations required by the agent.
+
+::: tip Control Events
+The setup method waits for the `control_events.setup_event` to be triggered, giving external systems the ability to manage when the setup phase starts.
+:::
+
+::: tip
+Be sure to call the parent method if you override it.
+:::
+
+### execute
+
+```python
+@abstractmethod
+```
+
+This method is called by the `run()` method to execute the core logic of the agent. It must be overridden by the derived class to define the agent's behavior.
+
+::: tip
+Be sure to call the parent method.
+:::
+
+### stop
+
+```python
+@final
+```
+
+This method is called to stop the agent from external systems. 
+
+Keep in mind that agents will not stop immediately. They will complete the current iteration of the `execute` method before stopping.
+
+::: warning Do not override
+Marked as `@final` to prevent overriding in derived class ensuring that the core logic remains consistent across all agents.
+:::
+
+::: tip
+To implement custom logic during the agent’s shutdown, override the [on_stop](#on_stop) method in your derived class.
+:::
+
+### validate_config
+
+```python
+@final
+```
+
+This method is called to validate the agent's configuration.
+
+::: warning Do not override
+Marked as `@final` to prevent overriding in derived class ensuring that the core logic remains consistent across all agents.
+:::
+
+::: tip
+To implement custom validation logic, override `validate` method of your `Config` class.
+:::
+
+### on_stop
+
+```python
+@optional
+```
+
+This method is called when the agent is stopped. It can be overridden to implement custom logic during the agent’s shutdown.
+
+### on_close
+
+```python
+@optional
+```
+
+This method is called when the agent is closed. It can be overridden to implement custom logic during the agent’s shutdown.
+
+## Attributes
+
+![](attribute_light.png){.light-only}
+![](attribute_dark.png){.dark-only}
+
+### Logger
+
+```python
+logger: Logger
+```
+
+The logger object for the agent. Available levels are `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR`, and `CRITICAL`.
+
+### State Events
+
+```python
+state_events: LoopingAgent.StateEvents
+```
+
+The state events object for the agent.
+
+### Control Events
+
+```python
+control_events: LoopingAgent.ControlEvents
+```
+
+The control events object for the agent.
+
+### Config
+
+```python
+config: LoopingAgent.Config
+```
+
+The configuration object for the agent.
+
+## Example
+
+In this example, we create a custom agent that monitors a log file for a specific keyword.
+
+
+```python
+from PyOrchestrate.core.agent import BaseProcessAgent
+
+class LogMonitorAgent(BaseProcessAgent["LogMonitorAgent.Config"]):
+    class Config(BaseProcessAgent.Config):
+        log_file: str = "application.log"
+        keyword: str = "ERROR"
+
+    def setup(self):
+        """
+        Ensure the log file exists.
+        """
+        super().setup()
+
+        self.logger.info(f"Initializing LogMonitorAgent for file: {self.config.log_file}")
+        try:
+            with open(self.config.log_file, "r") as f:
+                self.logger.info("Log file found.")
+        except FileNotFoundError:
+            self.logger.error(f"Log file {self.config.log_file} does not exist.")
+            raise
+
+    def execute(self):
+        """
+        Monitor the log file for the specified keyword.
+        """
+        super().execute()
+
+        self.logger.info(f"Monitoring for keyword: '{self.config.keyword}'")
+        try:
+            with open(self.config.log_file, "r") as f:
+                for line in f:
+                    if self.config.keyword in line:
+                        self.logger.warning(f"Keyword found: {line.strip()}")
+        except Exception as e:
+            self.logger.error(f"Error reading the log file: {e}")
+
+    def on_stop(self):
+        """
+        Log the agent's shutdown.
+        """
+        self.logger.info("LogMonitorAgent stopped.")
+```
+
+## Advanced Usage
+
+For a deeper dive into how agents work and their advanced use cases, explore the **Advanced Insights section**.
