@@ -23,6 +23,7 @@ export const enConfig = {
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Learn', link: '/learn/' },
+      { text: 'Examples', link: '/examples/' },
       { text: 'Advanced', link: '/advanced/' },
     ],
     sidebar: {
