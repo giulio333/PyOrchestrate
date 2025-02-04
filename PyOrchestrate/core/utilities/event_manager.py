@@ -3,7 +3,7 @@ Event manager module.
 """
 
 from enum import Enum
-
+import threading
 import inspect
 from datetime import datetime
 from typing import Callable
@@ -17,6 +17,7 @@ class EventManager:
 
     Attributes:
         _listeners (dict): A dictionary where keys are event names (str) and values are lists of callback functions.
+        _lock (threading.Lock): A lock to ensure thread safety when accessing _listeners.
 
     Methods:
         register_event(event): Registers a new event.
@@ -29,6 +30,7 @@ class EventManager:
         Initializes the event manager.
         """
         self._listeners: dict[str, list[Callable]] = {}
+        self._lock = threading.Lock()
 
     def register_event(self, event: Enum):
         """
@@ -46,8 +48,9 @@ class EventManager:
             >>> event_manager.register_event(AgentEvent.AGENT_START)
             >>> event_manager.register_event(AgentEvent.AGENT_STOP)
         """
-        if event.name not in self._listeners:
-            self._listeners[event.name] = []
+        with self._lock:
+            if event.name not in self._listeners:
+                self._listeners[event.name] = []
 
     def connect(self, event: Enum, callback: Callable):
         """
@@ -69,9 +72,10 @@ class EventManager:
             >>> event_manager = EventManager()
             >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started)
         """
-        if event.value not in self._listeners:
-            self.register_event(event)
-        self._listeners[event.name].append(callback)
+        with self._lock:
+            if event.value not in self._listeners:
+                self.register_event(event)
+            self._listeners[event.name].append(callback)
 
     def emit(self, event: Enum, *args, **kwargs):
         """
@@ -101,14 +105,18 @@ class EventManager:
             >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started_with_time)
             >>> event_manager.emit(AgentEvent.AGENT_START, "Agent_1")
         """
-        if event.name in self._listeners:
+        listeners = []
+        with self._lock:
+            if event.name in self._listeners:
+                listeners = self._listeners[event.name][:]
 
+        if listeners:
             # Add default data to kwargs
             now = datetime.now()
             kwargs.setdefault("event_date", now.strftime("%Y-%m-%d"))
             kwargs.setdefault("event_time", now.strftime("%H:%M:%S"))
 
-            for callback in self._listeners[event.name]:
+            for callback in listeners:
                 try:
                     # Get the list of accepted parameters for the callback
                     callback_params = inspect.signature(callback).parameters
