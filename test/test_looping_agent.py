@@ -2,8 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 import sys, os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
+from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.agent.looping_agent import (
     LoopingAgent,
 )
@@ -30,6 +29,7 @@ class TestLoopingAgentConfig(unittest.TestCase):
 
 class TestLoopingAgent(unittest.TestCase):
     def setUp(self):
+        self.event_manager = EventManager()
         self.state_events = LoopingAgent.StateEvents(MagicMock(), MagicMock())
         self.control_events = LoopingAgent.ControlEvents(
             MagicMock(), MagicMock(), MagicMock()
@@ -37,6 +37,7 @@ class TestLoopingAgent(unittest.TestCase):
         self.config = LoopingAgent.Config(limit=5)
 
         class ConcreteLoopingAgent(LoopingAgent):
+
             def cycle(self):
                 pass
 
@@ -50,6 +51,7 @@ class TestLoopingAgent(unittest.TestCase):
             state_events=self.state_events,
             control_events=self.control_events,
             custom_attr="custom_value",
+            event_manager=self.event_manager,
         )
 
     def test_initialization(self):
