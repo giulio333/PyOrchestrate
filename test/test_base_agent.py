@@ -3,8 +3,7 @@ import sys
 import os
 from unittest.mock import MagicMock, patch
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
+from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.agent.base_agent import (
     BaseAgent,
     ValidationError,
@@ -42,6 +41,7 @@ class TestBaseAgentConfig(unittest.TestCase):
 class TestBaseAgent(unittest.TestCase):
     def setUp(self):
         # Mock
+        self.event_manager = MagicMock(spec=EventManager)
         self.state_events = BaseAgent.StateEvents(MagicMock(), MagicMock())
         self.control_events = BaseAgent.ControlEvents(
             MagicMock(), MagicMock(), MagicMock()
@@ -58,6 +58,7 @@ class TestBaseAgent(unittest.TestCase):
             state_events=self.state_events,
             control_events=self.control_events,
             custom_attr="custom_value",
+            event_manager=self.event_manager,
         )
 
     def test_initialization(self):
@@ -99,6 +100,7 @@ class TestBaseAgent(unittest.TestCase):
             a_type="process",
             state_events=self.state_events,
             control_events=self.control_events,
+            event_manager=self.event_manager,
         )
         self.assertEqual(agent.name, "MyBaseAgent")
 
@@ -114,6 +116,7 @@ class TestBaseAgent(unittest.TestCase):
             a_type="process",
             state_events=self.state_events,
             control_events=self.control_events,
+            event_manager=self.event_manager,
         )
         self.assertEqual(agent.config.logger_config.level, "WARNING")
         self.assertEqual(agent.config.logger_config.filename, "test.log")
@@ -201,6 +204,7 @@ class TestBaseAgent(unittest.TestCase):
             a_type="process",
             control_events=None,  # type:ignore
             state_events=None,  # type:ignore
+            event_manager=self.event_manager,
         )
         agent_missing.logger = MagicMock()
 

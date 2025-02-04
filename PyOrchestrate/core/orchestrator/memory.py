@@ -3,6 +3,7 @@ import multiprocessing
 import threading
 from typing import Dict, List, Optional, Type, Any
 
+from ..utilities.event_manager import EventManager
 from ..agent import BaseAgent, AgentProtocol
 from ..base import BaseClass
 
@@ -51,6 +52,7 @@ class AgentEntry:
         state_events: Optional[BaseAgent.StateEvents] = None,
         config: Optional[BaseClass.Config] = None,
         record_event_callback: Optional[Any] = None,
+        event_manager: Optional[EventManager] = None,
         **kwargs: Any,
     ):
         self.agent_class = agent_class
@@ -62,6 +64,7 @@ class AgentEntry:
 
         self.control_events = control_events
         self.state_events = state_events
+        self.event_manager = event_manager
 
     @property
     def instance(self) -> AgentProtocol:
@@ -165,6 +168,7 @@ class AgentEntry:
         params["config"] = self.config
         params["control_events"] = self.control_events
         params["state_events"] = self.state_events
+        params["event_manager"] = self.event_manager
         params.update(self.kwargs)
 
         self._instance = self.agent_class(**params)
@@ -262,6 +266,7 @@ class OMemory:
         custom_config: Optional[BaseClass.Config] = None,
         control_events: Optional[BaseAgent.ControlEvents] = None,
         state_events: Optional[BaseAgent.StateEvents] = None,
+        event_manager: Optional[EventManager] = None,
         **kwargs: Any,
     ) -> AgentEntry:
         """
@@ -271,12 +276,8 @@ class OMemory:
         initialized and its control events will be set to ready by default.
 
         Notes:
-            Every agent has a set of events that can be used to control its lifecycle. By default, all events are set to
-            ready.
-
-        Warning:
-            If no ControlEvents or StateEvents are provided, default events will be created.
-            In addition, default ControlEvents will be set to ready.
+            Every agent has a set of events that can be used to control its lifecycle. By default, all `ControlEvents` are
+            set to ready. If no custom events are provided, the default events will be created.
 
         Args:
             agent_class (Type[BaseAgent]): The class of the agent to store.
@@ -284,6 +285,7 @@ class OMemory:
             custom_config (BaseConfig, optional): Custom configuration for the agent. Defaults to None.
             control_events (BaseAgent.ControlEvents, optional): Control events for the agent. Defaults to None.
             state_events (BaseAgent.StateEvents, optional): State events for the agent. Defaults to None.
+            event_manager (EventManager, optional): Event manager for the agent. Defaults to None.
             kwargs (Any): Additional keyword arguments for the agent.
 
         Returns:
@@ -311,6 +313,9 @@ class OMemory:
                 ready_event=event(), close_event=event()
             )
 
+        if not event_manager:
+            event_manager = EventManager()
+
         entry = AgentEntry(
             agent_class=agent_class,
             name=name,
@@ -318,6 +323,7 @@ class OMemory:
             state_events=state_events,
             config=custom_config,
             record_event_callback=self._record_event,
+            event_manager=event_manager,
             **kwargs,
         )
         self._agents[name] = entry
