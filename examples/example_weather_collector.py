@@ -88,13 +88,13 @@ if __name__ == "__main__":
     orchestrator = Orchestrator("Orchestrator")
 
     orchestrator.event_manager.connect(
-        OrchestratorEvent.AGENT_STARTED.value, on_agent_started
+        OrchestratorEvent.AGENT_STARTED, on_agent_started
     )
     orchestrator.event_manager.connect(
-        OrchestratorEvent.AGENT_TERMINATED.value, on_agent_stopped
+        OrchestratorEvent.AGENT_TERMINATED, on_agent_stopped
     )
     orchestrator.event_manager.connect(
-        OrchestratorEvent.ALL_AGENTS_COMPLETED.value, on_all_agents_stopped
+        OrchestratorEvent.ALL_AGENTS_COMPLETED, on_all_agents_stopped
     )
 
     orchestrator.register_agent(WeatherCollector, "WeatherCollector1")

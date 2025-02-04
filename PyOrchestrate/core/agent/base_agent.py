@@ -12,6 +12,8 @@ from PyOrchestrate.core.plugins.plugin_protocols import CommunicationPlugin
 
 from ..base.base import BaseClass
 from ..plugins.plugin_manager import PluginManager
+from ..utilities.event_manager import EventManager
+from ..utilities.event import AgentEvent
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -136,6 +138,7 @@ class BaseAgent(BaseClass[T], ABC):
         a_type: Literal["process", "thread"],
         control_events: ControlEvents,
         state_events: StateEvents,
+        event_manager: EventManager,
         **kwargs,
     ):
         """
@@ -184,6 +187,7 @@ class BaseAgent(BaseClass[T], ABC):
         """The agent type (process or thread)."""
         self.plugin_manager = PluginManager()
         """Manages the agent's plugins."""
+        self.event_manager = event_manager
 
     @final
     def run(self) -> None:
@@ -205,6 +209,8 @@ class BaseAgent(BaseClass[T], ABC):
         """
         self.start_time = time.time()
 
+        self.event_manager.emit(AgentEvent.AGENT_START)
+
         self.setup_logger()
 
         try:
@@ -214,7 +220,7 @@ class BaseAgent(BaseClass[T], ABC):
 
             self.setup()
 
-            self.logger.info("Starting...")
+            self.event_manager.emit(AgentEvent.AGENT_SETUP)
 
             if self.state_events is not None:
                 self.state_events.ready_event.set()
@@ -226,10 +232,9 @@ class BaseAgent(BaseClass[T], ABC):
 
         finally:
 
-            self.logger.info("Execution completed.")
-
             self.on_close()
 
+            self.event_manager.emit(AgentEvent.AGENT_CLOSE)
             if self.state_events is not None:
                 self.state_events.close_event.set()
 

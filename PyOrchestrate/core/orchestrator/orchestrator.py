@@ -63,6 +63,7 @@ class Orchestrator(BaseClass[OrchestratorConfig]):
         custom_config: BaseClass.Config | None = None,
         control_events: BaseAgent.ControlEvents | None = None,
         state_events: BaseAgent.StateEvents | None = None,
+        event_manager: EventManager | None = None,
         **kwargs,
     ) -> AgentEntry:
         """
@@ -80,6 +81,7 @@ class Orchestrator(BaseClass[OrchestratorConfig]):
             custom_config: Custom configuration for the agent.
             control_events: Control events for the agent.
             state_events: State events for the agent.
+            event_manager: Event manager for the agent.
             kwargs: Additional arguments for the agent.
 
         Returns:
@@ -92,6 +94,7 @@ class Orchestrator(BaseClass[OrchestratorConfig]):
             custom_config=custom_config,
             control_events=control_events,
             state_events=state_events,
+            event_manager=event_manager,
             **kwargs,
         )
         self.logger.debug(f"Agent '{name}' registered.")
@@ -211,9 +214,7 @@ class Orchestrator(BaseClass[OrchestratorConfig]):
         self.logger.info(f"Starting agent {agent_name}...")
         agent.initialize_agent()
         agent.start()
-        self.event_manager.emit(
-            OrchestratorEvent.AGENT_STARTED.value, agent_name=agent.name
-        )
+        self.event_manager.emit(OrchestratorEvent.AGENT_STARTED, agent_name=agent.name)
 
     def stop(self):
         """Terminates all registered agents."""
@@ -244,7 +245,7 @@ class Orchestrator(BaseClass[OrchestratorConfig]):
                     if not agent.name in notified:
                         self.logger.info(f"Agent '{agent.name}' ended.")
                         self.event_manager.emit(
-                            OrchestratorEvent.AGENT_TERMINATED.value,
+                            OrchestratorEvent.AGENT_TERMINATED,
                             agent_name=agent.name,
                         )
                         notified.add(agent.name)
@@ -257,7 +258,7 @@ class Orchestrator(BaseClass[OrchestratorConfig]):
                 time.sleep(self.config.check_interval)
 
         self.logger.info("All agents have completed.")
-        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED.value)
+        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED)
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
@@ -268,7 +269,7 @@ class Orchestrator(BaseClass[OrchestratorConfig]):
         for agent in self.memory.agents:
             agent.join()
         self.logger.info("All processes or threads have completed.")
-        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED.value)
+        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED)
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
