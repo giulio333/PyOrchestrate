@@ -1,8 +1,12 @@
 """
 Event manager module.
 """
+
+from enum import Enum
+
 import inspect
 from datetime import datetime
+from typing import Callable
 
 
 class EventManager:
@@ -22,99 +26,100 @@ class EventManager:
 
     def __init__(self):
         """
-        Initializes the EventManager.
-
-        Notes:
-            The _listeners dictionary starts as an empty dictionary and grows as events are registered.
+        Initializes the event manager.
         """
-        self._listeners = {}
+        self._listeners: dict[str, list[Callable]] = {}
 
-    def register_event(self, event):
+    def register_event(self, event: Enum):
         """
         Registers a new event.
 
-        Notes:
-            If the event already exists, it will not be overwritten. This method is idempotent.
+        If the event already exists, it will not be overwritten. This method is idempotent.
 
         Args:
-            event (str): The name of the event to register.
+            event (Enum): An Enum instance representing the event to register. Its 'name' attribute is used as the identifier.
 
         Examples:
+            >>> from PyOrchestrate.core.utilities.event_manager import EventManager
+            >>> from PyOrchestrate.core.base.base import AgentEvent
             >>> event_manager = EventManager()
-            >>> event_manager.register_event("agent_started")
-            >>> event_manager.register_event("agent_stopped")
+            >>> event_manager.register_event(AgentEvent.AGENT_START)
+            >>> event_manager.register_event(AgentEvent.AGENT_STOP)
         """
-        if event not in self._listeners:
-            self._listeners[event] = []
+        if event.name not in self._listeners:
+            self._listeners[event.name] = []
 
-    def connect(self, event, callback):
+    def connect(self, event: Enum, callback: Callable):
         """
         Connects a listener (callback function) to an event.
 
-        Notes:
-            If the event does not exist, it will be automatically registered.
-            Multiple listeners can be connected to the same event. Listeners are stored in the order they are added.
-            If a listener raises an exception when the event is emitted, the emission will stop for that listener only.
+        If the event does not exist, it will be automatically registered using its 'name' attribute.
+        Multiple listeners can be connected to the same event in the order they are added.
+        If a listener raises an exception when the event is emitted, the emission will stop for that listener only.
 
         Args:
-            event (str): The name of the event to connect the listener to.
+            event (Enum): An Enum instance representing the event. Its 'name' attribute is used as the identifier.
             callback (callable): A function to execute when the event is emitted. The function can accept arguments passed during emission.
 
         Examples:
-
+            >>> from PyOrchestrate.core.utilities.event_manager import EventManager
+            >>> from PyOrchestrate.core.base.base import AgentEvent
             >>> def on_agent_started(agent_name):
             ...     print(f"Agent {agent_name} started.")
             >>> event_manager = EventManager()
-            >>> event_manager.connect("agent_started", on_agent_started)
+            >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started)
         """
-        if event not in self._listeners:
+        if event.value not in self._listeners:
             self.register_event(event)
-        self._listeners[event].append(callback)
+        self._listeners[event.name].append(callback)
 
-    def emit(self, event, *args, **kwargs):
+    def emit(self, event: Enum, *args, **kwargs):
         """
         Emits an event, triggering all connected listeners.
 
-        Notes:
-            If no listeners are connected to the event, nothing happens.
-            If a listener raises an exception, other listeners will still be executed.
-            Default data such as the current date and time are included in the kwargs,
-            but only passed to listeners that accept them.
+        If no listeners are connected to the event, nothing happens.
+        If a listener raises an exception, other listeners will still be executed.
+        Default data such as the current date and time are included in kwargs but only passed to listeners that accept them.
 
         Args:
-            event (str): The name of the event to emit.
+            event (Enum): An Enum instance representing the event to emit. Its 'name' attribute is used to lookup listeners.
             *args: Positional arguments passed to the connected listeners.
-            **kwargs: Keyword arguments passed to the connected listeners. Default values include:
-                - 'event_date' (str): The date the event occurred (in YYYY-MM-DD format).
-                - 'event_time' (str): The time the event occurred (in HH:MM:SS format).
+            **kwargs: Keyword arguments passed to the connected listeners. Defaults include:
+                - 'event_date' (str): The date the event occurred (YYYY-MM-DD).
+                - 'event_time' (str): The time the event occurred (HH:MM:SS).
 
         Examples:
+            >>> from PyOrchestrate.core.utilities.event_manager import EventManager
+            >>> from PyOrchestrate.core.base.base import AgentEvent
             >>> def on_agent_started(agent_name):
             ...     print(f"Agent {agent_name} started.")
             >>> def on_agent_started_with_time(agent_name, event_date, event_time):
             ...     print(f"Agent {agent_name} started on {event_date} at {event_time}.")
             >>> event_manager = EventManager()
-            >>> event_manager.register_event("agent_started")
-            >>> event_manager.connect("agent_started", on_agent_started)
-            >>> event_manager.connect("agent_started", on_agent_started_with_time)
-            >>> event_manager.emit("agent_started", "Agent_1")
-            Agent Agent_1 started.
-            Agent Agent_1 started on 2024-12-29 at 14:30:00.
+            >>> event_manager.register_event(AgentEvent.AGENT_START)
+            >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started)
+            >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started_with_time)
+            >>> event_manager.emit(AgentEvent.AGENT_START, "Agent_1")
         """
-        if event in self._listeners:
+        if event.name in self._listeners:
+
             # Add default data to kwargs
             now = datetime.now()
-            kwargs.setdefault('event_date', now.strftime('%Y-%m-%d'))
-            kwargs.setdefault('event_time', now.strftime('%H:%M:%S'))
+            kwargs.setdefault("event_date", now.strftime("%Y-%m-%d"))
+            kwargs.setdefault("event_time", now.strftime("%H:%M:%S"))
 
-            for callback in self._listeners[event]:
+            for callback in self._listeners[event.name]:
                 try:
                     # Get the list of accepted parameters for the callback
                     callback_params = inspect.signature(callback).parameters
                     # Filter kwargs to pass only parameters accepted by the callback
-                    filtered_kwargs = {key: value for key, value in kwargs.items() if key in callback_params}
+                    filtered_kwargs = {
+                        key: value
+                        for key, value in kwargs.items()
+                        if key in callback_params
+                    }
                     # Call the callback with args and filtered kwargs
                     callback(*args, **filtered_kwargs)
                 except Exception as e:
-                    # Handle exceptions raised by callbacks
-                    print(f"Error in listener '{callback.__name__}': {e}")
+                    pass
+                    # skip the listener if an exception is raised
