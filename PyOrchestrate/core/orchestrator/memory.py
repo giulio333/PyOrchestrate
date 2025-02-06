@@ -310,7 +310,7 @@ class OMemory:
 
         if not state_events:
             state_events = agent_class.StateEvents(
-                ready_event=event(), close_event=event()
+                start_event=event(), ready_event=event(), close_event=event()
             )
 
         if not event_manager:

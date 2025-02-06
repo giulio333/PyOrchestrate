@@ -42,7 +42,7 @@ class TestBaseAgent(unittest.TestCase):
     def setUp(self):
         # Mock
         self.event_manager = MagicMock(spec=EventManager)
-        self.state_events = BaseAgent.StateEvents(MagicMock(), MagicMock())
+        self.state_events = BaseAgent.StateEvents(MagicMock(), MagicMock(), MagicMock())
         self.control_events = BaseAgent.ControlEvents(
             MagicMock(), MagicMock(), MagicMock()
         )
