@@ -14,7 +14,7 @@ class PeriodicAgentConfig(LoopingAgentConfig):
     Attributes:
         execution_interval (float): The interval between two consecutive executions.
         delay_compensation (bool): Compensate the delay in the execution.
-        limit (int): The maximum number of iterations.
+        limit (int): The maximum number of iterations, defaults to -1 (infinite).
         logger (LoggerConfig): Logger configuration.
 
     Notes:
