@@ -49,13 +49,16 @@ sequenceDiagram
     participant Config as Config
     participant StateEvents as StateEvents
     participant ControlEvents as ControlEvents
+    participant EventManager as EventManager
 
+    Agent->>EventManager: emit(AGENT_START)
     Agent->>Config: validate_config()
     Agent->>ControlEvents: setup_event.wait()
     activate ControlEvents
     ControlEvents-->>Agent: control event triggered
     deactivate ControlEvents
     Agent->>Agent: setup()
+    Agent->>EventManager: emit(AGENT_SETUP)
     Agent->>StateEvents: ready_event.set()
     Agent->>ControlEvents: execute_event.wait()
     activate ControlEvents
@@ -63,6 +66,7 @@ sequenceDiagram
     deactivate ControlEvents
     Agent->>Agent: execute()
     Agent->>Agent: on_close()
+    Agent->>EventManager: emit(AGENT_CLOSE)
     Agent->>StateEvents: close_event.set()
 ```
 
