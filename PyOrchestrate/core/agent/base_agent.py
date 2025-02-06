@@ -108,11 +108,13 @@ class BaseAgent(BaseClass[T], ABC):
         Events related to the internal state of the agent.
 
         Attributes:
+            start_event: Event to signal that the agent is starting.
             ready_event: Event to signal that the agent is ready to start the execution.
             close_event: Event to signal that the agent has completed the execution.
         """
 
-        def __init__(self, ready_event, close_event):
+        def __init__(self, start_event, ready_event, close_event):
+            self.start_event = start_event
             self.ready_event = ready_event
             self.close_event = close_event
 
@@ -209,6 +211,8 @@ class BaseAgent(BaseClass[T], ABC):
         """
         self.start_time = time.time()
 
+        if self.state_events is not None:
+            self.state_events.start_event.set()
         self.event_manager.emit(AgentEvent.AGENT_START)
 
         self.setup_logger()
@@ -221,7 +225,6 @@ class BaseAgent(BaseClass[T], ABC):
             self.setup()
 
             self.event_manager.emit(AgentEvent.AGENT_SETUP)
-
             if self.state_events is not None:
                 self.state_events.ready_event.set()
 

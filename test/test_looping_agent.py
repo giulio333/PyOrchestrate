@@ -30,7 +30,9 @@ class TestLoopingAgentConfig(unittest.TestCase):
 class TestLoopingAgent(unittest.TestCase):
     def setUp(self):
         self.event_manager = EventManager()
-        self.state_events = LoopingAgent.StateEvents(MagicMock(), MagicMock())
+        self.state_events = LoopingAgent.StateEvents(
+            MagicMock(), MagicMock(), MagicMock()
+        )
         self.control_events = LoopingAgent.ControlEvents(
             MagicMock(), MagicMock(), MagicMock()
         )
