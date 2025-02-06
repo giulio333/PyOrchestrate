@@ -6,9 +6,11 @@ title: Weather Collector Agent
 
 This example demonstrates how to create an agent that periodically collects weather data from a weather API and logs the result.
 
+## Overview
+
 Imagine you require an agent that fetches weather information every 10 seconds. In this scenario, the built-in `PeriodicAgent` is ideal since it executes a function at regular intervals.
 
-### Project Initialization
+## Project Initialization
 
 Start by creating a new PyOrchestrate project with the following command:
 
@@ -25,7 +27,7 @@ weather_collector/
 ├── starter.py
 ```
 
-### Configuration Setup
+## Configuration Setup
 
 In the `models` directory, create a configuration class named `WCConfig`:
 
@@ -40,7 +42,7 @@ class WCConfig(PeriodicProcessAgent.Config):
 
 Here, `WCConfig` inherits from `PeriodicProcessAgent.Config`. The properties `limit` and `execution_interval` are provided by the base class, while `url` is a custom field. This configuration enables the agent to query the provided URL every `execution_interval` seconds for a maximum of `limit` iterations.
 
-### Agent Implementation
+## Agent Implementation
 
 Next, in the `models` directory, create an agent called `WeatherCollector`:
 
@@ -77,7 +79,7 @@ The `runner` method executes periodically and logs the response. If any request 
 When adding a new agent, you can override the `Config` attribute to use a custom configuration class, as shown with `WCConfig`.
 :::
 
-### Orchestrator Integration
+## Orchestrator Integration
 
 Finally, update `starter.py` to register the new agent:
 
