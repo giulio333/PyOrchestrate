@@ -53,60 +53,8 @@ class CommunicationPlugin(Plugin):
     operations among system components.
 
     Additional methods:
-        - send_string: Sends messages as UTF-8 strings.
-        - recv_string: Receives and decodes messages as strings.
-        - recv: Receives messages with customizable options (e.g., non-blocking mode).
-        - send: Sends messages in bytes or serialized format.
         - setsockopt: Configures socket options.
     """
-
-    def send_string(self, message):
-        """
-        Sends a message as a string.
-
-        Converts the message to a UTF-8 encoded string and sends it through the communication channel.
-
-        Args:
-            message (str): The message to be sent.
-        """
-        pass
-
-    def recv_string(self):
-        """
-        Receives a message and decodes it as a string.
-
-        Waits for a message, decodes it using UTF-8, and returns the resulting string.
-
-        Returns:
-            str: The received message.
-        """
-        pass
-
-    def recv(self, flags: int = 0):
-        """
-        Receives a message from the communication channel.
-
-        Uses the reception mechanism (e.g., provided by PyZMQ) to obtain the message,
-        applying any flags to modify the behavior (for example, non-blocking mode).
-
-        Args:
-            flags (int, optional): Flags to customize the reception behavior (default: 0).
-
-        Returns:
-            Typically returns the received message in bytes.
-        """
-        pass
-
-    def send(self, message):
-        """
-        Sends a message through the communication channel.
-
-        The message can be in bytes or already serialized into bytes.
-
-        Args:
-            message: The message to send (usually bytes or a serialized object).
-        """
-        pass
 
     def setsockopt(self, option, value):
         """

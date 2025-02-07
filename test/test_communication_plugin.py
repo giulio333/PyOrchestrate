@@ -38,27 +38,27 @@ class TestZeroMQPubSub(unittest.TestCase):
         pub.finalize()
         sub.finalize()
 
-    def test_send_and_recv_methods(self):
-        # This test verifies that send and recv work for binary messages.
+    def test_pub_sub_subscribe_topic(self):
         address = "tcp://127.0.0.1:5557"
+        topic = b"test"
 
-        # Set up subscriber with a specific subscription topic.
-        topic = b"topic1"
-        sub = ZeroMQPubSub(address, zmq.SUB, subscribe_topic=topic)
+        # Initialize the subscriber with a specific topic.
+        sub = ZeroMQPubSub(address, zmq.SUB, topic)
         sub.initialize()
+
         time.sleep(1)
 
-        # Publisher setup.
-        pub = ZeroMQPubSub(address, zmq.PUB)
+        pub = ZeroMQPubSub(address, zmq.PUB, topic)
         pub.initialize()
+
         time.sleep(1)
 
-        # Construct a message that includes the topic.
-        message = topic + b" " + b"Binary test message."
-        pub.send(message)
+        message = b"Hello, ZeroMQ with topic!"
+        pub.send_string(message.decode("utf-8"))
+
         time.sleep(1)
-        received_message = sub.recv()
-        self.assertTrue(received_message.startswith(topic))
+        received_message: str = sub.recv_string()
+        self.assertEqual(received_message, message)
 
         pub.finalize()
         sub.finalize()

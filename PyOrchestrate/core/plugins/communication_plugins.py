@@ -75,25 +75,7 @@ class ZeroMQPubSub(CommunicationPlugin):
         self.socket.close()
         self.context.term()
 
-    def send_string(self, message: str):
-        """
-        Sends a message using ZeroMQ.
-
-        Args:
-            message (str): The message to send.
-        """
-        self.socket.send_string(message)
-
-    def recv_string(self) -> str:
-        """
-        Receives a message using ZeroMQ.
-
-        Returns:
-            str: The received message.
-        """
-        return self.socket.recv_string()
-
-    def recv(self, flags: int = 0):
+    def recv(self) -> bytes:
         """
         Receives a message using ZeroMQ.
 
@@ -103,17 +85,21 @@ class ZeroMQPubSub(CommunicationPlugin):
         Returns:
             Any: The received message.
         """
-        return self.socket.recv(flags)
+        topic, message = self.socket.recv_multipart()
+        return message
 
-    def send(self, message, flags: int = 0):
+    def send(self, message: bytes, topic: bytes = b"") -> zmq.MessageTracker | None:
         """
         Sends a message using ZeroMQ.
 
         Args:
             message: The message to send.
-            flags (int): The flags to use for the send operation.
+            topic: The topic to send the message to.
+
+        Returns:
+            (zmq.MessageTracker | None): The message tracker object allows you to track all of the 0MQ usages of a message.
         """
-        self.socket.send(message, flags)
+        return self.socket.send_multipart([topic, message])
 
     def setsockopt(self, option, value):
         """
