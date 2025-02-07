@@ -13,8 +13,6 @@ All you need to do is choose the agent that best fits your requirements and inhe
 
 Click [here](./built-in-agents/baseagent.md) to view some examples of agents that might be useful to understand the concept.
 
-
-
 ## Usage
 
 Here’s an example of a custom agent that inherits from `PeriodicProcessAgent`.
@@ -285,10 +283,22 @@ class MyAgent(PeriodicProcessAgent): # [!code focus]
 
 Every agent supports a set of **communication plugins** that allow it to interact with other agents, external systems and many more. Each agent can access the communication plugin via the property `com`. 
 
-Once initialized, it will provide useful methods to send and receive data. 
 
-Read more about the communication plugins here.
 
+
+
+```python
+class MyAgent(PeriodicProcessAgent):
+    def setup(self):
+        self.com.websocket.connect("wss://example.com/socket")
+
+    def runner(self):
+        message = self.com.websocket.receive()
+        self.logger.info(f"Received message: {message}")
+```
+
+
+For more detailed information about communication plugins, including additional examples and configuration options, please refer to the [Communication Plugins Documentation](./communication-plugins.md).
 
 ## BaseAgent
 
