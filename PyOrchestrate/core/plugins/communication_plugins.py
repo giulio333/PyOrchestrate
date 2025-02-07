@@ -36,38 +36,39 @@ class ZeroMQPubSub(CommunicationPlugin):
         """
         Initializes the ZeroMQPlugin.
 
+        Warning:
+            Ensure that one process has only one zmq.Context instance. If you create multiple ZeroMQ plugins in the same
+            process, they should share the same context.
+
         Args:
             address (str): The address to bind/connect the socket.
             socket_type (int): The type of ZeroMQ socket (e.g., zmq.REQ, zmq.REP, zmq.PUB, zmq.SUB).
             subscribe_topic (bytes): The topic to subscribe to (only for zmq.SUB). Defaults to b"" (all topics).
         """
         self.context = zmq.Context()
-        self.socket = self.context.socket(socket_type)
-
-        if socket_type in [zmq.PUB, zmq.REP]:
-            # Server sockets bind to the address
-            self.socket.bind(address)
-        elif socket_type in [zmq.SUB, zmq.REQ]:
-            # Client sockets connect to the address
-            self.socket.connect(address)
-
-            # Configure topic filter if the socket is SUB
-            if socket_type == zmq.SUB:
-                self.socket.setsockopt(zmq.SUBSCRIBE, subscribe_topic)
-        else:
-            raise ValueError("Unsupported socket type for ZeroMQPlugin")
+        self.socket_type = socket_type
+        self.subscribe_topic = subscribe_topic
+        self.address = address
 
     def initialize(self):
         """
         Initializes the ZeroMQ plugin.
-        """
-        pass
 
-    def execute(self):
+        Performs a basic check on the socket type.
         """
-        Executes the ZeroMQ plugin's core logic.
-        """
-        pass
+
+        if self.socket_type == zmq.PUB:
+            self.socket = self.context.socket(zmq.PUB)
+            self.socket.bind(self.address)
+        elif self.socket_type == zmq.SUB:
+            self.socket = self.context.socket(zmq.SUB)
+            self.socket.connect(self.address)
+
+            if self.subscribe_topic:
+                self.socket.setsockopt(zmq.SUBSCRIBE, self.subscribe_topic)
+
+        else:
+            raise ValueError("Unsupported socket type for ZeroMQPubSub plugin.")
 
     def finalize(self):
         """
