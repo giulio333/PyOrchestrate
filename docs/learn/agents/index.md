@@ -69,8 +69,6 @@ Each agent comes with:
 
 Agents save you from reinventing the wheel by offering ready-made solutions for common architectural challenges, such as managing threads/processes, synchronizing events, and handling errors.
 
-Before exploring the **built-in agents**, let’s review the core principles that underpin how agents operate.
-
 ## Configuration
 
 Every agent has a set of **parameters** that define its own data. These parameters are stored in a `Config` object.
