@@ -16,6 +16,16 @@ class ZeroMQPubSub(CommunicationPlugin):
     Attributes:
         context (zmq.Context): The ZeroMQ context.
         socket (zmq.Socket): The ZeroMQ socket.
+
+    Methods:
+        initialize: Initializes the ZeroMQ plugin.
+        execute: Executes the ZeroMQ plugin's core logic.
+        finalize: Finalizes the ZeroMQ plugin.
+        send_string: Sends a message using ZeroMQ.
+        recv_string: Receives a message using ZeroMQ.
+        recv: Receives a message using ZeroMQ.
+        send: Sends a message using ZeroMQ.
+        setsockopt: Sets a socket option.
     """
 
     def __init__(self, address: str, socket_type: int, subscribe_topic: bytes = b""):
