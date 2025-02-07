@@ -283,22 +283,16 @@ class MyAgent(PeriodicProcessAgent): # [!code focus]
 
 Every agent supports a set of **communication plugins** that allow it to interact with other agents, external systems and many more. Each agent can access the communication plugin via the property `com`. 
 
-
-
-
-
 ```python
 class MyAgent(PeriodicProcessAgent):
-    def setup(self):
-        self.com.websocket.connect("wss://example.com/socket")
 
     def runner(self):
-        message = self.com.websocket.receive()
+        message = self.com.receive()
         self.logger.info(f"Received message: {message}")
 ```
 
 
-For more detailed information about communication plugins, including additional examples and configuration options, please refer to the [Communication Plugins Documentation](./communication-plugins.md).
+For more detailed information about communication plugins, including additional examples and configuration options, please refer to the [Communication Plugins Documentation](./plugins/communication-plugins.md).
 
 ## BaseAgent
 
