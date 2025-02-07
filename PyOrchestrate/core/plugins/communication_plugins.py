@@ -63,8 +63,7 @@ class ZeroMQPubSub(CommunicationPlugin):
             self.socket = self.context.socket(zmq.SUB)
             self.socket.connect(self.address)
 
-            if self.subscribe_topic:
-                self.socket.setsockopt(zmq.SUBSCRIBE, self.subscribe_topic)
+            self.socket.setsockopt(zmq.SUBSCRIBE, self.subscribe_topic)
 
         else:
             raise ValueError("Unsupported socket type for ZeroMQPubSub plugin.")
