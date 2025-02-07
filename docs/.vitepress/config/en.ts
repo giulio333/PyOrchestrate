@@ -44,6 +44,13 @@ export const enConfig = {
                 { text: 'BaseAgent', link: '/learn/agents/built-in-agents/baseagent' },
                 { text: 'LoopingAgent', link: '/learn/agents/built-in-agents/loopingagent' },
               ]
+            },
+            {
+              text: 'Plugins',
+              collapsed: true,
+              items:[
+                { text: 'Communication', link: '/learn/agents/plugins/communication-plugins' },
+              ]
             }
           ]
         }
