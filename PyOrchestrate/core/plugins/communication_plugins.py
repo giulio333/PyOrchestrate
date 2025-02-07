@@ -3,7 +3,6 @@ Communication plugins module.
 """
 
 import zmq
-import requests
 from .plugin_protocols import CommunicationPlugin
 
 
