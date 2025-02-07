@@ -1,31 +1,13 @@
 """
-Plugin protocols module.
+plugin_protocols module.
+This module defines the interfaces (protocols) that plugins must implement to be integrated
+with the PyOrchestrate framework. The interfaces provide a standardized structure for:
+- Plugin initialization (setup).
+- Execution of the main plugin logic.
+- Finalization (cleanup) after use.
 
-This module defines the core protocols (interfaces) for the plugin system in PyOrchestrate.
-Plugin protocols provide a standardized way to define and implement plugins, ensuring
-consistency and interoperability across the entire framework.
-
-The module implements two main protocols:
-
-- Plugin: The base protocol that all plugins must implement, defining the basic
-  lifecycle methods (initialize, execute, finalize).
-  
-- CommunicationPlugin: A specialized protocol for plugins that handle communication,
-  extending the base Plugin protocol with additional messaging capabilities.
-
-These protocols serve as contracts that plugin implementations must fulfill, making
-the plugin system both extensible and maintainable. By following these protocols,
-developers can create new plugins that seamlessly integrate with the PyOrchestrate
-framework.
-
-Example:
-    To create a new plugin, implement either the Plugin or CommunicationPlugin
-    protocol based on your needs:
-
-    class MyPlugin(Plugin):
-        def initialize(self):
-            # Setup code
-            pass
+The protocols defined in this module ensure that every plugin adheres to a common contract,
+thus promoting consistency and interoperability within the system.
 """
 
 from typing import Protocol
@@ -33,23 +15,22 @@ from typing import Protocol
 
 class Plugin(Protocol):
     """
-    Protocol for all plugins.
+    Base protocol for all plugins.
 
-    This protocol provides a common interface for plugin lifecycle management, defining
-    the essential methods that a plugin must implement.
+    This protocol defines the essential methods required for managing a plugin's lifecycle:
+    - initialize: Prepares the plugin by allocating resources or setting up the initial state.
+    - execute: Executes the main logic of the plugin.
+    - finalize: Handles cleanup and resource release.
 
-    Methods:
-        initialize: Initializes the plugin and sets up necessary resources.
-        execute: Executes the main logic of the plugin.
-        finalize: Finalizes the plugin, cleaning up resources.
+    Developers must implement these methods to ensure proper integration with the system.
     """
 
     def initialize(self):
         """
         Initializes the plugin.
 
-        Called once when the plugin is registered.
-        Perform all necessary setup operations here.
+        Called only once at the time of plugin registration.
+        Use this method to set up the necessary resources for subsequent execution.
         """
         pass
 
@@ -57,8 +38,8 @@ class Plugin(Protocol):
         """
         Executes the main logic of the plugin.
 
-        Called during the plugin's execution cycle.
-        This method should contain the primary functionality of the plugin.
+        This method is called during the plugin's operational cycle and should contain
+        the core functionality required from the plugin.
         """
         pass
 
@@ -66,37 +47,36 @@ class Plugin(Protocol):
         """
         Finalizes the plugin.
 
-        Called when the plugin is unregistered.
-        Perform cleanup operations, such as closing connections and releasing resources.
+        Called at the end of the plugin lifecycle to release resources, close connections,
+        or perform any other cleanup operations.
         """
         pass
 
 
 class CommunicationPlugin(Plugin):
     """
-    Protocol for communication plugins.
+    Extended protocol for communication plugins.
 
-    This protocol extends the base Plugin protocol by adding methods for sending and
-    receiving messages, similar to those provided by PyZMQ. It is designed to facilitate
-    flexible and effective communication between components.
+    This protocol, which extends Plugin, adds specific methods for sending and receiving
+    messages (e.g., via sockets or PyZMQ). It is designed to standardize communication
+    operations among system components.
 
-    Methods:
-        send_string: Sends a message encoded as a UTF-8 string.
-        recv_string: Receives a message and decodes it as a UTF-8 string.
-        recv: Receives a message, optionally using flags as defined in PyZMQ.
-        send: Sends a message (typically in bytes or serialized format).
-        setsockopt: Sets a socket option, as defined by PyZMQ.
+    Additional methods:
+        - send_string: Sends messages as UTF-8 strings.
+        - recv_string: Receives and decodes messages as strings.
+        - recv: Receives messages with customizable options (e.g., non-blocking mode).
+        - send: Sends messages in bytes or serialized format.
+        - setsockopt: Configures socket options.
     """
 
     def send_string(self, message):
         """
         Sends a message as a string.
 
-        Converts the message to a UTF-8 encoded string and sends it through the socket.
-        Useful for transmitting textual data.
+        Converts the message to a UTF-8 encoded string and sends it through the communication channel.
 
-        Parameters:
-            message: The message to be sent (str).
+        Args:
+            message (str): The message to be sent.
         """
         pass
 
@@ -104,50 +84,48 @@ class CommunicationPlugin(Plugin):
         """
         Receives a message and decodes it as a string.
 
-        Waits for a message, decodes it using UTF-8 encoding, and returns the resulting string.
+        Waits for a message, decodes it using UTF-8, and returns the resulting string.
 
         Returns:
-            The received message as a string.
+            str: The received message.
         """
         pass
 
     def recv(self, flags: int = 0):
         """
-        Receives a message from the socket.
+        Receives a message from the communication channel.
 
-        Uses PyZMQ's receive method, allowing the use of flags to customize the behavior
-        (e.g., non-blocking reception). Refer to the PyZMQ documentation for details on flags.
+        Uses the reception mechanism (e.g., provided by PyZMQ) to obtain the message,
+        applying any flags to modify the behavior (for example, non-blocking mode).
 
-        Parameters:
-            flags (int): Optional flags for the receive operation (default: 0).
+        Args:
+            flags (int, optional): Flags to customize the reception behavior (default: 0).
 
         Returns:
-            The received message, typically in bytes.
+            Typically returns the received message in bytes.
         """
         pass
 
     def send(self, message):
         """
-        Sends a message through the socket.
+        Sends a message through the communication channel.
 
-        The message can be already in bytes or serialized as bytes.
-        This method wraps the sending functionality provided by PyZMQ.
+        The message can be in bytes or already serialized into bytes.
 
-        Parameters:
-            message: The message to be sent (typically bytes or serialized into bytes).
+        Args:
+            message: The message to send (usually bytes or a serialized object).
         """
         pass
 
     def setsockopt(self, option, value):
         """
-        Sets a socket option.
+        Configures a socket option.
 
-        Allows configuration of the socket by setting specific options as defined by the PyZMQ library.
-        For more details on available options, refer to the PyZMQ documentation
-        at this link: https://pyzmq.readthedocs.io/en/latest/api/zmq.html#zmq.Socket.setsockopt
+        Sets a specific option for the socket, useful for customized configurations.
+        Refer to the PyZMQ documentation for more details on available options.
 
-        Parameters:
-            option: The socket option to set (e.g., zmq.SUBSCRIBE).
+        Args:
+            option: The option to configure (e.g., zmq.SUBSCRIBE).
             value: The value to assign to the option.
         """
         pass
