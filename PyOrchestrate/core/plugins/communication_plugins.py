@@ -13,6 +13,10 @@ class ZeroMQPubSub(CommunicationPlugin):
 
     This plugin provides communication using ZeroMQ Pub/Sub sockets.
 
+    Example:
+        >>> zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
+        >>> zmq_plugin.send_string("Hello, World!")
+
     Attributes:
         context (zmq.Context): The ZeroMQ context.
         socket (zmq.Socket): The ZeroMQ socket.

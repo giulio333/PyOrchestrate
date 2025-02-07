@@ -16,6 +16,11 @@ class PluginManager:
     Responsible for registering (initializing) and unregistering (finalizing) the
     communication plugin, ensuring that operations are performed safely.
 
+    Example:
+        >>> plugin_manager = PluginManager()
+        >>> zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
+        >>> plugin_manager.register(zmq_plugin)
+
     Attributes:
         com (CommunicationPlugin): The currently registered communication plugin instance.
 
