@@ -34,15 +34,6 @@ class Plugin(Protocol):
         """
         pass
 
-    def execute(self):
-        """
-        Executes the main logic of the plugin.
-
-        This method is called during the plugin's operational cycle and should contain
-        the core functionality required from the plugin.
-        """
-        pass
-
     def finalize(self):
         """
         Finalizes the plugin.
