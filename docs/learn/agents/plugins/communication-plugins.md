@@ -2,23 +2,26 @@
 
 Communication plugins in PyOrchestrate allow agents to interact with other agents, external systems, and more.
 
-## Accessing and Utilizing Communication Plugins
+## Accessing Communication Plugins
 
-Each agent can access the communication plugins via the `com` property which provides a unified interface to interact with various communication plugins.
+Agents can interact with communication plugins through the dedicated `com` property, which provides a unified interface for integrating various messaging systems and protocols.
 
-Currently, an agent can register only one type of communication plugin.
-The proper process is as follows:
+To integrate a plugin, follow these steps:
 1. Import the plugin.
 2. Register it with the plugin manager.
-3. When it is no longer needed, use the `finalize()` method to properly release its resources.
+3. When it is no longer required, invoke the `finalize()` method to properly release its resources.
+
+::: warning
+Please note that each agent currently supports only one communication plugin type. 
+:::
 
 ## Available Communication Plugins
 
-### ZeroMQ Plugin
+### ZeroMQPubSub Plugin
 
-The ZeroMQ Plugin provides a high-performance asynchronous messaging library.
+The `ZeroMQPubSub` Plugin provides communication using ZeroMQ Pub/Sub sockets.
 
-**Example**:
+**Example**
 
 ```python
 from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
@@ -26,7 +29,7 @@ from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
 class MyAgent(PeriodicProcessAgent):
     def setup(self):
         zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
-        self.plugin_manager.register(zmq_plugin
+        self.plugin_manager.register(zmq_plugin)
 
     def runner(self):
         message = self.com.send("Hello, World!")
