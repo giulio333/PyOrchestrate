@@ -28,11 +28,11 @@ from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
 
 class MyAgent(PeriodicProcessAgent):
     def setup(self):
-        zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB, b"my_topic")
+        zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
         self.plugin_manager.register(zmq_plugin)
 
     def runner(self):
-        message = self.com.send(b"Hello, World!")
+        message = self.com.send("Hello, World!")
 
     def on_close(self):
         self.com.finalize()
