@@ -49,7 +49,13 @@ export const enConfig = {
               text: 'Plugins',
               collapsed: true,
               items:[
-                { text: 'Communication', link: '/learn/agents/plugins/communication-plugins' },
+                { 
+                  text: 'Communication', 
+                  link: '/learn/agents/plugins/communication-plugins', 
+                  items:[
+                    { text: 'ZeroMQPubSub', link: '/learn/agents/plugins/zeromqpubsub/zeromqpubsub' },
+                  ]
+                },
               ]
             }
           ]
