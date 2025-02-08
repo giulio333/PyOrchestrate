@@ -1,13 +1,11 @@
 import time
 import multiprocessing
 import requests
-import zmq
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import AgentEvent
 from PyOrchestrate.core.agent import BaseProcessAgent
-from PyOrchestrate.core.plugins import ZeroMQPubSub
 
 
 class MyConfig(BaseProcessAgent.Config):
@@ -24,18 +22,16 @@ class APIFetchAgent(BaseProcessAgent[MyConfig]):
 
     def setup(self) -> None:
         """
-        Agent initialization: registers the communication plugin and logs the setup.
+        Agent initialization: logs the setup.
         """
         super().setup()
-        zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
-        self.plugin_manager.register(zmq_plugin)
         self.logger.info(f"Initializing APIFetchAgent with API: {self.config.api_url}")
         time.sleep(1)
 
     def execute(self) -> None:
         """
         Polls the external API and, if the keyword is found in the data,
-        sends a message to the other agent.
+        logs a warning.
         """
         super().execute()
         self.logger.info(
@@ -54,9 +50,7 @@ class APIFetchAgent(BaseProcessAgent[MyConfig]):
                     # Check if the keyword is present in the string
                     if self.config.keyword in message_str:
                         self.logger.warning(f"Keyword '{self.config.keyword}' found!")
-                        self.com.ZeroMQPubSub.send(
-                            f"Keyword '{self.config.keyword}' found: {message_str}"
-                        )
+                        # Qui eventualmente si potrebbe usare l'EventManager per emettere un evento
                     else:
                         self.logger.info("Keyword not found in this cycle.")
                 else:
@@ -67,9 +61,8 @@ class APIFetchAgent(BaseProcessAgent[MyConfig]):
         except Exception as e:
             self.logger.exception(f"Error during API polling: {e}")
         finally:
-            # At the end of the cycle, send a STOP signal to the other agent
-            self.com.send_string("STOP")
-            self.plugin_manager.unregister()
+            # In questo esempio semplificato non è necessaria una comunicazione esterna
+            pass
 
     def on_stop(self):
         """
@@ -78,51 +71,13 @@ class APIFetchAgent(BaseProcessAgent[MyConfig]):
         self.logger.info("APIFetchAgent terminated.")
 
 
-class APIAlertAgent(BaseProcessAgent[MyConfig]):
-    Config = MyConfig
-
-    def setup(self) -> None:
-        """
-        Initializes the agent for receiving messages.
-        """
-        super().setup()
-        zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
-        self.plugin_manager.register(zmq_plugin)
-        # Set the log level to INFO
-        self.config.logger_config.level = "INFO"
-        self.logger.info(
-            "Initializing APIAlertAgent for receiving alerts from the API."
-        )
-
-        time.sleep(3)
-
-    def execute(self) -> None:
-        """
-        Listens for messages sent by APIFetchAgent.
-        """
-        super().execute()
-        self.logger.info("Listening for messages from APIFetchAgent...")
-        try:
-            while True:
-                message = self.com.recv_string()
-                self.logger.success(f"Message received: {message}")
-                if message == "STOP":
-                    self.logger.info("Received STOP signal.")
-                    break
-        except Exception as e:
-            self.logger.exception(f"Error receiving messages: {e}")
-        finally:
-            self.plugin_manager.unregister()
-
-    def on_stop(self):
-        """
-        Logs the termination of the agent.
-        """
-        self.logger.info("APIAlertAgent terminated.")
+def on_agent_start(event_date, event_time):
+    message = f"Agent start. Date: {event_date}, Time: {event_time}"
+    print(message)
 
 
-def on_agent_started(event_date, event_time):
-    message = f"Agent  started. Date: {event_date}, Time: {event_time}"
+def on_agent_close(event_date, event_time):
+    message = f"Agent stop. Date: {event_date}, Time: {event_time}"
     print(message)
 
 
@@ -135,9 +90,10 @@ if __name__ == "__main__":
 
     # Create an EventManager
     event_manager = EventManager()
-    event_manager.connect(AgentEvent.AGENT_SETUP, on_agent_started)
+    event_manager.connect(AgentEvent.AGENT_START, on_agent_start)
+    event_manager.connect(AgentEvent.AGENT_CLOSE, on_agent_close)
 
-    # Registering agents
+    # Registering agents (solo APIFetchAgent è registrato)
     fetch_agent: AgentEntry = orchestrator.register_agent(
         APIFetchAgent, "APIFetchAgent", event_manager=event_manager
     )
