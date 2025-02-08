@@ -3,7 +3,7 @@ import multiprocessing
 import zmq
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
-from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
+from PyOrchestrate.core.plugins import ZeroMQPubSub
 from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
 
 ############################################################
@@ -28,8 +28,7 @@ class FileSendAgent(PeriodicProcessAgent[FileSendConfig]):
     def setup(self) -> None:
         super().setup()
         # Configure the ZeroMQ plugin in PUB mode and bind it to tcp://0.0.0.0:5555
-        zmq_plugin = ZeroMQPubSub("tcp://0.0.0.0:5555", zmq.PUB)
-        self.plugin_manager.register(zmq_plugin)
+        self.socket = ZeroMQPubSub("tcp://0.0.0.0:5555", zmq.PUB).initialize()
         self.logger.info(
             f"Initializing FileSendAgent. File to send: {self.config.file_path}"
         )
@@ -54,7 +53,7 @@ class FileSendAgent(PeriodicProcessAgent[FileSendConfig]):
         else:
             self.logger.info("Sending complete: file finished.")
             # Send a special message to signal the end of transfer
-            self.com.send_string("FILE_COMPLETE")
+            self.socket.send("FILE_COMPLETE".encode())
             self.finished = True
 
     def on_close(self):
@@ -62,8 +61,8 @@ class FileSendAgent(PeriodicProcessAgent[FileSendConfig]):
         if self.file and not self.file.closed:
             self.file.close()
         # Optionally send a STOP message
-        self.com.send_string("STOP")
-        self.plugin_manager.unregister()
+        self.socket.send("STOP".encode())
+        self.socket.finalize()
 
 
 ############################################################
@@ -84,10 +83,8 @@ class FileReceiveAgent(PeriodicProcessAgent[FileReceiveConfig]):
     def setup(self) -> None:
         super().setup()
         # Configure the ZeroMQ plugin in SUB mode and connect to the publisher
-        zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
-        self.plugin_manager.register(zmq_plugin)
+        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB).initialize()
         # Subscribe to all messages
-        self.com.setsockopt(zmq.SUBSCRIBE, b"")
         self.logger.info("FileReceiveAgent initialized, waiting for incoming file...")
         try:
             self.file = open(self.config.output_file, "wb")
@@ -101,7 +98,7 @@ class FileReceiveAgent(PeriodicProcessAgent[FileReceiveConfig]):
             return
 
         try:
-            message = self.com.recv()
+            message = self.socket.recv()
         except zmq.Again:
             message = None
 
@@ -127,7 +124,7 @@ class FileReceiveAgent(PeriodicProcessAgent[FileReceiveConfig]):
         self.logger.warning("FileReceiveAgent terminated.")
         if self.file and not self.file.closed:
             self.file.close()
-        self.plugin_manager.unregister()
+        self.socket.finalize()
 
 
 ############################################################

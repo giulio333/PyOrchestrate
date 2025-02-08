@@ -7,7 +7,7 @@ from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import AgentEvent
 from PyOrchestrate.core.agent import BaseProcessAgent
-from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
+from PyOrchestrate.core.plugins import ZeroMQPubSub
 
 
 class MyConfig(BaseProcessAgent.Config):
