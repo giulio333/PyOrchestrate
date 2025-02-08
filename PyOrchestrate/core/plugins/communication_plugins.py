@@ -3,10 +3,9 @@ Communication plugins module.
 """
 
 import zmq
-from .plugin_protocols import CommunicationPlugin
 
 
-class ZeroMQPubSub(CommunicationPlugin):
+class ZeroMQPubSub:
     """
     ZeroMQ Pub/Sub communication plugin.
 

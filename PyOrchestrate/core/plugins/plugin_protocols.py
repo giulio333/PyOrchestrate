@@ -11,6 +11,7 @@ thus promoting consistency and interoperability within the system.
 """
 
 from typing import Protocol
+from .communication_plugins import ZeroMQPubSub
 
 
 class Plugin(Protocol):
@@ -44,27 +45,6 @@ class Plugin(Protocol):
         pass
 
 
-class CommunicationPlugin(Plugin):
-    """
-    Extended protocol for communication plugins.
+class CommunicationPlugin:
 
-    This protocol, which extends Plugin, adds specific methods for sending and receiving
-    messages (e.g., via sockets or PyZMQ). It is designed to standardize communication
-    operations among system components.
-
-    Additional methods:
-        - setsockopt: Configures socket options.
-    """
-
-    def setsockopt(self, option, value):
-        """
-        Configures a socket option.
-
-        Sets a specific option for the socket, useful for customized configurations.
-        Refer to the PyZMQ documentation for more details on available options.
-
-        Args:
-            option: The option to configure (e.g., zmq.SUBSCRIBE).
-            value: The value to assign to the option.
-        """
-        pass
+    ZeroMQPubSub: ZeroMQPubSub = None
