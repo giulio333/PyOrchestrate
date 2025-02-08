@@ -219,7 +219,7 @@ class BaseAgent(BaseClass[T], ABC):
 
             self.setup()
 
-            self.event_manager.emit(AgentEvent.AGENT_SETUP)
+            self.event_manager.emit(AgentEvent.AGENT_READY)
             if self.state_events is not None:
                 self.state_events.ready_event.set()
 

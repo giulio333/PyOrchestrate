@@ -19,8 +19,8 @@ class AgentEvent(Enum):
     Enum of events that an agent can emit.
     """
 
-    AGENT_SETUP = "agent_setup"
-    """Event emitted when the agent is set up. Take no arguments."""
+    AGENT_READY = "agent_ready"
+    """Event emitted when the agent is ready to execute. Take no arguments."""
     AGENT_START = "agent_started"
     """Event emitted when the agent is started. Take no arguments."""
     AGENT_STOPPED = "agent_stopped"
@@ -39,8 +39,6 @@ class AgentEvent(Enum):
     """Event emitted when the agent is idle. Take no arguments."""
     AGENT_WORKING = "agent_working"
     """Event emitted when the agent is working. Take no arguments."""
-    AGENT_READY = "agent_ready"
-    """Event emitted when the agent is ready. Take no arguments."""
     AGENT_CLOSE = "agent_close"
     """Event emitted when the agent is closing. Take no arguments."""
     AGENT_MESSAGE = "agent_message"
