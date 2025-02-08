@@ -4,20 +4,18 @@ import requests
 import zmq
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
-from PyOrchestrate.core.agent import BaseProcessAgent
-from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
+from PyOrchestrate.core.agent import PeriodicProcessAgent
+from PyOrchestrate.core.plugins import ZeroMQPubSub
 
 
-class MyConfig(BaseProcessAgent.Config):
-    # URL of the example API (returns JSON data)
+class MyConfig(PeriodicProcessAgent.Config):
     api_url: str = "https://catfact.ninja/fact"
-    # Keyword to search in the response
+    """Url of the external API to fetch data from."""
     keyword: str = "and"
-    # Polling interval in seconds
-    poll_interval: float = 1.0
+    """Keyword to search for in the fetched data."""
 
 
-class APIFetchAgent(BaseProcessAgent[MyConfig]):
+class APIFetchAgent(PeriodicProcessAgent[MyConfig]):
     Config = MyConfig
 
     def setup(self) -> None:
@@ -25,61 +23,59 @@ class APIFetchAgent(BaseProcessAgent[MyConfig]):
         Agent initialization: registers the communication plugin and logs the setup.
         """
         super().setup()
-        zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
-        self.plugin_manager.register(zmq_plugin)
-        self.logger.info(f"Initializing APIFetchAgent with API: {self.config.api_url}")
+        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB).initialize()
         time.sleep(1)
 
-    def execute(self) -> None:
+    def _fetch_data(self):
+        """
+        Fetches data from the external API.
+        """
+        self.logger.info("Requesting data from the external API...")
+        response = requests.get(self.config.api_url)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            self.logger.error(
+                f"Error accessing API: status code {response.status_code}"
+            )
+            return None
+
+    def _handle_api_response(self, json_data: dict):
+        """
+        Handles the data received from the external API and checks for the keyword.
+        """
+        message_str = f"Body: {json_data.get('fact', '')}"
+        self.logger.info("Data received from API:")
+        self.logger.info(message_str)
+        if self.config.keyword in message_str:
+            self.logger.warning(f"Keyword '{self.config.keyword}' found!")
+
+            return message_str
+
+    def runner(self) -> None:
         """
         Polls the external API and, if the keyword is found in the data,
         sends a message to the other agent.
         """
-        super().execute()
-        self.logger.info(
-            f"Starting API polling every {self.config.poll_interval} seconds for keyword: '{self.config.keyword}'"
-        )
-        try:
-            # For example, perform 5 requests
-            for _ in range(5):
-                self.logger.info("Requesting data from the external API...")
-                response = requests.get(self.config.api_url)
-                if response.status_code == 200:
-                    json_data = response.json()
-                    # Construct a string with some useful information
-                    message_str = f"Body: {json_data.get('fact', '')}"
-                    self.logger.info("Data received from API:")
-                    self.logger.info(message_str)
-                    # Check if the keyword is present in the string
-                    if self.config.keyword in message_str:
-                        self.logger.warning(f"Keyword '{self.config.keyword}' found!")
-                        self.com: ZeroMQPubSub
-                        message = (
-                            f"Keyword '{self.config.keyword}' found: {message_str}"
-                        )
-                        self.com.send(bytes(message, encoding="utf-8"))
-                    else:
-                        self.logger.info("Keyword not found in this cycle.")
-                else:
-                    self.logger.error(
-                        f"Error accessing API: status code {response.status_code}"
-                    )
-                time.sleep(self.config.poll_interval)
-        except Exception as e:
-            self.logger.exception(f"Error during API polling: {e}")
-        finally:
-            # At the end of the cycle, send a STOP signal to the other agent
-            self.com.send(b"STOP")
-            self.plugin_manager.unregister()
+        super().runner()
 
-    def on_stop(self):
+        json_data = self._fetch_data()
+
+        if json_data:
+            message = self._handle_api_response(json_data)
+            if message:
+                self.socket.send(message.encode())
+
+    def on_close(self):
         """
         Logs the termination of the agent.
         """
         self.logger.info("APIFetchAgent terminated.")
+        self.socket.send("STOP".encode())
+        self.socket.finalize()
 
 
-class APIAlertAgent(BaseProcessAgent[MyConfig]):
+class APIAlertAgent(PeriodicProcessAgent[MyConfig]):
     Config = MyConfig
 
     def setup(self) -> None:
@@ -87,38 +83,28 @@ class APIAlertAgent(BaseProcessAgent[MyConfig]):
         Initializes the agent for receiving messages.
         """
         super().setup()
-        zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
-        self.plugin_manager.register(zmq_plugin)
-        # Set the log level to INFO
-        self.config.logger_config.level = "INFO"
-        self.logger.info(
-            "Initializing APIAlertAgent for receiving alerts from the API."
-        )
+        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB).initialize()
 
-    def execute(self) -> None:
+    def runner(self) -> None:
         """
         Listens for messages sent by APIFetchAgent.
         """
-        super().execute()
-        self.logger.info("Listening for messages from APIFetchAgent...")
-        try:
-            while True:
-                self.com: ZeroMQPubSub
-                message = self.com.recv().decode()
-                self.logger.success(f"Message received: {message}")
-                if message == "STOP":
-                    self.logger.info("Received STOP signal.")
-                    break
-        except Exception as e:
-            self.logger.exception(f"Error receiving messages: {e}")
-        finally:
-            self.plugin_manager.unregister()
+        super().runner()
 
-    def on_stop(self):
+        message: str = self.socket.recv().decode()
+
+        self.logger.success(f"Message received: {message}")
+
+        if message == "STOP":
+            self.logger.warning("Received STOP signal.")
+            self.stop()
+
+    def on_close(self):
         """
         Logs the termination of the agent.
         """
         self.logger.info("APIAlertAgent terminated.")
+        self.socket.finalize()
 
 
 if __name__ == "__main__":
@@ -130,10 +116,12 @@ if __name__ == "__main__":
 
     # Registering agents
     fetch_agent: AgentEntry = orchestrator.register_agent(
-        APIFetchAgent, "APIFetchAgent"
+        APIFetchAgent,
+        "APIFetchAgent",
+        APIAlertAgent.Config(execution_interval=1, limit=5),
     )
     alert_agent: AgentEntry = orchestrator.register_agent(
-        APIAlertAgent, "APIAlertAgent"
+        APIAlertAgent, "APIAlertAgent", APIAlertAgent.Config(execution_interval=1)
     )
 
     # Starting agents

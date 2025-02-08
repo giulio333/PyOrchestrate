@@ -1,7 +1,7 @@
 import unittest
 import zmq
 import time
-from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
+from PyOrchestrate.core.plugins import ZeroMQPubSub
 
 
 class TestZeroMQPubSub(unittest.TestCase):
