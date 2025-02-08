@@ -6,7 +6,7 @@ PluginManager centralizes the management of the communication plugin's lifecycle
 setup and cleanup operations within the application.
 """
 
-from .plugin_protocols import CommunicationPlugin
+from .plugin_protocols import CommunicationPlugin, Plugin
 
 
 class PluginManager:
@@ -32,7 +32,7 @@ class PluginManager:
     def __init__(self):
         self.com: CommunicationPlugin = CommunicationPlugin()
 
-    def register(self, plugin):
+    def register(self, plugin: Plugin):
         """
         Registers and initializes the communication plugin.
 
@@ -42,8 +42,8 @@ class PluginManager:
         Args:
             plugin (CommunicationPlugin): The communication plugin instance to register.
         """
-        self.com.ZeroMQPubSub = plugin
-        self.com.ZeroMQPubSub.initialize()
+        self.com.zmq = plugin
+        self.com.zmq.initialize()
 
     def unregister(self):
         """
@@ -55,8 +55,7 @@ class PluginManager:
         Raises:
             AttributeError: If no communication plugin has been registered.
         """
-        if not self.com:
+        if not self.com.zmq:
             raise AttributeError("Communication plugin not registered.")
 
-        self.com.ZeroMQPubSub.finalize()
-        self.com = None
+        self.com.zmq.finalize()
