@@ -3,9 +3,9 @@ import multiprocessing
 import threading
 from typing import Dict, List, Optional, Type, Any
 
-from ..utilities.event_manager import EventManager
-from ..agent import BaseAgent, AgentProtocol
+from PyOrchestrate.core.agent import BaseAgent, AgentProtocol
 from ..base import BaseClass
+from ..utilities.event_manager import EventManager
 
 
 class AgentEntry:

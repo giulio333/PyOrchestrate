@@ -206,9 +206,9 @@ class BaseAgent(BaseClass[T], ABC):
         """
         self.start_time = time.time()
 
+        self.event_manager.emit(AgentEvent.AGENT_START)
         if self.state_events is not None:
             self.state_events.start_event.set()
-        self.event_manager.emit(AgentEvent.AGENT_START)
 
         self.setup_logger()
 

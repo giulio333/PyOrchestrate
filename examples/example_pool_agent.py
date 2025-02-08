@@ -3,8 +3,7 @@ import time
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.orchestrator.memory import AgentEntry
 from PyOrchestrate.core.agent.periodic_agent import PeriodicThreadAgent
-from PyOrchestrate.core.base.pool_agent import PoolProcessAgent
-from PyOrchestrate.core.base.utilities import LoggerConfig
+from PyOrchestrate.core.agent.pool_agent import PoolProcessAgent
 
 # from multiprocessing import Queue
 from queue import Queue
