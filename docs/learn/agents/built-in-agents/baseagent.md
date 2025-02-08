@@ -252,10 +252,12 @@ In this example, we create a custom agent that monitors a log file for a specifi
 ```python
 from PyOrchestrate.core.agent import BaseProcessAgent
 
-class LogMonitorAgent(BaseProcessAgent["LogMonitorAgent.Config"]):
-    class Config(BaseProcessAgent.Config):
-        log_file: str = "application.log"
-        keyword: str = "ERROR"
+class MyConfig(BaseProcessAgent.Config):
+    log_file: str = "application.log"
+    keyword: str = "ERROR"
+
+class LogMonitorAgent(BaseProcessAgent["MyConfig"]):
+    Config = MyConfig
 
     def setup(self):
         """

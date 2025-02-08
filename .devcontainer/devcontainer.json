@@ -5,5 +5,16 @@
     "ghcr.io/devcontainers/features/docker-from-docker:1": {}
   },
   "postCreateCommand": "npm install",
-  "remoteUser": "node"
+  "remoteUser": "node",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "github.copilot-workspace",
+        "ms-vscode.copilot-mermaid-diagram",
+        "ms-vscode.vscode-websearchforcopilot"
+      ]
+    }
+  }
 }
