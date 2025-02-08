@@ -11,9 +11,10 @@ thus promoting consistency and interoperability within the system.
 """
 
 import zmq
+from typing import Protocol
 
 
-class Plugin:
+class Plugin(Protocol):
     """
     Base protocol for all plugins.
 
@@ -82,34 +83,50 @@ class ZeroMQPubSub(Plugin):
             socket_type (int): The type of ZeroMQ socket (e.g., zmq.REQ, zmq.REP, zmq.PUB, zmq.SUB).
             subscribe_topic (bytes): The topic to subscribe to (only for zmq.SUB). Defaults to b"" (all topics).
         """
+        self._socket: zmq.Socket | None = None
         self.context = zmq.Context()
         self.socket_type = socket_type
         self.subscribe_topic = subscribe_topic
         self.address = address
 
+    @property
+    def socket(self) -> zmq.Socket:
+        if not self._socket:
+            raise RuntimeError(
+                "Socket not initialized. Did you forget to call initialize method?"
+            )
+        return self._socket
+
+    def setsockopt(self, option, value) -> None:
+        self.socket.setsockopt(option, value)
+
     def initialize(self):
         """
         Initializes the ZeroMQ plugin.
-
-        Performs a basic check on the socket type.
         """
 
         if self.socket_type == zmq.PUB:
-            self.socket = self.context.socket(zmq.PUB)
-            self.socket.bind(self.address)
+            self._socket = self.context.socket(zmq.PUB)
+            self._socket.bind(self.address)
         elif self.socket_type == zmq.SUB:
-            self.socket = self.context.socket(zmq.SUB)
-            self.socket.connect(self.address)
+            self._socket = self.context.socket(zmq.SUB)
+            self._socket.connect(self.address)
 
-            self.socket.setsockopt(zmq.SUBSCRIBE, self.subscribe_topic)
+            self._socket.setsockopt(zmq.SUBSCRIBE, self.subscribe_topic)
 
         else:
             raise ValueError("Unsupported socket type for ZeroMQPubSub plugin.")
+
+        return self
 
     def finalize(self):
         """
         Finalizes the ZeroMQ plugin.
         """
+        if not self.socket:
+            raise RuntimeError(
+                "Socket not initialized. Did you forget to call initialize method?"
+            )
         self.socket.close()
         self.context.term()
 
@@ -127,29 +144,4 @@ class ZeroMQPubSub(Plugin):
         return message
 
     def send(self, message: bytes, topic: bytes = b"") -> zmq.MessageTracker | None:
-        """
-        Sends a message using ZeroMQ.
-
-        Args:
-            message: The message to send.
-            topic: The topic to send the message to.
-
-        Returns:
-            (zmq.MessageTracker | None): The message tracker object allows you to track all of the 0MQ usages of a message.
-        """
         return self.socket.send_multipart([topic, message])
-
-    def setsockopt(self, option, value):
-        """
-        Sets a socket option.
-
-        Args:
-            option: The option to set.
-            value: The value to set.
-        """
-        self.socket.setsockopt(option, value)
-
-
-class CommunicationPlugin:
-
-    zmq: ZeroMQPubSub | Plugin | None = None
