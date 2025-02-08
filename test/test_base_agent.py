@@ -9,6 +9,7 @@ from PyOrchestrate.core.agent.base_agent import (
     ValidationError,
 )
 from PyOrchestrate.core.base.utilities import LoggerConfig
+from PyOrchestrate.core.utilities.event import AgentEvent  # nuovo import
 
 
 class MyBaseAgent(BaseAgent):
@@ -33,9 +34,10 @@ class TestBaseAgentConfig(unittest.TestCase):
         self.assertEqual(config.logger_config, custom_logger_config)
         self.assertEqual(config.custom_value, custom_value)
 
-    def test_invalid_limit(self):
-        """Test validation with invalid limit"""
-        pass
+
+def test_invalid_limit(self):
+    """Test validation with invalid limit"""
+    pass
 
 
 class TestBaseAgent(unittest.TestCase):
@@ -218,6 +220,14 @@ class TestBaseAgent(unittest.TestCase):
 
         self.agent.run()
         self.state_events.close_event.set.assert_called_once()
+
+    def test_event_manager_emit_calls(self):
+        """Test event manager emit calls during run."""
+        self.agent.logger = MagicMock()
+        self.agent.run()
+        self.event_manager.emit.assert_any_call(AgentEvent.AGENT_START)
+        self.event_manager.emit.assert_any_call(AgentEvent.AGENT_READY)
+        self.event_manager.emit.assert_any_call(AgentEvent.AGENT_CLOSE)
 
 
 if __name__ == "__main__":
