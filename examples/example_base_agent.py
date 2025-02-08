@@ -5,7 +5,7 @@ import zmq
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
 from PyOrchestrate.core.agent import BaseProcessAgent
-from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
+from PyOrchestrate.core.plugins.plugin_protocols import ZeroMQPubSub
 
 
 class MyConfig(BaseProcessAgent.Config):
@@ -56,7 +56,7 @@ class APIFetchAgent(BaseProcessAgent[MyConfig]):
                         message = (
                             f"Keyword '{self.config.keyword}' found: {message_str}"
                         )
-                        self.com.ZeroMQPubSub.send(bytes(message, encoding="utf-8"))
+                        self.com.zmq.send(bytes(message, encoding="utf-8"))
                     else:
                         self.logger.info("Keyword not found in this cycle.")
                 else:
@@ -68,7 +68,7 @@ class APIFetchAgent(BaseProcessAgent[MyConfig]):
             self.logger.exception(f"Error during API polling: {e}")
         finally:
             # At the end of the cycle, send a STOP signal to the other agent
-            self.com.ZeroMQPubSub.send(b"STOP")
+            self.com.zmq.send(b"STOP")
             self.plugin_manager.unregister()
 
     def on_stop(self):
@@ -102,7 +102,7 @@ class APIAlertAgent(BaseProcessAgent[MyConfig]):
         self.logger.info("Listening for messages from APIFetchAgent...")
         try:
             while True:
-                message = self.com.ZeroMQPubSub.recv().decode()
+                message = self.com.zmq.recv().decode()
                 self.logger.success(f"Message received: {message}")
                 if message == "STOP":
                     self.logger.info("Received STOP signal.")
