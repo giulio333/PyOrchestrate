@@ -53,9 +53,11 @@ class APIFetchAgent(BaseProcessAgent[MyConfig]):
                     # Check if the keyword is present in the string
                     if self.config.keyword in message_str:
                         self.logger.warning(f"Keyword '{self.config.keyword}' found!")
-                        self.com.send_string(
+                        self.com: ZeroMQPubSub
+                        message = (
                             f"Keyword '{self.config.keyword}' found: {message_str}"
                         )
+                        self.com.send(bytes(message, encoding="utf-8"))
                     else:
                         self.logger.info("Keyword not found in this cycle.")
                 else:
@@ -67,7 +69,7 @@ class APIFetchAgent(BaseProcessAgent[MyConfig]):
             self.logger.exception(f"Error during API polling: {e}")
         finally:
             # At the end of the cycle, send a STOP signal to the other agent
-            self.com.send_string("STOP")
+            self.com.send(b"STOP")
             self.plugin_manager.unregister()
 
     def on_stop(self):
@@ -101,7 +103,8 @@ class APIAlertAgent(BaseProcessAgent[MyConfig]):
         self.logger.info("Listening for messages from APIFetchAgent...")
         try:
             while True:
-                message = self.com.recv_string()
+                self.com: ZeroMQPubSub
+                message = self.com.recv().decode()
                 self.logger.success(f"Message received: {message}")
                 if message == "STOP":
                     self.logger.info("Received STOP signal.")
