@@ -35,11 +35,6 @@ class TestBaseAgentConfig(unittest.TestCase):
         self.assertEqual(config.custom_value, custom_value)
 
 
-def test_invalid_limit(self):
-    """Test validation with invalid limit"""
-    pass
-
-
 class TestBaseAgent(unittest.TestCase):
     def setUp(self):
         # Mock
