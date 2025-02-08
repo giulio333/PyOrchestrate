@@ -12,7 +12,7 @@ You can create a **Publisher** or **Subscriber** using the `ZeroMQPubSub` and us
 
 ```python
 import zmq
-from PyOrchestrate.core.agents import PeriodicProcessAgent
+from PyOrchestrate.core.agent import PeriodicProcessAgent
 from PyOrchestrate.core.plugins import ZeroMQPubSub
 
 class MyAgent(PeriodicProcessAgent):
@@ -27,6 +27,10 @@ class MyAgent(PeriodicProcessAgent):
     def on_close(self):
         self.zmq.finalize()
 ```
+
+::: tip
+Make sure to call the `initialize` and `finalize` methods to set up and clean up the plugin resources.
+:::
 
 ## Publisher
 
