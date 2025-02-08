@@ -208,10 +208,10 @@ In the example we made before, we are inheriting from `PeriodicAgent`.
 This means we can override the `setup` method, which is a `@templatemethod`, ensuring we call `super().setup()` at the beginning, as mentioned in the [PeriodicAgent]() documentation.
 
 ```python
-class MyAgent(PeriodicAgent, ProcessAgent):
+class MyAgent(PeriodicProcessAgent):
     """Agent Class that logs a message periodically."""
 
-    class Config(PeriodicAgent.Config):
+    class Config(PeriodicProcessAgent.Config):
         """Agent Configuration class."""
         limit = 5
         execution_interval = 1
