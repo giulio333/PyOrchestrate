@@ -10,6 +10,7 @@ The protocols defined in this module ensure that every plugin adheres to a commo
 thus promoting consistency and interoperability within the system.
 """
 
+import zmq
 from typing import Protocol
 
 
@@ -44,27 +45,103 @@ class Plugin(Protocol):
         pass
 
 
-class CommunicationPlugin(Plugin):
+class ZeroMQPubSub(Plugin):
     """
-    Extended protocol for communication plugins.
+    ZeroMQ Pub/Sub communication plugin.
 
-    This protocol, which extends Plugin, adds specific methods for sending and receiving
-    messages (e.g., via sockets or PyZMQ). It is designed to standardize communication
-    operations among system components.
+    This plugin provides communication using ZeroMQ Pub/Sub sockets.
 
-    Additional methods:
-        - setsockopt: Configures socket options.
+    Example:
+        >>> zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
+        >>> zmq_plugin.send_string("Hello, World!")
+
+    Attributes:
+        context (zmq.Context): The ZeroMQ context.
+        socket (zmq.Socket): The ZeroMQ socket.
+
+    Methods:
+        initialize: Initializes the ZeroMQ plugin.
+        execute: Executes the ZeroMQ plugin's core logic.
+        finalize: Finalizes the ZeroMQ plugin.
+        send_string: Sends a message using ZeroMQ.
+        recv_string: Receives a message using ZeroMQ.
+        recv: Receives a message using ZeroMQ.
+        send: Sends a message using ZeroMQ.
+        setsockopt: Sets a socket option.
     """
 
-    def setsockopt(self, option, value):
+    def __init__(self, address: str, socket_type: int, subscribe_topic: bytes = b""):
         """
-        Configures a socket option.
+        Initializes the ZeroMQPlugin.
 
-        Sets a specific option for the socket, useful for customized configurations.
-        Refer to the PyZMQ documentation for more details on available options.
+        Warning:
+            Ensure that one process has only one zmq.Context instance. If you create multiple ZeroMQ plugins in the same
+            process, they should share the same context.
 
         Args:
-            option: The option to configure (e.g., zmq.SUBSCRIBE).
-            value: The value to assign to the option.
+            address (str): The address to bind/connect the socket.
+            socket_type (int): The type of ZeroMQ socket (e.g., zmq.REQ, zmq.REP, zmq.PUB, zmq.SUB).
+            subscribe_topic (bytes): The topic to subscribe to (only for zmq.SUB). Defaults to b"" (all topics).
         """
-        pass
+        self._socket: zmq.Socket | None = None
+        self.context = zmq.Context()
+        self.socket_type = socket_type
+        self.subscribe_topic = subscribe_topic
+        self.address = address
+
+    @property
+    def socket(self) -> zmq.Socket:
+        if not self._socket:
+            raise RuntimeError(
+                "Socket not initialized. Did you forget to call initialize method?"
+            )
+        return self._socket
+
+    def setsockopt(self, option, value) -> None:
+        self.socket.setsockopt(option, value)
+
+    def initialize(self):
+        """
+        Initializes the ZeroMQ plugin.
+        """
+
+        if self.socket_type == zmq.PUB:
+            self._socket = self.context.socket(zmq.PUB)
+            self._socket.bind(self.address)
+        elif self.socket_type == zmq.SUB:
+            self._socket = self.context.socket(zmq.SUB)
+            self._socket.connect(self.address)
+
+            self._socket.setsockopt(zmq.SUBSCRIBE, self.subscribe_topic)
+
+        else:
+            raise ValueError("Unsupported socket type for ZeroMQPubSub plugin.")
+
+        return self
+
+    def finalize(self):
+        """
+        Finalizes the ZeroMQ plugin.
+        """
+        if not self.socket:
+            raise RuntimeError(
+                "Socket not initialized. Did you forget to call initialize method?"
+            )
+        self.socket.close()
+        self.context.term()
+
+    def recv(self) -> bytes:
+        """
+        Receives a message using ZeroMQ.
+
+        Args:
+            flags (int): The flags to use for the receive operation.
+
+        Returns:
+            Any: The received message.
+        """
+        topic, message = self.socket.recv_multipart()
+        return message
+
+    def send(self, message: bytes, topic: bytes = b"") -> zmq.MessageTracker | None:
+        return self.socket.send_multipart([topic, message])

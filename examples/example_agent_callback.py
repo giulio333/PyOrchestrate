@@ -54,7 +54,7 @@ class APIFetchAgent(BaseProcessAgent[MyConfig]):
                     # Check if the keyword is present in the string
                     if self.config.keyword in message_str:
                         self.logger.warning(f"Keyword '{self.config.keyword}' found!")
-                        self.com.send_string(
+                        self.com.ZeroMQPubSub.send(
                             f"Keyword '{self.config.keyword}' found: {message_str}"
                         )
                     else:

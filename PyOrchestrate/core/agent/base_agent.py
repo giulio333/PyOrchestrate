@@ -8,10 +8,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import final, TypeVar, Protocol, Literal
 
-from PyOrchestrate.core.plugins.plugin_protocols import CommunicationPlugin
-
 from ..base.base import BaseClass
-from ..plugins.plugin_manager import PluginManager
 from ..utilities.event_manager import EventManager
 from ..utilities.event import AgentEvent
 
@@ -187,8 +184,6 @@ class BaseAgent(BaseClass[T], ABC):
         """Events related to external commands."""
         self.a_type = a_type
         """The agent type (process or thread)."""
-        self.plugin_manager = PluginManager()
-        """Manages the agent's plugins."""
         self.event_manager = event_manager
 
     @final
@@ -345,21 +340,6 @@ class BaseAgent(BaseClass[T], ABC):
             None
         """
         self.logger.debug(f"Config: logger_level: {self.config.logger_config.level}")
-
-    @property
-    def com(self) -> CommunicationPlugin:
-        """
-        Communication plugin.
-
-        Raises:
-            AttributeError: If the communication plugin is not registered.
-
-        Returns:
-            CommunicationPlugin: The communication plugin.
-        """
-        if self.plugin_manager.com is None:
-            raise AttributeError("Communication plugin not registered.")
-        return self.plugin_manager.com
 
 
 class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):
