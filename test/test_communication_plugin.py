@@ -27,11 +27,11 @@ class TestZeroMQPubSub(unittest.TestCase):
         # Additional sleep to ensure that the connection is established.
         time.sleep(1)
 
-        message = "Hello, ZeroMQ!"
-        pub.send_string(message)
+        message = b"Hello, ZeroMQ!"
+        pub.send(message)
         # Sleep to allow the message to propagate.
         time.sleep(1)
-        received_message: str = sub.recv_string()
+        received_message: bytes = sub.recv()
         self.assertEqual(received_message, message)
 
         # Finalize both plugins.
@@ -48,17 +48,19 @@ class TestZeroMQPubSub(unittest.TestCase):
 
         time.sleep(1)
 
-        pub = ZeroMQPubSub(address, zmq.PUB, topic)
+        pub = ZeroMQPubSub(address, zmq.PUB)
         pub.initialize()
 
         time.sleep(1)
 
         message = b"Hello, ZeroMQ with topic!"
-        pub.send_string(message.decode("utf-8"))
+        pub.send(message, topic)
 
         time.sleep(1)
-        received_message: str = sub.recv_string()
+        received_message: bytes = sub.recv()
         self.assertEqual(received_message, message)
+
+        self.assertTrue(received_message.startswith(b"Hello"))
 
         pub.finalize()
         sub.finalize()
