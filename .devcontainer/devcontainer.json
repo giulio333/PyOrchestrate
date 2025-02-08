@@ -1,5 +1,9 @@
 {
-  "tasks": {
-    "launch": "npm run docs:dev"
-  }
+  "name": "Node.js Vitepress",
+  "image": "mcr.microsoft.com/vscode/devcontainers/javascript-node:18-bullseye",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-from-docker:1": {}
+  },
+  "postCreateCommand": "npm install",
+  "remoteUser": "node"
 }
