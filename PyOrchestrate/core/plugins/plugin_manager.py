@@ -1,16 +1,32 @@
+"""
+plugin_manager module.
+This module defines the PluginManager class, responsible for registering, initializing, and
+finalizing communication plugins (which must implement the CommunicationPlugin protocol).
+PluginManager centralizes the management of the communication plugin's lifecycle, facilitating
+setup and cleanup operations within the application.
+"""
+
 from .communication_plugins import CommunicationPlugin
 
 
 class PluginManager:
     """
-    Plugin manager for the agent.
+    Manages the lifecycle of communication plugins.
+
+    Responsible for registering (initializing) and unregistering (finalizing) the
+    communication plugin, ensuring that operations are performed safely.
+
+    Example:
+        >>> plugin_manager = PluginManager()
+        >>> zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
+        >>> plugin_manager.register(zmq_plugin)
 
     Attributes:
-        com (CommunicationPlugin): Communication plugin.
+        com (CommunicationPlugin): The currently registered communication plugin instance.
 
     Methods:
-        register_com_plugin: Register the communication plugin.
-        unregister_com_plugin: Unregister the communication plugin.
+        register: Registers and initializes the communication plugin.
+        unregister: Finalizes and removes the registered communication plugin.
     """
 
     def __init__(self):
@@ -18,20 +34,26 @@ class PluginManager:
 
     def register(self, plugin: CommunicationPlugin):
         """
-        Register and initialize the communication plugin.
+        Registers and initializes the communication plugin.
+
+        Associates the plugin instance with the manager and calls its initialize method
+        to set up the necessary resources.
 
         Args:
-            plugin (CommunicationPlugin): Communication plugin to register.
+            plugin (CommunicationPlugin): The communication plugin instance to register.
         """
         self.com = plugin
         self.com.initialize()
 
     def unregister(self):
         """
-        Unregister and finalize the communication plugin.
+        Finalizes and removes the registered communication plugin.
+
+        Calls the finalize method of the plugin to release any used resources and removes the reference.
+        Raises an exception if no plugin is currently registered.
 
         Raises:
-            AttributeError: If the communication plugin is not registered.
+            AttributeError: If no communication plugin has been registered.
         """
         if not self.com:
             raise AttributeError("Communication plugin not registered.")
