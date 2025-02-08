@@ -4,7 +4,33 @@ title: BaseAgent
 
 # BaseAgent
 
-The **BaseAgent** is the foundation of all other agents in PyOrchestrate. It provides the basic structure for any custom agent. Use it as a starting point to create your own agents with completely custom behavior.
+The **BaseAgent** is the foundation of all other agents in PyOrchestrate. It provides the basic structure for any custom agent.
+
+## Why use BaseAgent?
+
+Use it as a starting point to create your own agents with completely custom behavior.
+
+## Usage
+
+You can create a custom agent by inheriting from the `BaseProcessAgent` or `BaseThreadAgent` class.
+
+| Method | Description | Override |
+|--------|-------------| ---------|
+| [execute](#execute) | Define the core logic of the agent. | Required :green_circle: |
+| [setup](#setup) | Perform any setup operations required by the agent. | Optional :orange_circle: |
+| [on_stop](#on-stop) | Implement custom logic during external shutdown request. | Optional :orange_circle: |
+| [on_close](#on-close) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
+
+::: tip Important
+Make sure to call the parent method **for each overridden** method.
+
+```python{3}
+class CustomAgent(BaseProcessAgent):
+    def setup(self):
+        super().setup()
+        # Custom setup logic
+```
+:::
 
 ## Inheritance
 
@@ -69,32 +95,6 @@ sequenceDiagram
     Agent->>EventManager: emit(AGENT_CLOSE)
     Agent->>StateEvents: close_event.set()
 ```
-
-## Usage
-
-You can create a custom agent by inheriting from the `BaseProcessAgent` or `BaseThreadAgent` class.
-
-| Method | Description | Override |
-|--------|-------------| ---------|
-| [execute](#execute) | Define the core logic of the agent. | Required :green_circle: |
-| [setup](#setup) | Perform any setup operations required by the agent. | Optional :orange_circle: |
-| [on_stop](#on-stop) | Implement custom logic during external shutdown request. | Optional :orange_circle: |
-| [on_close](#on-close) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
-| [validate_config](#validate_config) | Validate the agent's configuration. | Optional :orange_circle: |
-
-![alt text](visual_light.png){.light-only}
-![alt text](visual_dark.png){.dark-only}
-
-::: tip Important
-Make sure to call the parent method **for each overridden** method.
-
-```python{3}
-class CustomAgent(BaseProcessAgent):
-    def setup(self):
-        super().setup()
-        # Custom setup logic
-```
-:::
 
 ## Configuration
 
@@ -194,22 +194,6 @@ Marked as `@final` to prevent overriding in derived class ensuring that the core
 To implement custom logic during the agent’s shutdown, override the [on_stop](#on_stop) method in your derived class.
 :::
 
-### validate_config
-
-```python
-@final
-```
-
-This method is called to validate the agent's configuration.
-
-::: warning Do not override
-Marked as `@final` to prevent overriding in derived class ensuring that the core logic remains consistent across all agents.
-:::
-
-::: tip
-To implement custom validation logic, override `validate` method of your `Config` class.
-:::
-
 ### on_stop
 
 ```python
@@ -227,9 +211,6 @@ This method is called when the agent is stopped. It can be overridden to impleme
 This method is called when the agent is closed. It can be overridden to implement custom logic during the agent’s shutdown.
 
 ## Attributes
-
-![](attribute_light.png){.light-only}
-![](attribute_dark.png){.dark-only}
 
 ### Logger
 

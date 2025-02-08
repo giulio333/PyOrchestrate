@@ -12,6 +12,29 @@ It does not provide any sleep or delay mechanism. The derived class must impleme
 
 The LoopingAgent is ideal for developers who need an efficient, **thread-safe mechanism** to execute repetitive tasks. Whether running as a process or a thread, it employs appropriate event controls to manage execution reliably. It supports both **finite** and **infinite loops**, and you can always use the `stop` method to halt the agent safely.
 
+
+## Usage
+
+You can create a custom `LoopingAgent` by inheriting from the `LoopingProcessAgent` or `LoopingThreadAgent` class.
+
+| Method | Description | Override |
+|--------|-------------| ---------|
+| [cycle](#cycle) | Implement the repeated logic of the agent. | Required :green_circle: |
+| [setup](#setup) | Perform any setup operations required by the agent. | Optional :orange_circle: |
+| [on_stop](#on-stop) | Implement custom logic during external shutdown request. | Optional :orange_circle: |
+| [on_close](#on-close) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
+
+::: tip Important
+Make sure to call the parent method **for each overridden** method.
+
+```python{3}
+class CustomAgent(LoopingProcessAgent):
+    def setup(self):
+        super().setup()
+        # Custom setup logic
+```
+:::
+
 ## Inheritance
 
 The `LoopingProcessAgent` and `LoopingThreadAgent` classes inherit from the `LoopingAgent` class.
@@ -51,55 +74,29 @@ sequenceDiagram
     participant Config as Config
     participant StateEvents as StateEvents
     participant ControlEvents as ControlEvents
+    participant EventManager as EventManager
 
+    Agent->>EventManager: emit(AGENT_START)
     Agent->>Config: validate_config()
     Agent->>ControlEvents: setup_event.wait()
     activate ControlEvents
     ControlEvents-->>Agent: control event triggered
     deactivate ControlEvents
     Agent->>Agent: setup()
+    Agent->>EventManager: emit(AGENT_SETUP)
     Agent->>StateEvents: ready_event.set()
     Agent->>ControlEvents: execute_event.wait()
     activate ControlEvents
     ControlEvents-->>Agent: control event triggered
     deactivate ControlEvents
     Agent->>Agent: execute()
-    alt limit -1
-    loop Forever
+    loop
         Agent-->Agent: cycle()
     end
-    else limit > 0
-    loop limit times
-        Agent-->Agent: cycle()
-    end
-    end
-
     Agent->>Agent: on_close()
+    Agent->>EventManager: emit(AGENT_CLOSE)
     Agent->>StateEvents: close_event.set()
 ```
-
-## Usage
-
-You can create a custom `LoopingAgent` by inheriting from the `LoopingProcessAgent` or `LoopingThreadAgent` class.
-
-| Method | Description | Override |
-|--------|-------------| ---------|
-| [cycle](#cycle) | Implement the repeated logic of the agent. | Required :green_circle: |
-| [setup](#setup) | Perform any setup operations required by the agent. | Optional :orange_circle: |
-| [on_stop](#on-stop) | Implement custom logic during external shutdown request. | Optional :orange_circle: |
-| [on_close](#on-close) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
-| [validate_config](#validate_config) | Validate the agent's configuration. | Optional :orange_circle: |
-
-::: tip Important
-Make sure to call the parent method **for each overridden** method.
-
-```python{3}
-class CustomAgent(LoopingProcessAgent):
-    def setup(self):
-        super().setup()
-        # Custom setup logic
-```
-:::
 
 ## Configuration
 
@@ -179,22 +176,6 @@ Marked as `@final` to prevent overriding in derived class ensuring that the core
 To implement custom logic during the agent’s shutdown, override the [on_stop](#on_stop) method in your derived class.
 :::
 
-### validate_config
-
-```python
-@final
-```
-
-This method is called to validate the agent's configuration.
-
-::: warning Do not override
-Marked as `@final` to prevent overriding in derived class ensuring that the core logic remains consistent across all agents.
-:::
-
-::: tip
-To implement custom validation logic, override `validate` method of your `Config` class.
-:::
-
 ### on_stop
 
 ```python
@@ -212,9 +193,6 @@ This method is called when the agent is stopped. It can be overridden to impleme
 This method is called when the agent is closed. It can be overridden to implement custom logic during the agent’s shutdown.
 
 ## Attributes
-
-![](attribute_light.png){.light-only}
-![](attribute_dark.png){.dark-only}
 
 ### Logger
 
@@ -256,7 +234,7 @@ In this example, we create a custom agent that monitors a log file for a specifi
 ```python
 from PyOrchestrate.core.agent import LoopingProcessAgent
 
-class LogMonitorAgent(BaseProcessAgent):
+class LogMonitorAgent(LoopingProcessAgent):
 
     def setup(self):
         """

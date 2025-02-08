@@ -1,76 +1,61 @@
 ---
 title: ZeroMQPubSub Plugin
-description: Learn how to use the ZeroMQPubSub plugin to communicate between agents.
+description: Learn how to use the ZeroMQPubSub plugin to enable communication between agents using the ZeroMQ Publish-Subscribe pattern.
 ---
 
 # ZeroMQPubSub Plugin
-ZeroMQPubSub plugin allows agents to communicate with each other using the **ZeroMQ Publish-Subscribe** pattern. This plugin is useful when you want to broadcast messages to multiple agents.
+The ZeroMQPubSub plugin enables agents to communicate using the **ZeroMQ Publish-Subscribe** pattern. This is useful when you need to broadcast messages to multiple agents.
 
 ## Usage
 
-You can create a Publisher or Subscriber using the `ZeroMQPubSub` plugin and register it with the `plugin_manager` inside your agent.
+You can create a **Publisher** or **Subscriber** using the `ZeroMQPubSub` and use them to send and receive messages.
 
 ```python
 import zmq
 from PyOrchestrate.core.agents import PeriodicProcessAgent
-from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
+from PyOrchestrate.core.plugins import ZeroMQPubSub
 
 class MyAgent(PeriodicProcessAgent):
     def setup(self):
-        sub = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
-        self.plugin_manager.register(sub)
+        self.zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+        self.zmq.initialize()
     
     def runner(self):
-        message = self.com.recv()
+        message = self.zmq.recv().decode()
         print("Received message:", message)
+
+    def on_close(self):
+        self.zmq.finalize()
 ```
 
 ## Publisher
 
-The **Publisher** sends messages to all the **Subscribers** connected. You can send messages using the `send` method:
+The **Publisher** sends messages to all connected **Subscribers**.
 
 ```python
 pub.send(b"Hello, World!")
 ```
 
-::: tip
-The message should be a byte string (`bytes`).
-:::
-
 ## Subscriber
 
-The **Subscriber** receives messages from the **Publisher**. You can receive messages using the `recv` method:
+The **Subscriber** receives messages from the **Publisher**.
 
 ```python
-message = sub.recv()
+message: byte = sub.recv()
 ```
 
 ## Working with Topics
 
-Topics allow you to filter messages so that only subscribers with matching topic filters receive them. When a subscriber is created, you can provide a topic filter (e.g., b"my_topic") so that it only processes messages with a topic that matches or contains the filter. Similarly, a publisher can send a message with an associated topic. For successful communication, both the publisher and the subscriber must agree on the topic filter.
+Topics allow you to filter messages so that only subscribers with matching filters receive them. 
 
-For example:
+When creating a **subscriber**, you can supply a topic filter (e.g. `b"my_topic"`) to receive only messages that match. Similarly, a **publisher** can send a message with an associated topic. If no topic is provided with the `send` method, the message is broadcast to all subscribers.
 
 ```python
 pub = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
 sub = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB, b"my_topic")
-```
-
-As shown in the example above, only **Subscribers** take the topic as an argument. Then you can send messages specifying the topic:
-
-```python
 pub.send(b"Hello, World!", b"my_topic")
 ```
 
-::: tip 
-If you don't specify a topic in the `send` method, the message will be broadcasted to all **Subscribers**.
-:::
-
 ::: tip
-If sending a message with a topic, the **Subscriber** should also subscribe to the same topic to receive the messages correctly. Note that it could also receive messages by subscribing to a substring of the topic as shown in the example above.
-
-```python
-pub = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
-sub = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB, b"my_topic")
-pub.send(b"Hello, World!", b"my")
-```
+If you don't specify a topic when sending a message, all subscribers will receive it. Conversely, to receive topic-specific messages, the subscriber must subscribe using the correct topic filter. 
+:::

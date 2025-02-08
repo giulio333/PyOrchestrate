@@ -2,17 +2,12 @@
 
 Communication plugins in PyOrchestrate allow agents to interact with other agents, external systems, and more.
 
-## Accessing Communication Plugins
+## How to Use Communication Plugins
 
-Agents can interact with communication plugins through the dedicated `com` property, which provides a unified interface for integrating various messaging systems and protocols.
+You can easily use pre-built communication plugins in your agents simply by importing them from the `PyOrchestrate.core.plugins` module.
 
-To integrate a plugin, follow these steps:
-1. Import the plugin.
-2. Register it with the plugin manager.
-3. When it is no longer required, invoke the `finalize()` method to properly release its resources.
-
-::: warning
-Please note that each agent currently supports only one communication plugin type. 
+::: tip
+Every communication plugin has a `initialize` method that initializes the plugin and a `finalize` method that cleans up resources when the agent is closed.
 :::
 
 ## Available Communication Plugins
@@ -24,18 +19,18 @@ The `ZeroMQPubSub` Plugin provides communication using ZeroMQ Pub/Sub sockets.
 **Example**
 
 ```python
-from PyOrchestrate.core.plugins.communication_plugins import ZeroMQPubSub
+from PyOrchestrate.core.plugins import ZeroMQPubSub
 
 class MyAgent(PeriodicProcessAgent):
     def setup(self):
-        zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
-        self.plugin_manager.register(zmq_plugin)
+        self.zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+        self.zmq.initialize()
 
     def runner(self):
-        message = self.com.send("Hello, World!")
+        message = self.zmq.send("Hello, World!".encode())
 
     def on_close(self):
-        self.com.finalize()
+        self.zmq.finalize()
 ```
 
 ## Future Enhancements
@@ -51,7 +46,7 @@ The HTTP Plugin allows agents to communicate with external HTTP services.
 ```python
 class MyAgent(PeriodicProcessAgent):
     def runner(self):
-        response = self.com.http.get("https://api.example.com/data")
+        response = self.http.get("https://api.example.com/data")
         self.logger.info(f"Received data: {response.json()}")
 ```
 
@@ -66,7 +61,7 @@ The File System Plugin allows agents to read from and write to the file system.
 ```python
 class MyAgent(PeriodicProcessAgent):
     def runner(self):
-        with self.com.file_system.open("file.txt", "r") as file:
+        with self.file_system.open("file.txt", "r") as file:
             content = file.read()
             self.logger.info(f"File content: {content}")
 ```
@@ -82,10 +77,10 @@ The Database Plugin provides methods to interact with various databases.
 ```python
 class MyAgent(PeriodicProcessAgent):
     def setup(self):
-        self.com.database.connect("database_connection_string")
+        self.database.connect("database_connection_string")
 
     def runner(self):
-        result = self.com.database.query("SELECT * FROM table")
+        result = self.database.query("SELECT * FROM table")
         self.logger.info(f"Query result: {result}")
 ```
 
@@ -100,10 +95,10 @@ The MQTT Plugin facilitates communication with MQTT brokers for IoT applications
 ```python
 class MyAgent(PeriodicProcessAgent):
     def setup(self):
-        self.com.mqtt.connect("mqtt://broker.example.com")
+        self.mqtt.connect("mqtt://broker.example.com")
 
     def runner(self):
-        self.com.mqtt.publish("topic/test", "Hello, MQTT!")
+        self.mqtt.publish("topic/test", "Hello, MQTT!")
 ```
 
 
