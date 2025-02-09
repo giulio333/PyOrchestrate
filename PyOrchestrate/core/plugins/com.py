@@ -54,6 +54,8 @@ class ZeroMQPubSub(Plugin):
         self.subscribe_topic = subscribe_topic
         self.address = address
 
+        self._initialized = False
+
     @property
     def socket(self) -> zmq.Socket:
         if not self._socket:
@@ -69,6 +71,8 @@ class ZeroMQPubSub(Plugin):
         """
         Initializes the ZeroMQ plugin.
         """
+        if self._initialized:
+            return self
 
         if self.socket_type == zmq.PUB:
             self._socket = self.context.socket(zmq.PUB)
@@ -82,18 +86,17 @@ class ZeroMQPubSub(Plugin):
         else:
             raise ValueError("Unsupported socket type for ZeroMQPubSub plugin.")
 
+        self._initialized = True
+
         return self
 
     def finalize(self):
         """
         Finalizes the ZeroMQ plugin.
         """
-        if not self.socket:
-            raise RuntimeError(
-                "Socket not initialized. Did you forget to call initialize method?"
-            )
         self.socket.close()
         self.context.term()
+        self._initialized = False
 
     def recv(self) -> bytes:
         """
@@ -157,6 +160,8 @@ class ZeroMQReqRep(Plugin):
         self._socket: zmq.Socket | None = None
         self.context = context if context is not None else zmq.Context()
 
+        self._initialized = False
+
     @property
     def socket(self) -> zmq.Socket:
         if not self._socket:
@@ -172,6 +177,9 @@ class ZeroMQReqRep(Plugin):
         For zmq.REQ, connects to the address.
         For zmq.REP, binds to the address.
         """
+        if self._initialized:
+            return self
+
         if self.socket_type == zmq.REQ:
             self._socket = self.context.socket(zmq.REQ)
             self._socket.connect(self.address)
@@ -180,6 +188,9 @@ class ZeroMQReqRep(Plugin):
             self._socket.bind(self.address)
         else:
             raise ValueError("Unsupported socket type for ZeroMQReqRep plugin.")
+
+        self._initialized = True
+
         return self
 
     def send(self, message: bytes) -> None:
@@ -206,3 +217,4 @@ class ZeroMQReqRep(Plugin):
         """
         self.socket.close()
         self.context.term()
+        self._initialized = False
