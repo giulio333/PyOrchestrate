@@ -102,3 +102,89 @@ class ZeroMQPubSub(Plugin):
 
     def send(self, message: bytes, topic: bytes = b"") -> zmq.MessageTracker | None:
         return self.socket.send_multipart([topic, message])
+
+
+class ZeroMQReqRep(Plugin):
+    """
+    ZeroMQ REQ/REP communication plugin.
+
+    This plugin provides communication using ZeroMQ REQ/REP sockets.
+
+    Example:
+        >>> reqrep = ZeroMQReqRep("tcp://localhost:5555", zmq.REQ)
+        >>> reqrep.send(b"Hello")
+        >>> reply = reqrep.recv()
+
+    Attributes:
+        context (zmq.Context): The ZeroMQ context.
+        socket (zmq.Socket): The ZeroMQ socket.
+
+    Methods:
+        initialize: Initializes the ZeroMQ plugin.
+        send: Sends a message using ZeroMQ.
+        recv: Receives a message using ZeroMQ.
+        finalize: Finalizes the ZeroMQ plugin.
+    """
+
+    def __init__(self, address: str, socket_type: int):
+        """
+        Initializes the ZeroMQ REQ/REP plugin.
+
+        Args:
+            address (str): The address to bind/connect the socket.
+            socket_type (int): The type of ZeroMQ socket (e.g., zmq.REQ, zmq.REP).
+        """
+        self.address = address
+        self.socket_type = socket_type
+        self._socket: zmq.Socket | None = None
+        self.context = zmq.Context()
+
+    @property
+    def socket(self) -> zmq.Socket:
+        if not self._socket:
+            raise RuntimeError(
+                "Socket not initialized. Did you forget to call initialize?"
+            )
+        return self._socket
+
+    def initialize(self):
+        """
+        Initializes the ZeroMQ plugin.
+
+        For zmq.REQ, connects to the address.
+        For zmq.REP, binds to the address.
+        """
+        if self.socket_type == zmq.REQ:
+            self._socket = self.context.socket(zmq.REQ)
+            self._socket.connect(self.address)
+        elif self.socket_type == zmq.REP:
+            self._socket = self.context.socket(zmq.REP)
+            self._socket.bind(self.address)
+        else:
+            raise ValueError("Unsupported socket type for ZeroMQReqRep plugin.")
+        return self
+
+    def send(self, message: bytes) -> None:
+        """
+        Sends a message using ZeroMQ.
+
+        For zmq.REQ, sends the request.
+        For zmq.REP, sends the reply.
+        """
+        self.socket.send(message)
+
+    def recv(self) -> bytes:
+        """
+        Receives a message using ZeroMQ.
+
+        For zmq.REQ, receives the reply.
+        For zmq.REP, receives the request.
+        """
+        return self.socket.recv()
+
+    def finalize(self):
+        """
+        Finalizes the ZeroMQ plugin.
+        """
+        self.socket.close()
+        self.context.term()
