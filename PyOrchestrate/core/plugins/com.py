@@ -93,16 +93,23 @@ class ZeroMQPubSub(Plugin):
         """
         Receives a message using ZeroMQ.
 
-        Args:
-            flags (int): The flags to use for the receive operation.
-
         Returns:
-            Any: The received message.
+            bytes: The received message.
         """
         topic, message = self.socket.recv_multipart()
         return message
 
     def send(self, message: bytes, topic: bytes = b"") -> zmq.MessageTracker | None:
+        """
+        Sends a message using ZeroMQ.
+
+        Args:
+            message (bytes): The message to be sent.
+            topic (bytes, optional): The topic to use for the message. Defaults to b"".
+
+        Returns:
+            (zmq.MessageTracker | None): The result of the send operation or None.
+        """
         return self.socket.send_multipart([topic, message])
 
 

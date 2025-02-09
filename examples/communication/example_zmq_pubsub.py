@@ -22,8 +22,6 @@ class Publisher(PeriodicProcessAgent[PubConfig]):
         """
         super().setup()
 
-        self.config.zmq.initialize()
-
     def runner(self):
         """
         Runner method for the agent.
@@ -38,7 +36,6 @@ class Publisher(PeriodicProcessAgent[PubConfig]):
         super().on_close()
 
         self.config.zmq.send(b"END")
-        self.config.zmq.finalize()
 
 
 class SubConfig(LoopingProcessAgent.Config):
@@ -53,8 +50,6 @@ class Subscriber(LoopingProcessAgent[SubConfig]):
     def setup(self):
         super().setup()
 
-        self.config.zmq.initialize()
-
     def cycle(self):
         super().cycle()
 
@@ -66,8 +61,6 @@ class Subscriber(LoopingProcessAgent[SubConfig]):
 
     def on_close(self):
         super().on_close()
-
-        self.config.zmq.finalize()
 
 
 if __name__ == "__main__":

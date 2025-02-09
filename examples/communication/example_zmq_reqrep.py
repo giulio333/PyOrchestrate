@@ -42,7 +42,6 @@ class RequestAgent(PeriodicProcessAgent[ReqConfig]):
         self.config.zmq.send(b"END")
         response = self.config.zmq.recv()
         self.logger.info(f"Received final response: {response.decode()}")
-        self.config.zmq.finalize()
 
 
 class RepConfig(LoopingProcessAgent.Config):
@@ -56,8 +55,6 @@ class ReplyAgent(LoopingProcessAgent[RepConfig]):
 
     def setup(self):
         super().setup()
-
-        self.config.zmq.initialize()
 
     def cycle(self):
         super().cycle()
