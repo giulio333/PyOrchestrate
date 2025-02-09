@@ -9,6 +9,8 @@ class ZeroMQPubSub(Plugin):
     This plugin provides communication using ZeroMQ Pub/Sub sockets.
 
     Example:
+        >>> from PyOrchestrate.core.plugins.com import ZeroMQPubSub
+        >>> import zmq
         >>> zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
         >>> zmq_plugin.send_string("Hello, World!")
 
