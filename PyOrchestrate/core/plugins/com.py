@@ -29,21 +29,27 @@ class ZeroMQPubSub(Plugin):
         setsockopt: Sets a socket option.
     """
 
-    def __init__(self, address: str, socket_type: int, subscribe_topic: bytes = b""):
+    def __init__(
+        self,
+        address: str,
+        socket_type: int,
+        subscribe_topic: bytes = b"",
+        context: zmq.Context | None = None,
+    ):
         """
         Initializes the ZeroMQPlugin.
 
         Warning:
-            Ensure that one process has only one zmq.Context instance. If you create multiple ZeroMQ plugins in the same
-            process, they should share the same context.
+            Ensure that one process has only one zmq.Context instance.
 
         Args:
             address (str): The address to bind/connect the socket.
             socket_type (int): The type of ZeroMQ socket (e.g., zmq.REQ, zmq.REP, zmq.PUB, zmq.SUB).
             subscribe_topic (bytes): The topic to subscribe to (only for zmq.SUB). Defaults to b"" (all topics).
+            context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
         """
         self._socket: zmq.Socket | None = None
-        self.context = zmq.Context()
+        self.context = context if context is not None else zmq.Context()
         self.socket_type = socket_type
         self.subscribe_topic = subscribe_topic
         self.address = address
@@ -135,18 +141,21 @@ class ZeroMQReqRep(Plugin):
         finalize: Finalizes the ZeroMQ plugin.
     """
 
-    def __init__(self, address: str, socket_type: int):
+    def __init__(
+        self, address: str, socket_type: int, context: zmq.Context | None = None
+    ):
         """
         Initializes the ZeroMQ REQ/REP plugin.
 
         Args:
             address (str): The address to bind/connect the socket.
             socket_type (int): The type of ZeroMQ socket (e.g., zmq.REQ, zmq.REP).
+            context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
         """
         self.address = address
         self.socket_type = socket_type
         self._socket: zmq.Socket | None = None
-        self.context = zmq.Context()
+        self.context = context if context is not None else zmq.Context()
 
     @property
     def socket(self) -> zmq.Socket:
