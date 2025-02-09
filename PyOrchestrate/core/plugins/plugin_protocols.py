@@ -10,11 +10,8 @@ The protocols defined in this module ensure that every plugin adheres to a commo
 thus promoting consistency and interoperability within the system.
 """
 
-import zmq
-from typing import Protocol
 
-
-class Plugin(Protocol):
+class Plugin:
     """
     Base protocol for all plugins.
 

@@ -174,11 +174,8 @@ class LoopingAgent(BaseAgent[T]):
             None
         """
 
-    @abstractmethod
     def _info(self) -> None:
         """
-        @abstractmethod
-
         Logs the agent's configuration.
 
         Warnings:
