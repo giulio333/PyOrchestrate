@@ -6,8 +6,8 @@ import zmq
 
 class PubConfig(PeriodicProcessAgent.Config):
 
-    limit = 100
-    execution_interval = 0.01
+    limit = 10
+    execution_interval = 0.1
     zmq = ZeroMQPubSub("tcp://*:5555", zmq.PUB)
     counter: int = 1
 
