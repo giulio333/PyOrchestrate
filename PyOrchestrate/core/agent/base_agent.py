@@ -11,6 +11,7 @@ from typing import final, TypeVar, Protocol, Literal
 from ..base.base import BaseClass
 from ..utilities.event_manager import EventManager
 from ..utilities.event import AgentEvent
+from ..plugins.plugin_protocols import Plugin
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -256,6 +257,11 @@ class BaseAgent(BaseClass[T], ABC):
         """
         if self.control_events is not None:
             self.control_events.setup_event.wait()
+
+        # TODO: check if config object has a communication plugin and initialize it
+        for key, value in self.config.__dict__.items():
+            if isinstance(value, Plugin):
+                value.initialize()
 
     @abstractmethod
     def execute(self):
