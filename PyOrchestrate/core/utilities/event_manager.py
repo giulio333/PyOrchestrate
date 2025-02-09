@@ -10,7 +10,6 @@ It isolates errors in one callback so that they do not affect the execution of o
 """
 
 from enum import Enum
-import threading
 import inspect
 from datetime import datetime
 from typing import Callable

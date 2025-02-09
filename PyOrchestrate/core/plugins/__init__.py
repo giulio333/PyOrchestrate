@@ -1,1 +1,1 @@
-from .plugin_protocols import ZeroMQPubSub
+from .com import ZeroMQPubSub
