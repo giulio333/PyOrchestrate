@@ -59,6 +59,12 @@ export const enConfig = {
               ]
             }
           ]
+        },
+        {
+          text: 'EventManager',
+          items: [
+            { text: 'EventManager', link: '/learn/event_manager' },
+          ]
         }
       ],
       '/advanced/built-in-agents': [
