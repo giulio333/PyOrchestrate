@@ -11,6 +11,7 @@ from typing import final, TypeVar, Protocol, Literal
 from ..base.base import BaseClass
 from ..utilities.event_manager import EventManager
 from ..utilities.event import AgentEvent
+from ..plugins.plugin_protocols import Plugin
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -232,6 +233,11 @@ class BaseAgent(BaseClass[T], ABC):
 
             self.on_close()
 
+            # check if config object has a communication plugin and finalize it
+            for key, value in self.config.__class__.__dict__.items():
+                if isinstance(value, Plugin):
+                    value.finalize()
+
             self.event_manager.emit(AgentEvent.AGENT_CLOSE)
             if self.state_events is not None:
                 self.state_events.close_event.set()
@@ -256,6 +262,11 @@ class BaseAgent(BaseClass[T], ABC):
         """
         if self.control_events is not None:
             self.control_events.setup_event.wait()
+
+        # TODO: check if config object has a communication plugin and initialize it
+        for key, value in self.config.__class__.__dict__.items():
+            if isinstance(value, Plugin):
+                value.initialize()
 
     @abstractmethod
     def execute(self):
@@ -330,7 +341,6 @@ class BaseAgent(BaseClass[T], ABC):
             Override this method to implement custom cleanup logic
             that should execute during agent shutdown.
         """
-        pass
 
     def _info(self) -> None:
         """

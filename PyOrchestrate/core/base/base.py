@@ -81,9 +81,9 @@ class BaseClass(Generic[T]):
         Initialize a new instance.
 
         Args:
-            config (T): Configuration object controlling class behavior
-            name (str | None): Identifier used for logging. Defaults to class name if None
-            **kwargs: Additional attributes to set on the instance
+            config (T): Configuration object.
+            name (str | None): Identifier used for logging. Defaults to class name if None.
+            **kwargs: Additional attributes to set on the instance.
 
         Note:
             All kwargs are set as instance attributes directly.
