@@ -4,62 +4,87 @@ description: Learn how to use the ZeroMQPubSub plugin to enable communication be
 ---
 
 # ZeroMQPubSub Plugin
-The ZeroMQPubSub plugin enables agents to communicate using the **ZeroMQ Publish-Subscribe** pattern. This is useful when you need to broadcast messages to multiple agents.
+
+## Introduction to Publish-Subscribe Pattern
+
+The **Publish-Subscribe (PubSub)** pattern is a messaging paradigm where senders (publishers) send messages to topics without knowing who will receive them. Receivers (subscribers) express interest in specific topics and receive messages that match their interests. This decouples the sender and receiver, making it ideal for distributed systems where components need to communicate asynchronously.
+
+## Installation Instructions
+
+To use the ZeroMQPubSub plugin, you need to install the `pyzmq` library. You can install it using pip:
+
+```bash
+pip install pyzmq
+```
 
 ## Usage
 
 You can create a **Publisher** or **Subscriber** using the `ZeroMQPubSub` and use them to send and receive messages.
 
+### Publisher Example
+
 ```python
+from PyOrchestrate.core.agent import BaseProcessAgent
+from PyOrchestrate.core.plugins import ZeroMQPubSub
 import zmq
+
+class MyAgent(BaseProcessAgent):
+
+    class Plugin(BaseProcessAgent.Plugin):
+        zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
+
+    plugin: Plugin
+
+    def execute(self):
+        super().execute()
+        self.plugin.zmq.send("Hello, World!".encode())
+```
+
+### Subscriber Example
+
+```python
 from PyOrchestrate.core.agent import PeriodicProcessAgent
 from PyOrchestrate.core.plugins import ZeroMQPubSub
+import zmq
 
-class MyAgent(PeriodicProcessAgent):
-    def setup(self):
-        self.zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
-        self.zmq.initialize()
-    
+class SubscriberAgent(PeriodicProcessAgent):
+
+    class Plugin(PeriodicProcessAgent.Plugin):
+        zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+
+    plugin: Plugin
+
     def runner(self):
-        message = self.zmq.recv().decode()
-        print("Received message:", message)
-
-    def on_close(self):
-        self.zmq.finalize()
+        message = self.plugin.zmq.recv()
+        self.logger.info(f"Received message: {message.decode()}")
 ```
 
-::: tip
-Make sure to call the `initialize` and `finalize` methods to set up and clean up the plugin resources.
-:::
+## Error Handling
 
-## Publisher
+### Subscriber Connection Delay
 
-The **Publisher** sends messages to all connected **Subscribers**.
+ZeroMQ subscribers take some time to establish a connection with the publisher. If the publisher starts sending messages immediately, early messages may be lost. To mitigate this, you can introduce a delay before the publisher starts sending messages.
 
-```python
-pub.send(b"Hello, World!")
-```
+### Message Loss Considerations
 
-## Subscriber
+ZeroMQ does not queue messages for late subscribers by default. A subscriber that connects after messages are published will not receive past messages. To handle this, you can use delayed publishing or queue-based architectures.
 
-The **Subscriber** receives messages from the **Publisher**.
+### Ensuring Proper Topic Subscriptions
 
-```python
-message: byte = sub.recv()
-```
+To verify that subscribers correctly filter messages based on topic prefixes, you can log the received messages and their topics.
 
-## Working with Topics
+## Advantages of ZeroMQ in PyOrchestrate
 
-Topics allow you to filter messages so that only subscribers with matching filters receive them. 
+ZeroMQ is a high-performance asynchronous messaging library that is well-suited for distributed systems. It provides several advantages in PyOrchestrate:
 
-When creating a **subscriber**, you can supply a topic filter (e.g. `b"my_topic"`) to receive only messages that match. Similarly, a **publisher** can send a message with an associated topic. If no topic is provided with the `send` method, the message is broadcast to all subscribers.
+- **Scalability**: ZeroMQ can handle a large number of connections and messages efficiently.
+- **Flexibility**: It supports various messaging patterns, including PubSub, request-reply, and push-pull.
+- **Ease of Use**: ZeroMQ's API is simple and easy to integrate with PyOrchestrate agents.
 
-```python
-pub = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
-sub = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB, b"my_topic")
-pub.send(b"Hello, World!", b"my_topic")
-```
+## Resource Links
 
-::: tip
-If you don't specify a topic when sending a message, all subscribers will receive it. Conversely, to receive topic-specific messages, the subscriber must subscribe using the correct topic filter. 
-:::
+For further exploration, refer to the following resources:
+
+- [ZeroMQ Official Documentation](https://zeromq.org/documentation/)
+- [PyZMQ Documentation](https://pyzmq.readthedocs.io/en/latest/)
+- [ZeroMQ Guide](http://zguide.zeromq.org/page:all)

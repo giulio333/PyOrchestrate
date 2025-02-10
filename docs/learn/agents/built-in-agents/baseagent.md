@@ -244,6 +244,14 @@ config: BaseAgent.Config
 
 The configuration object for the agent.
 
+### Plugin
+
+```python
+plugin: Plugin
+```
+
+The plugin object for the agent. It is useful for retrieving user-initialized plugins. The agent will autonomously initialize and release their resources at startup and shutdown.
+
 ## Example
 
 In this example, we create a custom agent that monitors a log file for a specific keyword.
@@ -252,47 +260,46 @@ In this example, we create a custom agent that monitors a log file for a specifi
 ```python
 from PyOrchestrate.core.agent import BaseProcessAgent
 
-class MyConfig(BaseProcessAgent.Config):
-    log_file: str = "application.log"
-    keyword: str = "ERROR"
 
-class LogMonitorAgent(BaseProcessAgent["MyConfig"]):
-    Config = MyConfig
+class TemperatureMonitorAgent(BaseProcessAgent):
+
+    class Config(BaseProcessAgent.Config):
+        data_file: str = "temperatures.csv"
+        threshold: float = 30.0
+
+    config: Config
 
     def setup(self):
         """
-        Ensure the log file exists.
+        Ensure the CSV data file exists. If not, create it with sample data.
         """
         super().setup()
 
-        self.logger.info(f"Initializing LogMonitorAgent for file: {self.config.log_file}")
-        try:
-            with open(self.config.log_file, "r") as f:
-                self.logger.info("Log file found.")
-        except FileNotFoundError:
-            self.logger.error(f"Log file {self.config.log_file} does not exist.")
-            raise
+        if not os.path.exists(self.config.data_file):
+            self.logger.warning("File not found. Creating an empty file.")
+            open(self.config.data_file, "w").close()
+            self.logger.info("Empty data file created.")
+        else:
+            self.logger.info("Data file found.")
 
     def execute(self):
         """
-        Monitor the log file for the specified keyword.
+        Monitor the CSV file for temperature values exceeding the threshold.
         """
         super().execute()
 
-        self.logger.info(f"Monitoring for keyword: '{self.config.keyword}'")
-        try:
-            with open(self.config.log_file, "r") as f:
-                for line in f:
-                    if self.config.keyword in line:
-                        self.logger.warning(f"Keyword found: {line.strip()}")
-        except Exception as e:
-            self.logger.error(f"Error reading the log file: {e}")
+        temp = random.uniform(20.0, 40.0)
+        with open(self.config.data_file, "a", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([temp])
+        if temp > self.config.threshold:
+            self.logger.warning(f"High temperature detected: {temp}")
 
-    def on_stop(self):
+    def on_close(self):
         """
         Log the agent's shutdown.
         """
-        self.logger.info("LogMonitorAgent stopped.")
+        self.logger.info("TemperatureMonitorAgent stopped.")
 ```
 
 ## Advanced Usage
