@@ -24,21 +24,20 @@ You can create a **Publisher** or **Subscriber** using the `ZeroMQPubSub` and us
 ### Publisher Example
 
 ```python
-import zmq
-from PyOrchestrate.core.agent import PeriodicProcessAgent
+from PyOrchestrate.core.agent import BaseProcessAgent
 from PyOrchestrate.core.plugins import ZeroMQPubSub
+import zmq
 
-class PublisherAgent(PeriodicProcessAgent):
-    def setup(self):
-        self.zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
-        self.zmq.initialize()
-    
-    def runner(self):
-        self.zmq.send(b"my_topic", b"Hello, World!")
-        print("Message sent")
+class MyAgent(BaseProcessAgent):
 
-    def on_close(self):
-        self.zmq.finalize()
+    class Plugin(BaseProcessAgent.Plugin):
+        zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
+
+    plugin: Plugin
+
+    def execute(self):
+        super().execute()
+        self.plugin.zmq.send("Hello, World!".encode())
 ```
 
 ### Subscriber Example

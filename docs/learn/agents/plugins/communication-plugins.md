@@ -15,15 +15,20 @@ from PyOrchestrate.core.plugins import ZeroMQPubSub
 The `agent.plugin` object is useful for retrieving user-initialized plugins. The agent will autonomously initialize and release their resources at startup and shutdown. This ensures that the plugins are properly managed throughout the agent's lifecycle.
 
 ```python
-class MyAgent(PeriodicProcessAgent):
+from PyOrchestrate.core.agent import BaseProcessAgent
+from PyOrchestrate.core.plugins import ZeroMQPubSub
+import zmq
 
-    class Plugin(PeriodicProcessAgent.Plugin):
-        zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+class MyAgent(BaseProcessAgent):
+
+    class Plugin(BaseProcessAgent.Plugin):
+        zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
 
     plugin: Plugin
 
-    def runner(self):
-        message = self.plugin.zmq.send("Hello, World!".encode())
+    def execute(self):
+        super().execute()
+        self.plugin.zmq.send("Hello, World!".encode())
 ```
 
 ::: tip
@@ -58,29 +63,17 @@ The HTTP Plugin allows agents to communicate with external HTTP services.
 
 **Purpose**: To send and receive HTTP requests.
 
-**Example**:
+**Example**
 
 ```python
-class MyAgent(PeriodicProcessAgent):
-    def runner(self):
-        response = self.http.get("https://api.example.com/data")
-        self.logger.info(f"Received data: {response.json()}")
-```
+from PyOrchestrate.core.plugins import HTTPPlugin
 
-### File System Plugin
+# Initialize the HTTP Plugin
+http = HTTPPlugin("https://api.example.com")
 
-The File System Plugin allows agents to read from and write to the file system.
-
-**Purpose**: To perform file operations such as reading, writing, and deleting files.
-
-**Example**:
-
-```python
-class MyAgent(PeriodicProcessAgent):
-    def runner(self):
-        with self.file_system.open("file.txt", "r") as file:
-            content = file.read()
-            self.logger.info(f"File content: {content}")
+# Send a GET request and retrieve JSON data
+response = http.get("/data")
+print("Received data:", response.json())
 ```
 
 ### Database Plugin
@@ -89,16 +82,17 @@ The Database Plugin provides methods to interact with various databases.
 
 **Purpose**: To perform database operations such as queries and updates.
 
-**Example**:
+**Example**
 
 ```python
-class MyAgent(PeriodicProcessAgent):
-    def setup(self):
-        self.database.connect("database_connection_string")
+from PyOrchestrate.core.plugins import DatabasePlugin
 
-    def runner(self):
-        result = self.database.query("SELECT * FROM table")
-        self.logger.info(f"Query result: {result}")
+# Initialize the Database Plugin
+db = DatabasePlugin("database_connection_string")
+
+# Execute a query and log the results
+result = db.query("SELECT * FROM table")
+print("Query result:", result)
 ```
 
 ### MQTT Plugin
@@ -107,16 +101,16 @@ The MQTT Plugin facilitates communication with MQTT brokers for IoT applications
 
 **Purpose**: To publish and subscribe to MQTT topics.
 
-**Example**:
+**Example**
 
 ```python
-class MyAgent(PeriodicProcessAgent):
-    def setup(self):
-        self.mqtt.connect("mqtt://broker.example.com")
+from PyOrchestrate.core.plugins import MQTTPlugin
 
-    def runner(self):
-        self.mqtt.publish("topic/test", "Hello, MQTT!")
+# Initialize the MQTT Plugin
+mqtt = MQTTPlugin("mqtt://broker.example.com")
+
+# Publish a message
+mqtt.publish("topic/test", "Hello, MQTT!")
 ```
-
 
 For more detailed information about each communication plugin, refer to the respective sections above.
