@@ -94,7 +94,7 @@ if __name__ == "__main__":
         OrchestratorEvent.AGENT_TERMINATED, on_agent_stopped
     )
     orchestrator.event_manager.connect(
-        OrchestratorEvent.ALL_AGENTS_COMPLETED, on_all_agents_stopped
+        OrchestratorEvent.ALL_AGENTS_TERMINATED, on_all_agents_stopped
     )
 
     orchestrator.register_agent(WeatherCollector, "WeatherCollector1")

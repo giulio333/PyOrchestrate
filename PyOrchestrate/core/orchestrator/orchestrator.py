@@ -44,6 +44,16 @@ class Orchestrator(BaseClass):
         memory (OMemory): Memory to store the agents.
         event_manager (EventManager): Manages events among agents.
         dependencies (dict[str, list[str]]): Dependencies among agents.
+
+    Methods:
+        register_agent: Register an agent on the orchestrator.
+        add_dependency: Add dependencies among agents.
+        validate_dependencies: Check for dependency errors.
+        start: Start all registered agents.
+        stop: Stop all registered agents.
+        join: Wait for all agents to complete.
+        simple_join: Simple join method to wait for all processes or threads to complete their execution.
+        report: Report the status of all agents.
     """
 
     Config = OrchestratorConfig
@@ -237,10 +247,10 @@ class Orchestrator(BaseClass):
         Check the status of all agents and wait for them to complete.
 
         Notes:
-            This method blocks the current thread until all agents are completed.
+            This method blocks the current thread until all agents are terminated.
 
-            - When agent is completed, it emits an `OrchestratorEvent.AGENT_TERMINATED` event.
-            - When all agents are completed, it emits an `OrchestratorEvent.ALL_AGENTS_COMPLETED` event.
+            - When agent is terminated, it emits an `OrchestratorEvent.AGENT_TERMINATED` event.
+            - When all agents are terminated, it emits an `OrchestratorEvent.ALL_AGENTS_TERMINATED` event.
         """
 
         all_finished: bool = False
@@ -267,8 +277,8 @@ class Orchestrator(BaseClass):
             else:
                 time.sleep(self.config.check_interval)
 
-        self.logger.info("All agents have completed.")
-        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED)
+        self.logger.info("All agents have terminated.")
+        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
@@ -278,8 +288,8 @@ class Orchestrator(BaseClass):
         """
         for agent in self.memory.agents:
             agent.join()
-        self.logger.info("All processes or threads have completed.")
-        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_COMPLETED)
+        self.logger.info("All processes or threads have terminated.")
+        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 

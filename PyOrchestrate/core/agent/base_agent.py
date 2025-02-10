@@ -268,7 +268,7 @@ class BaseAgent(BaseClass, ABC):
     @abstractmethod
     def execute(self):
         """
-        @template
+        @abstractmethod
         Implements the agent's core logic.
 
         Warnings:
