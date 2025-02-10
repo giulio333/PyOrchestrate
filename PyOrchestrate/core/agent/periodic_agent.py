@@ -90,8 +90,8 @@ class PeriodicAgent(LoopingAgent):
 
     Config = PeriodicAgentConfig
 
-    def __init__(self, name: str, config, **kwargs):
-        super().__init__(name=name, config=config, **kwargs)
+    def __init__(self, name: str, config, plugin, **kwargs):
+        super().__init__(name=name, config=config, plugin=plugin, **kwargs)
 
         self._timer = None
         self.interval = self.config.execution_interval
@@ -149,18 +149,18 @@ class PeriodicAgent(LoopingAgent):
 class PeriodicProcessAgent(PeriodicAgent, multiprocessing.Process, ABC):
     a_type: str = "process"
 
-    def __init__(self, name: str, config, **kwargs):
+    def __init__(self, name: str, config, plugin, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
         PeriodicAgent.__init__(
-            self, name=name, config=config, a_type=self.a_type, **kwargs
+            self, name=name, config=config, plugin=plugin, a_type=self.a_type, **kwargs
         )
 
 
 class PeriodicThreadAgent(PeriodicAgent, threading.Thread, ABC):
     a_type: str = "thread"
 
-    def __init__(self, name: str, config, **kwargs):
+    def __init__(self, name: str, config, plugin, **kwargs):
         threading.Thread.__init__(self, name=name)
         PeriodicAgent.__init__(
-            self, name=name, config=config, a_type=self.a_type, **kwargs
+            self, name=name, config=config, plugin=plugin, a_type=self.a_type, **kwargs
         )

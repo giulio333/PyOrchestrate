@@ -132,6 +132,7 @@ class BaseAgent(BaseClass, ABC):
         self,
         name: str | None,
         config,
+        plugin,
         a_type: Literal["process", "thread"],
         control_events: ControlEvents,
         state_events: StateEvents,
@@ -172,7 +173,7 @@ class BaseAgent(BaseClass, ABC):
             get_plugin: Retrieves a registered plugin
 
         """
-        super().__init__(name=name, config=config, **kwargs)
+        super().__init__(name=name, config=config, plugin=plugin, **kwargs)
 
         self.start_time = 0
         """The start time of the agent."""
@@ -215,8 +216,8 @@ class BaseAgent(BaseClass, ABC):
 
             self.validate_config()
 
-            # TODO: check if config object has a communication plugin and initialize it
-            for key, value in self.config.__class__.__dict__.items():
+            # init all plugins
+            for key, value in self.plugin.__class__.__dict__.items():
                 if isinstance(value, PluginProtocol):
                     value.initialize()
 
@@ -235,8 +236,8 @@ class BaseAgent(BaseClass, ABC):
 
             self.on_close()
 
-            # check if config object has a communication plugin and finalize it
-            for key, value in self.config.__class__.__dict__.items():
+            # finalize all plugins
+            for key, value in self.plugin.__class__.__dict__.items():
                 if isinstance(value, PluginProtocol):
                     value.finalize()
 

@@ -88,8 +88,8 @@ class LoopingAgent(BaseAgent):
 
     Config = LoopingAgentConfig
 
-    def __init__(self, name: str, config, **kwargs):
-        super().__init__(name=name, config=config, **kwargs)
+    def __init__(self, name: str, config, plugin, **kwargs):
+        super().__init__(name=name, config=config, plugin=plugin, **kwargs)
 
     @final
     def execute(self) -> None:
@@ -199,7 +199,7 @@ class LoopingProcessAgent(LoopingAgent, multiprocessing.Process, ABC):
 
     a_type: str = "process"
 
-    def __init__(self, name: str, config, **kwargs):
+    def __init__(self, name: str, config, plugin, **kwargs):
         """
         Initialize a new LoopingProcessAgent.
 
@@ -209,7 +209,7 @@ class LoopingProcessAgent(LoopingAgent, multiprocessing.Process, ABC):
         """
         multiprocessing.Process.__init__(self, name=name)
         LoopingAgent.__init__(
-            self, name=name, config=config, a_type="process", **kwargs
+            self, name=name, config=config, plugin=plugin, a_type="process", **kwargs
         )
 
 
@@ -227,7 +227,7 @@ class LoopingThreadAgent(LoopingAgent, threading.Thread, ABC):
 
     a_type: str = "thread"
 
-    def __init__(self, name: str, config, **kwargs):
+    def __init__(self, name: str, config, plugin, **kwargs):
         """
         Initialize a new LoopingThreadAgent.
 
@@ -236,4 +236,6 @@ class LoopingThreadAgent(LoopingAgent, threading.Thread, ABC):
             config (T): The agent's configuration.
         """
         threading.Thread.__init__(self, name=name)
-        LoopingAgent.__init__(self, name=name, config=config, a_type="thread", **kwargs)
+        LoopingAgent.__init__(
+            self, name=name, config=config, plugin=plugin, a_type="thread", **kwargs
+        )

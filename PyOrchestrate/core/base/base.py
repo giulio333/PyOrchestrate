@@ -59,6 +59,10 @@ class BaseClassConfig:
         return f"<{self.__class__.__name__} {self.__dict__}>"
 
 
+class BaseClassPlugin:
+    pass
+
+
 class BaseClass:
     """
     Base class providing core functionality.
@@ -70,15 +74,17 @@ class BaseClass:
     """
 
     Config = BaseClassConfig
+    Plugin = BaseClassPlugin
 
     start_time: float
 
-    def __init__(self, config, name: str | None = None, **kwargs):
+    def __init__(self, config, plugin, name: str | None = None, **kwargs):
         """
         Initialize a new instance.
 
         Args:
             config (T): Configuration object.
+            plugin: Plugin instance to be used.
             name (str | None): Identifier used for logging. Defaults to class name if None.
             **kwargs: Additional attributes to set on the instance.
 
@@ -86,6 +92,7 @@ class BaseClass:
             All kwargs are set as instance attributes directly.
         """
         self.config = config
+        self.plugin = plugin
         self.name = name if name else self.__class__.__name__
 
         # store user-defined attributes

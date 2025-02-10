@@ -4,61 +4,50 @@ from PyOrchestrate.core.plugins.com import ZeroMQPubSub
 import zmq
 
 
-class PubConfig(PeriodicProcessAgent.Config):
-
-    limit = 10
-    execution_interval = 0.1
-    zmq = ZeroMQPubSub("tcp://*:5555", zmq.PUB)
-    counter: int = 1
-
-
 class Publisher(PeriodicProcessAgent):
 
-    Config = PubConfig
+    class Config(PeriodicProcessAgent.Config):
+
+        limit = 10
+        execution_interval = 0.1
+        counter: int = 1
+
+    class Plugin(PeriodicProcessAgent.Plugin):
+        zmq = ZeroMQPubSub("tcp://*:5555", zmq.PUB)
 
     def setup(self):
-        """
-        Setup method for the agent.
-        """
         super().setup()
 
+        self.plugin: Subscriber.Plugin
+
     def runner(self):
-        """
-        Runner method for the agent.
-        """
         super().runner()
 
         self.logger.info("Sending message")
-        self.config.zmq.send(f"Message {self.config.counter}".encode())
+        self.plugin.zmq.send(f"Message {self.config.counter}".encode())
         self.config.counter += 1
 
     def on_close(self):
         super().on_close()
 
-        self.config.zmq.send(b"END")
-
-
-class SubConfig(LoopingProcessAgent.Config):
-
-    zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+        self.plugin.zmq.send(b"END")
 
 
 class Subscriber(LoopingProcessAgent):
 
-    Config = SubConfig
+    class Plugin(LoopingProcessAgent.Plugin):
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.config: SubConfig
+        zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
 
     def setup(self):
         super().setup()
-        self.config: SubConfig
+
+        self.plugin: Subscriber.Plugin
 
     def cycle(self):
         super().cycle()
 
-        message = self.config.zmq.recv().decode()
+        message = self.plugin.zmq.recv().decode()
         self.logger.info(f"Received message: {message}")
 
         if message == "END":
