@@ -46,11 +46,14 @@ class TestBaseAgent(unittest.TestCase):
 
         # Create test config
         self.config = BaseAgent.Config()
+        # Create test plugin
+        self.plugin = BaseAgent.Plugin()
 
         # Initialize test agent
         self.agent = MyBaseAgent(
             name="test_base_agent",
             config=self.config,
+            plugin=self.plugin,
             a_type="process",
             state_events=self.state_events,
             control_events=self.control_events,
@@ -94,6 +97,7 @@ class TestBaseAgent(unittest.TestCase):
         agent = MyBaseAgent(
             name=None,
             config=self.config,
+            plugin=self.plugin,
             a_type="process",
             state_events=self.state_events,
             control_events=self.control_events,
@@ -110,6 +114,7 @@ class TestBaseAgent(unittest.TestCase):
         agent = MyBaseAgent(
             name="test_agent",
             config=custom_config,
+            plugin=self.plugin,
             a_type="process",
             state_events=self.state_events,
             control_events=self.control_events,
@@ -198,6 +203,7 @@ class TestBaseAgent(unittest.TestCase):
         agent_missing = MyBaseAgent(
             name="test_agent_missing_events",
             config=self.config,
+            plugin=self.plugin,
             a_type="process",
             control_events=None,  # type:ignore
             state_events=None,  # type:ignore

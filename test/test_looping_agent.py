@@ -37,6 +37,7 @@ class TestLoopingAgent(unittest.TestCase):
             MagicMock(), MagicMock(), MagicMock()
         )
         self.config = LoopingAgent.Config(limit=5)
+        self.plugin = LoopingAgent.Plugin()
 
         class ConcreteLoopingAgent(LoopingAgent):
 
@@ -49,6 +50,7 @@ class TestLoopingAgent(unittest.TestCase):
         self.agent = ConcreteLoopingAgent(
             name="test_looping_agent",
             config=self.config,
+            plugin=self.plugin,
             a_type="process",
             state_events=self.state_events,
             control_events=self.control_events,
