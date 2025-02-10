@@ -15,10 +15,8 @@ class RequestAgent(PeriodicProcessAgent):
     class Plugin(PeriodicProcessAgent.Plugin):
         zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REQ)
 
-    def setup(self):
-        super().setup()
-
-        self.config: RequestAgent.Config
+    config: Config
+    plugin: Plugin
 
     def runner(self):
         super().runner()
@@ -43,10 +41,7 @@ class ReplyAgent(LoopingProcessAgent):
 
         zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REP)
 
-    def setup(self):
-        super().setup()
-
-        self.plugin: ReplyAgent.Plugin
+    plugin: Plugin
 
     def cycle(self):
         super().cycle()
@@ -59,9 +54,6 @@ class ReplyAgent(LoopingProcessAgent):
             self.stop()
         else:
             self.plugin.zmq.send(b"ACK")
-
-    def on_close(self):
-        super().on_close()
 
 
 if __name__ == "__main__":

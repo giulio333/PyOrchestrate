@@ -15,10 +15,8 @@ class Publisher(PeriodicProcessAgent):
     class Plugin(PeriodicProcessAgent.Plugin):
         zmq = ZeroMQPubSub("tcp://*:5555", zmq.PUB)
 
-    def setup(self):
-        super().setup()
-
-        self.plugin: Subscriber.Plugin
+    config: Config
+    plugin: Plugin
 
     def runner(self):
         super().runner()
@@ -39,10 +37,10 @@ class Subscriber(LoopingProcessAgent):
 
         zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
 
+    plugin: Plugin
+
     def setup(self):
         super().setup()
-
-        self.plugin: Subscriber.Plugin
 
     def cycle(self):
         super().cycle()
@@ -52,9 +50,6 @@ class Subscriber(LoopingProcessAgent):
 
         if message == "END":
             self.stop()
-
-    def on_close(self):
-        super().on_close()
 
 
 if __name__ == "__main__":
