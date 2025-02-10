@@ -294,6 +294,28 @@ class MyAgent(PeriodicProcessAgent):
 
 For more detailed information about communication plugins, including additional examples and configuration options, please refer to the [Communication Plugins Documentation](./plugins/communication-plugins.md).
 
+## Plugin Management
+
+The `agent.plugin` object is useful for retrieving user-initialized plugins. The agent will autonomously initialize and release their resources at startup and shutdown. This ensures that the plugins are properly managed throughout the agent's lifecycle.
+
+```python
+class MyAgent(PeriodicProcessAgent):
+
+    def setup(self):
+        super().setup()
+        self.my_plugin = self.plugin.get('my_plugin')
+        self.logger.info("Plugin initialized")
+
+    def runner(self):
+        self.my_plugin.do_something()
+        self.logger.info("Plugin action executed")
+
+    def on_close(self):
+        self.logger.info("Agent is closing, plugin resources will be released")
+```
+
+For more detailed information about plugin management, please refer to the [Plugin Management Documentation](./plugins/plugin-management.md).
+
 ## BaseAgent
 
 The `BaseAgent` class is the foundation for all agents in PyOrchestrate. It provides the basic structure and functionality that all agents inherit.

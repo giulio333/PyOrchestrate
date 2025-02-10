@@ -33,6 +33,26 @@ class MyAgent(PeriodicProcessAgent):
         self.zmq.finalize()
 ```
 
+## Autonomous Initialization and Release of Resources
+
+The `agent.plugin` object is useful for retrieving user-initialized plugins. The agent will autonomously initialize and release their resources at startup and shutdown. This ensures that the plugins are properly managed throughout the agent's lifecycle.
+
+```python
+class MyAgent(PeriodicProcessAgent):
+
+    def setup(self):
+        super().setup()
+        self.my_plugin = self.plugin.get('my_plugin')
+        self.logger.info("Plugin initialized")
+
+    def runner(self):
+        self.my_plugin.do_something()
+        self.logger.info("Plugin action executed")
+
+    def on_close(self):
+        self.logger.info("Agent is closing, plugin resources will be released")
+```
+
 ## Future Enhancements
 
 ### HTTP Plugin
