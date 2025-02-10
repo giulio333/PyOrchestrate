@@ -215,10 +215,7 @@ class BaseAgent(BaseClass, ABC):
 
             self.validate_config()
 
-            # TODO: check if config object has a communication plugin and initialize it
-            for key, value in self.config.__class__.__dict__.items():
-                if isinstance(value, PluginProtocol):
-                    value.initialize()
+            self._initialize_plugins()
 
             self.setup()
 
@@ -235,10 +232,7 @@ class BaseAgent(BaseClass, ABC):
 
             self.on_close()
 
-            # check if config object has a communication plugin and finalize it
-            for key, value in self.config.__class__.__dict__.items():
-                if isinstance(value, PluginProtocol):
-                    value.finalize()
+            self._finalize_plugins()
 
             self.event_manager.emit(AgentEvent.AGENT_CLOSE)
             if self.state_events is not None:
@@ -347,6 +341,22 @@ class BaseAgent(BaseClass, ABC):
             None
         """
         self.logger.debug(f"Config: logger_level: {self.config.logger_config.level}")
+
+    def _initialize_plugins(self):
+        """
+        Initializes plugins if the config object has any communication plugins.
+        """
+        for key, value in self.config.__class__.__dict__.items():
+            if isinstance(value, PluginProtocol):
+                value.initialize()
+
+    def _finalize_plugins(self):
+        """
+        Finalizes plugins if the config object has any communication plugins.
+        """
+        for key, value in self.config.__class__.__dict__.items():
+            if isinstance(value, PluginProtocol):
+                value.finalize()
 
 
 class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):
