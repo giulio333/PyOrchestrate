@@ -12,6 +12,7 @@ from ..base.base import BaseClass
 from ..utilities.event_manager import EventManager
 from ..utilities.event import AgentEvent
 from ..plugins.plugin_protocols import PluginProtocol
+from ..plugins.plugin_manager import PluginManager
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -184,6 +185,7 @@ class BaseAgent(BaseClass, ABC):
         self.a_type = a_type
         """The agent type (process or thread)."""
         self.event_manager = event_manager
+        self.plugin_manager = PluginManager(self.plugin)
 
     @final
     def run(self) -> None:
@@ -216,10 +218,7 @@ class BaseAgent(BaseClass, ABC):
 
             self.validate_config()
 
-            # init all plugins
-            for key, value in self.plugin.__class__.__dict__.items():
-                if isinstance(value, PluginProtocol):
-                    value.initialize()
+            self.plugin_manager.initialize_plugins()
 
             self.setup()
 
@@ -236,10 +235,7 @@ class BaseAgent(BaseClass, ABC):
 
             self.on_close()
 
-            # finalize all plugins
-            for key, value in self.plugin.__class__.__dict__.items():
-                if isinstance(value, PluginProtocol):
-                    value.finalize()
+            self.plugin_manager.finalize_plugins()
 
             self.event_manager.emit(AgentEvent.AGENT_CLOSE)
             if self.state_events is not None:
