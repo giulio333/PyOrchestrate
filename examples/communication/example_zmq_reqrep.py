@@ -4,67 +4,61 @@ from PyOrchestrate.core.plugins.com import ZeroMQReqRep
 import zmq
 
 
-class ReqConfig(PeriodicProcessAgent.Config):
-
-    limit = 10
-    execution_interval = 0.1
-    zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REQ)
-    counter: int = 1
-
-
 class RequestAgent(PeriodicProcessAgent):
 
-    Config = ReqConfig
+    class Config(PeriodicProcessAgent.Config):
+
+        limit = 10
+        execution_interval = 0.1
+        counter: int = 1
+
+    class Plugin(PeriodicProcessAgent.Plugin):
+        zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REQ)
 
     def setup(self):
-        """
-        Setup method for the agent.
-        """
         super().setup()
 
+        self.config: RequestAgent.Config
+
     def runner(self):
-        """
-        Runner method for the agent.
-        """
         super().runner()
 
         self.logger.info("Sending message")
-        self.config.zmq.send(f"Message {self.config.counter}".encode())
-        response = self.config.zmq.recv()
+        self.plugin.zmq.send(f"Message {self.config.counter}".encode())
+        response = self.plugin.zmq.recv()
         self.logger.info(f"Received response: {response.decode()}")
         self.config.counter += 1
 
     def on_close(self):
         super().on_close()
 
-        self.config.zmq.send(b"END")
-        response = self.config.zmq.recv()
+        self.plugin.zmq.send(b"END")
+        response = self.plugin.zmq.recv()
         self.logger.info(f"Received final response: {response.decode()}")
-
-
-class RepConfig(LoopingProcessAgent.Config):
-
-    zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REP)
 
 
 class ReplyAgent(LoopingProcessAgent):
 
-    Config = RepConfig
+    class Plugin(LoopingProcessAgent.Plugin):
+
+        zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REP)
 
     def setup(self):
         super().setup()
 
+        self.plugin: ReplyAgent.Plugin
+
     def cycle(self):
         super().cycle()
 
-        message = self.config.zmq.recv().decode()
+        message = self.plugin.zmq.recv().decode()
         self.logger.info(f"Received message: {message}")
 
         if message == "END":
-            self.config.zmq.send(b"OK: END")
+            self.plugin.zmq.send(b"OK: END")
             self.stop()
         else:
-            self.config.zmq.send(b"ACK")
+            self.plugin.zmq.send(b"ACK")
 
     def on_close(self):
         super().on_close()

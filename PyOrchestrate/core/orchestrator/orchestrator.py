@@ -32,6 +32,10 @@ class OrchestratorConfig(BaseClass.Config):
             raise ValueError("Check interval must be greater than 0.")
 
 
+class OrchestratorPlugin(BaseClass.Plugin):
+    pass
+
+
 class Orchestrator(BaseClass):
     """
     Orchestrator class to manages the agents.
@@ -43,9 +47,12 @@ class Orchestrator(BaseClass):
     """
 
     Config = OrchestratorConfig
+    Plugin = OrchestratorPlugin
 
     def __init__(self, name: str | None = None):
-        super().__init__(name=name, config=Orchestrator.Config())
+        super().__init__(
+            name=name, config=Orchestrator.Config(), plugin=Orchestrator.Plugin()
+        )
 
         self.setup_logger()
         self._info()
@@ -61,6 +68,7 @@ class Orchestrator(BaseClass):
         agent_class,
         name: str,
         custom_config: BaseClass.Config | None = None,
+        custom_plugin: BaseClass.Plugin | None = None,
         control_events: BaseAgent.ControlEvents | None = None,
         state_events: BaseAgent.StateEvents | None = None,
         event_manager: EventManager | None = None,
@@ -79,6 +87,7 @@ class Orchestrator(BaseClass):
             agent_class: Class of the agent to register.
             name: Name of the agent.
             custom_config: Custom configuration for the agent.
+            custom_plugin: Custom plugin for the agent.
             control_events: Control events for the agent.
             state_events: State events for the agent.
             event_manager: Event manager for the agent.
@@ -88,10 +97,11 @@ class Orchestrator(BaseClass):
             AgentEntry: The agent entry object stored in the memory.
         """
 
-        agent_entry = self.memory.add_agent(
+        agent_entry: AgentEntry = self.memory.add_agent(
             agent_class=agent_class,
             name=name,
             custom_config=custom_config,
+            custom_plugin=custom_plugin,
             control_events=control_events,
             state_events=state_events,
             event_manager=event_manager,

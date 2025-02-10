@@ -32,6 +32,7 @@ class AgentEntry:
         control_events (BaseAgent.ControlEvents): Control events for the agent.
         state_events (BaseAgent.StateEvents): State events for the agent.
         config (Optional[BaseConfig]): Custom configuration for the agent.
+        plugin (Optional[BasePlugin]): Custom plugin for the agent.
         _record_event_callback (Optional[Any]): Callback to record events.
         kwargs (Any): Additional keyword arguments for the agent.
         instance (BaseAgent): The agent instance.
@@ -51,6 +52,7 @@ class AgentEntry:
         control_events: Optional[BaseAgent.ControlEvents] = None,
         state_events: Optional[BaseAgent.StateEvents] = None,
         config: Optional[BaseClass.Config] = None,
+        plugin: Optional[BaseClass.Plugin] = None,
         record_event_callback: Optional[Any] = None,
         event_manager: Optional[EventManager] = None,
         **kwargs: Any,
@@ -58,6 +60,7 @@ class AgentEntry:
         self.agent_class = agent_class
         self.name = name
         self.config = config
+        self.plugin = plugin
         self.kwargs = kwargs
         self._instance = None
         self._record_event_callback = record_event_callback
@@ -163,9 +166,13 @@ class AgentEntry:
         if self.config is None:
             self.config = self.agent_class.Config()
 
+        if self.plugin is None:
+            self.plugin = self.agent_class.Plugin()
+
         params: dict[str, Any] = dict()
         params["name"] = self.name
         params["config"] = self.config
+        params["plugin"] = self.plugin
         params["control_events"] = self.control_events
         params["state_events"] = self.state_events
         params["event_manager"] = self.event_manager
@@ -264,6 +271,7 @@ class OMemory:
         agent_class: Type[BaseAgent],
         name: str,
         custom_config: Optional[BaseClass.Config] = None,
+        custom_plugin: Optional[BaseClass.Plugin] = None,
         control_events: Optional[BaseAgent.ControlEvents] = None,
         state_events: Optional[BaseAgent.StateEvents] = None,
         event_manager: Optional[EventManager] = None,
@@ -283,6 +291,7 @@ class OMemory:
             agent_class (Type[BaseAgent]): The class of the agent to store.
             name (str): The name of the agent.
             custom_config (BaseConfig, optional): Custom configuration for the agent. Defaults to None.
+            custom_plugin (BasePlugin, optional): Custom plugin for the agent. Defaults to None.
             control_events (BaseAgent.ControlEvents, optional): Control events for the agent. Defaults to None.
             state_events (BaseAgent.StateEvents, optional): State events for the agent. Defaults to None.
             event_manager (EventManager, optional): Event manager for the agent. Defaults to None.
@@ -322,6 +331,7 @@ class OMemory:
             control_events=control_events,
             state_events=state_events,
             config=custom_config,
+            plugin=custom_plugin,
             record_event_callback=self._record_event,
             event_manager=event_manager,
             **kwargs,
