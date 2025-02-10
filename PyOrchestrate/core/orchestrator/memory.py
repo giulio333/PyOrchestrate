@@ -299,14 +299,22 @@ class OMemory:
 
         Returns:
             AgentEntry: The `AgentEntry` object corresponding to the stored agent.
+
+        Raises:
+            ValueError: If the agent already exists.
         """
+
+        if name in self._agents:
+            raise ValueError(f"Agent '{name}' already exists.")
 
         if agent_class.a_type == "process":
             event = multiprocessing.Event
         elif agent_class.a_type == "thread":
             event = threading.Event  # type: ignore
         else:
-            raise ValueError("Unknown agent type.")
+            raise ValueError(
+                "Unknown agent type. Maybe you forgot to inherit from Process or Thread agent."
+            )
 
         if not control_events:
             control_events = agent_class.ControlEvents(
