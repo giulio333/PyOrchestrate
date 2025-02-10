@@ -23,7 +23,7 @@ class ThreadConfig2(PeriodicThreadAgent.Config):
     limit = 5
 
 
-class MyThread(PeriodicThreadAgent[ThreadConfig1]):
+class MyThread(PeriodicThreadAgent):
 
     Config = ThreadConfig1
 
@@ -59,7 +59,7 @@ class FileWriterConfig(PoolProcessAgent.Config):
     ]
 
 
-class FileWriter(PoolProcessAgent[FileWriterConfig]):
+class FileWriter(PoolProcessAgent):
 
     Config = FileWriterConfig
 

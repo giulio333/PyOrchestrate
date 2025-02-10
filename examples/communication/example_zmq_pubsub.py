@@ -12,7 +12,7 @@ class PubConfig(PeriodicProcessAgent.Config):
     counter: int = 1
 
 
-class Publisher(PeriodicProcessAgent[PubConfig]):
+class Publisher(PeriodicProcessAgent):
 
     Config = PubConfig
 
@@ -43,12 +43,17 @@ class SubConfig(LoopingProcessAgent.Config):
     zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
 
 
-class Subscriber(LoopingProcessAgent[SubConfig]):
+class Subscriber(LoopingProcessAgent):
 
     Config = SubConfig
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.config: SubConfig
+
     def setup(self):
         super().setup()
+        self.config: SubConfig
 
     def cycle(self):
         super().cycle()

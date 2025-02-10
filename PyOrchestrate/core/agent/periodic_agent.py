@@ -68,10 +68,7 @@ class PeriodicAgentConfig(LoopingAgentConfig):
             raise ValueError("Delay compensation must be a boolean.")
 
 
-T = TypeVar("T", bound=PeriodicAgentConfig)
-
-
-class PeriodicAgent(LoopingAgent[T]):
+class PeriodicAgent(LoopingAgent):
     """
     Periodic agent class.
 
@@ -93,7 +90,7 @@ class PeriodicAgent(LoopingAgent[T]):
 
     Config = PeriodicAgentConfig
 
-    def __init__(self, name: str, config: T, **kwargs):
+    def __init__(self, name: str, config, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
 
         self._timer = None
@@ -149,20 +146,20 @@ class PeriodicAgent(LoopingAgent[T]):
         self._timer: PeriodicTimer | None = value
 
 
-class PeriodicProcessAgent(PeriodicAgent[T], multiprocessing.Process, ABC):
+class PeriodicProcessAgent(PeriodicAgent, multiprocessing.Process, ABC):
     a_type: str = "process"
 
-    def __init__(self, name: str, config: T, **kwargs):
+    def __init__(self, name: str, config, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
         PeriodicAgent.__init__(
             self, name=name, config=config, a_type=self.a_type, **kwargs
         )
 
 
-class PeriodicThreadAgent(PeriodicAgent[T], threading.Thread, ABC):
+class PeriodicThreadAgent(PeriodicAgent, threading.Thread, ABC):
     a_type: str = "thread"
 
-    def __init__(self, name: str, config: T, **kwargs):
+    def __init__(self, name: str, config, **kwargs):
         threading.Thread.__init__(self, name=name)
         PeriodicAgent.__init__(
             self, name=name, config=config, a_type=self.a_type, **kwargs

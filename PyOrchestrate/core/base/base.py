@@ -1,5 +1,5 @@
 import logging
-from typing import Generic, TypeVar, Any
+from typing import Any, cast
 
 from PyOrchestrate.utilities.logguru import LoggerFactory
 from ..base.utilities import LoggerConfig
@@ -59,10 +59,7 @@ class BaseClassConfig:
         return f"<{self.__class__.__name__} {self.__dict__}>"
 
 
-T = TypeVar("T", bound="BaseClassConfig")
-
-
-class BaseClass(Generic[T]):
+class BaseClass:
     """
     Base class providing core functionality.
 
@@ -76,7 +73,7 @@ class BaseClass(Generic[T]):
 
     start_time: float
 
-    def __init__(self, config: T, name: str | None = None, **kwargs):
+    def __init__(self, config, name: str | None = None, **kwargs):
         """
         Initialize a new instance.
 

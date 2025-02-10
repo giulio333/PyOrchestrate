@@ -17,7 +17,7 @@ class MyConfig(BaseProcessAgent.Config):
     poll_interval: float = 1.0
 
 
-class APIFetchAgent(BaseProcessAgent[MyConfig]):
+class APIFetchAgent(BaseProcessAgent):
     Config = MyConfig
 
     def setup(self) -> None:

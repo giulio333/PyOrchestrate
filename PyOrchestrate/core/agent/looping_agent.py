@@ -56,10 +56,7 @@ class LoopingAgentConfig(BaseAgent.Config):
             raise ValueError("Limit must be greater than 0 or equal to -1.")
 
 
-T = TypeVar("T", bound=LoopingAgentConfig)
-
-
-class LoopingAgent(BaseAgent[T]):
+class LoopingAgent(BaseAgent):
     """
     LoopingAgent class.
 
@@ -91,7 +88,7 @@ class LoopingAgent(BaseAgent[T]):
 
     Config = LoopingAgentConfig
 
-    def __init__(self, name: str, config: T, **kwargs):
+    def __init__(self, name: str, config, **kwargs):
         super().__init__(name=name, config=config, **kwargs)
 
     @final
@@ -188,7 +185,7 @@ class LoopingAgent(BaseAgent[T]):
         self.logger.debug(f"Config: limit: {self.config.limit}")
 
 
-class LoopingProcessAgent(LoopingAgent[T], multiprocessing.Process, ABC):
+class LoopingProcessAgent(LoopingAgent, multiprocessing.Process, ABC):
     """
     LoopingProcessAgent class.
 
@@ -202,7 +199,7 @@ class LoopingProcessAgent(LoopingAgent[T], multiprocessing.Process, ABC):
 
     a_type: str = "process"
 
-    def __init__(self, name: str, config: T, **kwargs):
+    def __init__(self, name: str, config, **kwargs):
         """
         Initialize a new LoopingProcessAgent.
 
@@ -216,7 +213,7 @@ class LoopingProcessAgent(LoopingAgent[T], multiprocessing.Process, ABC):
         )
 
 
-class LoopingThreadAgent(LoopingAgent[T], threading.Thread, ABC):
+class LoopingThreadAgent(LoopingAgent, threading.Thread, ABC):
     """
     LoopingThreadAgent class.
 
@@ -230,7 +227,7 @@ class LoopingThreadAgent(LoopingAgent[T], threading.Thread, ABC):
 
     a_type: str = "thread"
 
-    def __init__(self, name: str, config: T, **kwargs):
+    def __init__(self, name: str, config, **kwargs):
         """
         Initialize a new LoopingThreadAgent.
 

@@ -15,7 +15,7 @@ class MyConfig(PeriodicProcessAgent.Config):
     """Keyword to search for in the fetched data."""
 
 
-class APIFetchAgent(PeriodicProcessAgent[MyConfig]):
+class APIFetchAgent(PeriodicProcessAgent):
     Config = MyConfig
 
     def setup(self) -> None:
@@ -75,7 +75,7 @@ class APIFetchAgent(PeriodicProcessAgent[MyConfig]):
         self.socket.finalize()
 
 
-class APIAlertAgent(PeriodicProcessAgent[MyConfig]):
+class APIAlertAgent(PeriodicProcessAgent):
     Config = MyConfig
 
     def setup(self) -> None:

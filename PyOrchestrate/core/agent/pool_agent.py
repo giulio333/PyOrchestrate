@@ -72,10 +72,7 @@ class PoolAgentConfig(PeriodicAgent.Config):
             raise ValueError("No agents to register.")
 
 
-T = TypeVar("T", bound=PoolAgentConfig)
-
-
-class PoolAgent(PeriodicAgent[T]):
+class PoolAgent(PeriodicAgent):
     """
     Pool agent class.
 
@@ -166,17 +163,17 @@ class PoolAgent(PeriodicAgent[T]):
         self.logger.debug(f"Config: agents_entry: {self.config.agents_entry}")
 
 
-class PoolProcessAgent(PoolAgent[T], multiprocessing.Process, ABC):
+class PoolProcessAgent(PoolAgent, multiprocessing.Process, ABC):
     a_type: str = "process"
 
-    def __init__(self, name: str, config: T, **kwargs):
+    def __init__(self, name: str, config, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
         PoolAgent.__init__(self, name=name, config=config, a_type="process", **kwargs)
 
 
-class PoolThreadAgent(PoolAgent[T], threading.Thread, ABC):
+class PoolThreadAgent(PoolAgent, threading.Thread, ABC):
     a_type: str = "thread"
 
-    def __init__(self, name: str, config: T, **kwargs):
+    def __init__(self, name: str, config, **kwargs):
         threading.Thread.__init__(self, name=name)
         PoolAgent.__init__(self, name=name, config=config, a_type="thread", **kwargs)

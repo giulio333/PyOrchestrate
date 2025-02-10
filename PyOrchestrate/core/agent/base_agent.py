@@ -47,9 +47,6 @@ class BaseAgentConfig(BaseClass.Config):
     """
 
 
-T = TypeVar("T", bound=BaseAgentConfig)
-
-
 class ValidationError(Exception):
     """
     Exception raised for errors in the configuration validation.
@@ -60,7 +57,7 @@ class ValidationError(Exception):
         super().__init__(self.message)
 
 
-class BaseAgent(BaseClass[T], ABC):
+class BaseAgent(BaseClass, ABC):
     """
     Abstract base class for all agents.
 
@@ -134,7 +131,7 @@ class BaseAgent(BaseClass[T], ABC):
     def __init__(
         self,
         name: str | None,
-        config: T,
+        config,
         a_type: Literal["process", "thread"],
         control_events: ControlEvents,
         state_events: StateEvents,
@@ -352,7 +349,7 @@ class BaseAgent(BaseClass[T], ABC):
         self.logger.debug(f"Config: logger_level: {self.config.logger_config.level}")
 
 
-class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):
+class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):
     """
     BaseProcessAgent class.
 
@@ -366,7 +363,7 @@ class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):
 
     a_type: str = "process"
 
-    def __init__(self, name: str | None, config: T, **kwargs):
+    def __init__(self, name: str | None, config, **kwargs):
         """
         BaseProcessAgent constructor.
 
@@ -378,7 +375,7 @@ class BaseProcessAgent(BaseAgent[T], multiprocessing.Process, ABC):
         BaseAgent.__init__(self, name=name, config=config, a_type="process", **kwargs)
 
 
-class BaseThreadAgent(BaseAgent[T], threading.Thread, ABC):
+class BaseThreadAgent(BaseAgent, threading.Thread, ABC):
     """
     BaseThreadAgent class.
 
@@ -390,7 +387,7 @@ class BaseThreadAgent(BaseAgent[T], threading.Thread, ABC):
 
     a_type: str = "thread"
 
-    def __init__(self, name: str | None, config: T, **kwargs):
+    def __init__(self, name: str | None, config, **kwargs):
         """
         BaseThreadAgent constructor.
 
