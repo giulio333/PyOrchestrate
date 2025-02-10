@@ -11,7 +11,7 @@ from typing import final, TypeVar, Protocol, Literal
 from ..base.base import BaseClass
 from ..utilities.event_manager import EventManager
 from ..utilities.event import AgentEvent
-from ..plugins.plugin_protocols import Plugin
+from ..plugins.plugin_protocols import PluginProtocol
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -220,7 +220,7 @@ class BaseAgent(BaseClass[T], ABC):
 
             # TODO: check if config object has a communication plugin and initialize it
             for key, value in self.config.__class__.__dict__.items():
-                if isinstance(value, Plugin):
+                if isinstance(value, PluginProtocol):
                     value.initialize()
 
             self.setup()
@@ -240,7 +240,7 @@ class BaseAgent(BaseClass[T], ABC):
 
             # check if config object has a communication plugin and finalize it
             for key, value in self.config.__class__.__dict__.items():
-                if isinstance(value, Plugin):
+                if isinstance(value, PluginProtocol):
                     value.finalize()
 
             self.event_manager.emit(AgentEvent.AGENT_CLOSE)

@@ -1,8 +1,8 @@
 import zmq
-from .plugin_protocols import Plugin
+from .plugin_protocols import PluginProtocol
 
 
-class ZeroMQPubSub(Plugin):
+class ZeroMQPubSub(PluginProtocol):
     """
     ZeroMQ Pub/Sub communication plugin.
 
@@ -122,7 +122,7 @@ class ZeroMQPubSub(Plugin):
         return self.socket.send_multipart([topic, message])
 
 
-class ZeroMQReqRep(Plugin):
+class ZeroMQReqRep(PluginProtocol):
     """
     ZeroMQ REQ/REP communication plugin.
 
