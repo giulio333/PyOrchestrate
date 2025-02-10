@@ -218,6 +218,11 @@ class BaseAgent(BaseClass[T], ABC):
 
             self.validate_config()
 
+            # TODO: check if config object has a communication plugin and initialize it
+            for key, value in self.config.__class__.__dict__.items():
+                if isinstance(value, Plugin):
+                    value.initialize()
+
             self.setup()
 
             self.event_manager.emit(AgentEvent.AGENT_READY)
@@ -262,11 +267,6 @@ class BaseAgent(BaseClass[T], ABC):
         """
         if self.control_events is not None:
             self.control_events.setup_event.wait()
-
-        # TODO: check if config object has a communication plugin and initialize it
-        for key, value in self.config.__class__.__dict__.items():
-            if isinstance(value, Plugin):
-                value.initialize()
 
     @abstractmethod
     def execute(self):
