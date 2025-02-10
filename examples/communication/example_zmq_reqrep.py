@@ -22,8 +22,6 @@ class RequestAgent(PeriodicProcessAgent[ReqConfig]):
         """
         super().setup()
 
-        self.config.zmq.initialize()
-
     def runner(self):
         """
         Runner method for the agent.
@@ -70,8 +68,6 @@ class ReplyAgent(LoopingProcessAgent[RepConfig]):
 
     def on_close(self):
         super().on_close()
-
-        self.config.zmq.finalize()
 
 
 if __name__ == "__main__":
