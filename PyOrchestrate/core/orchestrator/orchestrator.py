@@ -32,7 +32,7 @@ class OrchestratorConfig(BaseClass.Config):
             raise ValueError("Check interval must be greater than 0.")
 
 
-class Orchestrator(BaseClass[OrchestratorConfig]):
+class Orchestrator(BaseClass):
     """
     Orchestrator class to manages the agents.
 

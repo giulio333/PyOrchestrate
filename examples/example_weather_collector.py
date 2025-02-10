@@ -49,7 +49,7 @@ class WCConfig(PeriodicProcessAgent.Config):
     print_result: bool = False
 
 
-class WeatherCollector(PeriodicProcessAgent[WCConfig]):
+class WeatherCollector(PeriodicProcessAgent):
 
     Config = WCConfig
 

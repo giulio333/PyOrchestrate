@@ -22,7 +22,7 @@ class FileSendConfig(PeriodicProcessAgent.Config):
     limit = 0
 
 
-class FileSendAgent(PeriodicProcessAgent[FileSendConfig]):
+class FileSendAgent(PeriodicProcessAgent):
     Config = FileSendConfig
 
     def setup(self) -> None:
@@ -77,7 +77,7 @@ class FileReceiveConfig(PeriodicProcessAgent.Config):
     limit = 0  # run indefinitely
 
 
-class FileReceiveAgent(PeriodicProcessAgent[FileReceiveConfig]):
+class FileReceiveAgent(PeriodicProcessAgent):
     Config = FileReceiveConfig
 
     def setup(self) -> None:

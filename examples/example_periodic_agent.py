@@ -10,7 +10,7 @@ class FileWriterConfig(PeriodicProcessAgent.Config):
     directory = "/tmp"
 
 
-class FileWriter(PeriodicProcessAgent[FileWriterConfig]):
+class FileWriter(PeriodicProcessAgent):
     """Agent Class that logs a message periodically."""
 
     Config = FileWriterConfig

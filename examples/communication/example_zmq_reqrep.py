@@ -12,7 +12,7 @@ class ReqConfig(PeriodicProcessAgent.Config):
     counter: int = 1
 
 
-class RequestAgent(PeriodicProcessAgent[ReqConfig]):
+class RequestAgent(PeriodicProcessAgent):
 
     Config = ReqConfig
 
@@ -47,7 +47,7 @@ class RepConfig(LoopingProcessAgent.Config):
     zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REP)
 
 
-class ReplyAgent(LoopingProcessAgent[RepConfig]):
+class ReplyAgent(LoopingProcessAgent):
 
     Config = RepConfig
 
