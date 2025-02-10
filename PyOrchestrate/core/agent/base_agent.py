@@ -79,6 +79,8 @@ class BaseAgent(BaseClass, ABC):
         before the execution begins.
 
     Attributes:
+        config (BaseAgentConfig): Configuration parameters that define the agent's behavior.
+        plugin (PluginProtocol): Plugin interface for agent extension.
         state_events (StateEvents): Events for internal state management.
         control_events (ControlEvents): Events for external command handling.
         plugins (Dict[str, Plugin]): Registered plugins.
@@ -156,6 +158,7 @@ class BaseAgent(BaseClass, ABC):
         Args:
             name (str | None): A unique identifier for the agent used in logging
             config (T): Configuration parameters that define the agent's behavior
+            plugin (PluginProtocol): Plugin interface for agent extension
             a_type (Literal["process", "thread"]): Determines if agent runs as process or thread
             control_events (ControlEvents): Signals for external command handling
             state_events (StateEvents): Signals for internal state management
