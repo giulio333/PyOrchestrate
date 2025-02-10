@@ -11,7 +11,7 @@ thus promoting consistency and interoperability within the system.
 """
 
 
-class Plugin:
+class PluginProtocol:
     """
     Base protocol for all plugins.
 
