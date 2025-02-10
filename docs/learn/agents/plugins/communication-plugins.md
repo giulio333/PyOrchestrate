@@ -4,10 +4,32 @@ Communication plugins in PyOrchestrate allow agents to interact with other agent
 
 ## How to Use Communication Plugins
 
-You can easily use pre-built communication plugins in your agents simply by importing them from the `PyOrchestrate.core.plugins` module.
+You can easily use **pre-built** communication plugins in your agents simply by importing them from the `PyOrchestrate.core.plugins` module.
+
+For example, to use the `ZeroMQPubSub` plugin, you can import it as follows:
+
+```python
+from PyOrchestrate.core.plugins import ZeroMQPubSub
+```
+
+The `agent.plugin` object is useful for retrieving user-initialized plugins. The agent will autonomously initialize and release their resources at startup and shutdown. This ensures that the plugins are properly managed throughout the agent's lifecycle.
+
+```python
+class MyAgent(PeriodicProcessAgent):
+
+    class Plugin(PeriodicProcessAgent.Plugin):
+        zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+
+    plugin: Plugin
+
+    def runner(self):
+        message = self.plugin.zmq.send("Hello, World!".encode())
+```
 
 ::: tip
-Every communication plugin has a `initialize` method that initializes the plugin and a `finalize` method that cleans up resources when the agent is closed.
+You can always put plugin outside the Plugin class and use it directly in the agent class but keep in mind that the plugin will not be initialized and finalized automatically.
+
+You need to manually call the `plugin.initialize()` and `plugin.finalize()` methods to initialize and finalize the plugin.
 :::
 
 ## Available Communication Plugins
@@ -21,36 +43,11 @@ The `ZeroMQPubSub` Plugin provides communication using ZeroMQ Pub/Sub sockets.
 ```python
 from PyOrchestrate.core.plugins import ZeroMQPubSub
 
-class MyAgent(PeriodicProcessAgent):
-    def setup(self):
-        self.zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
-        self.zmq.initialize()
+# Initialize the ZeroMQPubSub plugin
+zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
 
-    def runner(self):
-        message = self.zmq.send("Hello, World!".encode())
-
-    def on_close(self):
-        self.zmq.finalize()
-```
-
-## Autonomous Initialization and Release of Resources
-
-The `agent.plugin` object is useful for retrieving user-initialized plugins. The agent will autonomously initialize and release their resources at startup and shutdown. This ensures that the plugins are properly managed throughout the agent's lifecycle.
-
-```python
-class MyAgent(PeriodicProcessAgent):
-
-    def setup(self):
-        super().setup()
-        self.my_plugin = self.plugin.get('my_plugin')
-        self.logger.info("Plugin initialized")
-
-    def runner(self):
-        self.my_plugin.do_something()
-        self.logger.info("Plugin action executed")
-
-    def on_close(self):
-        self.logger.info("Agent is closing, plugin resources will be released")
+# Send a message
+zmq.send("Hello, World!".encode())
 ```
 
 ## Future Enhancements
