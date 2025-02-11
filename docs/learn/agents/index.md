@@ -123,9 +123,6 @@ class MyAgent(PeriodicProcessAgent): #
 ```
 :::
 
-For more detailed information about plugin management, please refer to the [Plugin Documentation](./plugins/communication-plugins.md).
-
-
 ## **StateEvents**
 
 Every agent has a set of **events** that signal its internal state. These events are stored in a `StateEvents` object and allow external components to **understand the agent's current state**.
