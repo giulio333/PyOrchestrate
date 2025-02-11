@@ -47,13 +47,14 @@ class BaseClassConfig:
         """
         pass
 
-    def __getattr__(self, key: str) -> Any:
-        custom_attr = self.__dict__.get("_custom_attr", {})
+    def __getattribute__(self, key: str) -> Any:
+        try:
+            custom_attr = object.__getattribute__(self, "_custom_attr")
+        except AttributeError:
+            custom_attr = {}
         if key in custom_attr:
             return custom_attr[key]
-        raise AttributeError(
-            f"'{self.__class__.__name__}' object has no attribute '{key}'"
-        )
+        return object.__getattribute__(self, key)
 
     def __str__(self):
         return f"<{self.__class__.__name__} {self.__dict__}>"
@@ -118,9 +119,10 @@ class BaseClass:
         )
 
     def __getattr__(self, key: str) -> Any:
-        custom_attr = self.__dict__.get("_custom_attr", {})
+        try:
+            custom_attr = object.__getattribute__(self, "_custom_attr")
+        except AttributeError:
+            custom_attr = {}
         if key in custom_attr:
             return custom_attr[key]
-        raise AttributeError(
-            f"'{self.__class__.__name__}' object has no attribute '{key}'"
-        )
+        return object.__getattribute__(self, key)
