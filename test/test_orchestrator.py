@@ -21,8 +21,6 @@ class DummyAgent(BaseProcessAgent):
 class TestOrchestrator(unittest.TestCase):
     def setUp(self):
         self.orch = Orchestrator("test_orchestrator")
-        # Override logger and event_manager for testing.
-        # self.orch.logger = MagicMock()
         self.orch.event_manager.emit = MagicMock(
             side_effect=self.orch.event_manager.emit
         )
@@ -67,6 +65,7 @@ class TestOrchestrator(unittest.TestCase):
             )
 
     def test_start_call(self):
+
         entry = self.orch.register_agent(
             agent_class=DummyAgent,
             name="agent1",
@@ -85,7 +84,7 @@ class TestOrchestrator(unittest.TestCase):
                 call(OrchestratorEvent.ALL_AGENTS_TERMINATED),
             ]
         )
-        # self.assertEqual(entry.config.custom_param, "custom_value_2")  # type: ignore
+        self.assertEqual(entry.config.custom_param, "custom_value_2")  # type: ignore
 
 
 if __name__ == "__main__":
