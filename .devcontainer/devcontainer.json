@@ -13,7 +13,8 @@
         "GitHub.copilot-chat",
         "github.copilot-workspace",
         "ms-vscode.copilot-mermaid-diagram",
-        "ms-vscode.vscode-websearchforcopilot"
+        "ms-vscode.vscode-websearchforcopilot",
+        "mhutchie.git-graph"
       ]
     }
   }

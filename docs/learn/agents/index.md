@@ -92,12 +92,38 @@ For example `MyAgent` class define its own configuration class via parent agent'
 class MyAgent(PeriodicProcessAgent):
 
     class Config(PeriodicProcessAgent.Config): # [!code focus]
-        limit = 5
-        execution_interval = 1
-        output_directory = "output"
+        limit = 5 # [!code focus]
+        output_directory = "output" # [!code focus]
+
+    config: Config
 ```
 :::
 
+
+## Plugin
+
+The `Plugin` class is used by the agent to **create a plugin object for itself**. 
+
+The `agent.plugin` object is useful for retrieving user-initialized plugins. The agent will autonomously **initialize** and **release** their resources at startup and shutdown. This ensures that the plugins are properly managed throughout the agent's lifecycle.
+
+::: tip 
+In every agent, the `Plugin` class inherits from the respective parent agent's `Plugin` class. This allows you to customize the agent's plugin while retaining the built-in ones.
+:::
+
+::: info Example
+For example `MyAgent` class define its own plugin class via parent agent's `Plugin` class.
+
+```python
+class MyAgent(PeriodicProcessAgent): #
+
+    class Plugin(PeriodicProcessAgent.Plugin): # [!code focus]
+        zmq = ZmqPubSub("tcp://*:5555",zmq.PUB) # [!code focus]
+
+    plugin: Plugin
+```
+:::
+
+For more detailed information about plugin management, please refer to the [Plugin Documentation](./plugins/communication-plugins.md).
 
 
 ## **StateEvents**
@@ -278,43 +304,6 @@ class MyAgent(PeriodicProcessAgent): # [!code focus]
         output_directory = "output"
 ```
 :::
-
-## Communication Plugins
-
-Every agent supports a set of **communication plugins** that allow it to interact with other agents, external systems and many more. Each agent can access the communication plugin via the property `com`. 
-
-```python
-class MyAgent(PeriodicProcessAgent):
-
-    def runner(self):
-        message = self.com.receive()
-        self.logger.info(f"Received message: {message}")
-```
-
-
-For more detailed information about communication plugins, including additional examples and configuration options, please refer to the [Communication Plugins Documentation](./plugins/communication-plugins.md).
-
-## Plugin Management
-
-The `agent.plugin` object is useful for retrieving user-initialized plugins. The agent will autonomously initialize and release their resources at startup and shutdown. This ensures that the plugins are properly managed throughout the agent's lifecycle.
-
-```python
-class MyAgent(PeriodicProcessAgent):
-
-    def setup(self):
-        super().setup()
-        self.my_plugin = self.plugin.get('my_plugin')
-        self.logger.info("Plugin initialized")
-
-    def runner(self):
-        self.my_plugin.do_something()
-        self.logger.info("Plugin action executed")
-
-    def on_close(self):
-        self.logger.info("Agent is closing, plugin resources will be released")
-```
-
-For more detailed information about plugin management, please refer to the [Plugin Management Documentation](./plugins/plugin-management.md).
 
 ## BaseAgent
 
