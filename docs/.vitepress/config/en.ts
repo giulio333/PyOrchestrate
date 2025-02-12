@@ -54,6 +54,7 @@ export const enConfig = {
                   link: '/learn/agents/plugins/communication-plugins', 
                   items:[
                     { text: 'ZeroMQPubSub', link: '/learn/agents/plugins/zeromqpubsub/zeromqpubsub' },
+                    { text: 'ZeroMQReqRep', link: '/learn/agents/plugins/zeromqreqrep/zeromqreqrep' },
                   ]
                 },
               ]
