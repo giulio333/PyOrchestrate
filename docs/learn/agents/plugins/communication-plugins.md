@@ -51,8 +51,9 @@ from PyOrchestrate.core.plugins import ZeroMQPubSub
 # Initialize the ZeroMQPubSub plugin
 zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
 
-# Send a message
-zmq.send("Hello, World!".encode())
+# Receive a message
+message = zmq.recv()
+print("Received message:", message.decode())
 ```
 
 ## Future Enhancements
