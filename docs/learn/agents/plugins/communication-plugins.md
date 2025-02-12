@@ -56,6 +56,26 @@ message = zmq.recv()
 print("Received message:", message.decode())
 ```
 
+### ZeroMQReqRep Plugin
+
+The `ZeroMQReqRep` Plugin provides communication using ZeroMQ Request-Reply sockets.
+
+**Example**
+
+```python
+from PyOrchestrate.core.plugins import ZeroMQReqRep
+
+# Initialize the ZeroMQReqRep plugin
+zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REQ)
+
+# Send a request
+zmq.send("Hello, Server!".encode())
+
+# Receive a reply
+reply = zmq.recv()
+print("Received reply:", reply.decode())
+```
+
 ## Future Enhancements
 
 ### HTTP Plugin
