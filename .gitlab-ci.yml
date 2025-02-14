@@ -4,6 +4,54 @@ stages:
   - test
   - review
 
+mypy-check:
+  stage: lint
+  image: python:3.11
+  script:
+    - python -m pip install --upgrade pip
+    - pip install mypy
+    - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - pip install -e .
+    - mypy PyOrchestrate --strict . > mypy-report.txt || true
+  artifacts:
+    when: always
+    paths:
+      - mypy-report.txt
+  only:
+    - main
+
+security-scan:
+  stage: lint
+  image: python:3.11
+  script:
+    - python -m pip install --upgrade pip
+    - pip install bandit
+    - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - pip install -e .
+    - bandit PyOrchestrate -r . -o bandit-report.txt || true
+  artifacts:
+    when: always
+    paths:
+      - bandit-report.txt
+  only:
+    - main
+
+pytest-benchmark:
+  stage: test
+  image: python:3.11
+  script:
+    - python -m pip install --upgrade pip
+    - pip install pytest pytest-benchmark
+    - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - pip install -e .
+    - pytest PyOrchestrate --benchmark-save=benchmark-results
+  artifacts:
+    when: always
+    paths:
+      - .benchmarks
+  only:
+    - main
+
 flake8-lint:
   stage: lint
   image: python:3.11
