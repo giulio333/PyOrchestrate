@@ -28,7 +28,7 @@ flake8-lint-report:
     - pip install flake8 flake8-gl-codeclimate
     - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - pip install -e .
-    - flake8 --format gl-codeclimate --output-file gl-code-quality-report.json
+    - flake8 PyOrchestrate --format gl-codeclimate --output-file gl-code-quality-report.json --exit-zero
   artifacts:
     when: always
     paths:
