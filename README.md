@@ -27,6 +27,12 @@ Ensure Python 3.12+ is installed, then clone the repository and install the requ
 git clone https://github.com/yourusername/pyorchestrate.git cd pyorchestrate pip install -r requirements.txt
 ```
 
+To install the `pyorchestrate` CLI command, run the following command:
+
+``` bash
+pip install .
+```
+
 * * *
 
 ## Basic Usage
@@ -345,5 +351,23 @@ pre-commit install
 ```
 
 Now, every time you make a commit, `black` and `flake8` will automatically run to check your code for formatting and linting issues.
+
+* * *
+
+## Displaying the Version
+
+To display the version of the PyOrchestrate framework, use the following command:
+
+```bash
+pyorchestrate --version
+```
+
+or
+
+```bash
+pyorchestrate -v
+```
+
+This will display the current version of the PyOrchestrate framework.
 
 * * *

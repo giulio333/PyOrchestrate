@@ -37,9 +37,9 @@ if __name__ == "__main__":
 
 def main():
     parser = argparse.ArgumentParser(description="PyOrchestrate CLI")
-    parser.add_argument("command", help="Command to execute")
-    parser.add_argument("app_name", help="Name of the app to create", nargs="?")
     parser.add_argument("--version", "-v", action="store_true", help="Show version")
+    parser.add_argument("command", help="Command to execute", nargs="?")
+    parser.add_argument("app_name", help="Name of the app to create", nargs="?")
 
     args = parser.parse_args()
 
@@ -47,6 +47,9 @@ def main():
         print("PyOrchestrate version 1.0.0")
     elif not args.command:
         parser.print_help()
+        print("\nAvailable commands:")
+        print("  start <app_name>  Create a new project structure with the specified app name")
+        print("  --version, -v     Display the version of the PyOrchestrate framework")
     elif args.command == "start" and args.app_name:
         create_project_structure(args.app_name)
         print(f"Project structure for '{args.app_name}' created successfully.")
