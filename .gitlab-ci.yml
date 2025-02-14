@@ -3,6 +3,7 @@ stages:
   - format
   - test
   - review
+  - deploy
 
 mypy-check:
   stage: lint
@@ -175,3 +176,15 @@ stop-review-app:
   when: manual
   rules:
     - if: "$CI_MERGE_REQUEST_ID"
+
+pages:
+  stage: deploy
+  image: python:3.11
+  script:
+    - pip install -r requirements-dev.txt
+    - mkdocs build --site-dir public
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
