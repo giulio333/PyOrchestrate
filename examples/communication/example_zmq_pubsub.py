@@ -8,8 +8,8 @@ class Publisher(PeriodicProcessAgent):
 
     class Config(PeriodicProcessAgent.Config):
 
-        limit = 10
-        execution_interval = 0.1
+        limit = 100
+        execution_interval = 5
         counter: int = 1
 
     class Plugin(PeriodicProcessAgent.Plugin):
