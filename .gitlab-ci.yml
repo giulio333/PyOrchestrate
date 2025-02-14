@@ -103,13 +103,15 @@ review-app:
     - python -m pip install --upgrade pip
     - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - pip install -e .
-    - nohup python examples/example_zmq_pubsub.py &
+    - nohup python examples/communication/example_zmq_pubsub.py &
     - sleep 5
     - echo "Review app started."
   environment:
     name: review/$CI_COMMIT_REF_NAME
     on_stop: stop-review-app
   rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: always
     - if: "$CI_MERGE_REQUEST_ID"
       when: always
 
