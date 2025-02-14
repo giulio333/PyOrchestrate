@@ -154,28 +154,6 @@ class BaseAgent(BaseClass, ABC):
 
         Additional keyword arguments are automatically stored as instance attributes,
         allowing for flexible extension of the agent's properties.
-
-        Args:
-            name (str | None): A unique identifier for the agent used in logging
-            config (T): Configuration parameters that define the agent's behavior
-            plugin (PluginProtocol): Plugin interface for agent extension
-            a_type (Literal["process", "thread"]): Determines if agent runs as process or thread
-            control_events (ControlEvents): Signals for external command handling
-            state_events (StateEvents): Signals for internal state management
-
-        Methods:
-            run: Main entry point for agent execution.
-            setup: Performs initialization when the agent starts
-            execute: Implements the agent's core logic
-            stop: Requests external termination of the agent
-            validate_config: Validates the configuration
-            on_stop: Handles cleanup when the agent is stopped
-            on_close: Performs final cleanup when the agent is closing
-            _info: Logs the agent configuration details
-            register_plugin: Registers a plugin
-            unregister_plugin: Unregisters a plugin
-            get_plugin: Retrieves a registered plugin
-
         """
         super().__init__(name=name, config=config, plugin=plugin, **kwargs)
 

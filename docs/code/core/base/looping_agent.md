@@ -1,1 +1,1 @@
-::: PyOrchestrate.core.base.looping_agent
+::: PyOrchestrate.core.agent.looping_agent

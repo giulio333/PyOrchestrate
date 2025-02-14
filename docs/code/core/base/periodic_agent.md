@@ -1,1 +1,1 @@
-::: PyOrchestrate.core.base.periodic_agent
+::: PyOrchestrate.core.agent.periodic_agent
