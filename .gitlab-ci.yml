@@ -1,0 +1,92 @@
+stages:
+  - lint
+  - format
+  - test
+
+flake8-lint:
+  stage: lint
+  image: python:3.11
+  script:
+    - python -m pip install --upgrade pip
+    - pip install flake8
+    - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - pip install -e .
+    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics > flake8-report.txt
+    - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics >> flake8-report.txt
+  artifacts:
+    when: always
+    paths:
+      - flake8-report.txt
+  only:
+    - main
+
+flake8-lint-report:
+  stage: lint
+  image: python:3.11
+  script:
+    - python -m pip install --upgrade pip
+    - pip install flake8 flake8-gl-codeclimate
+    - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - pip install -e .
+    - flake8 --format gl-codeclimate --output-file gl-code-quality-report.json
+  artifacts:
+    when: always
+    paths:
+      - gl-code-quality-report.json
+    reports:
+      codequality: gl-code-quality-report.json
+  only:
+    - main
+
+black-format:
+  stage: format
+  image: python:3.11
+  script:
+    - python -m pip install --upgrade pip
+    - pip install black
+    - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - pip install -e .
+    - black . --diff > black-report.txt
+    - black .
+  artifacts:
+    when: always
+    paths:
+      - black-report.txt
+  only:
+    - main
+
+pytest-3.11:
+  stage: test
+  image: python:3.11
+  script:
+    - python -m pip install --upgrade pip
+    - pip install flake8 pytest black pre-commit
+    - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - pip install -e .
+    - pytest --junitxml=junit/test-results-3.11.xml
+  artifacts:
+    when: always
+    paths:
+      - junit/test-results-3.11.xml
+    reports:
+      junit: junit/test-results-3.11.xml
+  only:
+    - main
+
+pytest-3.12:
+  stage: test
+  image: python:3.12
+  script:
+    - python -m pip install --upgrade pip
+    - pip install flake8 pytest black pre-commit
+    - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - pip install -e .
+    - pytest --junitxml=junit/test-results-3.12.xml
+  artifacts:
+    when: always
+    paths:
+      - junit/test-results-3.12.xml
+    reports:
+      junit: junit/test-results-3.12.xml
+  only:
+    - main
