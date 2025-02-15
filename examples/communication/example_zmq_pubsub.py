@@ -39,9 +39,6 @@ class Subscriber(LoopingProcessAgent):
 
     plugin: Plugin
 
-    def setup(self):
-        super().setup()
-
     def cycle(self):
         super().cycle()
 
