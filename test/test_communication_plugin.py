@@ -1,7 +1,10 @@
 import unittest
 import zmq
 import time
-from PyOrchestrate.core.plugins import ZeroMQPubSub
+import requests
+import threading
+import websocket
+from PyOrchestrate.core.plugins import ZeroMQPubSub, HTTPPlugin, WebSocketPlugin
 
 
 class TestZeroMQPubSub(unittest.TestCase):
@@ -64,6 +67,46 @@ class TestZeroMQPubSub(unittest.TestCase):
 
         pub.finalize()
         sub.finalize()
+
+
+class TestHTTPPlugin(unittest.TestCase):
+
+    def setUp(self):
+        self.base_url = "http://localhost:8000"
+        self.plugin = HTTPPlugin(self.base_url)
+        self.plugin.initialize()
+
+    def tearDown(self):
+        self.plugin.finalize()
+
+    def test_send(self):
+        response = self.plugin.send("Hello, HTTP!")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "Received: Hello, HTTP!")
+
+    def test_recv(self):
+        response_text = self.plugin.recv()
+        self.assertEqual(response_text, "Hello from server!")
+
+
+class TestWebSocketPlugin(unittest.TestCase):
+
+    def setUp(self):
+        self.url = "ws://localhost:8000"
+        self.plugin = WebSocketPlugin(self.url)
+        self.plugin.initialize()
+
+    def tearDown(self):
+        self.plugin.finalize()
+
+    def test_send(self):
+        self.plugin.send("Hello, WebSocket!")
+        response = self.plugin.recv()
+        self.assertEqual(response, "Received: Hello, WebSocket!")
+
+    def test_recv(self):
+        response = self.plugin.recv()
+        self.assertEqual(response, "Hello from WebSocket server!")
 
 
 if __name__ == "__main__":

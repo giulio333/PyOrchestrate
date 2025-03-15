@@ -1,1 +1,1 @@
-from .com import ZeroMQPubSub
+from .com import ZeroMQPubSub, HTTPPlugin, WebSocketPlugin

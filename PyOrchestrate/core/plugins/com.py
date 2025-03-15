@@ -1,5 +1,7 @@
 import zmq
 from .plugin_protocols import PluginProtocol
+import requests
+import websocket
 
 
 class ZeroMQPubSub(PluginProtocol):
@@ -217,4 +219,146 @@ class ZeroMQReqRep(PluginProtocol):
         """
         self.socket.close()
         self.context.term()
+        self._initialized = False
+
+
+class HTTPPlugin(PluginProtocol):
+    """
+    HTTP communication plugin.
+
+    This plugin provides communication using HTTP requests.
+
+    Example:
+        >>> http_plugin = HTTPPlugin("http://localhost:8000")
+        >>> response = http_plugin.send("Hello, World!")
+
+    Attributes:
+        base_url (str): The base URL for the HTTP requests.
+
+    Methods:
+        initialize: Initializes the HTTP plugin.
+        send: Sends a message using HTTP.
+        recv: Receives a message using HTTP.
+        finalize: Finalizes the HTTP plugin.
+    """
+
+    def __init__(self, base_url: str):
+        """
+        Initializes the HTTP plugin.
+
+        Args:
+            base_url (str): The base URL for the HTTP requests.
+        """
+        self.base_url = base_url
+        self._initialized = False
+
+    def initialize(self):
+        """
+        Initializes the HTTP plugin.
+        """
+        self._initialized = True
+
+    def send(self, message: str) -> requests.Response:
+        """
+        Sends a message using HTTP.
+
+        Args:
+            message (str): The message to be sent.
+
+        Returns:
+            requests.Response: The response from the server.
+        """
+        if not self._initialized:
+            raise RuntimeError("HTTPPlugin not initialized. Did you forget to call initialize?")
+        response = requests.post(self.base_url, data=message)
+        response.raise_for_status()
+        return response
+
+    def recv(self) -> str:
+        """
+        Receives a message using HTTP.
+
+        Returns:
+            str: The received message.
+        """
+        if not self._initialized:
+            raise RuntimeError("HTTPPlugin not initialized. Did you forget to call initialize?")
+        response = requests.get(self.base_url)
+        response.raise_for_status()
+        return response.text
+
+    def finalize(self):
+        """
+        Finalizes the HTTP plugin.
+        """
+        self._initialized = False
+
+
+class WebSocketPlugin(PluginProtocol):
+    """
+    WebSocket communication plugin.
+
+    This plugin provides communication using WebSocket.
+
+    Example:
+        >>> ws_plugin = WebSocketPlugin("ws://localhost:8000")
+        >>> ws_plugin.send("Hello, World!")
+
+    Attributes:
+        url (str): The WebSocket URL.
+
+    Methods:
+        initialize: Initializes the WebSocket plugin.
+        send: Sends a message using WebSocket.
+        recv: Receives a message using WebSocket.
+        finalize: Finalizes the WebSocket plugin.
+    """
+
+    def __init__(self, url: str):
+        """
+        Initializes the WebSocket plugin.
+
+        Args:
+            url (str): The WebSocket URL.
+        """
+        self.url = url
+        self._ws: websocket.WebSocket | None = None
+        self._initialized = False
+
+    def initialize(self):
+        """
+        Initializes the WebSocket plugin.
+        """
+        self._ws = websocket.WebSocket()
+        self._ws.connect(self.url)
+        self._initialized = True
+
+    def send(self, message: str) -> None:
+        """
+        Sends a message using WebSocket.
+
+        Args:
+            message (str): The message to be sent.
+        """
+        if not self._initialized:
+            raise RuntimeError("WebSocketPlugin not initialized. Did you forget to call initialize?")
+        self._ws.send(message)
+
+    def recv(self) -> str:
+        """
+        Receives a message using WebSocket.
+
+        Returns:
+            str: The received message.
+        """
+        if not self._initialized:
+            raise RuntimeError("WebSocketPlugin not initialized. Did you forget to call initialize?")
+        return self._ws.recv()
+
+    def finalize(self):
+        """
+        Finalizes the WebSocket plugin.
+        """
+        if self._ws:
+            self._ws.close()
         self._initialized = False
