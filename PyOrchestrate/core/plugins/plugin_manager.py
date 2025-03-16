@@ -17,9 +17,9 @@ class PluginManager:
 
     def initialize_plugins(self):
         """
-        Initialize all plugins that implement the PluginProtocol.
+        Initialize all plugins that implement the `PluginProtocol`.
 
-        Iterates over the plugin attributes and calls the initialize method on each plugin.
+        Iterates over the `plugin` attributes and calls the initialize method on each plugin.
         """
         for key, value in self.plugins.__class__.__dict__.items():
             if isinstance(value, PluginProtocol):
@@ -27,9 +27,9 @@ class PluginManager:
 
     def finalize_plugins(self):
         """
-        Finalize all plugins that implement the PluginProtocol.
+        Finalize all plugins that implement the `PluginProtocol`.
 
-        Iterates over the plugin attributes and calls the finalize method on each plugin.
+        Iterates over the `plugin` attributes and calls the finalize method on each plugin.
         """
         for key, value in self.plugins.__class__.__dict__.items():
             if isinstance(value, PluginProtocol):
