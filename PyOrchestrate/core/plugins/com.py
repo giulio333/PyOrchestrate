@@ -1,5 +1,23 @@
 import zmq
+from enum import IntEnum
 from .plugin_protocols import PluginProtocol
+
+
+class SocketType(IntEnum):
+    """
+    Enum for ZeroMQ socket types.
+
+    Attributes:
+        PUB (int): Publish socket type.
+        SUB (int): Subscribe socket type.
+        REQ (int): Request socket type.
+        REP (int): Reply socket type.
+    """
+
+    PUB = zmq.PUB
+    SUB = zmq.SUB
+    REQ = zmq.REQ
+    REP = zmq.REP
 
 
 class ZeroMQPubSub(PluginProtocol):
@@ -11,7 +29,8 @@ class ZeroMQPubSub(PluginProtocol):
     Example:
         >>> from PyOrchestrate.core.plugins.com import ZeroMQPubSub
         >>> import zmq
-        >>> zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
+        >>> zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", SocketType.PUB)
+        >>> zmq_plugin.initialize()
         >>> zmq_plugin.send_string("Hello, World!")
 
     Attributes:
@@ -44,8 +63,8 @@ class ZeroMQPubSub(PluginProtocol):
 
         Args:
             address (str): The address to bind/connect the socket.
-            socket_type (int): The type of ZeroMQ socket (e.g., zmq.REQ, zmq.REP, zmq.PUB, zmq.SUB).
-            subscribe_topic (bytes): The topic to subscribe to (only for zmq.SUB). Defaults to b"" (all topics).
+            socket_type (int): The type of ZeroMQ socket (e.g., SocketType.PUB, SocketType.SUB).
+            subscribe_topic (bytes): The topic to subscribe to (only for SocketType.SUB). Defaults to b"" (all topics).
             context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
         """
         self._socket: zmq.Socket | None = None
@@ -74,11 +93,11 @@ class ZeroMQPubSub(PluginProtocol):
         if self._initialized:
             return self
 
-        if self.socket_type == zmq.PUB:
-            self._socket = self.context.socket(zmq.PUB)
+        if self.socket_type == SocketType.PUB:
+            self._socket = self.context.socket(SocketType.PUB)
             self._socket.bind(self.address)
-        elif self.socket_type == zmq.SUB:
-            self._socket = self.context.socket(zmq.SUB)
+        elif self.socket_type == SocketType.SUB:
+            self._socket = self.context.socket(SocketType.SUB)
             self._socket.connect(self.address)
 
             self._socket.setsockopt(zmq.SUBSCRIBE, self.subscribe_topic)
