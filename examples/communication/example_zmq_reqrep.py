@@ -1,6 +1,6 @@
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.agent import PeriodicProcessAgent, LoopingProcessAgent
-from PyOrchestrate.core.plugins.com import ZeroMQReqRep
+from PyOrchestrate.core.plugins.com import ZeroMQReqRep, SocketType
 import zmq
 
 
@@ -13,7 +13,7 @@ class RequestAgent(PeriodicProcessAgent):
         counter: int = 1
 
     class Plugin(PeriodicProcessAgent.Plugin):
-        zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REQ)
+        zmq = ZeroMQReqRep("tcp://localhost:5555", SocketType.REQ)
 
     config: Config
     plugin: Plugin
@@ -39,7 +39,7 @@ class ReplyAgent(LoopingProcessAgent):
 
     class Plugin(LoopingProcessAgent.Plugin):
 
-        zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REP)
+        zmq = ZeroMQReqRep("tcp://localhost:5555", SocketType.REP)
 
     plugin: Plugin
 

@@ -1,6 +1,6 @@
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.agent import PeriodicProcessAgent, LoopingProcessAgent
-from PyOrchestrate.core.plugins.com import ZeroMQPubSub
+from PyOrchestrate.core.plugins.com import ZeroMQPubSub, SocketType
 import zmq
 
 
@@ -9,11 +9,11 @@ class Publisher(PeriodicProcessAgent):
     class Config(PeriodicProcessAgent.Config):
 
         limit = 100
-        execution_interval = 5
+        execution_interval = 0.05
         counter: int = 1
 
     class Plugin(PeriodicProcessAgent.Plugin):
-        zmq = ZeroMQPubSub("tcp://*:5555", zmq.PUB)
+        zmq = ZeroMQPubSub("tcp://*:5555", SocketType.PUB)
 
     config: Config
     plugin: Plugin
@@ -35,7 +35,7 @@ class Subscriber(LoopingProcessAgent):
 
     class Plugin(LoopingProcessAgent.Plugin):
 
-        zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+        zmq = ZeroMQPubSub("tcp://localhost:5555", SocketType.SUB)
 
     plugin: Plugin
 
