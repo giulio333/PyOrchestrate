@@ -27,7 +27,7 @@ export const enConfig = {
       { text: 'Advanced', link: '/advanced/' },
     ],
     sidebar: {
-      '/learn/agents': [
+      '/learn': [
         {
           text: 'Explore Agents',
           items: [
@@ -35,6 +35,7 @@ export const enConfig = {
               text: 'The Basics',
               items: [
                 { text: 'Agent', link: '/learn/agents/' },
+                { text: 'Orchestrator', link: '/learn/orchestrator/' },
               ]
             },
             {

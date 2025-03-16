@@ -40,6 +40,9 @@ class MyAgent(PeriodicProcessAgent):
 
 ## Overview
 
+![alt text](assets/structure_l.svg){.light-only}
+![alt text](assets/structure_d.svg){.dark-only}
+
 ### Agent Behavior
 
 In PyOrchestrate, **agents** are the fundamental components, running as **processes** or **threads**.
@@ -51,17 +54,20 @@ They are designed to handle a variety of use cases, such as:
 -   **Trigger-based**: React to specific events.
 -   **Acting as a pool**: Manage multiple concurrent agents.
 
-### Configuration and Events
+### Configuration
 
-Each agent comes with:
+Each agent comes with a dedicated [Configuration](#configuration) object, enabling you to define both required and custom attributes.
 
--   A dedicated [Configuration](#configuration) object, enabling you to define both required and custom attributes.
--   A set of **events**:
-    -   [ControlEvents](#controlevents): Manage external commands like `setup` and `stop`.
-    -   [StateEvents](#stateevents): Track internal states such as `ready` or `terminated`.
+### Events
 
-![alt text](assets/structure_l.svg){.light-only}
-![alt text](assets/structure_d.svg){.dark-only}
+All agents have a set of **events**:
+
+-   [ControlEvents](#controlevents): Manage external commands like `setup` and `stop`.
+-   [StateEvents](#stateevents): Track internal states such as `ready` or `terminated`.
+
+### Plugin
+
+Agents have a dedicated [Plugin](#plugin) object, which is useful for storing **built-in** or **user-initialized** **plugins**. The agent will autonomously **initialize** and **release** their resources at startup and shutdown.
 
 ### Why Use Agents?
 
@@ -104,7 +110,7 @@ class MyAgent(PeriodicProcessAgent):
 
 The `Plugin` class is used by the agent to **create a plugin object for itself**. 
 
-The `agent.plugin` object is useful for retrieving user-initialized plugins. The agent will autonomously **initialize** and **release** their resources at startup and shutdown. This ensures that the plugins are properly managed throughout the agent's lifecycle.
+The `agent.plugin` object is useful for retrieving **built-in** or **user-initialized** **plugins**. The agent will autonomously **initialize** and **release** their resources at startup and shutdown. This ensures that the plugins are properly managed throughout the agent's lifecycle.
 
 ::: tip 
 In every agent, the `Plugin` class inherits from the respective parent agent's `Plugin` class. This allows you to customize the agent's plugin while retaining the built-in ones.
