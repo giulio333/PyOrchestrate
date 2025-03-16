@@ -9,38 +9,29 @@ from PyOrchestrate.core.agent.pool_agent import PoolProcessAgent
 from queue import Queue
 
 
-class ThreadConfig1(PeriodicThreadAgent.Config):
-    """Thread agent configuration class."""
-
-    execution_interval = 0.1
-    limit = 5
-
-
-class ThreadConfig2(PeriodicThreadAgent.Config):
-    """Thread agent configuration class."""
-
-    execution_interval = 1
-    limit = 5
-
-
 class MyThread(PeriodicThreadAgent):
 
-    Config = ThreadConfig1
+    class Config(PeriodicThreadAgent.Config):
+        """Thread agent configuration class."""
 
-    def __init__(self, name: str, config: ThreadConfig1, queue, **kwargs):
-        super().__init__(name, config, **kwargs)
-        self.my_queue = queue
+        execution_interval = 1
+        limit = 5
+
+    config: Config
+
+    def setup(self):
+        super().setup()
 
         self.media = 0
         self.counter = 0
 
     def runner(self) -> None:
-        self.logger.debug(f"Thread {self.name} writing to queue.")
+        self.logger.info(f"Thread {self.name} writing to queue.")
 
         heavy_data = "a" * 1000000000
 
         _start = time.time()
-        self.my_queue.put(heavy_data)
+        self.queue.put(heavy_data)
         self.media += time.time() - _start
 
         self.counter += 1
@@ -49,40 +40,34 @@ class MyThread(PeriodicThreadAgent):
         self.logger.info(f"Thread {self.name} media: {self.media/self.counter}")
 
 
-class FileWriterConfig(PoolProcessAgent.Config):
-    """Process agent configuration class."""
-
-    queue = Queue()
-    execution_interval = 1
-    agents_entry: list[AgentEntry] = [
-        AgentEntry(MyThread, "MyThread1", queue=queue),
-    ]
-
-
 class FileWriter(PoolProcessAgent):
 
-    Config = FileWriterConfig
+    class Config(PoolProcessAgent.Config):
+        """Process agent configuration class."""
 
-    def __init__(self, name: str, config: FileWriterConfig, **kwargs):
-        super().__init__(name, config, **kwargs)
+        queue = Queue()
+        execution_interval = 1
+        agents_entry: list[AgentEntry] = [
+            AgentEntry(MyThread, "MyThread", queue=queue),
+        ]
+
+    config: Config
 
     def setup(self) -> None:
         super().setup()
-        self.logger.info(f"FileWriter {self.name} inizializzato.")
+        self.logger.info(f"FileWriter {self.name} initialized.")
 
-    def on_stop(self):
+    def on_close(self):
+
         while not self.config.queue.empty():
-            try:
-                self.config.queue.get_nowait()
-            except:
-                print("Queue is empty.")
-                break
+            self.config.queue.get()
+            self.logger.info("getting data from queue")
 
 
 if __name__ == "__main__":
     orchestrator = Orchestrator()
 
-    orchestrator.register_agent(FileWriter, f"FileWriter1")
+    orchestrator.register_agent(FileWriter, f"FileWriter")
 
     orchestrator.start()
     orchestrator.join()

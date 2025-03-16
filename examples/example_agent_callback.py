@@ -8,17 +8,17 @@ from PyOrchestrate.core.utilities.event import AgentEvent
 from PyOrchestrate.core.agent import BaseProcessAgent
 
 
-class MyConfig(BaseProcessAgent.Config):
-    # URL of the example API (returns JSON data)
-    api_url: str = "https://catfact.ninja/fact"
-    # Keyword to search in the response
-    keyword: str = "and"
-    # Polling interval in seconds
-    poll_interval: float = 1.0
-
-
 class APIFetchAgent(BaseProcessAgent):
-    Config = MyConfig
+
+    class Config(BaseProcessAgent.Config):
+        # URL of the example API (returns JSON data)
+        api_url: str = "https://catfact.ninja/fact"
+        # Keyword to search in the response
+        keyword: str = "and"
+        # Polling interval in seconds
+        poll_interval: float = 1.0
+
+    config: Config
 
     def setup(self) -> None:
         """

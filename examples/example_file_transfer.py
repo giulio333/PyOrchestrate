@@ -11,19 +11,19 @@ from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
 ############################################################
 
 
-class FileSendConfig(PeriodicProcessAgent.Config):
-    # Path of the file to send
-    file_path: str = "file_to_send.dat"
-    # Chunk size in bytes
-    chunk_size: int = 1024
-    # Execution interval in seconds
-    execution_interval = 0.2
-    # If 'limit' is 0, runs indefinitely (used here to send the file in chunks)
-    limit = 0
-
-
 class FileSendAgent(PeriodicProcessAgent):
-    Config = FileSendConfig
+
+    class Config(PeriodicProcessAgent.Config):
+        # Path of the file to send
+        file_path: str = "file_to_send.dat"
+        # Chunk size in bytes
+        chunk_size: int = 1024
+        # Execution interval in seconds
+        execution_interval = 0.2
+        # If 'limit' is 0, runs indefinitely (used here to send the file in chunks)
+        limit = 0
+
+    config: Config
 
     def setup(self) -> None:
         super().setup()
@@ -70,15 +70,15 @@ class FileSendAgent(PeriodicProcessAgent):
 ############################################################
 
 
-class FileReceiveConfig(PeriodicProcessAgent.Config):
-    # Path where to save the received file
-    output_file: str = "file_received.dat"
-    execution_interval = 0.2
-    limit = 0  # run indefinitely
-
-
 class FileReceiveAgent(PeriodicProcessAgent):
-    Config = FileReceiveConfig
+
+    class Config(PeriodicProcessAgent.Config):
+        # Path where to save the received file
+        output_file: str = "file_received.dat"
+        execution_interval = 0.2
+        limit = 0  # run indefinitely
+
+    config: Config
 
     def setup(self) -> None:
         super().setup()

@@ -41,17 +41,16 @@ def on_all_agents_stopped():
     send_telegram_message(message)
 
 
-class WCConfig(PeriodicProcessAgent.Config):
-    limit: int = 2
-    execution_interval: float = 2
-    url: str = "https://catfact.ninja/fact"
-    output_file: str = "weather_data.json"
-    print_result: bool = False
-
-
 class WeatherCollector(PeriodicProcessAgent):
 
-    Config = WCConfig
+    class Config(PeriodicProcessAgent.Config):
+        limit: int = 2
+        execution_interval: float = 2
+        url: str = "https://catfact.ninja/fact"
+        output_file: str = "weather_data.json"
+        print_result: bool = False
+
+    config: Config
 
     def setup(self):
         super().setup()
