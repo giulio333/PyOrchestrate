@@ -253,7 +253,7 @@ class OMemory:
         # Mappa dal nome del gruppo all’oggetto `Group`
         self._groups: Dict[str, Group] = {}
         # Mappa dal nome dell’agente a una lista di eventi con timestamp
-        self._agent_stats: Dict[str, List[Dict[str, Any]]] = {}
+        self._agens_history: Dict[str, List[Dict[str, Any]]] = {}
 
     @property
     def agents(self) -> list[AgentEntry]:
@@ -346,7 +346,7 @@ class OMemory:
             **kwargs,
         )
         self._agents[name] = entry
-        self._agent_stats[name] = []
+        self._agens_history[name] = []
 
         return entry
 
@@ -405,7 +405,7 @@ class OMemory:
         Returns:
             Optional[List[Dict[str, datetime]]]: The event log for the agent or None.
         """
-        return self._agent_stats.get(agent_name)
+        return self._agens_history.get(agent_name)
 
     def get_agent(self, name: str) -> AgentEntry:
         """
@@ -455,9 +455,9 @@ class OMemory:
         """
         now = datetime.datetime.now()
         event = {"timestamp": now, "event": event_type}
-        if agent_name not in self._agent_stats:
-            self._agent_stats[agent_name] = []
-        self._agent_stats[agent_name].append(event)
+        if agent_name not in self._agens_history:
+            self._agens_history[agent_name] = []
+        self._agens_history[agent_name].append(event)
 
     def __str__(self):
         return f"<OrchestratorMemory: {len(self._agents)} agents, {len(self._groups)} groups.>"
