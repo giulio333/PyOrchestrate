@@ -4,7 +4,9 @@ from PyOrchestrate.core.plugins.plugin_protocols import PluginProtocol
 
 
 class PluginManager:
-    """Class responsible for managing plugins, providing methods for initialization and finalization."""
+    """
+    Class responsible for managing plugins, providing methods for initialization and finalization.
+    """
 
     def __init__(self, plugins):
         """
