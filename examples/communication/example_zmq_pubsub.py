@@ -1,7 +1,6 @@
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.agent import PeriodicProcessAgent, LoopingProcessAgent
 from PyOrchestrate.core.plugins.com import ZeroMQPubSub, SocketType
-import zmq
 
 
 class Publisher(PeriodicProcessAgent):

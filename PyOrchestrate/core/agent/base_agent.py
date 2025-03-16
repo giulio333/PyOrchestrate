@@ -6,12 +6,11 @@ import threading
 import multiprocessing
 import time
 from abc import ABC, abstractmethod
-from typing import final, TypeVar, Protocol, Literal
+from typing import final, Protocol, Literal
 
 from ..base.base import BaseClass
 from ..utilities.event_manager import EventManager
 from ..utilities.event import AgentEvent
-from ..plugins.plugin_protocols import PluginProtocol
 from ..plugins.plugin_manager import PluginManager
 
 
