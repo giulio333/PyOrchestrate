@@ -2,18 +2,17 @@ from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
 
 
-class FileWriterConfig(PeriodicProcessAgent.Config):
-    """Process agent configuration class."""
-
-    limit = 5
-    execution_interval = 1
-    directory = "/tmp"
-
-
 class FileWriter(PeriodicProcessAgent):
     """Agent Class that logs a message periodically."""
 
-    Config = FileWriterConfig
+    class Config(PeriodicProcessAgent.Config):
+        """Process agent configuration class."""
+
+        limit = 5
+        execution_interval = 1
+        directory = "/tmp"
+
+    config: Config
 
     def setup(self):
         """

@@ -8,15 +8,15 @@ from PyOrchestrate.core.agent import PeriodicProcessAgent
 from PyOrchestrate.core.plugins import ZeroMQPubSub
 
 
-class MyConfig(PeriodicProcessAgent.Config):
-    api_url: str = "https://catfact.ninja/fact"
-    """Url of the external API to fetch data from."""
-    keyword: str = "and"
-    """Keyword to search for in the fetched data."""
-
-
 class APIFetchAgent(PeriodicProcessAgent):
-    Config = MyConfig
+
+    class Config(PeriodicProcessAgent.Config):
+        api_url: str = "https://catfact.ninja/fact"
+        """Url of the external API to fetch data from."""
+        keyword: str = "and"
+        """Keyword to search for in the fetched data."""
+
+    config: Config
 
     def setup(self) -> None:
         """
@@ -76,7 +76,13 @@ class APIFetchAgent(PeriodicProcessAgent):
 
 
 class APIAlertAgent(PeriodicProcessAgent):
-    Config = MyConfig
+    class Config(PeriodicProcessAgent.Config):
+        api_url: str = "https://catfact.ninja/fact"
+        """Url of the external API to fetch data from."""
+        keyword: str = "and"
+        """Keyword to search for in the fetched data."""
+
+    config: Config
 
     def setup(self) -> None:
         """
