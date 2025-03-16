@@ -17,7 +17,7 @@ class AgentEntry:
 
     Examples:
         >>> from PyOrchestrate.core.orchestrator import Orchestrator
-        >>> from models import FileWriter # type: ignore
+        >>> from models import FileWriter
         >>>
         >>> orchestrator = Orchestrator("CoolOrchestrator")
         >>> fw_agent: AgentEntry = orchestrator.register_agent(FileWriter, "FileWriter")
@@ -158,7 +158,8 @@ class AgentEntry:
         Create agent instance.
 
         Notes:
-            If custom agent configuration is not provided, the default configuration will be used (agent_class.Config).
+            - If custom agent configuration is not provided, the default configuration will be used (agent_class.Config).
+            - If custom agent plugin is not provided, the default plugin will be used (agent_class.Plugin).
 
         Returns:
             None
