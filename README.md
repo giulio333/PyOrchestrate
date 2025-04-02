@@ -24,7 +24,9 @@ logic while the framework handles complexities like process and thread managemen
 Ensure Python 3.12+ is installed, then clone the repository and install the required dependencies:
 
 ``` bash
-git clone https://github.com/yourusername/pyorchestrate.git cd pyorchestrate pip install -r requirements.txt
+git clone https://github.com/yourusername/pyorchestrate.git 
+cd pyorchestrate 
+pip install -r requirements.txt
 ```
 
 To install the `pyorchestrate` CLI command, run the following command:

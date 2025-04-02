@@ -44,11 +44,13 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        print("PyOrchestrate version 1.0.0")
+        print("PyOrchestrate version 0.1.0")
     elif not args.command:
         parser.print_help()
         print("\nAvailable commands:")
-        print("  start <app_name>  Create a new project structure with the specified app name")
+        print(
+            "  start <app_name>  Create a new project structure with the specified app name"
+        )
         print("  --version, -v     Display the version of the PyOrchestrate framework")
     elif args.command == "start" and args.app_name:
         create_project_structure(args.app_name)
