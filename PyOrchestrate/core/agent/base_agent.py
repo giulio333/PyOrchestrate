@@ -8,10 +8,10 @@ import time
 from abc import ABC, abstractmethod
 from typing import final, Protocol, Literal
 
-from ..base.base import BaseClass
-from ..utilities.event_manager import EventManager
-from ..utilities.event import AgentEvent
-from ..plugins.plugin_manager import PluginManager
+from PyOrchestrate.core.base.base import BaseClass
+from PyOrchestrate.core.utilities.event_manager import EventManager
+from PyOrchestrate.core.utilities.event import AgentEvent
+from PyOrchestrate.core.plugins.plugin_manager import PluginManager
 
 
 class BaseAgentConfig(BaseClass.Config):

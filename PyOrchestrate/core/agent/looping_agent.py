@@ -3,8 +3,11 @@ from typing import final, TypeVar, Type
 import multiprocessing
 import threading
 
-from ..base.exceptions import RecoverableException, NonRecoverableException
-from .base_agent import BaseAgent
+from PyOrchestrate.core.base.exceptions import (
+    RecoverableException,
+    NonRecoverableException,
+)
+from PyOrchestrate.core.agent.base_agent import BaseAgent
 
 
 class LoopingAgentConfig(BaseAgent.Config):
