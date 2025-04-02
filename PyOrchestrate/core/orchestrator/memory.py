@@ -4,8 +4,8 @@ import threading
 from typing import Dict, List, Optional, Type, Any
 
 from PyOrchestrate.core.agent import BaseAgent, AgentProtocol
-from ..base import BaseClass
-from ..utilities.event_manager import EventManager
+from PyOrchestrate.core.base import BaseClass
+from PyOrchestrate.core.utilities.event_manager import EventManager
 
 
 class AgentEntry:

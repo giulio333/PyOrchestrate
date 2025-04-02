@@ -1,1 +1,1 @@
-from .com import ZeroMQPubSub
+from PyOrchestrate.core.plugins.com import ZeroMQPubSub

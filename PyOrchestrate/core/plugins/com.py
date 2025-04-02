@@ -1,6 +1,6 @@
 import zmq
 from enum import IntEnum
-from .plugin_protocols import PluginProtocol
+from PyOrchestrate.core.plugins.plugin_protocols import PluginProtocol
 
 
 class SocketType(IntEnum):

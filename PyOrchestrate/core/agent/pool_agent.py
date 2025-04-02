@@ -3,9 +3,9 @@ from typing import final, TypeVar
 import threading
 import multiprocessing
 
-from .periodic_agent import PeriodicAgent
-from ..orchestrator.orchestrator import Orchestrator
-from ..orchestrator.memory import AgentEntry
+from PyOrchestrate.core.agent.periodic_agent import PeriodicAgent
+from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
+from PyOrchestrate.core.orchestrator.memory import AgentEntry
 
 
 class PoolAgentConfig(PeriodicAgent.Config):

@@ -1,1 +1,1 @@
-from .base import BaseClass
+from PyOrchestrate.core.base.base import BaseClass

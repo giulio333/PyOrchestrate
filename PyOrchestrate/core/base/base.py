@@ -2,7 +2,7 @@ import logging
 from typing import Any, cast
 
 from PyOrchestrate.utilities.logguru import LoggerFactory
-from ..base.utilities import LoggerConfig
+from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
 class BaseClassConfig:

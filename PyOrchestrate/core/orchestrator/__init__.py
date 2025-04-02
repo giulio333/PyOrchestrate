@@ -1,4 +1,4 @@
 __all__ = ["Orchestrator", "AgentEntry"]
 
-from .orchestrator import Orchestrator
-from .memory import AgentEntry
+from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
+from PyOrchestrate.core.orchestrator.memory import AgentEntry
