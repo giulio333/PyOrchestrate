@@ -15,21 +15,28 @@ class OrchestratorConfig(BaseClass.Config):
 
     Attributes:
         check_interval (float): The interval to check the agents.
+        max_workers (int): The maximum number of workers that can run concurrently.
         logger (LoggerConfig): Logger configuration.
     """
 
     check_interval: float = 1
+    max_workers: int = 5
 
-    def __init__(self, check_interval: float | None = None, **kwargs):
+    def __init__(self, check_interval: float | None = None, max_workers: int | None = None, **kwargs):
         super().__init__(**kwargs)
 
         if check_interval is not None:
             self.check_interval: float = check_interval
 
+        if max_workers is not None:
+            self.max_workers: int = max_workers
+
     def validate(self):
         super().validate()
         if self.check_interval <= 0:
             raise ValueError("Check interval must be greater than 0.")
+        if self.max_workers <= 0:
+            raise ValueError("Max workers must be greater than 0.")
 
 
 class OrchestratorPlugin(BaseClass.Plugin):
@@ -231,10 +238,22 @@ class Orchestrator(BaseClass):
         """
         agent: AgentEntry = self.memory.get_agent(agent_name)
 
+        while self._running_agents_count() >= self.config.max_workers:
+            time.sleep(0.1)
+
         self.logger.info(f"Starting agent {agent_name}...")
         agent.initialize_agent()
         agent.start()
         self.event_manager.emit(OrchestratorEvent.AGENT_STARTED, agent_name=agent.name)
+
+    def _running_agents_count(self) -> int:
+        """
+        Get the count of currently running agents.
+
+        Returns:
+            int: The number of running agents.
+        """
+        return sum(1 for agent in self.memory.agents if agent.instance.is_alive())
 
     def stop(self):
         """Terminates all registered agents."""
@@ -301,3 +320,4 @@ class Orchestrator(BaseClass):
 
     def _info(self):
         self.logger.debug(f"Config: check_interval={self.config.check_interval}")
+        self.logger.debug(f"Config: max_workers={self.config.max_workers}")
