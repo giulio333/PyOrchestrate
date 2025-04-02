@@ -1,15 +1,14 @@
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.agent import PeriodicProcessAgent, LoopingProcessAgent
 from PyOrchestrate.core.plugins.com import ZeroMQReqRep, SocketType
-import zmq
 
 
 class RequestAgent(PeriodicProcessAgent):
 
     class Config(PeriodicProcessAgent.Config):
 
-        limit = 10
-        execution_interval = 0.1
+        limit = 100
+        execution_interval = 0.05
         counter: int = 1
 
     class Plugin(PeriodicProcessAgent.Plugin):
