@@ -22,7 +22,12 @@ class OrchestratorConfig(BaseClass.Config):
     check_interval: float = 1
     max_workers: int = 5
 
-    def __init__(self, check_interval: float | None = None, max_workers: int | None = None, **kwargs):
+    def __init__(
+        self,
+        check_interval: float | None = None,
+        max_workers: int | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
 
         if check_interval is not None:
@@ -238,8 +243,11 @@ class Orchestrator(BaseClass):
         """
         agent: AgentEntry = self.memory.get_agent(agent_name)
 
-        while self._running_agents_count() >= self.config.max_workers:
-            time.sleep(0.1)
+        if self._running_agents_count() >= self.config.max_workers:
+            self.logger.warning(
+                f"Max workers limit reached. Cannot start {agent_name}."
+            )
+            return
 
         self.logger.info(f"Starting agent {agent_name}...")
         agent.initialize_agent()
