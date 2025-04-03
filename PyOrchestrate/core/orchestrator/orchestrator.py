@@ -247,7 +247,7 @@ class Orchestrator(BaseClass):
         Callback to start the agent.
 
         Notes:
-            This method is used to start the agent and emit an `OrchestratorEvent.AGENT_STARTED` event for the agent.
+            This method is used to initialize and start the agent, emit an `OrchestratorEvent.AGENT_STARTED` event for the agent.
         """
         agent: AgentEntry = self.memory.get_agent(agent_name)
 
