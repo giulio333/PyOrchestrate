@@ -135,9 +135,6 @@ class AgentEntry:
             str: Agent status.
         """
 
-        if not self.instance:
-            raise ValueError("Agent instance not initialized yet.")
-
         if self.instance.a_type == "process":
             alive: bool = self.instance.is_alive()
             daemon: bool = self.instance.daemon
