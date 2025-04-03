@@ -20,7 +20,7 @@ class DummyAgent(BaseProcessAgent):
 
 class TestOrchestrator(unittest.TestCase):
     def setUp(self):
-        self.orch = Orchestrator("test_orchestrator")
+        self.orch = Orchestrator(name="test_orchestrator")
         self.orch.event_manager.emit = MagicMock(
             side_effect=self.orch.event_manager.emit
         )
