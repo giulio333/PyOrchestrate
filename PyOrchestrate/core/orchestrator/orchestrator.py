@@ -71,9 +71,16 @@ class Orchestrator(BaseClass):
     Config = OrchestratorConfig
     Plugin = OrchestratorPlugin
 
-    def __init__(self, name: str | None = None):
+    def __init__(
+        self,
+        config: BaseClass.Config | None = None,
+        plugin: BaseClass.Plugin | None = None,
+        name: str | None = None,
+    ):
         super().__init__(
-            name=name, config=Orchestrator.Config(), plugin=Orchestrator.Plugin()
+            name=name,
+            config=config or Orchestrator.Config(),
+            plugin=plugin or Orchestrator.Plugin(),
         )
 
         self.setup_logger()
@@ -84,6 +91,7 @@ class Orchestrator(BaseClass):
         self.event_manager = EventManager()
 
         self.dependencies: dict[str, list[str]] = defaultdict(list)
+        self._running_agents = 0
 
     def register_agent(
         self,
@@ -243,25 +251,19 @@ class Orchestrator(BaseClass):
         """
         agent: AgentEntry = self.memory.get_agent(agent_name)
 
-        if self._running_agents_count() >= self.config.max_workers:
+        self.logger.info(f"Starting agent {agent_name}...")
+        agent.initialize_agent()
+
+        if self._running_agents >= self.config.max_workers:
             self.logger.warning(
                 f"Max workers limit reached. Cannot start {agent_name}."
             )
             return
 
-        self.logger.info(f"Starting agent {agent_name}...")
-        agent.initialize_agent()
         agent.start()
+        self._running_agents += 1
+
         self.event_manager.emit(OrchestratorEvent.AGENT_STARTED, agent_name=agent.name)
-
-    def _running_agents_count(self) -> int:
-        """
-        Get the count of currently running agents.
-
-        Returns:
-            int: The number of running agents.
-        """
-        return sum(1 for agent in self.memory.agents if agent.instance.is_alive())
 
     def stop(self):
         """Terminates all registered agents."""
@@ -296,6 +298,7 @@ class Orchestrator(BaseClass):
                             agent_name=agent.name,
                         )
                         notified.add(agent.name)
+                        self._running_agents -= 1
                 else:
                     alive_count += 1
 
