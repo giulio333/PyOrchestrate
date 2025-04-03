@@ -165,7 +165,9 @@ class BaseAgent(BaseClass, ABC):
         self.a_type = a_type
         """The agent type (process or thread)."""
         self.event_manager = event_manager
+        """Event manager for handling events and callbacks."""
         self.plugin_manager = PluginManager(self.plugin)
+        """Plugin manager for managing plugins."""
 
     @final
     def run(self) -> None:
