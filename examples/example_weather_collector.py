@@ -84,7 +84,7 @@ class WeatherCollector(PeriodicProcessAgent):
 
 
 if __name__ == "__main__":
-    orchestrator = Orchestrator("Orchestrator")
+    orchestrator = Orchestrator(name="Orchestrator")
 
     orchestrator.event_manager.connect(
         OrchestratorEvent.AGENT_STARTED, on_agent_started
