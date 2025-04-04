@@ -226,11 +226,6 @@ class Orchestrator(BaseClass):
     def start(self):
         """
         Start all registered agents in the topological order of their dependencies.
-
-        Notes:
-            Before starting the agents, it validates the dependencies among agents.
-            After starting the agents, it emits an `OrchestratorEvent.AGENT_STARTED` event for each agent. Only at this
-            point will be created the agent instances.
         """
 
         self.start_time = time.time()
@@ -247,7 +242,8 @@ class Orchestrator(BaseClass):
         Callback to start the agent.
 
         Notes:
-            This method is used to initialize and start the agent, emit an `OrchestratorEvent.AGENT_STARTED` event for the agent.
+            After starting the agent, it emits an `OrchestratorEvent.AGENT_STARTED` event and increments the `_running_agents` counter.
+            If the maximum number of workers is reached, it logs a warning and does not start the agent.
         """
         agent: AgentEntry = self.memory.get_agent(agent_name)
 
