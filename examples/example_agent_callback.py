@@ -50,7 +50,6 @@ class APIFetchAgent(BaseProcessAgent):
                     # Check if the keyword is present in the string
                     if self.config.keyword in message_str:
                         self.logger.warning(f"Keyword '{self.config.keyword}' found!")
-                        # Qui eventualmente si potrebbe usare l'EventManager per emettere un evento
                     else:
                         self.logger.info("Keyword not found in this cycle.")
                 else:
@@ -60,9 +59,6 @@ class APIFetchAgent(BaseProcessAgent):
                 time.sleep(self.config.poll_interval)
         except Exception as e:
             self.logger.exception(f"Error during API polling: {e}")
-        finally:
-            # In questo esempio semplificato non è necessaria una comunicazione esterna
-            pass
 
     def on_stop(self):
         """
