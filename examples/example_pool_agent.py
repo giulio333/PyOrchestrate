@@ -65,9 +65,10 @@ class FileWriter(PoolProcessAgent):
 
 
 if __name__ == "__main__":
-    orchestrator = Orchestrator()
+    orchestrator = Orchestrator(config=Orchestrator.Config(max_workers=2))
 
-    orchestrator.register_agent(FileWriter, f"FileWriter")
-
+    orchestrator.register_agent(FileWriter, f"FileWrite1")
+    orchestrator.register_agent(FileWriter, f"FileWriter2")
+    orchestrator.register_agent(FileWriter, f"FileWriter3")
     orchestrator.start()
     orchestrator.join()

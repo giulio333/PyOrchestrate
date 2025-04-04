@@ -135,9 +135,6 @@ class AgentEntry:
             str: Agent status.
         """
 
-        if not self.instance:
-            raise ValueError("Agent instance not initialized yet.")
-
         if self.instance.a_type == "process":
             alive: bool = self.instance.is_alive()
             daemon: bool = self.instance.daemon
@@ -267,6 +264,21 @@ class OMemory:
         """
         return list(self._agents.values())
 
+    def _validate_agent_class(self, agent_class:Type[BaseAgent]):
+        """
+        Validates the agent class to ensure it has a valid 'a_type' attribute.
+
+        Args:
+            agent_class: The class of the agent to validate.
+
+        Raises:
+            ValueError: If the agent class does not have a valid 'a_type' attribute.
+        """
+        if not hasattr(agent_class, 'a_type') or agent_class.a_type not in ['process', 'thread']:
+            raise ValueError(
+                "Invalid agent type. Ensure the agent class has a valid 'a_type' attribute set to 'process' or 'thread'."
+            )
+
     def add_agent(
         self,
         agent_class: Type[BaseAgent],
@@ -308,14 +320,9 @@ class OMemory:
         if name in self._agents:
             raise ValueError(f"Agent '{name}' already exists.")
 
-        if agent_class.a_type == "process":
-            event = multiprocessing.Event
-        elif agent_class.a_type == "thread":
-            event = threading.Event  # type: ignore
-        else:
-            raise ValueError(
-                "Unknown agent type. Maybe you forgot to inherit from Process or Thread agent."
-            )
+        self._validate_agent_class(agent_class)
+
+        event = multiprocessing.Event if agent_class.a_type == 'process' else threading.Event
 
         if not control_events:
             control_events = agent_class.ControlEvents(
