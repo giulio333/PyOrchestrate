@@ -92,6 +92,8 @@ class Orchestrator(BaseClass):
 
         self.dependencies: dict[str, list[str]] = defaultdict(list)
         self._running_agents = 0
+        self._waiting_agents_queue = deque()  # Coda per gli agenti in attesa
+        self._started_agents = set()  # Set per gli agenti che sono stati avviati
 
     def register_agent(
         self,
@@ -142,21 +144,23 @@ class Orchestrator(BaseClass):
 
     def add_dependency(self, agent_name: str, depends_on: list[str]):
         """
-        Aggiunge dipendenze: agent_name dipende da depends_on.
+        Add dependencies: agent_name depends on depends_on.
         """
         if agent_name not in [agent.name for agent in self.memory.agents]:
-            raise ValueError(f"Agent {agent_name} non è registrato nell'Orchestrator.")
+            raise ValueError(
+                f"Agent {agent_name} is not registered in the Orchestrator."
+            )
         for dependency in depends_on:
             if dependency not in [agent.name for agent in self.memory.agents]:
                 raise ValueError(
-                    f"Dipendenza {dependency} non è registrata nell'Orchestrator."
+                    f"Dependency {dependency} is not registered in the Orchestrator."
                 )
         self.dependencies[agent_name].extend(depends_on)
-        self.logger.info(f"Agent '{agent_name}' dipende da {depends_on}.")
+        self.logger.info(f"Agent '{agent_name}' depends on {depends_on}.")
 
     def validate_dependencies(self):
         """
-        Check dependencies error (es. A -> B -> A).
+        Check for dependency errors (e.g., circular dependencies like A -> B -> A).
         """
         visited = set()
         stack = set()
@@ -167,7 +171,7 @@ class Orchestrator(BaseClass):
             """Visit a node in the graph."""
             if node in stack:
                 raise ValueError(
-                    f"Rilevato un ciclo di dipendenze: {node} è parte di un ciclo."
+                    f"Detected a dependency cycle: {node} is part of a cycle."
                 )
             if node not in visited:
                 stack.add(node)
@@ -218,7 +222,7 @@ class Orchestrator(BaseClass):
 
         if len(topo_order) != len(all_agents):
             raise ValueError(
-                "Non è possibile ottenere un ordinamento topologico: dipendenze cicliche?"
+                "Cannot obtain a topological ordering: cyclic dependencies detected?"
             )
 
         return topo_order
@@ -243,7 +247,7 @@ class Orchestrator(BaseClass):
 
         Notes:
             After starting the agent, it emits an `OrchestratorEvent.AGENT_STARTED` event and increments the `_running_agents` counter.
-            If the maximum number of workers is reached, it logs a warning and does not start the agent.
+            If the maximum number of workers is reached, the agent is added to the waiting queue.
         """
         agent: AgentEntry = self.memory.get_agent(agent_name)
 
@@ -252,12 +256,14 @@ class Orchestrator(BaseClass):
 
         if self._running_agents >= self.config.max_workers:
             self.logger.warning(
-                f"Max workers limit reached. Cannot start {agent_name}."
+                f"Max workers limit reached. Adding {agent_name} to waiting queue."
             )
+            self._waiting_agents_queue.append(agent_name)
             return
 
         agent.start()
         self._running_agents += 1
+        self._started_agents.add(agent_name)
 
         self.event_manager.emit(OrchestratorEvent.AGENT_STARTED, agent_name=agent.name)
 
@@ -285,9 +291,12 @@ class Orchestrator(BaseClass):
             alive_count = 0
 
             for agent in self.memory.agents:
-
                 if not agent.instance.is_alive():
-                    if not agent.name in notified:
+                    # Check if the agent was started before decrementing
+                    if (
+                        agent.name in self._started_agents
+                        and agent.name not in notified
+                    ):
                         self.logger.info(f"Agent '{agent.name}' ended.")
                         self.event_manager.emit(
                             OrchestratorEvent.AGENT_TERMINATED,
@@ -295,10 +304,15 @@ class Orchestrator(BaseClass):
                         )
                         notified.add(agent.name)
                         self._running_agents -= 1
+
+                        self._started_agents.remove(agent.name)
+
+                        # Start an agent from the waiting queue if available
+                        self._start_waiting_agent()
                 else:
                     alive_count += 1
 
-            if alive_count == 0:
+            if alive_count == 0 and not self._waiting_agents_queue:
                 all_finished = True
             else:
                 time.sleep(self.config.check_interval)
@@ -307,6 +321,35 @@ class Orchestrator(BaseClass):
         self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
+
+    def _start_waiting_agent(self):
+        """
+        Start an agent from the waiting queue if available.
+
+        Notes:
+            This method is called when an agent terminates, freeing up a slot
+            for another waiting agent.
+        """
+        if not self._waiting_agents_queue:
+            return
+
+        if self._running_agents >= self.config.max_workers:
+            self.logger.debug(
+                f"No slot available to start waiting agents. Running agents: {self._running_agents}, Limit: {self.config.max_workers}"
+            )
+            return
+
+        agent_name = self._waiting_agents_queue.popleft()
+        self.logger.info(
+            f"Starting waiting agent {agent_name} from queue... (Running agents: {self._running_agents}, Limit: {self.config.max_workers})"
+        )
+
+        agent = self.memory.get_agent(agent_name)
+        agent.start()
+        self._running_agents += 1
+        self._started_agents.add(agent_name)  # Track that the agent has been started
+
+        self.event_manager.emit(OrchestratorEvent.AGENT_STARTED, agent_name=agent.name)
 
     def simple_join(self) -> None:
         """
