@@ -111,4 +111,5 @@ class EventManager:
                     }
                     callback(*args, **filtered_kwargs)
                 except Exception as e:
+                    print(f"Error in callback {callback.__name__}: {e}")
                     pass  # skip the callback that raised an exception

@@ -15,21 +15,33 @@ class OrchestratorConfig(BaseClass.Config):
 
     Attributes:
         check_interval (float): The interval to check the agents.
+        max_workers (int): The maximum number of workers that can run concurrently.
         logger (LoggerConfig): Logger configuration.
     """
 
     check_interval: float = 1
+    max_workers: int = 5
 
-    def __init__(self, check_interval: float | None = None, **kwargs):
+    def __init__(
+        self,
+        check_interval: float | None = None,
+        max_workers: int | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
 
         if check_interval is not None:
             self.check_interval: float = check_interval
 
+        if max_workers is not None:
+            self.max_workers: int = max_workers
+
     def validate(self):
         super().validate()
         if self.check_interval <= 0:
             raise ValueError("Check interval must be greater than 0.")
+        if self.max_workers <= 0:
+            raise ValueError("Max workers must be greater than 0.")
 
 
 class OrchestratorPlugin(BaseClass.Plugin):
@@ -59,9 +71,16 @@ class Orchestrator(BaseClass):
     Config = OrchestratorConfig
     Plugin = OrchestratorPlugin
 
-    def __init__(self, name: str | None = None):
+    def __init__(
+        self,
+        config: BaseClass.Config | None = None,
+        plugin: BaseClass.Plugin | None = None,
+        name: str | None = None,
+    ):
         super().__init__(
-            name=name, config=Orchestrator.Config(), plugin=Orchestrator.Plugin()
+            name=name,
+            config=config or Orchestrator.Config(),
+            plugin=plugin or Orchestrator.Plugin(),
         )
 
         self.setup_logger()
@@ -72,6 +91,9 @@ class Orchestrator(BaseClass):
         self.event_manager = EventManager()
 
         self.dependencies: dict[str, list[str]] = defaultdict(list)
+        self._running_agents = 0
+        self._waiting_agents_queue = deque()  # Coda per gli agenti in attesa
+        self._started_agents = set()  # Set per gli agenti che sono stati avviati
 
     def register_agent(
         self,
@@ -122,21 +144,23 @@ class Orchestrator(BaseClass):
 
     def add_dependency(self, agent_name: str, depends_on: list[str]):
         """
-        Aggiunge dipendenze: agent_name dipende da depends_on.
+        Add dependencies: agent_name depends on depends_on.
         """
         if agent_name not in [agent.name for agent in self.memory.agents]:
-            raise ValueError(f"Agent {agent_name} non è registrato nell'Orchestrator.")
+            raise ValueError(
+                f"Agent {agent_name} is not registered in the Orchestrator."
+            )
         for dependency in depends_on:
             if dependency not in [agent.name for agent in self.memory.agents]:
                 raise ValueError(
-                    f"Dipendenza {dependency} non è registrata nell'Orchestrator."
+                    f"Dependency {dependency} is not registered in the Orchestrator."
                 )
         self.dependencies[agent_name].extend(depends_on)
-        self.logger.info(f"Agent '{agent_name}' dipende da {depends_on}.")
+        self.logger.info(f"Agent '{agent_name}' depends on {depends_on}.")
 
     def validate_dependencies(self):
         """
-        Check dependencies error (es. A -> B -> A).
+        Check for dependency errors (e.g., circular dependencies like A -> B -> A).
         """
         visited = set()
         stack = set()
@@ -147,7 +171,7 @@ class Orchestrator(BaseClass):
             """Visit a node in the graph."""
             if node in stack:
                 raise ValueError(
-                    f"Rilevato un ciclo di dipendenze: {node} è parte di un ciclo."
+                    f"Detected a dependency cycle: {node} is part of a cycle."
                 )
             if node not in visited:
                 stack.add(node)
@@ -198,7 +222,7 @@ class Orchestrator(BaseClass):
 
         if len(topo_order) != len(all_agents):
             raise ValueError(
-                "Non è possibile ottenere un ordinamento topologico: dipendenze cicliche?"
+                "Cannot obtain a topological ordering: cyclic dependencies detected?"
             )
 
         return topo_order
@@ -206,11 +230,6 @@ class Orchestrator(BaseClass):
     def start(self):
         """
         Start all registered agents in the topological order of their dependencies.
-
-        Notes:
-            Before starting the agents, it validates the dependencies among agents.
-            After starting the agents, it emits an `OrchestratorEvent.AGENT_STARTED` event for each agent. Only at this
-            point will be created the agent instances.
         """
 
         self.start_time = time.time()
@@ -227,13 +246,25 @@ class Orchestrator(BaseClass):
         Callback to start the agent.
 
         Notes:
-            This method is used to start the agent and emit an `OrchestratorEvent.AGENT_STARTED` event for the agent.
+            After starting the agent, it emits an `OrchestratorEvent.AGENT_STARTED` event and increments the `_running_agents` counter.
+            If the maximum number of workers is reached, the agent is added to the waiting queue.
         """
         agent: AgentEntry = self.memory.get_agent(agent_name)
 
         self.logger.info(f"Starting agent {agent_name}...")
         agent.initialize_agent()
+
+        if self._running_agents >= self.config.max_workers:
+            self.logger.warning(
+                f"Max workers limit reached. Adding {agent_name} to waiting queue."
+            )
+            self._waiting_agents_queue.append(agent_name)
+            return
+
         agent.start()
+        self._running_agents += 1
+        self._started_agents.add(agent_name)
+
         self.event_manager.emit(OrchestratorEvent.AGENT_STARTED, agent_name=agent.name)
 
     def stop(self):
@@ -260,19 +291,28 @@ class Orchestrator(BaseClass):
             alive_count = 0
 
             for agent in self.memory.agents:
-
                 if not agent.instance.is_alive():
-                    if not agent.name in notified:
+                    # Check if the agent was started before decrementing
+                    if (
+                        agent.name in self._started_agents
+                        and agent.name not in notified
+                    ):
                         self.logger.info(f"Agent '{agent.name}' ended.")
                         self.event_manager.emit(
                             OrchestratorEvent.AGENT_TERMINATED,
                             agent_name=agent.name,
                         )
                         notified.add(agent.name)
+                        self._running_agents -= 1
+
+                        self._started_agents.remove(agent.name)
+
+                        # Start an agent from the waiting queue if available
+                        self._start_waiting_agent()
                 else:
                     alive_count += 1
 
-            if alive_count == 0:
+            if alive_count == 0 and not self._waiting_agents_queue:
                 all_finished = True
             else:
                 time.sleep(self.config.check_interval)
@@ -281,6 +321,35 @@ class Orchestrator(BaseClass):
         self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
+
+    def _start_waiting_agent(self):
+        """
+        Start an agent from the waiting queue if available.
+
+        Notes:
+            This method is called when an agent terminates, freeing up a slot
+            for another waiting agent.
+        """
+        if not self._waiting_agents_queue:
+            return
+
+        if self._running_agents >= self.config.max_workers:
+            self.logger.debug(
+                f"No slot available to start waiting agents. Running agents: {self._running_agents}, Limit: {self.config.max_workers}"
+            )
+            return
+
+        agent_name = self._waiting_agents_queue.popleft()
+        self.logger.info(
+            f"Starting waiting agent {agent_name} from queue... (Running agents: {self._running_agents}, Limit: {self.config.max_workers})"
+        )
+
+        agent = self.memory.get_agent(agent_name)
+        agent.start()
+        self._running_agents += 1
+        self._started_agents.add(agent_name)  # Track that the agent has been started
+
+        self.event_manager.emit(OrchestratorEvent.AGENT_STARTED, agent_name=agent.name)
 
     def simple_join(self) -> None:
         """
@@ -301,3 +370,4 @@ class Orchestrator(BaseClass):
 
     def _info(self):
         self.logger.debug(f"Config: check_interval={self.config.check_interval}")
+        self.logger.debug(f"Config: max_workers={self.config.max_workers}")
