@@ -264,7 +264,7 @@ class OMemory:
         """
         return list(self._agents.values())
 
-    def _validate_agent_class(self, agent_class:Type[BaseAgent]):
+    def _validate_agent_class(self, agent_class: Type[BaseAgent]):
         """
         Validates the agent class to ensure it has a valid 'a_type' attribute.
 
@@ -274,7 +274,10 @@ class OMemory:
         Raises:
             ValueError: If the agent class does not have a valid 'a_type' attribute.
         """
-        if not hasattr(agent_class, 'a_type') or agent_class.a_type not in ['process', 'thread']:
+        if not hasattr(agent_class, "a_type") or agent_class.a_type not in [
+            "process",
+            "thread",
+        ]:
             raise ValueError(
                 "Invalid agent type. Ensure the agent class has a valid 'a_type' attribute set to 'process' or 'thread'."
             )
@@ -322,7 +325,11 @@ class OMemory:
 
         self._validate_agent_class(agent_class)
 
-        event = multiprocessing.Event if agent_class.a_type == 'process' else threading.Event
+        event = (
+            multiprocessing.Event
+            if agent_class.a_type == "process"
+            else threading.Event
+        )
 
         if not control_events:
             control_events = agent_class.ControlEvents(

@@ -61,6 +61,12 @@ class BaseClassConfig:
 
 
 class BaseClassPlugin:
+    """
+    Base class for plugins.
+
+    Can be used to store Plugin objects.
+    """
+
     pass
 
 
