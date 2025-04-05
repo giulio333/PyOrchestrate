@@ -32,6 +32,12 @@ export const enConfig = {
           text: 'Explore Agents',
           items: [
             {
+              text: 'Core Concepts',
+              items: [
+                { text: 'Orchestrator', link: '/learn/core/orchestrator/' },
+              ]
+            },
+            {
               text: 'The Basics',
               items: [
                 { text: 'Agent', link: '/learn/agents/' },

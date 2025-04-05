@@ -5,8 +5,11 @@ editLink: true
 
 # Orchestrator
 
-The Orchestrator is a central component responsible for coordinating multiple agents and managing their lifecycle. 
-It ensures seamless communication among agents and serves as a single point for controlling the entire flow.
+The **Orchestrator** is a central component responsible for coordinating multiple **Agents** and managing their lifecycle. It ensures seamless communication among **Agents** and serves as a single point for controlling the entire flow.
+
+::: tip
+For **more information**, see this [link](../core/orchestrator/index.md).
+:::
 
 ## Usage
 
@@ -46,7 +49,26 @@ The Orchestrator is designed to manage the lifecycle of agents, including:
 
 ### Configuration
 
-The Orchestrator comes with a dedicated Configuration object, enabling you to define both required and custom attributes.
+The `Config` class is used by the Orchestrator to **create a configuration object for itself**. 
+
+Available attributes are
+
+| Attribute       | Type         | Description                                                                 |
+|-----------------|--------------|-----------------------------------------------------------------------------|
+| `check_interval`| int          | The interval (in seconds) at which the Orchestrator checks the status of agents. |
+| `max_workers`   | int          | The maximum number of worker threads to use for executing tasks.            |
+| `logger`        | LoggerConfig | The logger configuration object.                                            |
+
+::: info Example
+For example to create an Orchestrator with a maximum of 2 workers, you can do the following:
+
+```python
+o_config = Orchestrator.Config(max_workers=2)
+orchestrator = Orchestrator(config=o_config)
+```
+
+If you don't provide custom values, the Orchestrator will use the default values defined in the `Config` class.
+:::
 
 ### Event Manager
 
@@ -56,34 +78,24 @@ The Event Manager facilitates a set of events (`OrchestratorEvent`) that notify 
 
 Is not mandatory to use the Orchestrator, but it provides several advantages. Using the Orchestrator can help you automate the management of multiple agents (threads or processes), making it easier to coordinate their activities and ensuring that they work together effectively.
 
-## Configuration
-
-The `Config` class is used by the Orchestrator to **create a configuration object for itself**. 
-
-Available attributes are:
-- `check_interval`: (int) The interval (in seconds) at which the Orchestrator checks the status of agents.
-- `max_workers`: (int) The maximum number of worker threads to use for executing tasks.
-- `logger`: (LoggerConfig) The logger configuration object.
-
-::: info Example
-For example `MyOrchestrator` class defines its own configuration class via parent's' `Config` class.
-
-```python
-class MyOrchestrator(Orchestrator):
-
-    class Config(Orchestrator.Config): # [!code focus]
-        check_interval = 5 # [!code focus]
-        max_workers = 2 # [!code focus]
-        logger = LoggerConfig() # [!code focus]
-
-    config: Config
-```
-:::
-
 ## Registering Agents
 
-The Orchestrator allows you to register agents using the `register_agent` method. This method takes the agent class and some optional parameters as arguments.
+The Orchestrator allows you to **register agents** using the `register_agent` method. This method takes the `agent_class`, `name` and some optional parameters as arguments.
 
 ```python
 orchestrator.register_agent(Publisher, "Publisher")
 ```
+
+All available parameters are
+
+
+| Parameter        | Type         | Description                                                                 |
+|------------------|--------------|-----------------------------------------------------------------------------|
+| `agent_class`    | Agent Class  | The agent class to be registered.                                           |
+| `name`           | str          | The name of the agent. If not provided, the class name will be used.        |
+| `custom_config`  | Config       | A custom configuration object for the agent. If not provided, the default config will be used. |
+| `custom_plugin`  | Plugin       | A custom plugin object for the agent. If not provided, the default plugin will be used. |
+| `control_events` | list         | A list of control events to be used by the agent. If not provided, the default events will be used. |
+| `state_events`  | list         | A list of state events to be used by the agent. If not provided, the default events will be used. |
+| `event_manager` | EventManager | The event manager to be used by the agent. If not provided, the default event manager will be used. |
+| `kwargs`        | dict         | Additional keyword arguments to be passed to the agent constructor.         |

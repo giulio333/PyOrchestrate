@@ -56,25 +56,6 @@ They are designed to handle a variety of use cases, such as:
 
 ### Configuration
 
-Each agent comes with a dedicated [Configuration](#configuration) object, enabling you to define both required and custom attributes.
-
-### Events
-
-All agents have a set of **events**:
-
--   [ControlEvents](#controlevents): Manage external commands like `setup` and `stop`.
--   [StateEvents](#stateevents): Track internal states such as `ready` or `terminated`.
-
-### Plugin
-
-Agents have a dedicated [Plugin](#plugin) object, which is useful for storing **built-in** or **user-initialized** **plugins**. The agent will autonomously **initialize** and **release** their resources at startup and shutdown.
-
-### Why Use Agents?
-
-Agents save you from reinventing the wheel by offering ready-made solutions for common architectural challenges, such as managing threads/processes, synchronizing events, and handling errors.
-
-## Configuration
-
 Every agent has a set of **parameters** that define its own data. These parameters are stored in a `Config` object.
 
 The `Config` class is used by the agent to **create a configuration object for itself**. 
@@ -105,8 +86,50 @@ class MyAgent(PeriodicProcessAgent):
 ```
 :::
 
+### **StateEvents**
 
-## Plugin
+Every agent has a set of **events** that signal its internal state. These events are stored in a `StateEvents` object and allow external components to **understand the agent's current state**.
+
+The `StateEvents` class is used by the agent to **define its own state events**.
+
+Some of the **built-in** state events are:
+
+| State       | Description |
+| ------------- |  :---- |
+| `ready_event` | Event to signal that the agent is ready to start the execution. |
+| `close_event` | Event to signal that the agent has completed the execution. |
+
+::: tip 
+In every agent, the `StateEvents` class inherits from the respective parent agent's `StateEvents` class. This allows you to customize the agent's state events while retaining the built-in ones.
+:::
+
+::: info Example
+In our example, we didn't define any custom state events. We will discuss customizing these in more advanced topics.
+:::
+
+### **ControlEvents**
+
+Every agent has a set of **events** that are used to send commands to the agent. These events are stored in a `ControlEvents` object and allow external systems to **control the agent’s behavior**.
+
+The `ControlEvents` class is used by the agent to **define its own control events**.
+
+Some of the **built-in** control events are:
+
+| State       | Description |
+| ------------- |  :---- |
+| `setup_event` | Event to signal that the agent can be set up. |
+| `execute_event` | Event to signal that the agent can execute its logic. |
+| `stop_event` | Event to signal that the agent must stop. |
+
+::: tip 
+In every agent, the `ControlEvents` class inherits from the respective parent agent's `ControlEvents` class. This allows you to customize the agent's control events while retaining the built-in ones.
+:::
+
+::: info Example
+In our example, we didn't define any custom control events. We will discuss customizing these in more advanced topics.
+:::
+
+### Plugin
 
 The `Plugin` class is used by the agent to **create a plugin object for itself**. 
 
@@ -135,48 +158,9 @@ class MyAgent(PeriodicProcessAgent): #
 ```
 :::
 
-## **StateEvents**
+### Why Use Agents?
 
-Every agent has a set of **events** that signal its internal state. These events are stored in a `StateEvents` object and allow external components to **understand the agent's current state**.
-
-The `StateEvents` class is used by the agent to **define its own state events**.
-
-Some of the **built-in** state events are:
-
-| State       | Description |
-| ------------- |  :---- |
-| `ready_event` | Event to signal that the agent is ready to start the execution. |
-| `close_event` | Event to signal that the agent has completed the execution. |
-
-::: tip 
-In every agent, the `StateEvents` class inherits from the respective parent agent's `StateEvents` class. This allows you to customize the agent's state events while retaining the built-in ones.
-:::
-
-::: info Example
-In our example, we didn't define any custom state events. We will discuss customizing these in more advanced topics.
-:::
-
-## **ControlEvents**
-
-Every agent has a set of **events** that are used to send commands to the agent. These events are stored in a `ControlEvents` object and allow external systems to **control the agent’s behavior**.
-
-The `ControlEvents` class is used by the agent to **define its own control events**.
-
-Some of the **built-in** control events are:
-
-| State       | Description |
-| ------------- |  :---- |
-| `setup_event` | Event to signal that the agent can be set up. |
-| `execute_event` | Event to signal that the agent can execute its logic. |
-| `stop_event` | Event to signal that the agent must stop. |
-
-::: tip 
-In every agent, the `ControlEvents` class inherits from the respective parent agent's `ControlEvents` class. This allows you to customize the agent's control events while retaining the built-in ones.
-:::
-
-::: info Example
-In our example, we didn't define any custom control events. We will discuss customizing these in more advanced topics.
-:::
+Agents save you from reinventing the wheel by offering ready-made solutions for common architectural challenges, such as managing threads/processes, synchronizing events, and handling errors.
 
 ## Extend and Customize
 
