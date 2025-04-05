@@ -60,13 +60,10 @@ Is not mandatory to use the Orchestrator, but it provides several advantages. Us
 
 The `Config` class is used by the Orchestrator to **create a configuration object for itself**. 
 
-It serves three main purposes:
-
-| Purpose       | Description |
-| ------------- |  :---- |
-| built-in attributes | can be customized by users to control the orchestrator's behavior. |
-| user-defined attributes | provides a flexible space for users to add custom attributes. |
-| attributes validation | provides a validate method that can be overridden to implement custom validation logic. |
+Available attributes are:
+- `check_interval`: (int) The interval (in seconds) at which the Orchestrator checks the status of agents.
+- `max_workers`: (int) The maximum number of worker threads to use for executing tasks.
+- `logger`: (LoggerConfig) The logger configuration object.
 
 ::: info Example
 For example `MyOrchestrator` class defines its own configuration class via parent's' `Config` class.
@@ -75,9 +72,18 @@ For example `MyOrchestrator` class defines its own configuration class via paren
 class MyOrchestrator(Orchestrator):
 
     class Config(Orchestrator.Config): # [!code focus]
-        retry = True # [!code focus]
-        max_workers = 5 # [!code focus]
+        check_interval = 5 # [!code focus]
+        max_workers = 2 # [!code focus]
+        logger = LoggerConfig() # [!code focus]
 
     config: Config
 ```
 :::
+
+## Registering Agents
+
+The Orchestrator allows you to register agents using the `register_agent` method. This method takes the agent class and some optional parameters as arguments.
+
+```python
+orchestrator.register_agent(Publisher, "Publisher")
+```

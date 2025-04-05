@@ -126,6 +126,12 @@ class MyAgent(PeriodicProcessAgent): #
         zmq = ZmqPubSub("tcp://*:5555",zmq.PUB) # [!code focus]
 
     plugin: Plugin
+
+    def runner(self):
+        super().runner()
+
+        self.logger.info("Sending message")
+        self.plugin.zmq.send("hello world".encode()) # [!code focus]
 ```
 :::
 
