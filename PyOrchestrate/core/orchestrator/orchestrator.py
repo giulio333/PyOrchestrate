@@ -78,7 +78,7 @@ class Orchestrator(BaseClass):
         name: str | None = None,
     ):
         super().__init__(
-            name=name,
+            name=name or self.__class__.__name__,
             config=config or Orchestrator.Config(),
             plugin=plugin or Orchestrator.Plugin(),
         )

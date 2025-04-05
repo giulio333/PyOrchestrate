@@ -30,7 +30,7 @@ class FileWriter(PeriodicProcessAgent):
 
 
 if __name__ == "__main__":
-    orchestrator = Orchestrator(name="CoolOrchestrator")
+    orchestrator = Orchestrator()
 
     # register agents
     orchestrator.register_agent(FileWriter, "FileWriter")
