@@ -29,7 +29,7 @@ export const enConfig = {
     sidebar: {
       '/learn': [
         {
-          text: 'Explore Agents',
+          text: 'Learn',
           items: [
             {
               text: 'Core Concepts',

@@ -5,65 +5,75 @@ editLink: true
 
 # Orchestrator
 
-The **Orchestrator** is a central component responsible for coordinating multiple **Agents** and managing their lifecycle. It ensures seamless communication among **Agents** and serves as a single point for controlling the entire flow.
+The **Orchestrator** is the component in charge of supervising and coordinating your **Agents**. It takes care of starting them, managing their lifecycle, and making sure everything runs smoothly — whether you're using threads, processes, or a mix of both.
 
-## Registration
+## 👥 Registering Agents
 
 ![alt text](./reg.png)
 
-The first step in using the Orchestrator is to **register** the **Agents** you want to manage. 
+Before anything else, you need to **register** the Agents you want the Orchestrator to manage. This is done using the `register_agent()` method, which lets you provide the Agent class and an optional name. Once registered, the Orchestrator knows how to launch and manage each one.
 
-This is done through the `register_agent` method, which takes the class of the agent and an optional name. The Orchestrator keeps track of all registered agents, allowing you to start them in a controlled manner.
-
-::: tip
-Under the hood, registering an **Agent** means wrapping it inside an `AgentEntry` object and storing it in memory. 
-
-This entry holds the **Agent class** along with all the **configuration**, **plugins**, **control/state events**, and **runtime parameters**.
-
-If you need more details about Agent's parameters, please refer to the [Agent](../../agents/index.md) documentation.
+::: tip Behind the scenes
+When you register an Agent, the Orchestrator wraps it in an `AgentEntry` object that stores all the important details: class, config, plugins, events, and parameters. This makes it easy to start, stop, or even restart the Agent later.
 :::
 
-## Lifecycle Management
+You can also restart a previously registered Agent using its `restart()` method, which stops, joins, and then relaunches the instance. This is useful for recovering Agents or re-executing isolated logic during runtime.
 
-Once all Agents have been registered, the Orchestrator initiates the execution flow by performing a series of well-defined steps:
+If you don’t provide control or state events, the Orchestrator will create them for you automatically and initialize them in a ready state.
 
--   **Dependency validation**: it checks that all declared dependencies refer to existing Agents and ensures that there are no cycles. This produces a valid topological order where each Agent is guaranteed to start only after its prerequisites.
-    
--   **Agent initialization and startup**: for each Agent, the Orchestrator retrieves the corresponding `AgentEntry` from memory, initializes its instance with the provided configuration, plugin, and events (or creates default ones if not provided), then starts it as a process or thread. Upon startup, an `AGENT_STARTED` event is emitted, including the name of the started Agent.
-    
--   **Monitoring and dynamic activation**: during execution, the Orchestrator periodically checks which Agents are still alive. When an Agent completes, it emits an `AGENT_TERMINATED` event.
-    
--   **Completion detection**: the lifecycle loop continues until all Agents have finished and the queue is empty. At this point, a final `ALL_AGENTS_TERMINATED` event is emitted, signaling that the system has completed its work.
-    
--   **Synchronization and shutdown**: developers can call `join()` to block the main thread until all Agents terminate, ensuring a clean shutdown. Alternatively, `simple_join()` offers a minimal waiting mechanism without managing events or dependencies.
+::: tip
+If you're looking for more details about Agent parameters, check out the [Agent documentation](../../agents/index.md).
+:::
 
-## Concurrency Control and Queue Handling
-To optimize resource usage and avoid overloading the system, the Orchestrator allows developers to define a concurrency limit using the `max_workers` parameter. This setting caps the number of Agents that can run simultaneously.
+## ⚙️ How Agent Execution Works
 
-When the limit is reached, any additional Agents are placed into an internal waiting queue. As soon as a running Agent finishes, the Orchestrator automatically starts the next one in line, ensuring a smooth, balanced execution flow.
+After registering your Agents, the Orchestrator follows a series of steps to launch and manage them:
 
-## Event-Driven Coordination
-The Orchestrator emits structured events throughout the lifecycle of the Agents. These include events for when an Agent starts, terminates, or when all Agents have completed. These events are broadcast through an internal Event Manager and can be used to monitor system health, update dashboards, or trigger reactions in external services.
+- **Step 1 – Check dependencies**: it ensures that all declared Agent dependencies exist and that there are no circular references. This produces an execution order where each Agent starts only after its prerequisites.
 
-This reactive behavior enables a high degree of observability and external integration, allowing the orchestration layer to be plugged into larger monitoring or alerting systems.
+- **Step 2 – Start the Agents**: using the topological order, the Orchestrator initializes each Agent and starts it (as a process or thread). A `AGENT_STARTED` event is emitted when the Agent is running.
 
-## Hierarchical and Scalable Architecture
-The orchestration logic supports recursive orchestration: an `Agent` can itself be an `Orchestrator` managing its own set of `threads` or `subprocesses`. This makes it possible to build multi-level hierarchies where a top-level Orchestrator supervises multiple sub-managers, each with their own specialized workload.
+- **Step 3 – Monitor execution**: during runtime, the Orchestrator keeps an eye on all active Agents. When one finishes, it emits an `AGENT_TERMINATED` event and, if needed, starts another one from the queue.
 
-Such flexibility is crucial for large-scale applications where responsibilities are split across domains or computation units.
+- **Step 4 – Wrap things up**: once all Agents have completed and the queue is empty, a final `ALL_AGENTS_TERMINATED` event is emitted.
 
-## Flexible Configuration
-The Orchestrator provides configurable options for its behavior, including:
+- **Step 5 – Wait for completion**: you can call `join()` to block the main thread until all Agents are done. Or use `simple_join()` if you just want to wait without managing events or dependencies.
 
-- check_interval: how often to inspect the status of running Agents.
-- max_workers: the cap on concurrent executions.
+## 🚦 Running Agents in Parallel with Limits
 
-These options can be fine-tuned based on the expected workload or hardware capacity, giving the developer full control over orchestration dynamics.
+The Orchestrator supports **concurrency limits** to avoid overloading your system. You can define a `max_workers` value to cap how many Agents can run at the same time.
 
-## Simpler Execution Mode
-For use cases that don't require dependency resolution, concurrency control, or event emission, the Orchestrator also provides a simple_join() method. This method merely waits for all Agents to finish, acting as a synchronization barrier without the additional orchestration logic.
+If the limit is reached, the extra Agents are placed in a queue. As soon as a slot frees up, the next waiting Agent is started automatically. This helps keep your system balanced and responsive.
 
-## Runtime Reporting and Insights
-At any point during execution, the Orchestrator can report the status of all registered Agents, including their activity, process/thread identity, and whether they are alive. This is particularly useful for diagnostics and monitoring, especially in long-running or critical workloads.
+## 🔔 Reacting to Events
 
-It also keeps track of each Agent’s lifecycle history — a chronological log of events like start, stop, and join, with timestamps — providing visibility into the execution timeline.
+As Agents run, the Orchestrator emits events at key moments — when they start, stop, or when everything is done. These events flow through an **Event Manager**, and you can hook into them to trigger alerts, logs, dashboards, or custom reactions.
+
+This makes your system not only coordinated, but also observable and responsive to change.
+
+## 🧱 Advanced Features and Observability
+
+You can optionally organize your Agents into **Groups**, allowing you to logically separate them by function, priority, or execution phase. A Group is simply a named collection of Agent names. You can add or remove Agents from groups and later retrieve all instances in a group. This is useful for batch operations or context-based orchestration.
+
+At any moment, you can ask the Orchestrator to report the status of all Agents: whether they’re running, what their process/thread ID is, and more.
+
+The Orchestrator also maintains an internal history of all events for each Agent — including `start`, `stop`, and `join` — complete with timestamps. This history can be retrieved at any time using the `get_agent_stats(name)` method and is particularly useful for auditing, debugging, or tracking execution timelines.
+
+You can even use one Orchestrator as an Agent inside another, allowing you to build **hierarchical orchestration layers**, where a top-level Orchestrator supervises others that manage their own subprocesses or threads.
+
+## ⚙️ Customizing the Behavior
+
+You can adjust how the Orchestrator behaves using its configuration `Orchestrator.Config`:
+
+- `check_interval`: how often it checks the status of running Agents
+- `max_workers`: how many Agents can run in parallel
+
+## 💤 A Simpler Way to Wait
+
+If you don’t need advanced lifecycle control or event tracking, the Orchestrator also offers a `simple_join()` method. It just waits for all Agents to finish — no queues, no events, just a clean wait until the job is done.
+
+## 📊 Seeing What’s Happening
+
+At any moment, you can ask the Orchestrator to report the status of all Agents: whether they’re running, what their process/thread ID is, and more.
+
+It also logs each Agent’s lifecycle, including events like `start`, `stop`, and `join`, along with timestamps. This makes debugging and monitoring much easier, especially in long-running or production systems.
