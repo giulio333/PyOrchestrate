@@ -61,6 +61,8 @@ The Orchestrator also maintains an internal history of all events for each Agent
 
 You can even use one Orchestrator as an Agent inside another, allowing you to build **hierarchical orchestration layers**, where a top-level Orchestrator supervises others that manage their own subprocesses or threads.
 
+If an Agent crashes or encounters an unhandled exception, the Orchestrator will still detect its termination. You can inspect its status or decide to manually restart it using the `restart()` method. This allows for basic fault tolerance and recovery strategies in more resilient systems.
+
 ## ⚙️ Customizing the Behavior
 
 You can adjust how the Orchestrator behaves using its configuration `Orchestrator.Config`:
