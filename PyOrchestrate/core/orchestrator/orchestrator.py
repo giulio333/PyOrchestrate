@@ -251,7 +251,6 @@ class Orchestrator(BaseClass):
         """
         agent: AgentEntry = self.memory.get_agent(agent_name)
 
-        self.logger.info(f"Starting agent {agent_name}...")
         agent.initialize_agent()
 
         if self._running_agents >= self.config.max_workers:
@@ -267,6 +266,8 @@ class Orchestrator(BaseClass):
 
         self.event_manager.emit(OrchestratorEvent.AGENT_STARTED, agent_name=agent.name)
 
+        self.logger.info(f"Starting agent {agent_name}...")
+        
     def stop(self):
         """Terminates all registered agents."""
         for agent in self.memory.agents:
