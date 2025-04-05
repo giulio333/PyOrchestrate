@@ -49,7 +49,7 @@ class Subscriber(LoopingProcessAgent):
 
 
 if __name__ == "__main__":
-    orchestrator = Orchestrator("CoolOrchestrator")
+    orchestrator = Orchestrator(name="CoolOrchestrator")
 
     # register agents
     orchestrator.register_agent(Publisher, "Publisher")
