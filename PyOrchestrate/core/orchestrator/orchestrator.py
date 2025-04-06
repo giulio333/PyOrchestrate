@@ -267,7 +267,7 @@ class Orchestrator(BaseClass):
         self.event_manager.emit(OrchestratorEvent.AGENT_STARTED, agent_name=agent.name)
 
         self.logger.info(f"Starting agent {agent_name}...")
-        
+
     def stop(self):
         """Terminates all registered agents."""
         for agent in self.memory.agents:
