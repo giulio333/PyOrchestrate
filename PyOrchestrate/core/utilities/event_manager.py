@@ -78,19 +78,18 @@ class EventManager:
         Emits an event by invoking all attached callbacks.
 
         If listeners exist for the event, they are executed sequentially.
-        Before execution, default data such as the event date and time are added to kwargs.
+        Before execution, default data such as the `event_date` and `event_time` are added to kwargs.
+
         Only the parameters accepted by each callback are passed, via filtering based on the function signature.
         Exceptions raised by a callback are caught to avoid interrupting the execution of the others.
 
         Args:
             event (Enum): The event to be emitted, identified by its 'name' attribute.
             *args: Positional arguments passed to the callbacks.
-            **kwargs: Keyword arguments passed to the callbacks. By default, the following are added:
-                - event_date (str): Date in YYYY-MM-DD format.
-                - event_time (str): Time in HH:MM:SS format.
+            **kwargs: Keyword arguments passed to the callbacks.
 
         Example:
-            >>> event_manager.emit(AgentEvent.AGENT_START, "Agent_1")
+            >>> event_manager.emit(AgentEvent.AGENT_START, agent_name="Agent_1")
         """
         listeners = []
         if event.name in self._listeners:
