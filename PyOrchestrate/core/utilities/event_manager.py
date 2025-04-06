@@ -13,6 +13,7 @@ from enum import Enum
 import inspect
 from datetime import datetime
 from typing import Callable
+from concurrent.futures import ThreadPoolExecutor
 
 
 class EventManager:
@@ -37,6 +38,7 @@ class EventManager:
         Creates the internal dictionary for managing listeners.
         """
         self._listeners: dict[str, list[Callable]] = {}
+        self._executor = ThreadPoolExecutor(max_workers=10)
 
     def register_event(self, event: Enum):
         """
@@ -108,7 +110,15 @@ class EventManager:
                         for key, value in kwargs.items()
                         if key in callback_params
                     }
-                    callback(*args, **filtered_kwargs)
+                    future = self._executor.submit(callback, *args, **filtered_kwargs)
+                    future.add_done_callback(
+                        lambda fut, cb=callback: self._handle_future_exception(cb, fut)
+                    )
                 except Exception as e:
                     print(f"Error in callback {callback.__name__}: {e}")
-                    pass  # skip the callback that raised an exception
+
+    def _handle_future_exception(self, callback, future):
+        try:
+            future.result()
+        except Exception as e:
+            print(f"Error in callback {callback.__name__} execution: {e}")
