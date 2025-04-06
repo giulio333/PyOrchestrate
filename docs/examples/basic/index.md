@@ -55,7 +55,7 @@ from configurations.weather_config import WCConfig
 
 class WeatherCollector(PeriodicProcessAgent[WCConfig]):
 
-    Config = WCConfig  # Associate the configuration class with the agent
+    config = WCConfig  # Associate the configuration class with the agent
 
     def setup(self):
         super().setup()

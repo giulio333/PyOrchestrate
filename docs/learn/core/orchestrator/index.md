@@ -9,20 +9,34 @@ The **Orchestrator** is the component in charge of supervising and coordinating 
 
 ## 👥 Registering Agents
 
-![alt text](./reg.png)
+Before using the Orchestrator, you need to **register the Agents** you want it to manage.
 
-Before anything else, you need to **register** the Agents you want the Orchestrator to manage. This is done using the `register_agent()` method, which lets you provide the Agent class and an optional name. Once registered, the Orchestrator knows how to launch and manage each one.
+This is done using the `register_agent()` method. You just provide:
+
+- the Agent class,
+- a unique name,
+- and (optionally) a custom configuration or extra parameters.
+
+Once registered, the Orchestrator knows how to **start**, **monitor**, and **stop** the Agent.
 
 ::: tip Behind the scenes
-When you register an Agent, the Orchestrator wraps it in an `AgentEntry` object that stores all the important details: class, config, plugins, events, and parameters. This makes it easy to start, stop, or even restart the Agent later.
+Each Agent is wrapped in an `AgentEntry` object that stores everything needed: the class, config, events, and more. This makes it easy to control the Agent at any time.
 :::
 
-You can also restart a previously registered Agent using its `restart()` method, which stops, joins, and then relaunches the instance. This is useful for recovering Agents or re-executing isolated logic during runtime.
+##### Customizing Agent Parameters
 
-If you don’t provide control or state events, the Orchestrator will create them for you automatically and initialize them in a ready state.
+![alt text](./example1_l.svg){.light-only}
+![alt text](./example1_d.svg){.dark-only}
+
+You can also register multiple instances of the same Agent class, each with different settings.
+
+For example, you might run three `Worker` Agents, but one with a custom output file.
+
+---
 
 ::: tip
-If you're looking for more details about Agent parameters, check out the [Agent documentation](../../agents/index.md).
+- For more details on how to register Agents, check out the [Orchestrator Registering Agents](../../orchestrator/index.md#registering-agents).
+- For more details on Agent's parameters and configuration, check out the [Agent Overview](../../agents/index.md#overview).
 :::
 
 ## ⚙️ How Agent Execution Works

@@ -99,3 +99,21 @@ All available parameters are
 | `state_events`  | list         | A list of state events to be used by the agent. If not provided, the default events will be used. |
 | `event_manager` | EventManager | The event manager to be used by the agent. If not provided, the default event manager will be used. |
 | `kwargs`        | dict         | Additional keyword arguments to be passed to the agent constructor.         |
+
+If you don't provide optional parameters, the Orchestrator will use the default values defined in the `Agent` class.
+
+For example, you can have multiple instances of the same agent class with different configurations:
+
+```python
+custom_config = Publisher.Config(output_file="custom_fule.txt")
+
+orchestrator.register_agent(Publisher, "Pub1")
+orchestrator.register_agent(Publisher, "Pub2")
+orchestrator.register_agent(Publisher, "Pub3", custom_config=custom_config)
+```
+
+In this example, we have three instances of the `Publisher` agent, but the third one has a custom configuration with a different output file.
+
+::: tip
+- For more details on Agent's parameters and configuration, check out the [Agent Overview](../agents/index.md#overview).
+:::
