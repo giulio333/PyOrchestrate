@@ -105,7 +105,7 @@ If you don't provide optional parameters, the Orchestrator will use the default 
 For example, you can have multiple instances of the same agent class with different configurations:
 
 ```python
-custom_config = Publisher.Config(output_file="custom_fule.txt")
+custom_config = Publisher.Config(output_file="custom_file.txt")
 
 orchestrator.register_agent(Publisher, "Pub1")
 orchestrator.register_agent(Publisher, "Pub2")

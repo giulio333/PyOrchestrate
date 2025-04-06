@@ -20,19 +20,19 @@ This is done using the `register_agent()` method. You just provide:
 Once registered, the Orchestrator knows how to **start**, **monitor**, and **stop** the Agent.
 
 ::: tip Behind the scenes
-Each Agent is wrapped in an `AgentEntry` object that stores everything needed: the class, config, events, and more. This makes it easy to control the Agent at any time.
+Each Agent is wrapped in an `AgentEntry` object that stores everything needed: the class, config, events, and more.
 :::
 
 ##### Customizing Agent Parameters
 
-![alt text](./example1_l.svg){.light-only}
-![alt text](./example1_d.svg){.dark-only}
+You can reuse the same Agent class to run **multiple Agents** that do slightly different things, all by changing their configuration.
 
-You can also register multiple instances of the same Agent class, each with different settings.
+For example, imagine you have a `FileWriterAgent` that writes data to a file. By passing a different file path to each one during registration, you can launch two Agents from the same class: one that writes to `log_a.txt` and another that writes to `log_b.txt`.
 
-For example, you might run three `Worker` Agents, but one with a custom output file.
+This makes your codebase simpler, since you only need one Agent class to support many use cases, just configure it differently at registration time.
 
----
+![alt text](./example1_l.svg){.light-only style="display: block; margin: 0 auto; width: 60%"}
+![alt text](./example1_d.svg){.dark-only style="display: block; margin: 0 auto; width: 60%"}
 
 ::: tip
 - For more details on how to register Agents, check out the [Orchestrator Registering Agents](../../orchestrator/index.md#registering-agents).
