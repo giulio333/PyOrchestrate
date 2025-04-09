@@ -19,7 +19,7 @@ from typing import Callable, Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 
 
-# Configurazione del logger thread-safe
+# Thread-safe logger configuration
 logger = logging.getLogger(__name__)
 
 
@@ -57,7 +57,7 @@ class EventManager:
         self._max_workers: int = max_workers
         self._executor: Optional[ThreadPoolExecutor] = None
 
-        # Registra la chiusura dell'executor quando l'applicazione termina
+        # Register executor shutdown when the application terminates
         atexit.register(self.shutdown)
 
     def register_event(self, event: Enum):
@@ -138,28 +138,28 @@ class EventManager:
         if not listeners:
             return
 
-        # Aggiungi dati predefiniti
+        # Add default data
         kwargs["event_date"] = datetime.now().date().isoformat()
         kwargs["event_time"] = datetime.now().time().isoformat()
 
         for callback in listeners:
-            # Filtra i parametri in base alla firma della funzione
+            # Filter parameters based on function signature
             sig = inspect.signature(callback)
             filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
 
-            # Esegui il callback in modo asincrono
+            # Execute callback asynchronously
             self._executor.submit(
                 self._execute_callback, callback, args, filtered_kwargs
             )
 
     def _execute_callback(self, callback: Callable, args, kwargs):
         """
-        Esegue il callback in modo sicuro, catturando eventuali eccezioni.
+        Executes the callback safely, catching any exceptions.
 
         Args:
-            callback (Callable): Il callback da eseguire.
-            args (tuple): Argomenti posizionali.
-            kwargs (dict): Argomenti keyword.
+            callback (Callable): The callback to execute.
+            args (tuple): Positional arguments.
+            kwargs (dict): Keyword arguments.
         """
         try:
             callback(*args, **kwargs)
@@ -170,10 +170,10 @@ class EventManager:
 
     def shutdown(self, wait: bool = True):
         """
-        Chiude l'event manager e il thread pool.
+        Shuts down the event manager and thread pool.
 
         Args:
-            wait (bool): Se True, attende che tutti i task in esecuzione siano completati.
+            wait (bool): If True, waits for all running tasks to complete.
         """
         if self._shutdown:
             return
