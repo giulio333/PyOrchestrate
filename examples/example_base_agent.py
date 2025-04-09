@@ -34,11 +34,9 @@ class APIFetchAgent(PeriodicProcessAgent):
         response = requests.get(self.config.api_url)
         if response.status_code == 200:
             return response.json()
-        else:
-            self.logger.error(
-                f"Error accessing API: status code {response.status_code}"
-            )
-            return None
+
+        self.logger.error(f"Error accessing API: status code {response.status_code}")
+        return None
 
     def _handle_api_response(self, json_data: dict):
         """
