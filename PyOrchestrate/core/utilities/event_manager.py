@@ -52,10 +52,10 @@ class EventManager:
             max_workers (int): Maximum number of worker threads in the thread pool.
         """
         self._listeners: Dict[str, List[Callable]] = {}
-        self._lock = threading.Lock()
+        self._lock = None  # Inizializziamo il lock a None
         self._shutdown = False
         self._max_workers = max_workers
-        self._executor = None  # Inizializziamo l'executor a None per evitare problemi di serializzazione
+        self._executor = None
 
         # Registra la chiusura dell'executor quando l'applicazione termina
         atexit.register(self.shutdown)
@@ -73,6 +73,8 @@ class EventManager:
         Example:
             >>> event_manager.register_event(AgentEvent.AGENT_START)
         """
+        if self._lock is None:
+            self._lock = threading.Lock()
         with self._lock:
             if event.name not in self._listeners:
                 self._listeners[event.name] = []
@@ -92,6 +94,8 @@ class EventManager:
         Example:
             >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started)
         """
+        if self._lock is None:
+            self._lock = threading.Lock()
         with self._lock:
             if event.name not in self._listeners:
                 self.register_event(event)
@@ -121,9 +125,10 @@ class EventManager:
             )
             return
 
-        # Inizializziamo l'executor se non è già stato inizializzato
         if self._executor is None:
             self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
+        if self._lock is None:
+            self._lock = threading.Lock()
 
         listeners = []
         with self._lock:
