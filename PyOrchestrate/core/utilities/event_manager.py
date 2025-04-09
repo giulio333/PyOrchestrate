@@ -52,13 +52,26 @@ class EventManager:
             max_workers (int): Maximum number of worker threads in the thread pool.
         """
         self._listeners: Dict[str, List[Callable]] = {}
-        self._lock: Optional[threading.Lock] = None
         self._shutdown: bool = False
         self._max_workers: int = max_workers
         self._executor: Optional[ThreadPoolExecutor] = None
+        self._lock: Optional[threading.Lock] = None
 
         # Register executor shutdown when the application terminates
         atexit.register(self.shutdown)
+
+    @property
+    def lock(self) -> threading.Lock:
+        """
+        Returns the thread lock for synchronized operations.
+        If the lock is not initialized, it creates a new one.
+
+        Returns:
+            threading.Lock: The thread lock instance.
+        """
+        if self._lock is None:
+            self._lock = threading.Lock()
+        return self._lock
 
     def register_event(self, event: Enum):
         """
@@ -73,9 +86,7 @@ class EventManager:
         Example:
             >>> event_manager.register_event(AgentEvent.AGENT_START)
         """
-        if self._lock is None:
-            self._lock = threading.Lock()
-        with self._lock:
+        with self.lock:
             if event.name not in self._listeners:
                 self._listeners[event.name] = []
 
@@ -94,9 +105,7 @@ class EventManager:
         Example:
             >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started)
         """
-        if self._lock is None:
-            self._lock = threading.Lock()
-        with self._lock:
+        with self.lock:
             if event.name not in self._listeners:
                 self.register_event(event)
             self._listeners[event.name].append(callback)
@@ -127,11 +136,9 @@ class EventManager:
 
         if self._executor is None:
             self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
-        if self._lock is None:
-            self._lock = threading.Lock()
 
         listeners = []
-        with self._lock:
+        with self.lock:
             if event.name in self._listeners:
                 listeners = self._listeners[event.name].copy()
 
