@@ -16,7 +16,7 @@ import threading
 import atexit
 from datetime import datetime
 from typing import Callable, Dict, List, Optional
-from concurrent.futures import ThreadPoolExecutor, Future
+from concurrent.futures import ThreadPoolExecutor
 
 
 # Configurazione del logger thread-safe
@@ -52,10 +52,10 @@ class EventManager:
             max_workers (int): Maximum number of worker threads in the thread pool.
         """
         self._listeners: Dict[str, List[Callable]] = {}
-        self._lock = None  # Inizializziamo il lock a None
-        self._shutdown = False
-        self._max_workers = max_workers
-        self._executor = None
+        self._lock: Optional[threading.Lock] = None
+        self._shutdown: bool = False
+        self._max_workers: int = max_workers
+        self._executor: Optional[ThreadPoolExecutor] = None
 
         # Registra la chiusura dell'executor quando l'applicazione termina
         atexit.register(self.shutdown)
