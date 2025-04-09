@@ -164,7 +164,9 @@ class EventManager:
         try:
             callback(*args, **kwargs)
         except Exception as e:
-            logger.exception(f"Error executing callback {callback.__name__}: {str(e)}")
+            logger.exception(
+                "Error executing callback %s: %s", callback.__name__, str(e)
+            )
 
     def shutdown(self, wait: bool = True):
         """
