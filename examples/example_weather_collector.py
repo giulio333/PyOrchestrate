@@ -2,6 +2,7 @@ import requests
 import json
 import os
 import logging
+from multiprocessing import set_start_method
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
 from PyOrchestrate.core.base.exceptions import RecoverableException
@@ -84,15 +85,17 @@ class WeatherCollector(PeriodicProcessAgent):
 
 
 if __name__ == "__main__":
+    set_start_method("spawn")
+
     orchestrator = Orchestrator(name="Orchestrator")
 
-    orchestrator.event_manager.connect(
+    orchestrator.event_manager.register_event(
         OrchestratorEvent.AGENT_STARTED, on_agent_started
     )
-    orchestrator.event_manager.connect(
+    orchestrator.event_manager.register_event(
         OrchestratorEvent.AGENT_TERMINATED, on_agent_stopped
     )
-    orchestrator.event_manager.connect(
+    orchestrator.event_manager.register_event(
         OrchestratorEvent.ALL_AGENTS_TERMINATED, on_all_agents_stopped
     )
 

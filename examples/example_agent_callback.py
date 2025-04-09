@@ -86,8 +86,8 @@ if __name__ == "__main__":
 
     # Create an EventManager
     event_manager = EventManager()
-    event_manager.connect(AgentEvent.AGENT_START, on_agent_start)
-    event_manager.connect(AgentEvent.AGENT_CLOSE, on_agent_close)
+    event_manager.register_event(AgentEvent.AGENT_START, on_agent_start)
+    event_manager.register_event(AgentEvent.AGENT_CLOSE, on_agent_close)
 
     # Registering agents (solo APIFetchAgent è registrato)
     fetch_agent: AgentEntry = orchestrator.register_agent(
