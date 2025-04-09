@@ -145,14 +145,21 @@ class EventManager:
         if not listeners:
             return
 
-        # Add default data
-        kwargs["event_date"] = datetime.now().date().isoformat()
-        kwargs["event_time"] = datetime.now().time().isoformat()
+        # Create default data
+        default_data = {
+            "event_date": datetime.now().date().isoformat(),
+            "event_time": datetime.now().time().isoformat(),
+        }
 
         for callback in listeners:
             # Filter parameters based on function signature
             sig = inspect.signature(callback)
             filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+
+            # Add default data only if the callback accepts these parameters
+            for key, value in default_data.items():
+                if key in sig.parameters:
+                    filtered_kwargs[key] = value
 
             # Execute callback asynchronously
             self._executor.submit(
