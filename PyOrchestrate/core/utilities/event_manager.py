@@ -73,24 +73,7 @@ class EventManager:
             self._lock = threading.Lock()
         return self._lock
 
-    def register_event(self, event: Enum):
-        """
-        Registers a new event.
-
-        If the event is not already present, a new entry is created in the listeners dictionary.
-        The event is identified by the 'name' attribute of the provided enum.
-
-        Args:
-            event (Enum): An Enum instance representing the event to register.
-
-        Example:
-            >>> event_manager.register_event(AgentEvent.AGENT_START)
-        """
-        with self.lock:
-            if event.name not in self._listeners:
-                self._listeners[event.name] = []
-
-    def connect(self, event: Enum, callback: Callable):
+    def register_event(self, event: Enum, callback: Callable):
         """
         Attaches a callback to an event.
 
@@ -106,8 +89,10 @@ class EventManager:
             >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started)
         """
         with self.lock:
+            # register the event if it doesn't exist
             if event.name not in self._listeners:
-                self.register_event(event)
+                self._listeners[event.name] = []
+            # add the callback to the list
             self._listeners[event.name].append(callback)
 
     def emit(self, event: Enum, *args, **kwargs):
