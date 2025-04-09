@@ -11,8 +11,16 @@ It isolates errors in one callback so that they do not affect the execution of o
 
 from enum import Enum
 import inspect
+import logging
+import threading
+import atexit
 from datetime import datetime
-from typing import Callable
+from typing import Callable, Dict, List, Optional
+from concurrent.futures import ThreadPoolExecutor
+
+
+# Thread-safe logger configuration
+logger = logging.getLogger(__name__)
 
 
 class EventManager:
@@ -23,38 +31,49 @@ class EventManager:
 
     Attributes:
         _listeners (dict): A dictionary mapping event names to lists of callback functions.
+        _executor (ThreadPoolExecutor): Thread pool for executing callbacks asynchronously.
+        _lock (threading.Lock): Lock for thread-safe operations on listeners.
+        _shutdown (bool): Flag indicating if the event manager is shutting down.
 
     Features:
         - register_event: Registers a new event if not already present.
         - connect: Attaches a callback to an event (registering the event if necessary).
         - emit: Emits the event by calling all attached callbacks, including default data such as event date and time.
+        - shutdown: Safely shuts down the event manager and its thread pool.
     """
 
-    def __init__(self):
+    def __init__(self, max_workers: int = 10):
         """
         Initializes the EventManager instance.
 
-        Creates the internal dictionary for managing listeners.
-        """
-        self._listeners: dict[str, list[Callable]] = {}
-
-    def register_event(self, event: Enum):
-        """
-        Registers a new event.
-
-        If the event is not already present, a new entry is created in the listeners dictionary.
-        The event is identified by the 'name' attribute of the provided enum.
+        Creates the internal dictionary for managing listeners and initializes the thread pool.
 
         Args:
-            event (Enum): An Enum instance representing the event to register.
-
-        Example:
-            >>> event_manager.register_event(AgentEvent.AGENT_START)
+            max_workers (int): Maximum number of worker threads in the thread pool.
         """
-        if event.name not in self._listeners:
-            self._listeners[event.name] = []
+        self._listeners: Dict[str, List[Callable]] = {}
+        self._shutdown: bool = False
+        self._max_workers: int = max_workers
+        self._executor: Optional[ThreadPoolExecutor] = None
+        self._lock: Optional[threading.Lock] = None
 
-    def connect(self, event: Enum, callback: Callable):
+        # Register executor shutdown when the application terminates
+        atexit.register(self.shutdown)
+
+    @property
+    def lock(self) -> threading.Lock:
+        """
+        Returns the thread lock for synchronized operations.
+        If the lock is not initialized, it creates a new one.
+
+        Returns:
+            threading.Lock: The thread lock instance.
+        """
+        if self._lock is None:
+            self._lock = threading.Lock()
+        return self._lock
+
+    def register_event(self, event: Enum, callback: Callable):
         """
         Attaches a callback to an event.
 
@@ -69,15 +88,18 @@ class EventManager:
         Example:
             >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started)
         """
-        if event.value not in self._listeners:
-            self.register_event(event)
-        self._listeners[event.name].append(callback)
+        with self.lock:
+            # register the event if it doesn't exist
+            if event.name not in self._listeners:
+                self._listeners[event.name] = []
+            # add the callback to the list
+            self._listeners[event.name].append(callback)
 
     def emit(self, event: Enum, *args, **kwargs):
         """
         Emits an event by invoking all attached callbacks.
 
-        If listeners exist for the event, they are executed sequentially.
+        If listeners exist for the event, they are executed asynchronously.
         Before execution, default data such as the `event_date` and `event_time` are added to kwargs.
 
         Only the parameters accepted by each callback are passed, via filtering based on the function signature.
@@ -91,24 +113,72 @@ class EventManager:
         Example:
             >>> event_manager.emit(AgentEvent.AGENT_START, agent_name="Agent_1")
         """
+        if self._shutdown:
+            logger.warning(
+                "EventManager is shutting down, ignoring event emission: %s", event.name
+            )
+            return
+
+        if self._executor is None:
+            self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
+
         listeners = []
-        if event.name in self._listeners:
-            listeners = self._listeners[event.name][:]
+        with self.lock:
+            if event.name in self._listeners:
+                listeners = self._listeners[event.name].copy()
 
-        if listeners:
-            now = datetime.now()
-            kwargs.setdefault("event_date", now.strftime("%Y-%m-%d"))
-            kwargs.setdefault("event_time", now.strftime("%H:%M:%S"))
+        if not listeners:
+            return
 
-            for callback in listeners:
-                try:
-                    callback_params = inspect.signature(callback).parameters
-                    filtered_kwargs = {
-                        key: value
-                        for key, value in kwargs.items()
-                        if key in callback_params
-                    }
-                    callback(*args, **filtered_kwargs)
-                except Exception as e:
-                    print(f"Error in callback {callback.__name__}: {e}")
-                    pass  # skip the callback that raised an exception
+        # Create default data
+        default_data = {
+            "event_date": datetime.now().date().isoformat(),
+            "event_time": datetime.now().time().isoformat(),
+        }
+
+        for callback in listeners:
+            # Filter parameters based on function signature
+            sig = inspect.signature(callback)
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+
+            # Add default data only if the callback accepts these parameters
+            for key, value in default_data.items():
+                if key in sig.parameters:
+                    filtered_kwargs[key] = value
+
+            # Execute callback asynchronously
+            self._executor.submit(
+                self._execute_callback, callback, args, filtered_kwargs
+            )
+
+    def _execute_callback(self, callback: Callable, args, kwargs):
+        """
+        Executes the callback safely, catching any exceptions.
+
+        Args:
+            callback (Callable): The callback to execute.
+            args (tuple): Positional arguments.
+            kwargs (dict): Keyword arguments.
+        """
+        try:
+            callback(*args, **kwargs)
+        except Exception as e:
+            logger.exception(
+                "Error executing callback %s: %s", callback.__name__, str(e)
+            )
+
+    def shutdown(self, wait: bool = True):
+        """
+        Shuts down the event manager and thread pool.
+
+        Args:
+            wait (bool): If True, waits for all running tasks to complete.
+        """
+        if self._shutdown:
+            return
+
+        self._shutdown = True
+
+        if self._executor is not None:
+            self._executor.shutdown(wait=wait)
+            self._executor = None
