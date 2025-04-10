@@ -38,7 +38,7 @@ export const enConfig = {
               ]
             },
             {
-              text: 'The Basics',
+              text: 'Getting Started',
               items: [
                 { text: 'Agent', link: '/learn/agents/' },
                 { text: 'Orchestrator', link: '/learn/orchestrator/' },
