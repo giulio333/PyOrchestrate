@@ -1,9 +1,11 @@
+from multiprocessing.synchronize import Event
 import unittest
+from multiprocessing import Event
 from unittest.mock import MagicMock, call
-from PyOrchestrate.core.orchestrator.memory import AgentEntry
 
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, OrchestratorEvent
 from PyOrchestrate.core.agent import BaseProcessAgent
+from PyOrchestrate.core.utilities.event_manager import EventManager
 
 
 # Dummy agent to simulate an actual agent instance.
@@ -26,7 +28,16 @@ class TestOrchestrator(unittest.TestCase):
         )
         self.orch.memory.add_agent = MagicMock(side_effect=self.orch.memory.add_agent)
 
-    def test_register_agent_returns_entry(self):
+    def test_register_agent(self):
+        """
+        Test the registration of a new agent in the orchestrator.
+
+        This test verifies that:
+        - The agent is correctly registered with the given name and parameters
+        - The agent entry contains the expected configuration
+        - Control events are properly initialized and set to ready state
+        - The agent instance is not created during registration
+        """
         entry = self.orch.register_agent(
             agent_class=DummyAgent,
             name="agent1",
@@ -39,11 +50,25 @@ class TestOrchestrator(unittest.TestCase):
         )
         self.assertEqual(entry.name, "agent1")
         self.assertEqual(entry.kwargs["extra_param"], "value")
+        # check if contro_events and state_events are not None
+        self.assertIsNotNone(entry.control_events)
+        self.assertIsNotNone(entry.state_events)
+        # check if control_events are set to ready
+        self.assertTrue(entry.control_events.setup_event.is_set())  # type: ignore
+        self.assertTrue(entry.control_events.execute_event.is_set())  # type: ignore
 
         with self.assertRaises(AssertionError):
             instance = entry.instance
 
     def test_register_agent_duplicate_name(self):
+        """
+        Test the behavior when attempting to register an agent with a name that already exists.
+
+        This test verifies that:
+        - The orchestrator raises a ValueError when trying to register an agent with a duplicate name
+        - The first agent registration succeeds
+        - The second agent registration with the same name fails
+        """
         self.orch.register_agent(
             agent_class=DummyAgent,
             name="agent1",
@@ -65,7 +90,15 @@ class TestOrchestrator(unittest.TestCase):
             )
 
     def test_start_call(self):
+        """
+        Test the start and termination flow of an agent in the orchestrator.
 
+        This test verifies that:
+        - An agent can be registered with custom configuration
+        - The agent starts successfully when the orchestrator starts
+        - The correct sequence of events is emitted (AGENT_STARTED, AGENT_TERMINATED, ALL_AGENTS_TERMINATED)
+        - The custom configuration is properly applied to the agent
+        """
         entry = self.orch.register_agent(
             agent_class=DummyAgent,
             name="agent1",
