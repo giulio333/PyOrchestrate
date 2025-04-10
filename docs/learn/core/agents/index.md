@@ -55,6 +55,9 @@ This is defined at the time of Agent creation and is managed internally by the O
 
 ## 🔁 Lifecycle
 
+![alt text](./lifecycle_l.svg){.light-only}
+![alt text](./lifecycle_d.svg){.dark-only}
+
 All Agents follow a standardized lifecycle:
 
 1. **Config Validation**  
