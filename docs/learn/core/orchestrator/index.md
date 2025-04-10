@@ -9,6 +9,9 @@ The **Orchestrator** is the component in charge of supervising and coordinating 
 
 ## 👥 Registering Agents
 
+![alt text](./reg_l.svg){.light-only}
+![alt text](./reg_d.svg){.dark-only}
+
 Before using the Orchestrator, you need to **register the Agents** you want it to manage.
 
 This is done using the `register_agent()` method. You just provide:
@@ -23,16 +26,14 @@ Once registered, the Orchestrator knows how to **start**, **monitor**, and **sto
 Each Agent is wrapped in an `AgentEntry` object that stores everything needed: the class, config, events, and more.
 :::
 
-##### Customizing Agent Parameters
+## 🧑‍🤝‍🧑 Running Multiple Agents of the Same Class
 
-You can reuse the same Agent class to run **multiple Agents** that do slightly different things, all by changing their configuration.
+You can reuse the same **Agent class** to run **multiple Agents** that do slightly different things, all by changing their configuration.
 
 For example, imagine you have a `FileWriterAgent` that writes data to a file. By passing a different file path to each one during registration, you can launch two Agents from the same class: one that writes to `log_a.txt` and another that writes to `log_b.txt`.
 
-This makes your codebase simpler, since you only need one Agent class to support many use cases, just configure it differently at registration time.
-
-![alt text](./example1_l.svg){.light-only style="display: block; margin: 0 auto; width: 60%"}
-![alt text](./example1_d.svg){.dark-only style="display: block; margin: 0 auto; width: 60%"}
+![alt text](./multi_l.svg){.light-only style="display: block; margin: 0 auto; width: 100%"}
+![alt text](./multi_d.svg){.dark-only style="display: block; margin: 0 auto; width: 100%"}
 
 ::: tip
 - For more details on how to register Agents, check out the [Orchestrator Registering Agents](../../orchestrator/index.md#registering-agents).
@@ -41,23 +42,38 @@ This makes your codebase simpler, since you only need one Agent class to support
 
 ## ⚙️ How Agent Execution Works
 
-After registering your Agents, the Orchestrator follows a series of steps to launch and manage them:
+![alt text](./execution_l.svg){.light-only}
+![alt text](./execution_d.svg){.dark-only}
 
-- **Step 1 – Check dependencies**: it ensures that all declared Agent dependencies exist and that there are no circular references. This produces an execution order where each Agent starts only after its prerequisites.
+This section describes the behavior of the **Standard Orchestrator**. Here's how it works, step by step:
 
-- **Step 2 – Start the Agents**: using the topological order, the Orchestrator initializes each Agent and starts it (as a process or thread). A `AGENT_STARTED` event is emitted when the Agent is running.
+1. **Check dependencies**  
 
-- **Step 3 – Monitor execution**: during runtime, the Orchestrator keeps an eye on all active Agents. When one finishes, it emits an `AGENT_TERMINATED` event and, if needed, starts another one from the queue.
+   Before starting any Agent, the Orchestrator verifies that all declared dependencies exist and there are no circular references. It builds a valid startup order so each Agent launches only after its prerequisites.
 
-- **Step 4 – Wrap things up**: once all Agents have completed and the queue is empty, a final `ALL_AGENTS_TERMINATED` event is emitted.
+2. **Start Agents**
 
-- **Step 5 – Wait for completion**: you can call `join()` to block the main thread until all Agents are done. Or use `simple_join()` if you just want to wait without managing events or dependencies.
+    The Orchestrator starts each Agent based on its dependency order using the Agent class's `start()` method. Depending on your configuration, this can run in a separate thread or process.
 
-## 🚦 Running Agents in Parallel with Limits
+3. **Monitor running Agents**  
+
+   The Orchestrator keeps track of all active Agents. When one finishes, it emits an `AGENT_TERMINATED` event and starts the next queued Agent, if any.
+
+4. **Gracefully stop Agents**  
+
+   Once all Agents have completed and the queue is empty, the Orchestrator emits an `ALL_AGENTS_TERMINATED` event and shuts itself down.
+
+::: tip
+You can subclass the `Orchestrator` class to change its behavior and plug in your own logic.
+:::
+
+
+
+## 🚦 Managing Parallel Execution
 
 The Orchestrator supports **concurrency limits** to avoid overloading your system. You can define a `max_workers` value to cap how many Agents can run at the same time.
 
-If the limit is reached, the extra Agents are placed in a queue. As soon as a slot frees up, the next waiting Agent is started automatically. This helps keep your system balanced and responsive.
+If the limit is reached, additional Agents are treated as **queued Agents**: they wait in line until a slot becomes available. As soon as one of the running Agents finishes, the next queued Agent is started automatically.
 
 ## 🔔 Reacting to Events
 
