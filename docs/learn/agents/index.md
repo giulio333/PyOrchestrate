@@ -11,7 +11,9 @@ The framework provides a range of [built-in agents](./built-in-agents/baseagent.
 
 All you need to do is choose the agent that best fits your requirements and inherit from it to create your own custom agent.
 
-Click [here](./built-in-agents/baseagent.md) to view some examples of agents that might be useful to understand the concept.
+::: tip
+For **more information**, see this [link](../core/orchestrator/index.md).
+:::
 
 ## Usage
 
@@ -42,17 +44,6 @@ class MyAgent(PeriodicProcessAgent):
 
 ![alt text](assets/structure_l.svg){.light-only}
 ![alt text](assets/structure_d.svg){.dark-only}
-
-### Agent Behavior
-
-In PyOrchestrate, **agents** are the fundamental components, running as **processes** or **threads**.
-
-They are designed to handle a variety of use cases, such as:
-
--   **Run once**: Perform a single operation.
--   **Loop indefinitely**: Continuously execute logic.
--   **Trigger-based**: React to specific events.
--   **Acting as a pool**: Manage multiple concurrent agents.
 
 ### Configuration
 

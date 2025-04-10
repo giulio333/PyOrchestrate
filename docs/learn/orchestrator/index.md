@@ -37,16 +37,6 @@ As shown in the example, the Orchestrator is initialized with a name and can reg
 
 ## Overview
 
-### Orchestrator Behavior
-
-The Orchestrator is designed to manage the lifecycle of agents, including:
-
-- **Initialization**: Setting up all registered agents.
-- **Starting**: Activating agents to begin their tasks.
-- **Monitoring**: Keeping track of agent states and performance.
-- **Joining**: Waiting for agents to complete their tasks before proceeding.
-- **Stopping**: Gracefully shutting down agents when needed.
-
 ### Configuration
 
 The `Config` class is used by the Orchestrator to **create a configuration object for itself**. 
