@@ -32,7 +32,6 @@ class EventManager:
     Attributes:
         _listeners (dict): A dictionary mapping event names to lists of callback functions.
         _executor (ThreadPoolExecutor): Thread pool for executing callbacks asynchronously.
-        _lock (threading.Lock): Lock for thread-safe operations on listeners.
         _shutdown (bool): Flag indicating if the event manager is shutting down.
 
     Features:
@@ -55,23 +54,9 @@ class EventManager:
         self._shutdown: bool = False
         self._max_workers: int = max_workers
         self._executor: Optional[ThreadPoolExecutor] = None
-        self._lock: Optional[threading.Lock] = None
 
         # Register executor shutdown when the application terminates
         atexit.register(self.shutdown)
-
-    @property
-    def lock(self) -> threading.Lock:
-        """
-        Returns the thread lock for synchronized operations.
-        If the lock is not initialized, it creates a new one.
-
-        Returns:
-            threading.Lock: The thread lock instance.
-        """
-        if self._lock is None:
-            self._lock = threading.Lock()
-        return self._lock
 
     def register_event(self, event: Enum, callback: Callable):
         """
@@ -88,12 +73,11 @@ class EventManager:
         Example:
             >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started)
         """
-        with self.lock:
-            # register the event if it doesn't exist
-            if event.name not in self._listeners:
-                self._listeners[event.name] = []
-            # add the callback to the list
-            self._listeners[event.name].append(callback)
+        # register the event if it doesn't exist
+        if event.name not in self._listeners:
+            self._listeners[event.name] = []
+        # add the callback to the list
+        self._listeners[event.name].append(callback)
 
     def emit(self, event: Enum, *args, **kwargs):
         """
@@ -123,9 +107,8 @@ class EventManager:
             self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
 
         listeners = []
-        with self.lock:
-            if event.name in self._listeners:
-                listeners = self._listeners[event.name].copy()
+        if event.name in self._listeners:
+            listeners = self._listeners[event.name].copy()
 
         if not listeners:
             return
