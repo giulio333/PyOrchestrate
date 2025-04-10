@@ -32,7 +32,6 @@ class EventManager:
     Attributes:
         _listeners (dict): A dictionary mapping event names to lists of callback functions.
         _executor (ThreadPoolExecutor): Thread pool for executing callbacks asynchronously.
-        _lock (threading.Lock): Lock for thread-safe operations on listeners.
         _shutdown (bool): Flag indicating if the event manager is shutting down.
 
     Features:
@@ -40,6 +39,42 @@ class EventManager:
         - connect: Attaches a callback to an event (registering the event if necessary).
         - emit: Emits the event by calling all attached callbacks, including default data such as event date and time.
         - shutdown: Safely shuts down the event manager and its thread pool.
+
+    Example:
+        >>> from enum import Enum
+        >>> from PyOrchestrate.core.utilities.event_manager import EventManager
+        >>>
+        >>> # Define your events
+        >>> class MyEvents(Enum):
+        ...     TASK_STARTED = "task_started"
+        ...     TASK_COMPLETED = "task_completed"
+        ...     TASK_FAILED = "task_failed"
+        >>>
+        >>> # Create callback functions
+        >>> def on_task_started(task_name, **kwargs):
+        ...     print(f"Task {task_name} started at {kwargs.get('event_time')}")
+        >>>
+        >>> def on_task_completed(task_name, result, **kwargs):
+        ...     print(f"Task {task_name} completed with result: {result}")
+        >>>
+        >>> def on_task_failed(task_name, error, **kwargs):
+        ...     print(f"Task {task_name} failed with error: {error}")
+        >>>
+        >>> # Initialize the event manager
+        >>> event_manager = EventManager()
+        >>>
+        >>> # Register events and callbacks
+        >>> event_manager.register_event(MyEvents.TASK_STARTED, on_task_started)
+        >>> event_manager.register_event(MyEvents.TASK_COMPLETED, on_task_completed)
+        >>> event_manager.register_event(MyEvents.TASK_FAILED, on_task_failed)
+        >>>
+        >>> # Emit events
+        >>> event_manager.emit(MyEvents.TASK_STARTED, task_name="data_processing")
+        >>> event_manager.emit(MyEvents.TASK_COMPLETED, task_name="data_processing", result="success")
+        >>> event_manager.emit(MyEvents.TASK_FAILED, task_name="data_processing", error="timeout")
+        >>>
+        >>> # Shutdown when done
+        >>> event_manager.shutdown()
     """
 
     def __init__(self, max_workers: int = 10):
@@ -55,23 +90,9 @@ class EventManager:
         self._shutdown: bool = False
         self._max_workers: int = max_workers
         self._executor: Optional[ThreadPoolExecutor] = None
-        self._lock: Optional[threading.Lock] = None
 
         # Register executor shutdown when the application terminates
         atexit.register(self.shutdown)
-
-    @property
-    def lock(self) -> threading.Lock:
-        """
-        Returns the thread lock for synchronized operations.
-        If the lock is not initialized, it creates a new one.
-
-        Returns:
-            threading.Lock: The thread lock instance.
-        """
-        if self._lock is None:
-            self._lock = threading.Lock()
-        return self._lock
 
     def register_event(self, event: Enum, callback: Callable):
         """
@@ -88,12 +109,11 @@ class EventManager:
         Example:
             >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started)
         """
-        with self.lock:
-            # register the event if it doesn't exist
-            if event.name not in self._listeners:
-                self._listeners[event.name] = []
-            # add the callback to the list
-            self._listeners[event.name].append(callback)
+        # register the event if it doesn't exist
+        if event.name not in self._listeners:
+            self._listeners[event.name] = []
+        # add the callback to the list
+        self._listeners[event.name].append(callback)
 
     def emit(self, event: Enum, *args, **kwargs):
         """
@@ -123,9 +143,8 @@ class EventManager:
             self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
 
         listeners = []
-        with self.lock:
-            if event.name in self._listeners:
-                listeners = self._listeners[event.name].copy()
+        if event.name in self._listeners:
+            listeners = self._listeners[event.name].copy()
 
         if not listeners:
             return
