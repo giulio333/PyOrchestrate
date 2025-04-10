@@ -39,6 +39,42 @@ class EventManager:
         - connect: Attaches a callback to an event (registering the event if necessary).
         - emit: Emits the event by calling all attached callbacks, including default data such as event date and time.
         - shutdown: Safely shuts down the event manager and its thread pool.
+
+    Example:
+        >>> from enum import Enum
+        >>> from PyOrchestrate.core.utilities.event_manager import EventManager
+        >>>
+        >>> # Define your events
+        >>> class MyEvents(Enum):
+        ...     TASK_STARTED = "task_started"
+        ...     TASK_COMPLETED = "task_completed"
+        ...     TASK_FAILED = "task_failed"
+        >>>
+        >>> # Create callback functions
+        >>> def on_task_started(task_name, **kwargs):
+        ...     print(f"Task {task_name} started at {kwargs.get('event_time')}")
+        >>>
+        >>> def on_task_completed(task_name, result, **kwargs):
+        ...     print(f"Task {task_name} completed with result: {result}")
+        >>>
+        >>> def on_task_failed(task_name, error, **kwargs):
+        ...     print(f"Task {task_name} failed with error: {error}")
+        >>>
+        >>> # Initialize the event manager
+        >>> event_manager = EventManager()
+        >>>
+        >>> # Register events and callbacks
+        >>> event_manager.register_event(MyEvents.TASK_STARTED, on_task_started)
+        >>> event_manager.register_event(MyEvents.TASK_COMPLETED, on_task_completed)
+        >>> event_manager.register_event(MyEvents.TASK_FAILED, on_task_failed)
+        >>>
+        >>> # Emit events
+        >>> event_manager.emit(MyEvents.TASK_STARTED, task_name="data_processing")
+        >>> event_manager.emit(MyEvents.TASK_COMPLETED, task_name="data_processing", result="success")
+        >>> event_manager.emit(MyEvents.TASK_FAILED, task_name="data_processing", error="timeout")
+        >>>
+        >>> # Shutdown when done
+        >>> event_manager.shutdown()
     """
 
     def __init__(self, max_workers: int = 10):
