@@ -64,6 +64,14 @@ If you don't provide custom values, the Orchestrator will use the default values
 
 The Event Manager facilitates a set of events (`OrchestratorEvent`) that notify when something happens during the orchestration process (e.g., an agent completes). These events can be used as **signals** to perform specific actions (e.g., sending a message on Telegram).
 
+Available events are stored in the `OrchestratorEvent` class:
+
+| Event Name                     | Arguments                                        | Description                               |
+|--------------------------------|--------------------------------------------------|-------------------------------------------|
+| `AGENT_STARTED`                |  `event_date`, `event_time`, `agent_name`        | Emitted when an agent starts.             |
+| `AGENT_TERMINATED`             |    `event_date`, `event_time`, `agent_name`      | Emitted when an agent terminates.         |
+| `ALL_AGENTS_TERMINATED`        |    `event_date`, `event_time`                    | Emitted when all agents have terminated.  |
+
 ### Why Use Orchestrator?
 
 Is not mandatory to use the Orchestrator, but it provides several advantages. Using the Orchestrator can help you automate the management of multiple agents (threads or processes), making it easier to coordinate their activities and ensuring that they work together effectively.

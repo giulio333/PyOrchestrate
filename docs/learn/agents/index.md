@@ -12,7 +12,7 @@ The framework provides a range of [built-in agents](./built-in-agents/baseagent.
 All you need to do is choose the agent that best fits your requirements and inherit from it to create your own custom agent.
 
 ::: tip
-For **more information**, see this [link](../core/orchestrator/index.md).
+For **more information**, see this [link](../core/agents/index.md).
 :::
 
 ## Usage
