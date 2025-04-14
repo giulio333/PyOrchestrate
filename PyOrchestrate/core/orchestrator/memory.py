@@ -1,6 +1,4 @@
 import datetime
-import multiprocessing
-import threading
 from typing import Dict, List, Optional, Type, Any
 
 from PyOrchestrate.core.agent import BaseAgent, AgentProtocol
@@ -155,8 +153,10 @@ class AgentEntry:
         Create agent instance.
 
         Notes:
-            - If custom agent configuration is not provided, the default configuration will be used (agent_class.Config).
-            - If custom agent plugin is not provided, the default plugin will be used (agent_class.Plugin).
+            - If custom agent configuration is not provided, the default
+                configuration will be used (agent_class.Config).
+            - If custom agent plugin is not provided, the default plugin will
+                be used (agent_class.Plugin).
 
         Returns:
             None
