@@ -1,6 +1,5 @@
 from multiprocessing.synchronize import Event
 import unittest
-from multiprocessing import Event
 from unittest.mock import MagicMock, call
 
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, OrchestratorEvent
