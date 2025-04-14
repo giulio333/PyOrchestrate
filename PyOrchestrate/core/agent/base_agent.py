@@ -6,7 +6,7 @@ import threading
 import multiprocessing
 import time
 from abc import ABC, abstractmethod
-from typing import final, Protocol, Literal
+from typing import final, Protocol, Literal, Optional
 
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.event_manager import EventManager
@@ -136,35 +136,68 @@ class BaseAgent(BaseClass, ABC):
         config,
         plugin,
         a_type: Literal["process", "thread"],
-        control_events: ControlEvents,
-        state_events: StateEvents,
-        event_manager: EventManager,
+        control_events: Optional[ControlEvents] = None,
+        state_events: Optional[StateEvents] = None,
+        event_manager: Optional[EventManager] = None,
         **kwargs,
     ):
         """
-        Creates an agent with the specified configuration and event handlers. The agent can be
-        identified by its name in logs and uses events to manage its lifecycle and respond to
-        external commands. The agent type determines whether it will run as a process or thread.
+        Creates an agent with the specified configuration and event handlers.
+        The agent can be identified by its name in logs and uses events to
+        manage its lifecycle and respond to external commands. The agent type
+        determines whether it will run as a process or thread.
 
         The agent's behavior is defined by two types of events:
 
         - State events track the agent's internal state transitions
         - Control events handle external commands and execution flow
 
-        Additional keyword arguments are automatically stored as instance attributes,
-        allowing for flexible extension of the agent's properties.
+        Additional keyword arguments are automatically stored as instance
+        attributes, allowing for flexible extension of the agent's properties.
+
+        Args:
+            name (str | None): The agent name.
+            config (BaseAgentConfig): The agent configuration.
+            plugin (PluginProtocol): The plugin interface for agent extension.
+            a_type (Literal["process", "thread"]): The agent type.
+            control_events (ControlEvents, optional): Events for external command handling.
+            state_events (StateEvents, optional): Events for internal state management.
+            event_manager (EventManager, optional): Event manager for handling events and callbacks.
+            **kwargs: Additional keyword arguments for agent configuration.
         """
         super().__init__(name=name, config=config, plugin=plugin, **kwargs)
 
         self.start_time = 0
-        """The start time of the agent."""
-        self.state_events = state_events
-        """Events related to the internal state of the agent."""
-        self.control_events = control_events
-        """Events related to external commands."""
+        """Timestamp when the agent started running."""
         self.a_type = a_type
         """The agent type (process or thread)."""
-        self.event_manager = event_manager
+
+        EventType = (
+            multiprocessing.Event if self.a_type == "process" else threading.Event
+        )
+
+        self._validate_agent_class()
+
+        self.state_events = state_events or self.StateEvents(
+            start_event=EventType(),
+            ready_event=EventType(),
+            close_event=EventType(),
+        )
+        """Events related to the internal state of the agent."""
+        self.control_events = control_events or self.ControlEvents(
+            setup_event=EventType(),
+            execute_event=EventType(),
+            stop_event=EventType(),
+        )
+        """Events related to external commands."""
+
+        if not control_events:
+            # default set to ready
+            self.control_events.setup_event.set()
+            self.control_events.execute_event.set()
+
+        """Events related to external commands."""
+        self.event_manager = event_manager or EventManager()
         """Event manager for handling events and callbacks."""
         self.plugin_manager = PluginManager(self.plugin)
         """Plugin manager for managing plugins."""
@@ -326,6 +359,21 @@ class BaseAgent(BaseClass, ABC):
             None
         """
         self.logger.debug(f"Config: logger_level: {self.config.logger_config.level}")
+
+    def _validate_agent_class(self):
+        """
+        Validates self to ensure it has a valid 'a_type' attribute.
+
+        Raises:
+            ValueError: If the agent class does not have a valid 'a_type' attribute.
+        """
+        if not hasattr(self, "a_type") or self.a_type not in [
+            "process",
+            "thread",
+        ]:
+            raise ValueError(
+                "Invalid agent type. Ensure the agent class has a valid 'a_type' attribute set to 'process' or 'thread'."
+            )
 
 
 class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):
