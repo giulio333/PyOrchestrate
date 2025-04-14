@@ -142,17 +142,28 @@ class BaseAgent(BaseClass, ABC):
         **kwargs,
     ):
         """
-        Creates an agent with the specified configuration and event handlers. The agent can be
-        identified by its name in logs and uses events to manage its lifecycle and respond to
-        external commands. The agent type determines whether it will run as a process or thread.
+        Creates an agent with the specified configuration and event handlers.
+        The agent can be identified by its name in logs and uses events to
+        manage its lifecycle and respond to external commands. The agent type
+        determines whether it will run as a process or thread.
 
         The agent's behavior is defined by two types of events:
 
         - State events track the agent's internal state transitions
         - Control events handle external commands and execution flow
 
-        Additional keyword arguments are automatically stored as instance attributes,
-        allowing for flexible extension of the agent's properties.
+        Additional keyword arguments are automatically stored as instance
+        attributes, allowing for flexible extension of the agent's properties.
+
+        Args:
+            name (str | None): The agent name.
+            config (BaseAgentConfig): The agent configuration.
+            plugin (PluginProtocol): The plugin interface for agent extension.
+            a_type (Literal["process", "thread"]): The agent type.
+            control_events (ControlEvents, optional): Events for external command handling.
+            state_events (StateEvents, optional): Events for internal state management.
+            event_manager (EventManager, optional): Event manager for handling events and callbacks.
+            **kwargs: Additional keyword arguments for agent configuration.
         """
         super().__init__(name=name, config=config, plugin=plugin, **kwargs)
 
