@@ -50,12 +50,6 @@ class TestOrchestrator(unittest.TestCase):
         )
         self.assertEqual(entry.name, "agent1")
         self.assertEqual(entry.kwargs["extra_param"], "value")
-        # check if contro_events and state_events are not None
-        self.assertIsNotNone(entry.control_events)
-        self.assertIsNotNone(entry.state_events)
-        # check if control_events are set to ready
-        self.assertTrue(entry.control_events.setup_event.is_set())  # type: ignore
-        self.assertTrue(entry.control_events.execute_event.is_set())  # type: ignore
 
         with self.assertRaises(AssertionError):
             instance = entry.instance

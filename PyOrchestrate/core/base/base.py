@@ -98,7 +98,7 @@ class BaseClass:
         Note:
             All kwargs are set as instance attributes directly.
         """
-        self.config = config
+        self.config = config if config else self.Config()
         self.plugin = plugin
         self.name = name if name else self.__class__.__name__
 
