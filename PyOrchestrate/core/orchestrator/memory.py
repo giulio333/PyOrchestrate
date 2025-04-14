@@ -1,6 +1,4 @@
 import datetime
-import multiprocessing
-import threading
 from typing import Dict, List, Optional, Type, Any
 
 from PyOrchestrate.core.agent import BaseAgent, AgentProtocol
@@ -155,8 +153,10 @@ class AgentEntry:
         Create agent instance.
 
         Notes:
-            - If custom agent configuration is not provided, the default configuration will be used (agent_class.Config).
-            - If custom agent plugin is not provided, the default plugin will be used (agent_class.Plugin).
+            - If custom agent configuration is not provided, the default
+                configuration will be used (agent_class.Config).
+            - If custom agent plugin is not provided, the default plugin will
+                be used (agent_class.Plugin).
 
         Returns:
             None
@@ -264,24 +264,6 @@ class OMemory:
         """
         return list(self._agents.values())
 
-    def _validate_agent_class(self, agent_class: Type[BaseAgent]):
-        """
-        Validates the agent class to ensure it has a valid 'a_type' attribute.
-
-        Args:
-            agent_class: The class of the agent to validate.
-
-        Raises:
-            ValueError: If the agent class does not have a valid 'a_type' attribute.
-        """
-        if not hasattr(agent_class, "a_type") or agent_class.a_type not in [
-            "process",
-            "thread",
-        ]:
-            raise ValueError(
-                "Invalid agent type. Ensure the agent class has a valid 'a_type' attribute set to 'process' or 'thread'."
-            )
-
     def add_agent(
         self,
         agent_class: Type[BaseAgent],
@@ -322,31 +304,6 @@ class OMemory:
 
         if name in self._agents:
             raise ValueError(f"Agent '{name}' already exists.")
-
-        self._validate_agent_class(agent_class)
-
-        event = (
-            multiprocessing.Event
-            if agent_class.a_type == "process"
-            else threading.Event
-        )
-
-        if not control_events:
-            control_events = agent_class.ControlEvents(
-                setup_event=event(), execute_event=event(), stop_event=event()
-            )
-
-            # default set to ready
-            control_events.setup_event.set()
-            control_events.execute_event.set()
-
-        if not state_events:
-            state_events = agent_class.StateEvents(
-                start_event=event(), ready_event=event(), close_event=event()
-            )
-
-        if not event_manager:
-            event_manager = EventManager()
 
         entry = AgentEntry(
             agent_class=agent_class,
