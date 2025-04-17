@@ -85,7 +85,13 @@ class BaseClass:
 
     start_time: float
 
-    def __init__(self, config, plugin, name: str | None = None, **kwargs):
+    def __init__(
+        self,
+        config: BaseClassConfig | None = None,
+        plugin: BaseClassPlugin | None = None,
+        name: str | None = None,
+        **kwargs,
+    ):
         """
         Initialize a new instance.
 
