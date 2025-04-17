@@ -33,10 +33,10 @@ class LoopingAgentConfig(BaseAgent.Config):
         ...     max_tokens = 1000             # Default maximum tokens per request
         ...     temperature = 0.7             # Default temperature for sampling
 
-        >>> # Default configuration
+        >>> # Create Default configuration
         >>> default_chat_config = ChatAgentConfig()
 
-        >>> # Custom configuration
+        >>> # Create Custom configuration
         >>> custom_chat_config = ChatAgentConfig(
         ...     limit=5,
         ...     model_name="gpt-4",
