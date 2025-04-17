@@ -132,10 +132,10 @@ class BaseAgent(BaseClass, ABC):
 
     def __init__(
         self,
-        name: str | None,
-        config,
-        plugin,
-        a_type: Literal["process", "thread"],
+        name: str | None = None,
+        config: Optional[BaseClass.Config] = None,
+        plugin: Optional[BaseClass.Plugin] = None,
+        a_type: Literal["process", "thread"] = "process",
         control_events: Optional[ControlEvents] = None,
         state_events: Optional[StateEvents] = None,
         event_manager: Optional[EventManager] = None,
