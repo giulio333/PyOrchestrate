@@ -32,12 +32,12 @@ To learn more about the different Agent types, check out the [Hierarchical Struc
 
 ### Configuration
 
-Each Agent is associated with a configuration class, named `Config`. This class defines customizable parameters for the Agent's behavior, such as execution intervals, output paths, or plugin settings.
+Each Agent has a `Config` class that defines its settings, like how often it runs or where it saves output. You can override these defaults or extend the class for custom options, making Agents flexible and safe to use.
 
-These configurations can be overridden during registration or extended in derived classes, allowing each Agent instance to operate with different behaviors.
+Built-in Agents use their configuration class to manage essential parameters. For example, the `LoopingAgent` defines options like loop interval and stop conditions in its config. 
 
-::: tip
-The Configuration class is a great place to define user parameters, default values, and validation rules.
+::: tip Example
+See the [LoopingAgent configuration object](../../learn/agents/built-in-agents/loopingagent.md#configuration) for details.
 :::
 
 ### Plugin System
