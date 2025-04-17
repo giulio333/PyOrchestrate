@@ -5,8 +5,7 @@ from PyOrchestrate.core.orchestrator.memory import AgentEntry
 from PyOrchestrate.core.agent.periodic_agent import PeriodicThreadAgent
 from PyOrchestrate.core.agent.pool_agent import PoolProcessAgent
 
-# from multiprocessing import Queue
-from queue import Queue
+from multiprocessing import Queue
 
 
 class MyThread(PeriodicThreadAgent):
@@ -14,7 +13,7 @@ class MyThread(PeriodicThreadAgent):
     class Config(PeriodicThreadAgent.Config):
         """Thread agent configuration class."""
 
-        execution_interval = 1
+        execution_interval = 0.1
         limit = 5
 
     config: Config
@@ -29,6 +28,8 @@ class MyThread(PeriodicThreadAgent):
         self.logger.info(f"Thread {self.name} writing to queue.")
 
         heavy_data = "a" * 1000000000
+
+        self.logger.info(f"Data size: {len(heavy_data) / (1024 ** 3):.2f} GB")
 
         _start = time.time()
         self.queue.put(heavy_data)
