@@ -56,7 +56,7 @@ class ReplyAgent(LoopingProcessAgent):
 
 
 if __name__ == "__main__":
-    orchestrator = Orchestrator("CoolOrchestrator")
+    orchestrator = Orchestrator()
 
     # register agents
     orchestrator.register_agent(RequestAgent, "RequestAgent")
