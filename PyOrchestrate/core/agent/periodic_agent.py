@@ -28,9 +28,9 @@ class PeriodicAgentConfig(LoopingAgentConfig):
         Creating a custom configuration for a PeriodicAgent:
 
         >>> class PeriodicAgentConfig(PeriodicAgent.Config):
-        ...     execution_interval = 2  # Default execution interval
-        ...     delay_compensation = True  # Default delay compensation
-        ...     limit = 10  # Default limit for the number of iterations
+        ...     execution_interval = 1  # Default execution interval
+        ...     delay_compensation = False  # Default delay compensation
+        ...     limit = -1  # Default limit for the number of iterations
 
         >>> # Default configuration
         >>> default_periodic_config = PeriodicAgentConfig()
