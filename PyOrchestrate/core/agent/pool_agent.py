@@ -1,11 +1,12 @@
 from abc import ABC
-from typing import final, TypeVar
+from typing import final, List
 import threading
 import multiprocessing
 
 from PyOrchestrate.core.agent.periodic_agent import PeriodicAgent
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
 from PyOrchestrate.core.orchestrator.memory import AgentEntry
+from PyOrchestrate.core.utilities.validation import ValidationResult, ValidationSeverity
 
 
 class PoolAgentConfig(PeriodicAgent.Config):
@@ -64,12 +65,27 @@ class PoolAgentConfig(PeriodicAgent.Config):
         if agents_entry is not None:
             self.agents_entry: list[AgentEntry] = agents_entry
 
-    def validate(self):
-        super().validate()
-        if self.limit != -1:
-            raise ValueError("PoolAgent does not support limit parameter.")
-        if not self.agents_entry:
-            raise ValueError("No agents to register.")
+    def _validate(self) -> List[ValidationResult]:
+        """
+        Implementazione della validazione specifica per PoolAgent.
+
+        Returns:
+            List[ValidationResult]: Lista dei risultati di validazione.
+        """
+        results = super()._validate()
+
+        # Verifica che ci siano agenti da registrare
+        if not hasattr(self, "agents_entry") or not self.agents_entry:
+            results.append(
+                ValidationResult(
+                    field="agents_entry",
+                    is_valid=False,
+                    message="No agents to register.",
+                    severity=ValidationSeverity.WARNING,
+                )
+            )
+
+        return results
 
 
 class PoolAgent(PeriodicAgent):
