@@ -29,7 +29,7 @@ class PushAgent(PeriodicProcessAgent):
     class Config(PeriodicProcessAgent.Config):
         """Configuration for the PushAgent."""
 
-        limit = 40
+        limit = 20
         execution_interval = 0.1  # 1 second between tasks
         counter: int = 1
         num_workers: int = 3  # Number of workers to terminate
@@ -37,7 +37,7 @@ class PushAgent(PeriodicProcessAgent):
     class Plugin(PeriodicProcessAgent.Plugin):
         """Plugin for the PushAgent."""
 
-        zmq = ZeroMQPushPull("tcp://*:5555", SocketType.PUSH, hwm=1)
+        zmq = ZeroMQPushPull("tcp://*:5555", SocketType.PUSH)
 
     config: Config
     plugin: Plugin
@@ -47,7 +47,7 @@ class PushAgent(PeriodicProcessAgent):
 
         task = f"Task {self.config.counter}"
         self.logger.info(f"Pushing task: {task}")
-        self.plugin.zmq.send(task.encode(), blocking=True)
+        self.plugin.zmq.send(task.encode())
         self.config.counter += 1
 
     def on_close(self):
@@ -74,7 +74,7 @@ class PullAgent(LoopingProcessAgent):
     class Plugin(LoopingProcessAgent.Plugin):
         """Plugin for the PullAgent."""
 
-        zmq = ZeroMQPushPull("tcp://localhost:5555", SocketType.PULL, hwm=1)
+        zmq = ZeroMQPushPull("tcp://localhost:5555", SocketType.PULL)
 
     config: Config
     plugin: Plugin
