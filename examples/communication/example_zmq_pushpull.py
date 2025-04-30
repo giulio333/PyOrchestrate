@@ -30,9 +30,9 @@ class PushAgent(PeriodicProcessAgent):
         """Configuration for the PushAgent."""
 
         limit = 40
-        execution_interval = 0.05  # 1 second between tasks
+        execution_interval = 0.1  # 1 second between tasks
         counter: int = 1
-        num_workers: int = 3  # Numero di worker da terminare
+        num_workers: int = 3  # Number of workers to terminate
 
     class Plugin(PeriodicProcessAgent.Plugin):
         """Plugin for the PushAgent."""
