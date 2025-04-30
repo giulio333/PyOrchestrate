@@ -306,8 +306,8 @@ class ZeroMQPushPull(PluginProtocol):
         """
         Initializes the ZeroMQ plugin.
 
-        For SocketType.PUSH, connects to bind the address.
-        For SocketType.PULL, binds to connect the address.
+        For SocketType.PUSH, the socket binds to the address.
+        For SocketType.PULL, the socket connects to the address.
         """
         if self._initialized:
             return self
