@@ -18,6 +18,8 @@ class SocketType(IntEnum):
     SUB = zmq.SUB
     REQ = zmq.REQ
     REP = zmq.REP
+    PUSH = zmq.PUSH
+    PULL = zmq.PULL
 
 
 class ZeroMQPubSub(PluginProtocol):
@@ -228,6 +230,140 @@ class ZeroMQReqRep(PluginProtocol):
         For zmq.REQ, receives the reply.
         For zmq.REP, receives the request.
         """
+        return self.socket.recv()
+
+    def finalize(self):
+        """
+        Finalizes the ZeroMQ plugin.
+        """
+        self.socket.close()
+        self.context.term()
+        self._initialized = False
+
+
+class ZeroMQPushPull(PluginProtocol):
+    """
+    ZeroMQ PUSH/PULL communication plugin.
+
+    This plugin provides communication using ZeroMQ PUSH/PULL sockets for
+    distributed pipeline processing.
+
+    Example:
+        >>> # Producer (PUSH)
+        >>> push = ZeroMQPushPull("tcp://localhost:5555", SocketType.PUSH)
+        >>> push.initialize()
+        >>> push.send(b"Task data")
+        >>>
+        >>> # Worker (PULL)
+        >>> pull = ZeroMQPushPull("tcp://localhost:5555", SocketType.PULL)
+        >>> pull.initialize()
+        >>> task = pull.recv()
+
+    Attributes:
+        context (zmq.Context): The ZeroMQ context.
+        socket (zmq.Socket): The ZeroMQ socket.
+
+    Methods:
+        initialize: Initializes the ZeroMQ plugin.
+        send: Sends a message using ZeroMQ.
+        recv: Receives a message using ZeroMQ.
+        finalize: Finalizes the ZeroMQ plugin.
+    """
+
+    def __init__(
+        self,
+        address: str,
+        socket_type: int,
+        context: zmq.Context | None = None,
+        hwm: int | None = None,
+    ):
+        """
+        Initializes the ZeroMQ PUSH/PULL plugin.
+
+        Args:
+            address (str): The address to bind/connect the socket.
+            socket_type (int): The type of ZeroMQ socket (SocketType.PUSH or SocketType.PULL).
+            context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
+            hwm (int, optional): The high water mark for the socket. Defaults to None.
+        """
+        self.address = address
+        self.socket_type = socket_type
+        self._socket: zmq.Socket | None = None
+        self.context = context if context is not None else zmq.Context()
+        self.hwm = hwm
+
+        self._initialized = False
+
+    @property
+    def socket(self) -> zmq.Socket:
+        if not self._socket:
+            raise RuntimeError(
+                "Socket not initialized. Did you forget to call initialize?"
+            )
+        return self._socket
+
+    def initialize(self):
+        """
+        Initializes the ZeroMQ plugin.
+
+        For SocketType.PUSH, connects to bind the address.
+        For SocketType.PULL, binds to connect the address.
+        """
+        if self._initialized:
+            return self
+
+        if self.socket_type == SocketType.PUSH:
+            self._socket = self.context.socket(SocketType.PUSH)
+            self._socket.bind(self.address)
+            if self.hwm:
+                self._socket.setsockopt(zmq.SNDHWM, self.hwm)
+        elif self.socket_type == SocketType.PULL:
+            self._socket = self.context.socket(SocketType.PULL)
+            if self.hwm:
+                self._socket.setsockopt(zmq.RCVHWM, self.hwm)
+            self._socket.connect(self.address)
+        else:
+            raise ValueError("Unsupported socket type for ZeroMQPushPull plugin.")
+
+        self._initialized = True
+
+        return self
+
+    def send(self, message: bytes, blocking: bool = True) -> None:
+        """
+        Sends a message using ZeroMQ PUSH socket.
+
+        This method is only valid for SocketType.PUSH sockets.
+
+        Args:
+            message (bytes): The message to be sent.
+            blocking (bool, optional): If True, the send operation blocks until complete.
+                                      If False, the send returns immediately and may raise zmq.error.Again
+                                      if the message cannot be queued. Defaults to True.
+
+        Raises:
+            RuntimeError: If used with a PULL socket.
+            zmq.error.Again: If the message cannot be queued and blocking is False.
+        """
+        if self.socket_type != SocketType.PUSH:
+            raise RuntimeError("Cannot send with a PULL socket.")
+
+        if blocking:
+            self.socket.send(message)
+        else:
+            self.socket.send(message, zmq.NOBLOCK)
+
+    def recv(self) -> bytes:
+        """
+        Receives a message using ZeroMQ PULL socket.
+
+        This method is only valid for SocketType.PULL sockets.
+
+        Returns:
+            bytes: The received message.
+        """
+        if self.socket_type != SocketType.PULL:
+            raise RuntimeError("Cannot receive with a PUSH socket.")
         return self.socket.recv()
 
     def finalize(self):
