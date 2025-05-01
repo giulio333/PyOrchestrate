@@ -51,7 +51,7 @@ class BaseClassConfig:
         # store user-defined attributes
         self._custom_attr: dict[str, Any] = kwargs
 
-    def validate(self):
+    def _validate(self):
         """
         Validates the configuration settings.
 
@@ -64,7 +64,7 @@ class BaseClassConfig:
         Raises:
             ConfigValidationError: If the configuration is invalid and policy requires it.
         """
-        results = self._validate()
+        results = self.validate()
 
         # Filter out invalid results
         invalid_results = [r for r in results if not r.is_valid]
@@ -78,7 +78,7 @@ class BaseClassConfig:
 
         return results
 
-    def _validate(self) -> List[ValidationResult]:
+    def validate(self) -> List[ValidationResult]:
         """
         Override this method to implement custom validation logic in derived classes.
 

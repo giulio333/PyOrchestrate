@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Esempio semplice di validazione personalizzata e utilizzo di Orchestrator.
+Simple example of custom validation and usage of Orchestrator.
 """
 from typing import List
 
@@ -15,23 +15,23 @@ from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
 
 
 class SimpleAgent(BaseProcessAgent):
-    """Agente minimale che si limita a loggare il valore di threshold."""
+    """Minimal agent that only logs the threshold value."""
 
     class Config(BaseClassConfig):
-        """Configurazione con un solo campo custom e validazione semplice."""
+        """Configuration with a single custom field and simple validation."""
 
         threshold: int = 10
         validation_policy = ValidationPolicy()
 
-        def _validate(self) -> List[ValidationResult]:
-            results = super()._validate()
+        def validate(self) -> List[ValidationResult]:
+            results = super().validate()
             if self.threshold < 0 or self.threshold > 30:
                 results.append(
                     ValidationResult(
                         field="threshold",
                         is_valid=False,
-                        message="Threshold deve essere tra 0 e 30.",
-                        severity=ValidationSeverity.WARNING,
+                        message="Threshold must be between 0 and 30.",
+                        severity=ValidationSeverity.ERROR,
                     )
                 )
             return results
@@ -42,7 +42,7 @@ class SimpleAgent(BaseProcessAgent):
         super().execute()
 
         for _ in range(self.config.threshold):
-            self.logger.info(f"Threshold corrente: {self.config.threshold}")
+            self.logger.info(f"Current threshold: {self.config.threshold}")
 
 
 if __name__ == "__main__":

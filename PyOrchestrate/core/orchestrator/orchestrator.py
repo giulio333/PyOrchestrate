@@ -1,12 +1,20 @@
 import time
 from collections import defaultdict, deque
+from typing import List, final
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
+from PyOrchestrate.core.utilities.validation import (
+    ValidationPolicy,
+    ValidationResult,
+    ValidationSeverity,
+    ConfigValidationError,
+)
 
 from PyOrchestrate.core.base.base import BaseClass
+from PyOrchestrate.core.utilities.validation import ValidationResult
 
 
 class OrchestratorConfig(BaseClass.Config):
@@ -36,12 +44,29 @@ class OrchestratorConfig(BaseClass.Config):
         if max_workers is not None:
             self.max_workers: int = max_workers
 
-    def validate(self):
-        super().validate()
+    def validate(self) -> List[ValidationResult]:
+        results = super().validate()
+
         if self.check_interval <= 0:
-            raise ValueError("Check interval must be greater than 0.")
+            results.append(
+                ValidationResult(
+                    field="check_interval",
+                    is_valid=False,
+                    message="check_interval must be greater than 0.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+
         if self.max_workers <= 0:
-            raise ValueError("Max workers must be greater than 0.")
+            results.append(
+                ValidationResult(
+                    field="max_workers",
+                    is_valid=False,
+                    message="max_workers must be greater than 0.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+        return results
 
 
 class OrchestratorPlugin(BaseClass.Plugin):
@@ -85,7 +110,8 @@ class Orchestrator(BaseClass):
 
         self.setup_logger()
         self._info()
-        self.config.validate()
+
+        self.validate_config()
 
         self.memory = OMemory()
         self.event_manager = EventManager()
@@ -368,6 +394,32 @@ class Orchestrator(BaseClass):
         self.logger.info(f"Reporting {len(self.memory.agents)} agents status.")
         for agent in self.memory.agents:
             self.logger.info(agent.status())
+
+    @final
+    def validate_config(self):
+        """
+        @final
+
+        Validates the agent configuration.
+
+        Notes:
+            This method is called during the agent's initialization to validate the configuration.
+            If the configuration is invalid, a `ValidationError` is raised.
+
+        Warning:
+            Do not override this method. If you need to implement custom validation logic, override the `validate` method
+            in the `Config` class.
+
+        Raises:
+            ValidationError: If the configuration is invalid.
+        """
+
+        try:
+            self.config._validate()
+        except ConfigValidationError as e:
+            self.logger.error(f"Configuration validation failed: {e}")
+            raise e
+        self.logger.debug(f"Self configuration validated.")
 
     def _info(self):
         self.logger.debug(f"Config: check_interval={self.config.check_interval}")

@@ -51,14 +51,14 @@ class BaseAgentConfig(BaseClass.Config):
         ... )
     """
 
-    def _validate(self) -> List[ValidationResult]:
+    def validate(self) -> List[ValidationResult]:
         """
         BaseAgent-specific validation implementation.
 
         Returns:
             List[ValidationResult]: List of validation results.
         """
-        results = super()._validate()
+        results = super().validate()
 
         # Add common validations for all agents here
 
@@ -336,7 +336,7 @@ class BaseAgent(BaseClass, ABC):
         """
 
         try:
-            self.config.validate()
+            self.config._validate()
         except ConfigValidationError as e:
             self.logger.error(f"Configuration validation failed: {e}")
             raise e

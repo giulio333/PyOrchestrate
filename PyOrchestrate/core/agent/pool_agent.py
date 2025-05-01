@@ -65,14 +65,14 @@ class PoolAgentConfig(PeriodicAgent.Config):
         if agents_entry is not None:
             self.agents_entry: list[AgentEntry] = agents_entry
 
-    def _validate(self) -> List[ValidationResult]:
+    def validate(self) -> List[ValidationResult]:
         """
         Implementazione della validazione specifica per PoolAgent.
 
         Returns:
             List[ValidationResult]: Lista dei risultati di validazione.
         """
-        results = super()._validate()
+        results = super().validate()
 
         # Verifica che ci siano agenti da registrare
         if not hasattr(self, "agents_entry") or not self.agents_entry:
