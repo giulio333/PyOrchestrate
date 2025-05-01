@@ -53,14 +53,14 @@ class BaseAgentConfig(BaseClass.Config):
 
     def _validate(self) -> List[ValidationResult]:
         """
-        Implementazione della validazione specifica per BaseAgent.
+        BaseAgent-specific validation implementation.
 
         Returns:
-            List[ValidationResult]: Lista dei risultati di validazione.
+            List[ValidationResult]: List of validation results.
         """
         results = super()._validate()
 
-        # Aggiungi qui le validazioni comuni a tutti gli agenti
+        # Add common validations for all agents here
 
         return results
 

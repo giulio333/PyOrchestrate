@@ -16,7 +16,7 @@ class BaseClassConfig:
 
     Attributes:
         logger_config (LoggerConfig): Configuration for the logger component.
-        validation_policy (ValidationPolicy): Policy per la gestione della validazione.
+        validation_policy (ValidationPolicy): Policy for managing validation.
 
     Notes:
         Default configuration values are stored as class attributes. These defaults can be:
