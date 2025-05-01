@@ -1,3 +1,4 @@
+from typing import List
 import unittest
 import sys
 import os
@@ -7,16 +8,15 @@ from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.agent.base_agent import (
     BaseAgent,
 )
-from PyOrchestrate.core.utilities.validation import ConfigValidationError
+from PyOrchestrate.core.utilities.validation import (
+    ConfigValidationError,
+    ValidationPolicy,
+    ValidationResult,
+    ValidationSeverity,
+)
 
 from PyOrchestrate.core.base.utilities import LoggerConfig
 from PyOrchestrate.core.utilities.event import AgentEvent  # nuovo import
-
-
-class MyBaseAgent(BaseAgent):
-
-    def execute(self):
-        super().execute()
 
 
 class TestBaseAgentConfig(unittest.TestCase):
@@ -37,7 +37,31 @@ class TestBaseAgentConfig(unittest.TestCase):
 
 
 class TestBaseAgent(unittest.TestCase):
+
+    class MyBaseAgent(BaseAgent):
+
+        class Config(BaseAgent.Config):
+            logger_config = LoggerConfig(level="DEBUG")
+            custom_value = "custom_value"
+            validation_policy = ValidationPolicy()
+
+            def _validate(self):
+                results = super()._validate()
+                if not isinstance(self.custom_value, str):
+                    results.append(
+                        ValidationResult(
+                            field="custom_value",
+                            is_valid=False,
+                            message="custom_value must be a string.",
+                            severity=ValidationSeverity.ERROR,
+                        )
+                    )
+
+        def execute(self):
+            super().execute()
+
     def setUp(self):
+
         # Mock
         self.event_manager = MagicMock(spec=EventManager)
         self.state_events = BaseAgent.StateEvents(MagicMock(), MagicMock(), MagicMock())
@@ -50,8 +74,8 @@ class TestBaseAgent(unittest.TestCase):
         # Create test plugin
         self.plugin = BaseAgent.Plugin()
 
-        # Initialize test agent
-        self.agent = MyBaseAgent(
+        # Initialize test agent object
+        self.agent = self.MyBaseAgent(
             name="test_base_agent",
             config=self.config,
             plugin=self.plugin,
@@ -95,7 +119,7 @@ class TestBaseAgent(unittest.TestCase):
 
     def test_initialization_with_default_name(self):
         """Test agent initialization with default name"""
-        agent = MyBaseAgent(
+        agent = self.MyBaseAgent(
             name=None,
             config=self.config,
             plugin=self.plugin,
@@ -112,7 +136,7 @@ class TestBaseAgent(unittest.TestCase):
             logger_config=LoggerConfig(level="WARNING", filename="test.log")
         )
 
-        agent = MyBaseAgent(
+        agent = self.MyBaseAgent(
             name="test_agent",
             config=custom_config,
             plugin=self.plugin,
@@ -207,7 +231,7 @@ class TestBaseAgent(unittest.TestCase):
 
     def test_run_with_missing_events(self):
         """Test run method with missing events."""
-        agent_missing = MyBaseAgent(
+        agent_missing = self.MyBaseAgent(
             name="test_agent_missing_events",
             config=self.config,
             plugin=self.plugin,

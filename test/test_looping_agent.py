@@ -30,7 +30,17 @@ class TestLoopingAgentConfig(unittest.TestCase):
 
 
 class TestLoopingAgent(unittest.TestCase):
+
+    class ConcreteLoopingAgent(LoopingAgent):
+
+        def cycle(self):
+            pass
+
+        def _info(self):
+            super()._info()
+
     def setUp(self):
+
         self.event_manager = EventManager()
         self.state_events = LoopingAgent.StateEvents(
             MagicMock(), MagicMock(), MagicMock()
@@ -41,15 +51,8 @@ class TestLoopingAgent(unittest.TestCase):
         self.config = LoopingAgent.Config(limit=5)
         self.plugin = LoopingAgent.Plugin()
 
-        class ConcreteLoopingAgent(LoopingAgent):
-
-            def cycle(self):
-                pass
-
-            def _info(self):
-                super()._info()
-
-        self.agent = ConcreteLoopingAgent(
+        # Initialize test agent object
+        self.agent = self.ConcreteLoopingAgent(
             name="test_looping_agent",
             config=self.config,
             plugin=self.plugin,
