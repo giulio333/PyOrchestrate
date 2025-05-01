@@ -6,8 +6,9 @@ from unittest.mock import MagicMock, patch
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.agent.base_agent import (
     BaseAgent,
-    ValidationError,
 )
+from PyOrchestrate.core.utilities.validation import ConfigValidationError
+
 from PyOrchestrate.core.base.utilities import LoggerConfig
 from PyOrchestrate.core.utilities.event import AgentEvent  # nuovo import
 
@@ -138,12 +139,18 @@ class TestBaseAgent(unittest.TestCase):
         self.agent.validate_config()
         self.config.validate.assert_called_once()
 
-    def test_validate_config_failure(self):
-        """Test failed config validation"""
+    def test_validate_config_propagates_config_validation_error(self):
+        """Test that ConfigValidationError from config.validate is propagated"""
+
         self.agent.logger = MagicMock()
-        self.config.validate = MagicMock(side_effect=Exception("Invalid config"))
-        with self.assertRaises(ValidationError):
+        fake_error = ConfigValidationError("validation failed", [])
+        self.config.validate = MagicMock(side_effect=fake_error)
+        with self.assertRaises(ConfigValidationError) as cm:
             self.agent.validate_config()
+        # Ensure the same exception instance is raised
+        self.assertIs(cm.exception, fake_error)
+        # Logger should have been called to report the validation failure
+        self.agent.logger.error.assert_called()
 
     def test_setup(self):
         """Test setup method"""
