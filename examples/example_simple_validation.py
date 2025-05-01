@@ -21,7 +21,7 @@ class SimpleAgent(BaseProcessAgent):
         """Configuration with a single custom field and simple validation."""
 
         threshold: int = 10
-        validation_policy = ValidationPolicy()
+        validation_policy = ValidationPolicy(ignore_warnings=False, ignore_errors=False)
 
         def validate(self) -> List[ValidationResult]:
             results = super().validate()
