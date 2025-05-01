@@ -45,8 +45,8 @@ class TestBaseAgent(unittest.TestCase):
             custom_value = "custom_value"
             validation_policy = ValidationPolicy()
 
-            def _validate(self):
-                results = super()._validate()
+            def validate(self):
+                results = super().validate()
                 if not isinstance(self.custom_value, str):
                     results.append(
                         ValidationResult(
@@ -159,16 +159,16 @@ class TestBaseAgent(unittest.TestCase):
     def test_validate_config_success(self):
         """Test successful config validation"""
         self.agent.logger = MagicMock()
-        self.config.validate = MagicMock()
+        self.config._validate = MagicMock()
         self.agent.validate_config()
-        self.config.validate.assert_called_once()
+        self.config._validate.assert_called_once()
 
     def test_validate_config_propagates_config_validation_error(self):
         """Test that ConfigValidationError from config.validate is propagated"""
 
         self.agent.logger = MagicMock()
         fake_error = ConfigValidationError("validation failed", [])
-        self.config.validate = MagicMock(side_effect=fake_error)
+        self.config._validate = MagicMock(side_effect=fake_error)
         with self.assertRaises(ConfigValidationError) as cm:
             self.agent.validate_config()
         # Ensure the same exception instance is raised

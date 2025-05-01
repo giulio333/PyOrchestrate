@@ -61,14 +61,14 @@ class PeriodicAgentConfig(LoopingAgentConfig):
         if delay_compensation is not None:
             self.delay_compensation = delay_compensation
 
-    def _validate(self) -> List[ValidationResult]:
+    def validate(self) -> List[ValidationResult]:
         """
         Perform PeriodicAgent-specific validation.
 
         Returns:
             List[ValidationResult]: List of validation results.
         """
-        results = super()._validate()
+        results = super().validate()
 
         if self.execution_interval <= 0:
             results.append(

@@ -54,14 +54,14 @@ class LoopingAgentConfig(BaseAgent.Config):
         if limit is not None:
             self.limit = limit
 
-    def _validate(self) -> List[ValidationResult]:
+    def validate(self) -> List[ValidationResult]:
         """
         Perform LoopingAgent-specific validation.
 
         Returns:
             List[ValidationResult]: List of validation results.
         """
-        results = super()._validate()
+        results = super().validate()
 
         if self.limit < -1:
             results.append(

@@ -27,7 +27,7 @@ class MyThread(PeriodicThreadAgent):
     def runner(self) -> None:
         self.logger.info(f"Thread {self.name} writing to queue.")
 
-        heavy_data = "a" * 1000000000
+        heavy_data = "a" * 1000000
 
         self.logger.info(f"Data size: {len(heavy_data) / (1024 ** 3):.2f} GB")
 

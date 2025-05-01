@@ -26,7 +26,7 @@ class TestLoopingAgentConfig(unittest.TestCase):
         """Test validation with invalid limit"""
         config = LoopingAgent.Config(limit=-2)
         with self.assertRaises(ConfigValidationError):
-            config.validate()
+            config._validate()
 
 
 class TestLoopingAgent(unittest.TestCase):
