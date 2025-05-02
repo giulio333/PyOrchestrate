@@ -289,6 +289,33 @@ class MyAgent(PeriodicProcessAgent): # [!code focus]
 ```
 :::
 
+## Validation Policy
+
+The `Config` class provides a `validate` method that can be overridden to implement custom validation logic.
+
+```python
+class Config(BaseClassConfig):
+    """Configuration with a single custom field and simple validation."""
+
+    threshold: int = 10
+    validation_policy = ValidationPolicy(ignore_warnings=False, ignore_errors=False)
+
+    def validate(self) -> List[ValidationResult]:
+        results = super().validate()
+        if self.threshold < 0 or self.threshold > 30:
+            results.append(
+                ValidationResult(
+                    field="threshold",
+                    is_valid=False,
+                    message="Threshold must be between 0 and 30.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+        return results
+```
+
+You can also use the `ValidationPolicy` class to define how validation errors are handled.
+
 ## BaseAgent
 
 The `BaseAgent` class is the foundation for all agents in PyOrchestrate. It provides the basic structure and functionality that all agents inherit.

@@ -111,9 +111,15 @@ To learn more about the different events, check out the [Agent Control Events](.
 
 ## 🧪 Validation and Safety
 
-The configuration class of each Agent supports built-in validation. This ensures that incorrect parameters are caught before the Agent starts.
+Each Agent's Config class supports built-in validation.
 
-If validation fails, the Agent does not start, and the error is logged.
+### Validation Policy
+
+Config classes support an advanced validation system through the `ValidationPolicy` class. This allows users to define validation behavior for specific attributes:
+
+Using `ValidationSeverity`, validation rules can be classified as:
+  - **warning**: allows the Agent to start
+  - **error**: prevents the Agent from starting and logs an error
 
 ## 🔄 Grouping and Control
 
