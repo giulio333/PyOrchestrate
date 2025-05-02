@@ -6,6 +6,8 @@ from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.agent.looping_agent import (
     LoopingAgent,
 )
+from PyOrchestrate.core.utilities.validation import ConfigValidationError
+
 from PyOrchestrate.core.base.utilities import LoggerConfig
 
 
@@ -23,12 +25,22 @@ class TestLoopingAgentConfig(unittest.TestCase):
     def test_invalid_limit(self):
         """Test validation with invalid limit"""
         config = LoopingAgent.Config(limit=-2)
-        with self.assertRaises(ValueError):
-            config.validate()
+        with self.assertRaises(ConfigValidationError):
+            config._validate()
 
 
 class TestLoopingAgent(unittest.TestCase):
+
+    class ConcreteLoopingAgent(LoopingAgent):
+
+        def cycle(self):
+            pass
+
+        def _info(self):
+            super()._info()
+
     def setUp(self):
+
         self.event_manager = EventManager()
         self.state_events = LoopingAgent.StateEvents(
             MagicMock(), MagicMock(), MagicMock()
@@ -39,15 +51,8 @@ class TestLoopingAgent(unittest.TestCase):
         self.config = LoopingAgent.Config(limit=5)
         self.plugin = LoopingAgent.Plugin()
 
-        class ConcreteLoopingAgent(LoopingAgent):
-
-            def cycle(self):
-                pass
-
-            def _info(self):
-                super()._info()
-
-        self.agent = ConcreteLoopingAgent(
+        # Initialize test agent object
+        self.agent = self.ConcreteLoopingAgent(
             name="test_looping_agent",
             config=self.config,
             plugin=self.plugin,
