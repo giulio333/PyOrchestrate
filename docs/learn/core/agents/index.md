@@ -37,7 +37,7 @@ Each Agent has a `Config` class that defines its settings, like how often it run
 Built-in Agents use their configuration class to manage essential parameters. For example, the `LoopingAgent` defines options like loop interval and stop conditions in its config. 
 
 ::: tip Example
-See the [LoopingAgent configuration object](../../learn/agents/built-in-agents/loopingagent.md#configuration) for details.
+See the [LoopingAgent Config](../../../learn/agents/built-in-agents/loopingagent.md#configuration) for more details.
 :::
 
 ### Plugin System
@@ -77,6 +77,9 @@ Throughout this lifecycle, internal and external events are used to synchronize 
 ## 🧠 Observability and Events
 
 Each Agent manages two kinds of event systems.
+
+![alt text](./events_l.svg){.light-only}
+![alt text](./events_d.svg){.dark-only}
 
 ### State Events 
 
