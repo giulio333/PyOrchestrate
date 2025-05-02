@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from typing import final, TypeVar, Type
+from typing import final, List
 import multiprocessing
 import threading
 
@@ -8,6 +8,7 @@ from PyOrchestrate.core.base.exceptions import (
     NonRecoverableException,
 )
 from PyOrchestrate.core.agent.base_agent import BaseAgent
+from PyOrchestrate.core.utilities.validation import ValidationResult, ValidationSeverity
 
 
 class LoopingAgentConfig(BaseAgent.Config):
@@ -53,10 +54,26 @@ class LoopingAgentConfig(BaseAgent.Config):
         if limit is not None:
             self.limit = limit
 
-    def validate(self):
-        super().validate()
+    def validate(self) -> List[ValidationResult]:
+        """
+        Perform LoopingAgent-specific validation.
+
+        Returns:
+            List[ValidationResult]: List of validation results.
+        """
+        results = super().validate()
+
         if self.limit < -1:
-            raise ValueError("Limit must be greater than 0 or equal to -1.")
+            results.append(
+                ValidationResult(
+                    field="limit",
+                    is_valid=False,
+                    message="Limit must be greater than or equal to -1.",
+                    severity=ValidationSeverity.CRITICAL,
+                )
+            )
+
+        return results
 
 
 class LoopingAgent(BaseAgent):

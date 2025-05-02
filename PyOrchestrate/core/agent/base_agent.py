@@ -6,12 +6,16 @@ import threading
 import multiprocessing
 import time
 from abc import ABC, abstractmethod
-from typing import final, Protocol, Literal, Optional
+from typing import final, Protocol, Literal, Optional, List
 
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import AgentEvent
 from PyOrchestrate.core.plugins.plugin_manager import PluginManager
+from PyOrchestrate.core.utilities.validation import (
+    ValidationResult,
+    ConfigValidationError,
+)
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -26,6 +30,7 @@ class BaseAgentConfig(BaseClass.Config):
 
     Attributes:
         logger_config (LoggerConfig): Configuration for the logger.
+        validation_policy (ValidationPolicy): Policy for validation management.
 
     Examples:
         Creating a custom configuration for a ChatAgent:
@@ -46,15 +51,18 @@ class BaseAgentConfig(BaseClass.Config):
         ... )
     """
 
+    def validate(self) -> List[ValidationResult]:
+        """
+        BaseAgent-specific validation implementation.
 
-class ValidationError(Exception):
-    """
-    Exception raised for errors in the configuration validation.
-    """
+        Returns:
+            List[ValidationResult]: List of validation results.
+        """
+        results = super().validate()
 
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
+        # Add common validations for all agents here
+
+        return results
 
 
 class BaseAgent(BaseClass, ABC):
@@ -243,6 +251,9 @@ class BaseAgent(BaseClass, ABC):
 
             self.execute()
 
+        except ConfigValidationError:
+            self.logger.error("Configuration validation failed.")
+
         except Exception as ex:
             self.logger.exception(f"[{self.name}] Error during execution: {ex}")
 
@@ -325,11 +336,10 @@ class BaseAgent(BaseClass, ABC):
         """
 
         try:
-            self.config.validate()
-        except Exception as ex:
-            self.logger.error(f"Configuration validation failed: {ex}")
-            raise ValidationError(str(ex))
-
+            self.config._validate()
+        except ConfigValidationError as e:
+            self.logger.error(f"Configuration validation failed: {e}")
+            raise e
         self.logger.debug(f"Self configuration validated.")
 
     def on_stop(self):

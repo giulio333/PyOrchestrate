@@ -1,8 +1,13 @@
 import logging
-from typing import Any, cast
+from typing import Any, List
 
 from PyOrchestrate.utilities.logguru import LoggerFactory
 from PyOrchestrate.core.base.utilities import LoggerConfig
+from PyOrchestrate.core.utilities.validation import (
+    ValidationResult,
+    ValidationPolicy,
+    ConfigValidationError,
+)
 
 
 class BaseClassConfig:
@@ -11,6 +16,7 @@ class BaseClassConfig:
 
     Attributes:
         logger_config (LoggerConfig): Configuration for the logger component.
+        validation_policy (ValidationPolicy): Policy for managing validation.
 
     Notes:
         Default configuration values are stored as class attributes. These defaults can be:
@@ -28,24 +34,58 @@ class BaseClassConfig:
     """
 
     logger_config: LoggerConfig = LoggerConfig()
+    validation_policy: ValidationPolicy = ValidationPolicy()
 
-    def __init__(self, logger_config: LoggerConfig | None = None, **kwargs):
+    def __init__(
+        self,
+        logger_config: LoggerConfig | None = None,
+        validation_policy: ValidationPolicy | None = None,
+        **kwargs,
+    ):
         if logger_config is not None:
             self.logger_config = logger_config
+
+        if validation_policy is not None:
+            self.validation_policy = validation_policy
 
         # store user-defined attributes
         self._custom_attr: dict[str, Any] = kwargs
 
-    def validate(self):
+    def _validate(self):
         """
         Validates the configuration settings.
 
-        This method should be overridden in subclasses to implement specific validation logic for configuration parameters.
+        This method performs configuration validation and raises ConfigValidationError if
+        validation fails based on the configured ValidationPolicy.
+
+        Returns:
+            List[ValidationResult]: List of validation results.
 
         Raises:
-            ValueError: If the configuration is invalid.
+            ConfigValidationError: If the configuration is invalid and policy requires it.
         """
-        pass
+        results = self.validate()
+
+        # Filter out invalid results
+        invalid_results = [r for r in results if not r.is_valid]
+
+        if invalid_results and self.validation_policy.should_raise(invalid_results):
+            raise ConfigValidationError(
+                "Validation failed",
+                invalid_results,
+                config_class=self.__class__.__name__,
+            )
+
+        return results
+
+    def validate(self) -> List[ValidationResult]:
+        """
+        Override this method to implement custom validation logic in derived classes.
+
+        Returns:
+            List[ValidationResult]: List of validation results.
+        """
+        return []
 
     def __getattribute__(self, key: str) -> Any:
         try:

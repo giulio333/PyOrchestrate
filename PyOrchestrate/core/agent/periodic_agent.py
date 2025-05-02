@@ -1,10 +1,11 @@
 import threading
 from abc import abstractmethod, ABC
-from typing import final, TypeVar
+from typing import final, List
 import multiprocessing
 
 from PyOrchestrate.core.agent.looping_agent import LoopingAgent, LoopingAgentConfig
 from PyOrchestrate.utilities.periodic_timer import PeriodicTimer
+from PyOrchestrate.core.utilities.validation import ValidationResult, ValidationSeverity
 
 
 class PeriodicAgentConfig(LoopingAgentConfig):
@@ -60,12 +61,36 @@ class PeriodicAgentConfig(LoopingAgentConfig):
         if delay_compensation is not None:
             self.delay_compensation = delay_compensation
 
-    def validate(self):
-        super().validate()
+    def validate(self) -> List[ValidationResult]:
+        """
+        Perform PeriodicAgent-specific validation.
+
+        Returns:
+            List[ValidationResult]: List of validation results.
+        """
+        results = super().validate()
+
         if self.execution_interval <= 0:
-            raise ValueError("Execution interval must be greater than 0.")
+            results.append(
+                ValidationResult(
+                    field="execution_interval",
+                    is_valid=False,
+                    message="Execution interval must be greater than 0.",
+                    severity=ValidationSeverity.CRITICAL,
+                )
+            )
+
         if not isinstance(self.delay_compensation, bool):
-            raise ValueError("Delay compensation must be a boolean.")
+            results.append(
+                ValidationResult(
+                    field="delay_compensation",
+                    is_valid=False,
+                    message="Delay compensation must be a boolean.",
+                    severity=ValidationSeverity.CRITICAL,
+                )
+            )
+
+        return results
 
 
 class PeriodicAgent(LoopingAgent):

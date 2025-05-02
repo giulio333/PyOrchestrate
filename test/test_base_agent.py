@@ -1,3 +1,4 @@
+from typing import List
 import unittest
 import sys
 import os
@@ -6,16 +7,16 @@ from unittest.mock import MagicMock, patch
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.agent.base_agent import (
     BaseAgent,
-    ValidationError,
 )
+from PyOrchestrate.core.utilities.validation import (
+    ConfigValidationError,
+    ValidationPolicy,
+    ValidationResult,
+    ValidationSeverity,
+)
+
 from PyOrchestrate.core.base.utilities import LoggerConfig
 from PyOrchestrate.core.utilities.event import AgentEvent  # nuovo import
-
-
-class MyBaseAgent(BaseAgent):
-
-    def execute(self):
-        super().execute()
 
 
 class TestBaseAgentConfig(unittest.TestCase):
@@ -36,7 +37,31 @@ class TestBaseAgentConfig(unittest.TestCase):
 
 
 class TestBaseAgent(unittest.TestCase):
+
+    class MyBaseAgent(BaseAgent):
+
+        class Config(BaseAgent.Config):
+            logger_config = LoggerConfig(level="DEBUG")
+            custom_value = "custom_value"
+            validation_policy = ValidationPolicy()
+
+            def validate(self):
+                results = super().validate()
+                if not isinstance(self.custom_value, str):
+                    results.append(
+                        ValidationResult(
+                            field="custom_value",
+                            is_valid=False,
+                            message="custom_value must be a string.",
+                            severity=ValidationSeverity.ERROR,
+                        )
+                    )
+
+        def execute(self):
+            super().execute()
+
     def setUp(self):
+
         # Mock
         self.event_manager = MagicMock(spec=EventManager)
         self.state_events = BaseAgent.StateEvents(MagicMock(), MagicMock(), MagicMock())
@@ -49,8 +74,8 @@ class TestBaseAgent(unittest.TestCase):
         # Create test plugin
         self.plugin = BaseAgent.Plugin()
 
-        # Initialize test agent
-        self.agent = MyBaseAgent(
+        # Initialize test agent object
+        self.agent = self.MyBaseAgent(
             name="test_base_agent",
             config=self.config,
             plugin=self.plugin,
@@ -94,7 +119,7 @@ class TestBaseAgent(unittest.TestCase):
 
     def test_initialization_with_default_name(self):
         """Test agent initialization with default name"""
-        agent = MyBaseAgent(
+        agent = self.MyBaseAgent(
             name=None,
             config=self.config,
             plugin=self.plugin,
@@ -111,7 +136,7 @@ class TestBaseAgent(unittest.TestCase):
             logger_config=LoggerConfig(level="WARNING", filename="test.log")
         )
 
-        agent = MyBaseAgent(
+        agent = self.MyBaseAgent(
             name="test_agent",
             config=custom_config,
             plugin=self.plugin,
@@ -134,16 +159,22 @@ class TestBaseAgent(unittest.TestCase):
     def test_validate_config_success(self):
         """Test successful config validation"""
         self.agent.logger = MagicMock()
-        self.config.validate = MagicMock()
+        self.config._validate = MagicMock()
         self.agent.validate_config()
-        self.config.validate.assert_called_once()
+        self.config._validate.assert_called_once()
 
-    def test_validate_config_failure(self):
-        """Test failed config validation"""
+    def test_validate_config_propagates_config_validation_error(self):
+        """Test that ConfigValidationError from config.validate is propagated"""
+
         self.agent.logger = MagicMock()
-        self.config.validate = MagicMock(side_effect=Exception("Invalid config"))
-        with self.assertRaises(ValidationError):
+        fake_error = ConfigValidationError("validation failed", [])
+        self.config._validate = MagicMock(side_effect=fake_error)
+        with self.assertRaises(ConfigValidationError) as cm:
             self.agent.validate_config()
+        # Ensure the same exception instance is raised
+        self.assertIs(cm.exception, fake_error)
+        # Logger should have been called to report the validation failure
+        self.agent.logger.error.assert_called()
 
     def test_setup(self):
         """Test setup method"""
@@ -200,7 +231,7 @@ class TestBaseAgent(unittest.TestCase):
 
     def test_run_with_missing_events(self):
         """Test run method with missing events."""
-        agent_missing = MyBaseAgent(
+        agent_missing = self.MyBaseAgent(
             name="test_agent_missing_events",
             config=self.config,
             plugin=self.plugin,
