@@ -298,7 +298,7 @@ class Config(BaseClassConfig):
     """Configuration with a single custom field and simple validation."""
 
     threshold: int = 10
-    validation_policy = ValidationPolicy(ignore_warnings=False, ignore_errors=False)
+    validation_policy = ValidationPolicy(ignore_warnings=False, ignore_errors=False) # [!code focus]
 
     def validate(self) -> List[ValidationResult]:
         results = super().validate()
@@ -315,6 +315,14 @@ class Config(BaseClassConfig):
 ```
 
 You can also use the `ValidationPolicy` class to define how validation errors are handled.
+
+```python
+class Config(BaseClassConfig):
+    """Configuration with a single custom field and simple validation."""
+
+    threshold: int = 10
+    validation_policy = ValidationPolicy(ignore_warnings=False, ignore_errors=False) # [!code focus]
+```
 
 ## BaseAgent
 
