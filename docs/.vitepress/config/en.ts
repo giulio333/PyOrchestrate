@@ -47,6 +47,12 @@ export const enConfig = {
               ]
             },
             {
+              text: 'Utilities',
+              items: [
+                { text: 'Event Manager', link: '/learn/utilities/event-manager' },
+              ]
+            },
+            {
               text: 'Built-in Agents',
               collapsed: true,
               items: [
