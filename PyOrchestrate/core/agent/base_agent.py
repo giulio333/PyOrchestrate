@@ -7,6 +7,7 @@ import multiprocessing
 import time
 from abc import ABC, abstractmethod
 from typing import final, Protocol, Literal, Optional, List
+from enum import Enum
 
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.event_manager import EventManager
@@ -17,6 +18,15 @@ from PyOrchestrate.core.utilities.validation import (
     ConfigValidationError,
     ConfigValidationWarning,
 )
+
+
+class AgentTerminationStatus(Enum):
+    """Represents the termination status of an agent."""
+
+    SUCCESS = "success"  # Normal termination
+    WARNING = "warning"  # Terminated with warnings
+    ERROR = "error"  # Terminated with errors
+    CRITICAL = "critical"  # Terminated with critical errors
 
 
 class BaseAgentConfig(BaseClass.Config):
@@ -180,6 +190,8 @@ class BaseAgent(BaseClass, ABC):
         """Timestamp when the agent started running."""
         self.a_type = a_type
         """The agent type (process or thread)."""
+        self.termination_status = AgentTerminationStatus.SUCCESS
+        """Agent termination status."""
 
         EventType = (
             multiprocessing.Event if self.a_type == "process" else threading.Event
@@ -230,6 +242,8 @@ class BaseAgent(BaseClass, ABC):
             None
         """
         self.start_time = time.time()
+        # Initialize termination status as SUCCESS
+        self.termination_status = AgentTerminationStatus.SUCCESS
 
         self.event_manager.emit(AgentEvent.AGENT_START)
         if self.state_events is not None:
@@ -254,9 +268,12 @@ class BaseAgent(BaseClass, ABC):
 
         except ConfigValidationError as e:
             self.logger.error(f"Agent cannot start due to configuration error.")
+            self.termination_status = AgentTerminationStatus.ERROR
 
         except Exception as ex:
             self.logger.exception(f"[{self.name}] Error during execution: {ex}")
+            self.termination_status = AgentTerminationStatus.CRITICAL
+            self.event_manager.emit(AgentEvent.AGENT_ERROR, {"error_message": str(ex)})
 
         finally:
 
@@ -269,7 +286,9 @@ class BaseAgent(BaseClass, ABC):
                 self.state_events.close_event.set()
 
             elapsed = time.time() - self.start_time
-            self.logger.debug(f"Agent lifecycle completed in {elapsed:.3f} seconds.")
+            self.logger.debug(
+                f"Agent lifecycle completed in {elapsed:.3f} seconds with status: {self.termination_status.value}"
+            )
 
     def setup(self):
         """
@@ -452,6 +471,15 @@ class AgentProtocol(Protocol):
     daemon: bool
     ident: int | None
     pid: int | None
+    termination_status: AgentTerminationStatus
+    config: BaseAgentConfig
+    plugin: BaseClass.Plugin
+    event_manager: EventManager
+    plugin_manager: PluginManager
+    state_events: BaseAgent.StateEvents
+    control_events: BaseAgent.ControlEvents
+    start_time: float
+    plugins: dict[str, BaseClass.Plugin]
 
     def run(self) -> None: ...
 
