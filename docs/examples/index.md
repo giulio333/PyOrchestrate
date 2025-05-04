@@ -17,5 +17,10 @@ features:
       light: /mathematics.png
       dark: /mathematics.png
     title: Basic Examples
-    link: ./basic
+    link: ./basic/project-initialization.md
+  - icon: 
+      light: /mathematics.png
+      dark: /mathematics.png
+    title: Events Examples
+    link: ./events/agent-state-events.md
 ---

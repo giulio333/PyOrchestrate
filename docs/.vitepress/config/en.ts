@@ -77,6 +77,22 @@ export const enConfig = {
           ]
         }
       ],
+      '/examples/basic': [
+        {
+          text: 'Basic Examples',
+          items: [
+            { text: 'Project Initialization', link: '/examples/basic/project-initialization.md' },     
+          ]
+        }
+      ],
+      '/examples/events': [
+        {
+          text: 'Events Examples',
+          items: [
+            { text: 'Agent State Event', link: '/examples/events/agent-state-events.md' },     
+          ]
+        }
+      ],
       '/advanced/built-in-agents': [
         {
           text: 'Advanced Agents',
