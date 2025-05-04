@@ -7,6 +7,7 @@ from PyOrchestrate.core.utilities.validation import (
     ValidationResult,
     ValidationPolicy,
     ConfigValidationError,
+    ConfigValidationWarning,
 )
 
 
@@ -63,18 +64,27 @@ class BaseClassConfig:
 
         Raises:
             ConfigValidationError: If the configuration is invalid and policy requires it.
+            ConfigValidationWarning: If the configuration has warnings and policy requires it.
         """
         results = self.validate()
 
         # Filter out invalid results
         invalid_results = [r for r in results if not r.is_valid]
 
-        if invalid_results and self.validation_policy.should_raise(invalid_results):
-            raise ConfigValidationError(
-                "Validation failed",
-                invalid_results,
-                config_class=self.__class__.__name__,
-            )
+        if invalid_results:
+            raise_type = self.validation_policy.should_raise(invalid_results)
+            if raise_type == "error":
+                raise ConfigValidationError(
+                    "Validation failed",
+                    invalid_results,
+                    config_class=self.__class__.__name__,
+                )
+            elif raise_type == "warning":
+                raise ConfigValidationWarning(
+                    "Validation warnings",
+                    invalid_results,
+                    config_class=self.__class__.__name__,
+                )
 
         return results
 

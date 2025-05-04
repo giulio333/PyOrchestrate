@@ -15,6 +15,7 @@ from PyOrchestrate.core.plugins.plugin_manager import PluginManager
 from PyOrchestrate.core.utilities.validation import (
     ValidationResult,
     ConfigValidationError,
+    ConfigValidationWarning,
 )
 
 
@@ -251,8 +252,8 @@ class BaseAgent(BaseClass, ABC):
 
             self.execute()
 
-        except ConfigValidationError:
-            self.logger.error("Configuration validation failed.")
+        except ConfigValidationError as e:
+            self.logger.error(f"Agent cannot start due to configuration error.")
 
         except Exception as ex:
             self.logger.exception(f"[{self.name}] Error during execution: {ex}")
@@ -338,8 +339,10 @@ class BaseAgent(BaseClass, ABC):
         try:
             self.config._validate()
         except ConfigValidationError as e:
-            self.logger.error(f"Configuration validation failed: {e}")
+            self.logger.error(e)
             raise e
+        except ConfigValidationWarning as w:
+            self.logger.warning(w)
         self.logger.debug(f"Self configuration validated.")
 
     def on_stop(self):

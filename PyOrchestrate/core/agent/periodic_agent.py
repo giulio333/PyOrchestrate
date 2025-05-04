@@ -74,7 +74,6 @@ class PeriodicAgentConfig(LoopingAgentConfig):
             results.append(
                 ValidationResult(
                     field="execution_interval",
-                    is_valid=False,
                     message="Execution interval must be greater than 0.",
                     severity=ValidationSeverity.CRITICAL,
                 )
@@ -84,7 +83,6 @@ class PeriodicAgentConfig(LoopingAgentConfig):
             results.append(
                 ValidationResult(
                     field="delay_compensation",
-                    is_valid=False,
                     message="Delay compensation must be a boolean.",
                     severity=ValidationSeverity.CRITICAL,
                 )
