@@ -96,8 +96,8 @@ class PoolAgent(PeriodicAgent):
 
     Config = PoolAgentConfig
 
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str | None = None, **kwargs):
+        super().__init__(name=name, **kwargs)
 
         self.timer = None
         self.interval = self.config.execution_interval
@@ -180,13 +180,13 @@ class PoolAgent(PeriodicAgent):
 
 class PoolProcessAgent(PoolAgent, multiprocessing.Process, ABC):
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str | None = None, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
         PoolAgent.__init__(self, name=name, a_type="process", **kwargs)
 
 
 class PoolThreadAgent(PoolAgent, threading.Thread, ABC):
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str | None = None, **kwargs):
         threading.Thread.__init__(self, name=name)
         PoolAgent.__init__(self, name=name, a_type="thread", **kwargs)

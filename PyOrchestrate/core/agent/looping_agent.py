@@ -107,8 +107,8 @@ class LoopingAgent(BaseAgent):
 
     Config = LoopingAgentConfig
 
-    def __init__(self, name: str, config, plugin, **kwargs):
-        super().__init__(name=name, config=config, plugin=plugin, **kwargs)
+    def __init__(self, name: str | None = None, **kwargs):
+        super().__init__(name=name, **kwargs)
 
     @final
     def execute(self) -> None:
@@ -216,9 +216,7 @@ class LoopingProcessAgent(LoopingAgent, multiprocessing.Process, ABC):
         ABC (_type_): ABC module.
     """
 
-    a_type: str = "process"
-
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str | None = None, **kwargs):
         """
         Initialize a new LoopingProcessAgent.
 
@@ -241,9 +239,7 @@ class LoopingThreadAgent(LoopingAgent, threading.Thread, ABC):
         ABC (_type_): ABC module.
     """
 
-    a_type: str = "thread"
-
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str | None = None, **kwargs):
         """
         Initialize a new LoopingThreadAgent.
 
