@@ -67,14 +67,14 @@ class PoolAgentConfig(PeriodicAgent.Config):
 
     def validate(self) -> List[ValidationResult]:
         """
-        Implementazione della validazione specifica per PoolAgent.
+        Implementation of specific validation for PoolAgent.
 
         Returns:
-            List[ValidationResult]: Lista dei risultati di validazione.
+            List[ValidationResult]: List of validation results.
         """
         results = super().validate()
 
-        # Verifica che ci siano agenti da registrare
+        # Check if there are agents to register
         if not hasattr(self, "agents_entry") or not self.agents_entry:
             results.append(
                 ValidationResult(
