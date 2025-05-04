@@ -147,6 +147,7 @@ All available parameters are
 | `control_events` | list         | A list of control events to be used by the agent. If not provided, the default events will be used. |
 | `state_events`  | list         | A list of state events to be used by the agent. If not provided, the default events will be used. |
 | `event_manager` | EventManager | The event manager to be used by the agent. If not provided, the default event manager will be used. |
+| `msg_channel`  | MessageChannel | The message channel to be used by the agent. If not provided, the Orchestrator's default message channel will be used. |
 | `kwargs`        | dict         | Additional keyword arguments to be passed to the agent constructor.         |
 
 If you don't provide optional parameters, the Orchestrator will use the default values defined in the `Agent` class.
