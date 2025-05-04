@@ -1,5 +1,4 @@
 import time
-import multiprocessing
 import requests
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
@@ -78,9 +77,6 @@ def on_agent_close(event_date, event_time):
 
 
 if __name__ == "__main__":
-    # Required for multiprocessing support
-    multiprocessing.set_start_method("spawn")
-
     # Orchestrator initialization
     orchestrator = Orchestrator()
 
@@ -89,7 +85,7 @@ if __name__ == "__main__":
     event_manager.register_event(AgentEvent.AGENT_START, on_agent_start)
     event_manager.register_event(AgentEvent.AGENT_CLOSE, on_agent_close)
 
-    # Registering agents (solo APIFetchAgent è registrato)
+    # Registering agents
     fetch_agent: AgentEntry = orchestrator.register_agent(
         APIFetchAgent, "APIFetchAgent", event_manager=event_manager
     )
