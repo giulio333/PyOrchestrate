@@ -3,14 +3,15 @@
 Simple example of custom validation and usage of Orchestrator.
 """
 from typing import List
-
+from datetime import datetime
+import time
 from PyOrchestrate.core.utilities.validation import (
     ValidationResult,
     ValidationSeverity,
     ValidationPolicy,
 )
 from PyOrchestrate.core.base.base import BaseClassConfig
-from PyOrchestrate.core.agent.base_agent import BaseProcessAgent
+from PyOrchestrate.core.agent.base_agent import BaseProcessAgent, ServiceMessage
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
 
 
@@ -51,6 +52,14 @@ class SimpleAgent(BaseProcessAgent):
 
         for _ in range(self.config.threshold):
             self.logger.info(f"Current threshold: {self.config.threshold}")
+
+            message = ServiceMessage(
+                "simple_agent",
+                "info",
+                payload={"message": "test message."},
+                timestamp=datetime.fromtimestamp(time.time()),
+            )
+            self.send_message(message)
 
 
 if __name__ == "__main__":
