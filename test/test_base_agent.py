@@ -272,7 +272,7 @@ class TestServiceMessage(unittest.TestCase):
         timestamp = datetime.fromtimestamp(time.time())
         message = ServiceMessage(
             sender="test_agent",
-            type="info",
+            type="STATUS",
             payload={"message": "test message"},
             timestamp=timestamp,
         )
@@ -330,7 +330,7 @@ class TestBaseAgentWithServiceMessage(unittest.TestCase):
         timestamp = datetime.fromtimestamp(time.time())
         message = ServiceMessage(
             sender=self.agent.name,
-            type="info",
+            type="STATUS",
             payload={"message": "test message"},
             timestamp=timestamp,
         )

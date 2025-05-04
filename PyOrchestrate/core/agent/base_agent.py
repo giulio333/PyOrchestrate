@@ -8,6 +8,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import final, Protocol, Literal, Optional, List
 from enum import Enum
+from datetime import datetime
 
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.event_manager import EventManager
@@ -247,10 +248,9 @@ class BaseAgent(BaseClass, ABC):
             None
         """
         self.start_time = time.time()
-        # Initialize termination status as SUCCESS
-        self.termination_status = AgentTerminationStatus.SUCCESS
 
-        self.event_manager.emit(AgentEvent.AGENT_START)
+        self._handle_start()
+
         if self.state_events is not None:
             self.state_events.start_event.set()
 
@@ -294,6 +294,24 @@ class BaseAgent(BaseClass, ABC):
             self.logger.debug(
                 f"Agent lifecycle completed in {elapsed:.3f} seconds with status: {self.termination_status.value}"
             )
+
+    def _handle_start(self):
+        """
+        Handles initialization when the agent starts.
+
+        Notes:
+            Override this method to implement custom initialization logic
+            that should execute when the agent starts.
+        """
+        self.event_manager.emit(AgentEvent.AGENT_START)
+
+        message = ServiceMessage(
+            sender=self.name,
+            type="STATUS",
+            payload={"msg": "started"},
+            timestamp=datetime.now(),
+        )
+        self.send_message(message)
 
     def setup(self):
         """
