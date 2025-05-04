@@ -307,7 +307,6 @@ class Config(BaseClassConfig):
             results.append(
                 ValidationResult(
                     field="threshold",
-                    is_valid=False,
                     message="Threshold must be between 0 and 30.",
                     severity=ValidationSeverity.ERROR,
                 )
