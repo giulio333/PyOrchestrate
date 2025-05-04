@@ -3,10 +3,13 @@ import unittest
 import sys
 import os
 from unittest.mock import MagicMock, patch
+from datetime import datetime
+import time
 
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.agent.base_agent import (
     BaseAgent,
+    ServiceMessage,
 )
 from PyOrchestrate.core.utilities.validation import (
     ConfigValidationError,
@@ -51,7 +54,6 @@ class TestBaseAgent(unittest.TestCase):
                     results.append(
                         ValidationResult(
                             field="custom_value",
-                            is_valid=False,
                             message="custom_value must be a string.",
                             severity=ValidationSeverity.ERROR,
                         )
@@ -260,6 +262,87 @@ class TestBaseAgent(unittest.TestCase):
         self.event_manager.emit.assert_any_call(AgentEvent.AGENT_START)
         self.event_manager.emit.assert_any_call(AgentEvent.AGENT_READY)
         self.event_manager.emit.assert_any_call(AgentEvent.AGENT_CLOSE)
+
+
+class TestServiceMessage(unittest.TestCase):
+    """Test cases for ServiceMessage functionality."""
+
+    def test_service_message_creation(self):
+        """Test creating a ServiceMessage with the required fields."""
+        timestamp = datetime.fromtimestamp(time.time())
+        message = ServiceMessage(
+            sender="test_agent",
+            type="STATUS",
+            payload="test message",
+            timestamp=timestamp,
+        )
+
+        self.assertEqual(message.sender, "test_agent")
+        self.assertEqual(message.type, "STATUS")
+        self.assertEqual(message.payload, "test message")
+        self.assertEqual(message.timestamp, timestamp)
+
+
+class TestBaseAgentWithServiceMessage(unittest.TestCase):
+    """Test cases for BaseAgent with ServiceMessage functionality."""
+
+    class TestAgent(BaseAgent):
+        """Test agent class with ServiceMessage support."""
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.sent_messages = []
+
+        def send_message(self, message):
+            """Override to capture sent messages."""
+            self.sent_messages.append(message)
+
+        def execute(self):
+            return super().execute()
+
+    def setUp(self):
+        # Mock
+        self.event_manager = MagicMock(spec=EventManager)
+        self.state_events = BaseAgent.StateEvents(MagicMock(), MagicMock(), MagicMock())
+        self.control_events = BaseAgent.ControlEvents(
+            MagicMock(), MagicMock(), MagicMock()
+        )
+
+        # Create test config
+        self.config = BaseAgent.Config()
+        # Create test plugin
+        self.plugin = BaseAgent.Plugin()
+
+        # Initialize test agent object
+        self.agent = self.TestAgent(
+            name="test_service_agent",
+            config=self.config,
+            plugin=self.plugin,
+            a_type="process",
+            state_events=self.state_events,
+            control_events=self.control_events,
+            event_manager=self.event_manager,
+        )
+        self.agent.logger = MagicMock()
+
+    def test_send_service_message(self):
+        """Test sending a ServiceMessage from the agent."""
+        timestamp = datetime.fromtimestamp(time.time())
+        message = ServiceMessage(
+            sender=self.agent.name,
+            type="STATUS",
+            payload="test message",
+            timestamp=timestamp,
+        )
+
+        self.agent.send_message(message)
+
+        self.assertEqual(len(self.agent.sent_messages), 1)
+        sent_message = self.agent.sent_messages[0]
+        self.assertEqual(sent_message.sender, "test_service_agent")
+        self.assertEqual(sent_message.type, "STATUS")
+        self.assertEqual(sent_message.payload, "test message")
+        self.assertEqual(sent_message.timestamp, timestamp)
 
 
 if __name__ == "__main__":

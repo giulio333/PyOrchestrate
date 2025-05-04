@@ -1,4 +1,5 @@
 import time
+import threading
 from collections import defaultdict, deque
 from typing import List, final
 
@@ -15,6 +16,7 @@ from PyOrchestrate.core.utilities.validation import (
 
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.validation import ValidationResult
+from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 
 
 class OrchestratorConfig(BaseClass.Config):
@@ -113,11 +115,74 @@ class Orchestrator(BaseClass):
 
         self.memory = OMemory()
         self.event_manager = EventManager()
+        self.msg_channel = MessageChannel("process")
 
         self.dependencies: dict[str, list[str]] = defaultdict(list)
         self._running_agents = 0
-        self._waiting_agents_queue = deque()  # Coda per gli agenti in attesa
-        self._started_agents = set()  # Set per gli agenti che sono stati avviati
+        self._waiting_agents_queue = deque()  # Queue for waiting agents
+        self._started_agents = set()  # Set for agents that have been started
+
+        # Flag to control the execution of the message thread
+        self._message_thread_running = False
+        self._message_thread = None
+        # Start the thread to check messages
+        self._start_message_thread()
+
+    def _message_thread_function(self):
+        """
+        Function executed in a separate thread to continuously check
+        for incoming messages in the queue.
+        """
+        self.logger.info("Message handling thread started")
+        while self._message_thread_running:
+            try:
+                # Check if there are messages in the queue
+                msg = self.msg_channel.receive(timeout=self.config.check_interval)
+                if msg:
+                    # Handle incoming messages from agents
+                    self.logger.info(
+                        f"Received message from {msg.sender}: {msg.type} - {msg.payload}"
+                    )
+
+            except Exception as e:
+                self.logger.error(f"Error in message handling thread: {e}")
+
+            # Short pause to avoid excessive CPU usage
+            # time.sleep(0.01)
+
+        self.logger.info("Message handling thread terminated")
+
+    def _start_message_thread(self):
+        """
+        Start a separate thread to handle incoming messages.
+        """
+        if self._message_thread_running:
+            return
+
+        self._message_thread_running = True
+        self._message_thread = threading.Thread(
+            target=self._message_thread_function,
+            daemon=True,  # The thread will terminate when the main thread terminates
+            name="OrchestratorMessageThread",
+        )
+        self._message_thread.start()
+        self.logger.debug("Message handling thread started successfully")
+
+    def _stop_message_thread(self):
+        """
+        Stop the message handling thread.
+        """
+        if not self._message_thread_running:
+            return
+
+        self._message_thread_running = False
+        if self._message_thread:
+            self._message_thread.join(timeout=2.0)  # Wait at most 2 seconds
+            if self._message_thread.is_alive():
+                self.logger.warning("The message handling thread did not stop properly")
+            else:
+                self.logger.debug("Message handling thread stopped successfully")
+            self._message_thread = None
 
     def register_agent(
         self,
@@ -128,6 +193,7 @@ class Orchestrator(BaseClass):
         control_events: BaseAgent.ControlEvents | None = None,
         state_events: BaseAgent.StateEvents | None = None,
         event_manager: EventManager | None = None,
+        msg_channel: MessageChannel | None = None,
         **kwargs,
     ) -> AgentEntry:
         """
@@ -147,6 +213,7 @@ class Orchestrator(BaseClass):
             control_events: Control events for the agent.
             state_events: State events for the agent.
             event_manager: Event manager for the agent.
+            msg_channel: Message channel for the agent.
             kwargs: Additional arguments for the agent.
 
         Returns:
@@ -161,6 +228,7 @@ class Orchestrator(BaseClass):
             control_events=control_events,
             state_events=state_events,
             event_manager=event_manager,
+            msg_channel=msg_channel or self.msg_channel,
             **kwargs,
         )
         self.logger.debug(f"Agent '{name}' registered.")
@@ -344,6 +412,9 @@ class Orchestrator(BaseClass):
 
         self.logger.info("All agents have terminated.")
         self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
+
+        # Stop the message handling thread
+        self._stop_message_thread()
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
