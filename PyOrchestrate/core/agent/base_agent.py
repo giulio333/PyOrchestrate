@@ -226,7 +226,7 @@ class BaseAgent(BaseClass, ABC):
         """Event manager for handling events and callbacks."""
         self.plugin_manager = PluginManager(self.plugin)
         """Plugin manager for managing plugins."""
-        self.msg_channel = msg_channel or MessageChannel(a_type)
+        self.msg_channel = msg_channel or MessageChannel(self.a_type)
         """Message channel for service communication."""
 
     @final
