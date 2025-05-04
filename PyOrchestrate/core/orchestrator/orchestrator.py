@@ -6,7 +6,7 @@ from typing import List, final
 from PyOrchestrate.core.agent.base_agent import BaseAgent
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
 from PyOrchestrate.core.utilities.event_manager import EventManager
-from PyOrchestrate.core.utilities.event import OrchestratorEvent
+from PyOrchestrate.core.utilities.event import OrchestratorEvent, AgentEvent
 from PyOrchestrate.core.utilities.validation import (
     ValidationPolicy,
     ValidationResult,
@@ -133,16 +133,32 @@ class Orchestrator(BaseClass):
         Function executed in a separate thread to continuously check
         for incoming messages in the queue.
         """
-        self.logger.info("Message handling thread started")
+        self.logger.debug("Message handling thread started")
         while self._message_thread_running:
             try:
                 # Check if there are messages in the queue
                 msg = self.msg_channel.receive(timeout=self.config.check_interval)
                 if msg:
-                    # Handle incoming messages from agents
-                    self.logger.info(
+                    self.logger.debug(
                         f"Received message from {msg.sender}: {msg.type} - {msg.payload}"
                     )
+
+                    if msg.type == "STATUS":
+                        if msg.payload == AgentEvent.AGENT_CLOSE.value:
+                            self.event_manager.emit(
+                                OrchestratorEvent.AGENT_TERMINATED,
+                                agent_name=msg.sender,
+                            )
+                        elif msg.payload == AgentEvent.AGENT_START.value:
+                            self.event_manager.emit(
+                                OrchestratorEvent.AGENT_STARTED,
+                                agent_name=msg.sender,
+                            )
+                        elif msg.payload == AgentEvent.AGENT_READY.value:
+                            self.event_manager.emit(
+                                OrchestratorEvent.AGENT_READY,
+                                agent_name=msg.sender,
+                            )
 
             except Exception as e:
                 self.logger.error(f"Error in message handling thread: {e}")
@@ -150,7 +166,7 @@ class Orchestrator(BaseClass):
             # Short pause to avoid excessive CPU usage
             # time.sleep(0.01)
 
-        self.logger.info("Message handling thread terminated")
+        self.logger.debug("Message handling thread terminated")
 
     def _start_message_thread(self):
         """
@@ -356,8 +372,6 @@ class Orchestrator(BaseClass):
         self._running_agents += 1
         self._started_agents.add(agent_name)
 
-        self.event_manager.emit(OrchestratorEvent.AGENT_STARTED, agent_name=agent.name)
-
         self.logger.info(f"Starting agent {agent_name}...")
 
     def stop(self):
@@ -391,10 +405,6 @@ class Orchestrator(BaseClass):
                         and agent.name not in notified
                     ):
                         self.logger.info(f"Agent '{agent.name}' ended.")
-                        self.event_manager.emit(
-                            OrchestratorEvent.AGENT_TERMINATED,
-                            agent_name=agent.name,
-                        )
                         notified.add(agent.name)
                         self._running_agents -= 1
 
@@ -403,6 +413,7 @@ class Orchestrator(BaseClass):
                         # Start an agent from the waiting queue if available
                         self._start_waiting_agent()
                 else:
+                    print(f"alive = {agent.name}")
                     alive_count += 1
 
             if alive_count == 0 and not self._waiting_agents_queue:

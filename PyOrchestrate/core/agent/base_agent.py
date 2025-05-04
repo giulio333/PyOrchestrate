@@ -265,7 +265,8 @@ class BaseAgent(BaseClass, ABC):
 
             self.setup()
 
-            self.event_manager.emit(AgentEvent.AGENT_READY)
+            self._handle_ready()
+
             if self.state_events is not None:
                 self.state_events.ready_event.set()
 
@@ -309,7 +310,7 @@ class BaseAgent(BaseClass, ABC):
         message = ServiceMessage(
             sender=self.name,
             type="STATUS",
-            payload="started",
+            payload=AgentEvent.AGENT_START.value,
             timestamp=datetime.now(),
         )
         self.send_message(message)
@@ -327,7 +328,25 @@ class BaseAgent(BaseClass, ABC):
         message = ServiceMessage(
             sender=self.name,
             type="STATUS",
-            payload="closing",
+            payload=AgentEvent.AGENT_CLOSE.value,
+            timestamp=datetime.now(),
+        )
+        self.send_message(message)
+
+    def _handle_ready(self):
+        """
+        Handles the agent's readiness state.
+
+        Notes:
+            Override this method to implement custom logic that should execute
+            when the agent is ready
+        """
+        self.event_manager.emit(AgentEvent.AGENT_READY)
+
+        message = ServiceMessage(
+            sender=self.name,
+            type="STATUS",
+            payload=AgentEvent.AGENT_READY.value,
             timestamp=datetime.now(),
         )
         self.send_message(message)

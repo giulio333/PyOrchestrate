@@ -1,5 +1,6 @@
 import requests
 import json
+import time
 import os
 import logging
 from multiprocessing import set_start_method
@@ -24,14 +25,20 @@ def send_telegram_message(message: str):
         logging.error(f"Errore nell'invio del messaggio Telegram: {e}")
 
 
+def on_agent_ready(agent_name: str, event_date, event_time):
+    message = f"Agent: {agent_name} \nDate: {event_date}, \nTime: {event_time}\nmessage: Agent is ready."
+    print(message)
+    send_telegram_message(message)
+
+
 def on_agent_started(agent_name: str, event_date, event_time):
-    message = f"Agent {agent_name} started. Date: {event_date}, Time: {event_time}"
+    message = f"Agent: {agent_name} \nDate: {event_date}, \nTime: {event_time}\nmessage: Agent started."
     print(message)
     send_telegram_message(message)
 
 
 def on_agent_stopped(agent_name: str):
-    message = f"Agent {agent_name} stopped."
+    message = f"Agent: {agent_name}\nmessage: Agent stopped."
     print(message)
     send_telegram_message(message)
 
@@ -60,6 +67,8 @@ class WeatherCollector(PeriodicProcessAgent):
             with open(self.config.output_file, "w") as file:
                 json.dump([], file)  # type: ignore
             self.logger.info(f"Output file created: {self.config.output_file}")
+
+        time.sleep(2)
 
     def runner(self):
         self.logger.info(f"Making request to {self.config.url}...")
@@ -90,6 +99,9 @@ if __name__ == "__main__":
     orchestrator = Orchestrator(name="Orchestrator")
 
     orchestrator.event_manager.register_event(
+        OrchestratorEvent.AGENT_READY, on_agent_ready
+    )
+    orchestrator.event_manager.register_event(
         OrchestratorEvent.AGENT_STARTED, on_agent_started
     )
     orchestrator.event_manager.register_event(
@@ -100,6 +112,11 @@ if __name__ == "__main__":
     )
 
     orchestrator.register_agent(WeatherCollector, "WeatherCollector1")
+    orchestrator.register_agent(
+        WeatherCollector,
+        "WeatherCollector2",
+        custom_config=WeatherCollector.Config(limit=5),
+    )
 
     orchestrator.start()
     orchestrator.join()

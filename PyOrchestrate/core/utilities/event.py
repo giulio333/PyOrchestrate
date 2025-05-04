@@ -6,6 +6,8 @@ class OrchestratorEvent(Enum):
     Enum of events that the orchestrator can emit.
     """
 
+    AGENT_READY = "agent_ready"
+    """Event emitted when an agent is ready. Take the agent name as argument (`agent_name`)."""
     AGENT_STARTED = "agent_started"
     """Event emitted when an agent is started. Take the agent name as argument (`agent_name`)."""
     AGENT_TERMINATED = "agent_terminated"
