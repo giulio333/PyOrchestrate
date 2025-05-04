@@ -273,13 +273,13 @@ class TestServiceMessage(unittest.TestCase):
         message = ServiceMessage(
             sender="test_agent",
             type="STATUS",
-            payload={"message": "test message"},
+            payload="test message",
             timestamp=timestamp,
         )
 
         self.assertEqual(message.sender, "test_agent")
         self.assertEqual(message.type, "STATUS")
-        self.assertEqual(message.payload, {"message": "test message"})
+        self.assertEqual(message.payload, "test message")
         self.assertEqual(message.timestamp, timestamp)
 
 
@@ -331,7 +331,7 @@ class TestBaseAgentWithServiceMessage(unittest.TestCase):
         message = ServiceMessage(
             sender=self.agent.name,
             type="STATUS",
-            payload={"message": "test message"},
+            payload="test message",
             timestamp=timestamp,
         )
 
@@ -341,7 +341,7 @@ class TestBaseAgentWithServiceMessage(unittest.TestCase):
         sent_message = self.agent.sent_messages[0]
         self.assertEqual(sent_message.sender, "test_service_agent")
         self.assertEqual(sent_message.type, "STATUS")
-        self.assertEqual(sent_message.payload, {"message": "test message"})
+        self.assertEqual(sent_message.payload, "test message")
         self.assertEqual(sent_message.timestamp, timestamp)
 
 

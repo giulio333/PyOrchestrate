@@ -1,4 +1,5 @@
 import time
+import threading
 from collections import defaultdict, deque
 from typing import List, final
 
@@ -118,8 +119,70 @@ class Orchestrator(BaseClass):
 
         self.dependencies: dict[str, list[str]] = defaultdict(list)
         self._running_agents = 0
-        self._waiting_agents_queue = deque()  # Coda per gli agenti in attesa
-        self._started_agents = set()  # Set per gli agenti che sono stati avviati
+        self._waiting_agents_queue = deque()  # Queue for waiting agents
+        self._started_agents = set()  # Set for agents that have been started
+
+        # Flag to control the execution of the message thread
+        self._message_thread_running = False
+        self._message_thread = None
+        # Start the thread to check messages
+        self._start_message_thread()
+
+    def _message_thread_function(self):
+        """
+        Function executed in a separate thread to continuously check
+        for incoming messages in the queue.
+        """
+        self.logger.info("Message handling thread started")
+        while self._message_thread_running:
+            try:
+                # Check if there are messages in the queue
+                msg = self.msg_channel.receive(timeout=self.config.check_interval)
+                if msg:
+                    # Handle incoming messages from agents
+                    self.logger.info(
+                        f"Received message from {msg.sender}: {msg.type} - {msg.payload}"
+                    )
+
+            except Exception as e:
+                self.logger.error(f"Error in message handling thread: {e}")
+
+            # Short pause to avoid excessive CPU usage
+            # time.sleep(0.01)
+
+        self.logger.info("Message handling thread terminated")
+
+    def _start_message_thread(self):
+        """
+        Start a separate thread to handle incoming messages.
+        """
+        if self._message_thread_running:
+            return
+
+        self._message_thread_running = True
+        self._message_thread = threading.Thread(
+            target=self._message_thread_function,
+            daemon=True,  # The thread will terminate when the main thread terminates
+            name="OrchestratorMessageThread",
+        )
+        self._message_thread.start()
+        self.logger.debug("Message handling thread started successfully")
+
+    def _stop_message_thread(self):
+        """
+        Stop the message handling thread.
+        """
+        if not self._message_thread_running:
+            return
+
+        self._message_thread_running = False
+        if self._message_thread:
+            self._message_thread.join(timeout=2.0)  # Wait at most 2 seconds
+            if self._message_thread.is_alive():
+                self.logger.warning("The message handling thread did not stop properly")
+            else:
+                self.logger.debug("Message handling thread stopped successfully")
+            self._message_thread = None
 
     def register_agent(
         self,
@@ -347,15 +410,11 @@ class Orchestrator(BaseClass):
             else:
                 time.sleep(self.config.check_interval)
 
-            msg = self.msg_channel.receive(timeout=self.config.check_interval)
-            if msg and msg.type == "STATUS_REQUEST":
-                # forward to specific agent
-                pass
-            elif msg and msg.sender != "orchestrator":
-                self.handle_agent_message(msg)
-
         self.logger.info("All agents have terminated.")
         self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
+
+        # Stop the message handling thread
+        self._stop_message_thread()
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
@@ -434,14 +493,3 @@ class Orchestrator(BaseClass):
     def _info(self):
         self.logger.debug(f"Config: check_interval={self.config.check_interval}")
         self.logger.debug(f"Config: max_workers={self.config.max_workers}")
-
-    def handle_agent_message(self, msg: ServiceMessage):
-        """
-        Handle messages received from agents.
-
-        Args:
-            msg (ServiceMessage): The received message.
-        """
-        self.logger.info(
-            f"Received message from {msg.sender}: {msg.type} - {msg.payload}"
-        )

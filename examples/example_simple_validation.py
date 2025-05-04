@@ -53,14 +53,6 @@ class SimpleAgent(BaseProcessAgent):
         for _ in range(self.config.threshold):
             self.logger.info(f"Current threshold: {self.config.threshold}")
 
-            message = ServiceMessage(
-                self.name,
-                "STATUS",
-                payload={"message": "test message."},
-                timestamp=datetime.fromtimestamp(time.time()),
-            )
-            self.send_message(message)
-
 
 if __name__ == "__main__":
 
