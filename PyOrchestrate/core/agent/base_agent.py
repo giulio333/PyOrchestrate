@@ -18,6 +18,7 @@ from PyOrchestrate.core.utilities.validation import (
     ConfigValidationError,
     ConfigValidationWarning,
 )
+from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 
 
 class AgentTerminationStatus(Enum):
@@ -158,6 +159,7 @@ class BaseAgent(BaseClass, ABC):
         control_events: Optional[ControlEvents] = None,
         state_events: Optional[StateEvents] = None,
         event_manager: Optional[EventManager] = None,
+        msg_channel: Optional[MessageChannel] = None,
         **kwargs,
     ):
         """
@@ -182,6 +184,7 @@ class BaseAgent(BaseClass, ABC):
             control_events (ControlEvents, optional): Events for external command handling.
             state_events (StateEvents, optional): Events for internal state management.
             event_manager (EventManager, optional): Event manager for handling events and callbacks.
+            msg_channel (MessageChannel, optional): Message channel for service communication.
             **kwargs: Additional keyword arguments for agent configuration.
         """
         super().__init__(name=name, config=config, plugin=plugin, **kwargs)
@@ -222,6 +225,8 @@ class BaseAgent(BaseClass, ABC):
         """Event manager for handling events and callbacks."""
         self.plugin_manager = PluginManager(self.plugin)
         """Plugin manager for managing plugins."""
+        self.msg_channel = msg_channel or MessageChannel(a_type)
+        """Message channel for service communication."""
 
     @final
     def run(self) -> None:
@@ -406,6 +411,24 @@ class BaseAgent(BaseClass, ABC):
             raise ValueError(
                 "Invalid agent type. Ensure the agent class has a valid 'a_type' attribute set to 'process' or 'thread'."
             )
+
+    def send_message(self, msg: ServiceMessage) -> None:
+        """
+        Sends a message to the orchestrator.
+
+        Args:
+            msg (ServiceMessage): The message to send.
+        """
+        self.msg_channel.send("orchestrator", msg)
+
+    def on_message(self, msg: ServiceMessage) -> None:
+        """
+        React to orchestrator commands.
+
+        Args:
+            msg (ServiceMessage): The received message.
+        """
+        pass
 
 
 class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):

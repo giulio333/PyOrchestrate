@@ -15,6 +15,7 @@ from PyOrchestrate.core.utilities.validation import (
 
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.validation import ValidationResult
+from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 
 
 class OrchestratorConfig(BaseClass.Config):
@@ -113,6 +114,7 @@ class Orchestrator(BaseClass):
 
         self.memory = OMemory()
         self.event_manager = EventManager()
+        self.msg_channel = MessageChannel("process")
 
         self.dependencies: dict[str, list[str]] = defaultdict(list)
         self._running_agents = 0
@@ -128,6 +130,7 @@ class Orchestrator(BaseClass):
         control_events: BaseAgent.ControlEvents | None = None,
         state_events: BaseAgent.StateEvents | None = None,
         event_manager: EventManager | None = None,
+        msg_channel: MessageChannel | None = None,
         **kwargs,
     ) -> AgentEntry:
         """
@@ -147,6 +150,7 @@ class Orchestrator(BaseClass):
             control_events: Control events for the agent.
             state_events: State events for the agent.
             event_manager: Event manager for the agent.
+            msg_channel: Message channel for the agent.
             kwargs: Additional arguments for the agent.
 
         Returns:
@@ -161,6 +165,7 @@ class Orchestrator(BaseClass):
             control_events=control_events,
             state_events=state_events,
             event_manager=event_manager,
+            msg_channel=msg_channel or self.msg_channel,
             **kwargs,
         )
         self.logger.debug(f"Agent '{name}' registered.")
@@ -342,6 +347,13 @@ class Orchestrator(BaseClass):
             else:
                 time.sleep(self.config.check_interval)
 
+            msg = self.msg_channel.receive(timeout=self.config.check_interval)
+            if msg and msg.type == "STATUS_REQUEST":
+                # forward to specific agent
+                pass
+            elif msg and msg.sender != "orchestrator":
+                self.handle_agent_message(msg)
+
         self.logger.info("All agents have terminated.")
         self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
 
@@ -422,3 +434,14 @@ class Orchestrator(BaseClass):
     def _info(self):
         self.logger.debug(f"Config: check_interval={self.config.check_interval}")
         self.logger.debug(f"Config: max_workers={self.config.max_workers}")
+
+    def handle_agent_message(self, msg: ServiceMessage):
+        """
+        Handle messages received from agents.
+
+        Args:
+            msg (ServiceMessage): The received message.
+        """
+        self.logger.info(
+            f"Received message from {msg.sender}: {msg.type} - {msg.payload}"
+        )
