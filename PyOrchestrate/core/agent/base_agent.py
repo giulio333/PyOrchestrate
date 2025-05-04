@@ -8,6 +8,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import final, Protocol, Literal, Optional, List
 from enum import Enum
+from datetime import datetime
 
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.event_manager import EventManager
@@ -18,6 +19,7 @@ from PyOrchestrate.core.utilities.validation import (
     ConfigValidationError,
     ConfigValidationWarning,
 )
+from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 
 
 class AgentTerminationStatus(Enum):
@@ -158,6 +160,7 @@ class BaseAgent(BaseClass, ABC):
         control_events: Optional[ControlEvents] = None,
         state_events: Optional[StateEvents] = None,
         event_manager: Optional[EventManager] = None,
+        msg_channel: Optional[MessageChannel] = None,
         **kwargs,
     ):
         """
@@ -182,6 +185,7 @@ class BaseAgent(BaseClass, ABC):
             control_events (ControlEvents, optional): Events for external command handling.
             state_events (StateEvents, optional): Events for internal state management.
             event_manager (EventManager, optional): Event manager for handling events and callbacks.
+            msg_channel (MessageChannel, optional): Message channel for service communication.
             **kwargs: Additional keyword arguments for agent configuration.
         """
         super().__init__(name=name, config=config, plugin=plugin, **kwargs)
@@ -222,6 +226,8 @@ class BaseAgent(BaseClass, ABC):
         """Event manager for handling events and callbacks."""
         self.plugin_manager = PluginManager(self.plugin)
         """Plugin manager for managing plugins."""
+        self.msg_channel = msg_channel or MessageChannel(self.a_type)
+        """Message channel for service communication."""
 
     @final
     def run(self) -> None:
@@ -242,10 +248,9 @@ class BaseAgent(BaseClass, ABC):
             None
         """
         self.start_time = time.time()
-        # Initialize termination status as SUCCESS
-        self.termination_status = AgentTerminationStatus.SUCCESS
 
-        self.event_manager.emit(AgentEvent.AGENT_START)
+        self._handle_start()
+
         if self.state_events is not None:
             self.state_events.start_event.set()
 
@@ -281,7 +286,8 @@ class BaseAgent(BaseClass, ABC):
 
             self.plugin_manager.finalize_plugins()
 
-            self.event_manager.emit(AgentEvent.AGENT_CLOSE)
+            self._handle_stop()
+
             if self.state_events is not None:
                 self.state_events.close_event.set()
 
@@ -289,6 +295,42 @@ class BaseAgent(BaseClass, ABC):
             self.logger.debug(
                 f"Agent lifecycle completed in {elapsed:.3f} seconds with status: {self.termination_status.value}"
             )
+
+    def _handle_start(self):
+        """
+        Handles initialization when the agent starts.
+
+        Notes:
+            Override this method to implement custom initialization logic
+            that should execute when the agent starts.
+        """
+        self.event_manager.emit(AgentEvent.AGENT_START)
+
+        message = ServiceMessage(
+            sender=self.name,
+            type="STATUS",
+            payload="started",
+            timestamp=datetime.now(),
+        )
+        self.send_message(message)
+
+    def _handle_stop(self):
+        """
+        Handles cleanup when the agent is stopped.
+
+        Notes:
+            Override this method to implement custom cleanup logic
+            that should execute when the agent is stopped.
+        """
+        self.event_manager.emit(AgentEvent.AGENT_CLOSE)
+
+        message = ServiceMessage(
+            sender=self.name,
+            type="STATUS",
+            payload="closing",
+            timestamp=datetime.now(),
+        )
+        self.send_message(message)
 
     def setup(self):
         """
@@ -406,6 +448,24 @@ class BaseAgent(BaseClass, ABC):
             raise ValueError(
                 "Invalid agent type. Ensure the agent class has a valid 'a_type' attribute set to 'process' or 'thread'."
             )
+
+    def send_message(self, msg: ServiceMessage) -> None:
+        """
+        Sends a message to the orchestrator.
+
+        Args:
+            msg (ServiceMessage): The message to send.
+        """
+        self.msg_channel.send("orchestrator", msg)
+
+    def on_message(self, msg: ServiceMessage) -> None:
+        """
+        React to orchestrator commands.
+
+        Args:
+            msg (ServiceMessage): The received message.
+        """
+        pass
 
 
 class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):
