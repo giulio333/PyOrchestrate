@@ -51,7 +51,6 @@ class OrchestratorConfig(BaseClass.Config):
             results.append(
                 ValidationResult(
                     field="check_interval",
-                    is_valid=False,
                     message="check_interval must be greater than 0.",
                     severity=ValidationSeverity.ERROR,
                 )
@@ -61,7 +60,6 @@ class OrchestratorConfig(BaseClass.Config):
             results.append(
                 ValidationResult(
                     field="max_workers",
-                    is_valid=False,
                     message="max_workers must be greater than 0.",
                     severity=ValidationSeverity.ERROR,
                 )
