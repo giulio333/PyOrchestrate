@@ -67,7 +67,6 @@ class LoopingAgentConfig(BaseAgent.Config):
             results.append(
                 ValidationResult(
                     field="limit",
-                    is_valid=False,
                     message="Limit must be greater than or equal to -1.",
                     severity=ValidationSeverity.CRITICAL,
                 )

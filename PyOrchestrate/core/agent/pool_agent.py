@@ -79,7 +79,6 @@ class PoolAgentConfig(PeriodicAgent.Config):
             results.append(
                 ValidationResult(
                     field="agents_entry",
-                    is_valid=False,
                     message="No agents to register.",
                     severity=ValidationSeverity.WARNING,
                 )
