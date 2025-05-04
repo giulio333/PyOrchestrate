@@ -54,7 +54,7 @@ class SimpleAgent(BaseProcessAgent):
             self.logger.info(f"Current threshold: {self.config.threshold}")
 
             message = ServiceMessage(
-                "simple_agent",
+                self.name,
                 "info",
                 payload={"message": "test message."},
                 timestamp=datetime.fromtimestamp(time.time()),
