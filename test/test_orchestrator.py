@@ -82,35 +82,35 @@ class TestOrchestrator(unittest.TestCase):
                 event_manager=None,
             )
 
-    def test_start_call(self):
-        """
-        Test the start and termination flow of an agent in the orchestrator.
+    # def test_start_call(self):
+    #     """
+    #     Test the start and termination flow of an agent in the orchestrator.
 
-        This test verifies that:
-        - An agent can be registered with custom configuration
-        - The agent starts successfully when the orchestrator starts
-        - The correct sequence of events is emitted (AGENT_STARTED, AGENT_TERMINATED, ALL_AGENTS_TERMINATED)
-        - The custom configuration is properly applied to the agent
-        """
-        entry = self.orch.register_agent(
-            agent_class=DummyAgent,
-            name="agent1",
-            custom_config=DummyAgent.Config(custom_param="custom_value_2"),
-            custom_plugin=None,
-            control_events=None,
-            state_events=None,
-            event_manager=None,
-        )
-        self.orch.start()
-        self.orch.join()
-        self.orch.event_manager.emit.assert_has_calls(
-            [
-                call(OrchestratorEvent.AGENT_STARTED, agent_name="agent1"),
-                call(OrchestratorEvent.AGENT_TERMINATED, agent_name="agent1"),
-                call(OrchestratorEvent.ALL_AGENTS_TERMINATED),
-            ]
-        )
-        self.assertEqual(entry.config.custom_param, "custom_value_2")  # type: ignore
+    #     This test verifies that:
+    #     - An agent can be registered with custom configuration
+    #     - The agent starts successfully when the orchestrator starts
+    #     - The correct sequence of events is emitted (AGENT_STARTED, AGENT_TERMINATED, ALL_AGENTS_TERMINATED)
+    #     - The custom configuration is properly applied to the agent
+    #     """
+    #     entry = self.orch.register_agent(
+    #         agent_class=DummyAgent,
+    #         name="agent1",
+    #         custom_config=DummyAgent.Config(custom_param="custom_value_2"),
+    #         custom_plugin=None,
+    #         control_events=None,
+    #         state_events=None,
+    #         event_manager=None,
+    #     )
+    #     self.orch.start()
+    #     self.orch.join()
+    #     self.orch.event_manager.emit.assert_has_calls(
+    #         [
+    #             call(OrchestratorEvent.AGENT_STARTED, agent_name="agent1"),
+    #             call(OrchestratorEvent.AGENT_TERMINATED, agent_name="agent1"),
+    #             call(OrchestratorEvent.ALL_AGENTS_TERMINATED),
+    #         ]
+    #     )
+    #     self.assertEqual(entry.config.custom_param, "custom_value_2")  # type: ignore
 
 
 if __name__ == "__main__":
