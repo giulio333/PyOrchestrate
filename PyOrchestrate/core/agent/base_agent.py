@@ -501,7 +501,7 @@ class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):
 
     a_type: str = "process"
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str | None = None, **kwargs):
         """
         BaseProcessAgent constructor.
 
@@ -524,7 +524,7 @@ class BaseThreadAgent(BaseAgent, threading.Thread, ABC):
 
     a_type: str = "thread"
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str | None = None, **kwargs):
         """
         BaseThreadAgent constructor.
 
