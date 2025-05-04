@@ -55,7 +55,7 @@ class SimpleAgent(BaseProcessAgent):
 
             message = ServiceMessage(
                 self.name,
-                "info",
+                "STATUS",
                 payload={"message": "test message."},
                 timestamp=datetime.fromtimestamp(time.time()),
             )
