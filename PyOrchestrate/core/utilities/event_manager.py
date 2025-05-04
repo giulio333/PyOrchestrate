@@ -12,7 +12,6 @@ It isolates errors in one callback so that they do not affect the execution of o
 from enum import Enum
 import inspect
 import logging
-import threading
 import atexit
 from datetime import datetime
 from typing import Callable, Dict, List, Optional
