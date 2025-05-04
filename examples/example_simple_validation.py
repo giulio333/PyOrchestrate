@@ -21,7 +21,8 @@ class SimpleAgent(BaseProcessAgent):
         """Configuration with a single custom field and simple validation."""
 
         threshold: int = 10
-        validation_policy = ValidationPolicy(ignore_warnings=False, ignore_errors=False)
+        debug: bool = True
+        validation_policy = ValidationPolicy(ignore_warnings=True, ignore_errors=False)
 
         def validate(self) -> List[ValidationResult]:
             results = super().validate()
@@ -29,9 +30,16 @@ class SimpleAgent(BaseProcessAgent):
                 results.append(
                     ValidationResult(
                         field="threshold",
-                        is_valid=False,
                         message="Threshold must be between 0 and 30.",
                         severity=ValidationSeverity.ERROR,
+                    )
+                )
+            if self.debug:
+                results.append(
+                    ValidationResult(
+                        field="debug",
+                        message="Debug mode is enabled.",
+                        severity=ValidationSeverity.WARNING,
                     )
                 )
             return results
@@ -49,7 +57,19 @@ if __name__ == "__main__":
 
     orchestrator = Orchestrator()
     orchestrator.register_agent(
-        SimpleAgent, "simple_agent_invalid", SimpleAgent.Config(threshold=150)
+        SimpleAgent,
+        "simple_agent_error",
+        SimpleAgent.Config(threshold=150, debug=True),
+    )
+    orchestrator.register_agent(
+        SimpleAgent,
+        "simple_agent_warning",
+        SimpleAgent.Config(threshold=10, debug=True),
+    )
+    orchestrator.register_agent(
+        SimpleAgent,
+        "simple_agent_ok",
+        SimpleAgent.Config(threshold=10, debug=False),
     )
     orchestrator.start()
     orchestrator.join()

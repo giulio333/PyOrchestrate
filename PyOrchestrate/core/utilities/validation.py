@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import List, Literal, Optional
 
 
 class ValidationSeverity(Enum):
@@ -16,7 +16,6 @@ class ValidationResult:
     def __init__(
         self,
         field: str,
-        is_valid: bool,
         message: str = "",
         severity: ValidationSeverity = ValidationSeverity.ERROR,
     ):
@@ -25,12 +24,11 @@ class ValidationResult:
 
         Args:
             field (str): The configuration field being validated.
-            is_valid (bool): True if the field passed validation, False otherwise.
             message (str): Detailed message about the validation outcome.
             severity (ValidationSeverity): Severity level of this validation result.
         """
         self.field = field
-        self.is_valid = is_valid
+        self.is_valid = False
         self.message = message
         self.severity = severity
 
@@ -72,8 +70,50 @@ class ConfigValidationError(Exception):
         super().__init__(detailed_message)
 
 
+class ConfigValidationWarning(Warning):
+    """Warning for configuration validation issues that don't block execution."""
+
+    def __init__(
+        self, message: str, results: List[ValidationResult], config_class: str = ""
+    ):
+        """
+        Initialize a ConfigValidationWarning.
+
+        Args:
+            message (str): Summary message for the validation issues.
+            results (List[ValidationResult]): Detailed list of validation results.
+            config_class (str): Name of the configuration class being validated.
+        """
+        self.message = message
+        self.results = results
+        self.config_class = config_class
+
+        # Group results by severity
+        self.errors = []
+        self.warnings = [r for r in results if r.severity == ValidationSeverity.WARNING]
+
+        # Build detailed message
+        detailed_message = f"{message} in {config_class}:\n"
+        for r in results:
+            detailed_message += f"  - {str(r)}\n"
+
+        super().__init__(detailed_message)
+
+
 class ValidationPolicy:
-    """Policy that determines when to raise an exception on validation failures."""
+    """
+    Policy that determines when to raise an exception on validation failures.
+
+    The validation policy determines how to handle errors and warnings during validation:
+
+    - If `ignore_warnings` is True: warnings are logged as ConfigValidationWarning (logged but don't block execution)
+    - If `ignore_warnings` is False: warnings are treated as errors (`ConfigValidationError`, blocking execution)
+
+    - If `ignore_errors` is True: errors are completely ignored
+    - If `ignore_errors` is False: errors raise `ConfigValidationError` (blocking execution)
+
+    Critical errors (CRITICAL) always raise `ConfigValidationError`, regardless of the policy settings.
+    """
 
     def __init__(
         self,
@@ -90,30 +130,39 @@ class ValidationPolicy:
         self.ignore_warnings = ignore_warnings
         self.ignore_errors = ignore_errors
 
-    def should_raise(self, results: List[ValidationResult]) -> bool:
+    def should_raise(
+        self, results: List[ValidationResult]
+    ) -> Optional[Literal["error", "warning"]]:
         """
-        Determine if an exception should be raised based on validation results and policy.
+        Determine what kind of exception should be raised based on validation results and policy.
 
         Args:
             results (List[ValidationResult]): List of validation results.
 
         Returns:
-            bool: True if an exception should be raised, False otherwise.
+            Optional[Literal["error", "warning"]]:
+                - "error" if a ConfigValidationError should be raised
+                - "warning" if a ConfigValidationWarning should be raised
+                - None if no exception should be raised
         """
         has_criticals = any(r.severity == ValidationSeverity.CRITICAL for r in results)
         has_errors = any(r.severity == ValidationSeverity.ERROR for r in results)
         has_warnings = any(r.severity == ValidationSeverity.WARNING for r in results)
 
-        # Always raise on critical failures
+        # Always raise error on critical failures
         if has_criticals:
-            return True
+            return "error"
 
-        # Raise on errors if not set to ignore them
+        # Raise error on errors if not set to ignore them
         if has_errors and not self.ignore_errors:
-            return True
+            return "error"
 
-        # In strict mode, treat warnings as errors unless warnings are ignored
+        # If there are warnings and we're not ignoring them, treat them as errors
         if has_warnings and not self.ignore_warnings:
-            return True
+            return "error"
 
-        return False
+        # Raise warning if there are warnings
+        if has_warnings:
+            return "warning"
+
+        return None
