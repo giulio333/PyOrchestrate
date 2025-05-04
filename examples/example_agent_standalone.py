@@ -79,7 +79,7 @@ def on_agent_close(event_date, event_time):
 
 if __name__ == "__main__":
 
-    agent = APIFetchAgent(name="APIFetchAgent")
+    agent = APIFetchAgent()
     agent.start()
 
     print("Waiting for agent to start...")
