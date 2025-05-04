@@ -179,20 +179,14 @@ class PoolAgent(PeriodicAgent):
 
 
 class PoolProcessAgent(PoolAgent, multiprocessing.Process, ABC):
-    a_type: str = "process"
 
-    def __init__(self, name: str, config, plugin, **kwargs):
+    def __init__(self, name: str, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
-        PoolAgent.__init__(
-            self, name=name, config=config, plugin=plugin, a_type=self.a_type, **kwargs
-        )
+        PoolAgent.__init__(self, name=name, a_type="process", **kwargs)
 
 
 class PoolThreadAgent(PoolAgent, threading.Thread, ABC):
-    a_type: str = "thread"
 
-    def __init__(self, name: str, config, plugin, **kwargs):
+    def __init__(self, name: str, **kwargs):
         threading.Thread.__init__(self, name=name)
-        PoolAgent.__init__(
-            self, name=name, config=config, plugin=plugin, a_type=self.a_type, **kwargs
-        )
+        PoolAgent.__init__(self, name=name, a_type="thread", **kwargs)

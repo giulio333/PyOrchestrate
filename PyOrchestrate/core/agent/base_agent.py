@@ -501,16 +501,15 @@ class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):
 
     a_type: str = "process"
 
-    def __init__(self, name: str | None, config, **kwargs):
+    def __init__(self, name: str, **kwargs):
         """
         BaseProcessAgent constructor.
 
         Args:
             name: The agent name.
-            config: The agent configuration.
         """
         multiprocessing.Process.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name, config=config, a_type="process", **kwargs)
+        BaseAgent.__init__(self, name=name, a_type="process", **kwargs)
 
 
 class BaseThreadAgent(BaseAgent, threading.Thread, ABC):
@@ -525,16 +524,15 @@ class BaseThreadAgent(BaseAgent, threading.Thread, ABC):
 
     a_type: str = "thread"
 
-    def __init__(self, name: str | None, config, **kwargs):
+    def __init__(self, name: str, **kwargs):
         """
         BaseThreadAgent constructor.
 
         Args:
             name: The agent name.
-            config: The agent configuration.
         """
         threading.Thread.__init__(self, name=name)
-        BaseAgent.__init__(self, name=name, config=config, a_type="thread", **kwargs)
+        BaseAgent.__init__(self, name=name, a_type="thread", **kwargs)
 
 
 class AgentProtocol(Protocol):
