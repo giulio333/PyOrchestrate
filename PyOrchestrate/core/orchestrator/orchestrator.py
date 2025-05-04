@@ -413,7 +413,6 @@ class Orchestrator(BaseClass):
                         # Start an agent from the waiting queue if available
                         self._start_waiting_agent()
                 else:
-                    print(f"alive = {agent.name}")
                     alive_count += 1
 
             if alive_count == 0 and not self._waiting_agents_queue:
