@@ -9,7 +9,7 @@ from typing import Union, Optional, Literal
 class ServiceMessage:
     sender: str
     type: Literal["COMMAND", "STATUS"]
-    payload: dict
+    payload: str
     timestamp: datetime
 
 

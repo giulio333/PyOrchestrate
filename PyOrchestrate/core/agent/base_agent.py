@@ -286,7 +286,8 @@ class BaseAgent(BaseClass, ABC):
 
             self.plugin_manager.finalize_plugins()
 
-            self.event_manager.emit(AgentEvent.AGENT_CLOSE)
+            self._handle_stop()
+
             if self.state_events is not None:
                 self.state_events.close_event.set()
 
@@ -308,7 +309,25 @@ class BaseAgent(BaseClass, ABC):
         message = ServiceMessage(
             sender=self.name,
             type="STATUS",
-            payload={"msg": "started"},
+            payload="started",
+            timestamp=datetime.now(),
+        )
+        self.send_message(message)
+
+    def _handle_stop(self):
+        """
+        Handles cleanup when the agent is stopped.
+
+        Notes:
+            Override this method to implement custom cleanup logic
+            that should execute when the agent is stopped.
+        """
+        self.event_manager.emit(AgentEvent.AGENT_CLOSE)
+
+        message = ServiceMessage(
+            sender=self.name,
+            type="STATUS",
+            payload="closing",
             timestamp=datetime.now(),
         )
         self.send_message(message)
