@@ -218,18 +218,15 @@ class LoopingProcessAgent(LoopingAgent, multiprocessing.Process, ABC):
 
     a_type: str = "process"
 
-    def __init__(self, name: str, config, plugin, **kwargs):
+    def __init__(self, name: str, **kwargs):
         """
         Initialize a new LoopingProcessAgent.
 
         Args:
             name (str): The agent's name.
-            config (T): The agent's configuration.
         """
         multiprocessing.Process.__init__(self, name=name)
-        LoopingAgent.__init__(
-            self, name=name, config=config, plugin=plugin, a_type="process", **kwargs
-        )
+        LoopingAgent.__init__(self, name=name, a_type="process", **kwargs)
 
 
 class LoopingThreadAgent(LoopingAgent, threading.Thread, ABC):
@@ -246,15 +243,12 @@ class LoopingThreadAgent(LoopingAgent, threading.Thread, ABC):
 
     a_type: str = "thread"
 
-    def __init__(self, name: str, config, plugin, **kwargs):
+    def __init__(self, name: str, **kwargs):
         """
         Initialize a new LoopingThreadAgent.
 
         Args:
             name (str): The agent's name.
-            config (T): The agent's configuration.
         """
         threading.Thread.__init__(self, name=name)
-        LoopingAgent.__init__(
-            self, name=name, config=config, plugin=plugin, a_type="thread", **kwargs
-        )
+        LoopingAgent.__init__(self, name=name, a_type="thread", **kwargs)

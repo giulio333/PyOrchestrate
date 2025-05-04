@@ -170,20 +170,14 @@ class PeriodicAgent(LoopingAgent):
 
 
 class PeriodicProcessAgent(PeriodicAgent, multiprocessing.Process, ABC):
-    a_type: str = "process"
 
-    def __init__(self, name: str, config, plugin, **kwargs):
+    def __init__(self, name: str, **kwargs):
         multiprocessing.Process.__init__(self, name=name)
-        PeriodicAgent.__init__(
-            self, name=name, config=config, plugin=plugin, a_type=self.a_type, **kwargs
-        )
+        PeriodicAgent.__init__(self, name=name, a_type="process", **kwargs)
 
 
 class PeriodicThreadAgent(PeriodicAgent, threading.Thread, ABC):
-    a_type: str = "thread"
 
-    def __init__(self, name: str, config, plugin, **kwargs):
+    def __init__(self, name: str, **kwargs):
         threading.Thread.__init__(self, name=name)
-        PeriodicAgent.__init__(
-            self, name=name, config=config, plugin=plugin, a_type=self.a_type, **kwargs
-        )
+        PeriodicAgent.__init__(self, name=name, a_type="thread", **kwargs)
