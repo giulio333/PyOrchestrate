@@ -289,7 +289,7 @@ class MyAgent(PeriodicProcessAgent): # [!code focus]
 ```
 :::
 
-## Validation Policy
+## Validation
 
 The `Config` class provides a `validate` method that can be overridden to implement custom validation logic.
 
@@ -298,10 +298,11 @@ class Config(BaseClassConfig):
     """Configuration with a single custom field and simple validation."""
 
     threshold: int = 10
-    validation_policy = ValidationPolicy(ignore_warnings=False, ignore_errors=False) # [!code focus]
 
-    def validate(self) -> List[ValidationResult]:
+    def validate(self):
         results = super().validate()
+
+        # raise validation ERROR if threshold is not between 0 and 30
         if self.threshold < 0 or self.threshold > 30:
             results.append(
                 ValidationResult(
@@ -314,15 +315,31 @@ class Config(BaseClassConfig):
         return results
 ```
 
-You can also use the `ValidationPolicy` class to define how validation errors are handled.
+### Validation Policy
+
+You can also override the `validation_policy` attribute to define a custom validation policy for your agent.
 
 ```python
+from PyOrchestrate.core.utilities.validation import ValidationPolicy # [!code focus]
+
 class Config(BaseClassConfig):
     """Configuration with a single custom field and simple validation."""
 
     threshold: int = 10
     validation_policy = ValidationPolicy(ignore_warnings=False, ignore_errors=False) # [!code focus]
 ```
+
+### Validation Severity
+
+The `ValidationResult` class provides a `severity` attribute that can be used to define the severity of the validation error.
+
+The severity can be one of the following:
+
+| Severity       | Description |
+| ------------- |  :---- |
+| `ValidationSeverity.WARNING` | The Agent will still start, but you’ll get a log message letting you know something might need attention. |
+| `ValidationSeverity.ERROR` | The Agent won’t start, and an error will be logged.|
+| `ValidationSeverity.CRITICAL` | Essential checks that must **never** be ignored. |
 
 ## BaseAgent
 

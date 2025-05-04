@@ -111,15 +111,25 @@ To learn more about the different events, check out the [Agent Control Events](.
 
 ## 🧪 Validation and Safety
 
-Each Agent's Config class supports built-in validation.
+Each Agent comes with a built-in system to check if its configuration is correct before it starts running. This helps catch mistakes early and keeps your system safe and predictable.
 
 ### Validation Policy
 
-Config classes support an advanced validation system through the `ValidationPolicy` class. This allows users to define validation behavior for specific attributes:
+The configuration of every Agent is checked using a `ValidationPolicy`. This lets you define how strict the validation should be for each setting.
 
-Using `ValidationSeverity`, validation rules can be classified as:
-  - **warning**: allows the Agent to start
-  - **error**: prevents the Agent from starting and logs an error
+You can assign different severity levels to each validation rule using `ValidationSeverity`:
+
+- `warning`: the Agent will still start, but you’ll get a log message letting you know something might need attention.
+- `error`: the Agent won’t start, and an error will be logged — this is used for serious issues that could break execution.
+
+::: tip
+   There’s also a special severity level: `critical`.  
+   This one is used by some built-in Agents for essential checks that must **never** be ignored.  
+:::
+
+::: tip
+To learn more about the different validation policies, check out the [Validation](../../agents/index.md#validation) section.
+:::
 
 ## 🔄 Grouping and Control
 

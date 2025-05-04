@@ -76,6 +76,58 @@ Available events are stored in the `OrchestratorEvent` class:
 
 Is not mandatory to use the Orchestrator, but it provides several advantages. Using the Orchestrator can help you automate the management of multiple agents (threads or processes), making it easier to coordinate their activities and ensuring that they work together effectively.
 
+## Validation
+
+The `Config` class provides a `validate` method that can be overridden to implement custom validation logic.
+
+```python
+class Config(BaseClassConfig):
+    """Configuration with a single custom field and simple validation."""
+
+    threshold: int = 10
+
+    def validate(self):
+        results = super().validate()
+
+        # raise validation ERROR if threshold is not between 0 and 30
+        if self.threshold < 0 or self.threshold > 30:
+            results.append(
+                ValidationResult(
+                    field="threshold",
+                    is_valid=False,
+                    message="Threshold must be between 0 and 30.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+        return results
+```
+
+### Validation Policy
+
+You can also override the `validation_policy` attribute to define a custom validation policy for your agent.
+
+```python
+from PyOrchestrate.core.utilities.validation import ValidationPolicy # [!code focus]
+
+class Config(BaseClassConfig):
+    """Configuration with a single custom field and simple validation."""
+
+    threshold: int = 10
+    validation_policy = ValidationPolicy(ignore_warnings=False, ignore_errors=False) # [!code focus]
+```
+
+### Validation Severity
+
+The `ValidationResult` class provides a `severity` attribute that can be used to define the severity of the validation error.
+
+The severity can be one of the following:
+
+| Severity       | Description |
+| ------------- |  :---- |
+| `ValidationSeverity.WARNING` | The Agent will still start, but you’ll get a log message letting you know something might need attention. |
+| `ValidationSeverity.ERROR` | The Agent won’t start, and an error will be logged.|
+| `ValidationSeverity.CRITICAL` | Essential checks that must **never** be ignored. |
+
 ## Registering Agents
 
 The Orchestrator allows you to **register agents** using the `register_agent` method. This method takes the `agent_class`, `name` and some optional parameters as arguments.
@@ -85,7 +137,6 @@ orchestrator.register_agent(Publisher, "Publisher")
 ```
 
 All available parameters are
-
 
 | Parameter        | Type         | Description                                                                 |
 |------------------|--------------|-----------------------------------------------------------------------------|
@@ -100,7 +151,9 @@ All available parameters are
 
 If you don't provide optional parameters, the Orchestrator will use the default values defined in the `Agent` class.
 
-For example, you can have multiple instances of the same agent class with different configurations:
+### Example
+
+You can create multiple Agents of the same Agent class, each with its own configuration:
 
 ```python
 custom_config = Publisher.Config(output_file="custom_file.txt")
@@ -110,8 +163,8 @@ orchestrator.register_agent(Publisher, "Pub2")
 orchestrator.register_agent(Publisher, "Pub3", custom_config=custom_config)
 ```
 
-In this example, we have three instances of the `Publisher` agent, but the third one has a custom configuration with a different output file.
+In this example, we create three `Publisher` agents. The first two use default settings, while the third writes to a custom output file.
 
 ::: tip
-- For more details on Agent's parameters and configuration, check out the [Agent Overview](../agents/index.md#overview).
+For more details on Agent's **Configuration**, **StateEvents** etc. check out the [Agent Overview](../agents/index.md#overview).
 :::
