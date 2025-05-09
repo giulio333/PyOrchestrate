@@ -317,10 +317,6 @@ class BaseAgent(BaseClass, ABC):
     def _handle_stop(self):
         """
         Handles cleanup when the agent is stopped.
-
-        Notes:
-            Override this method to implement custom cleanup logic
-            that should execute when the agent is stopped.
         """
         self.event_manager.emit(AgentEvent.AGENT_CLOSE)
 
@@ -335,10 +331,6 @@ class BaseAgent(BaseClass, ABC):
     def _handle_ready(self):
         """
         Handles the agent's readiness state.
-
-        Notes:
-            Override this method to implement custom logic that should execute
-            when the agent is ready
         """
         self.event_manager.emit(AgentEvent.AGENT_READY)
 
