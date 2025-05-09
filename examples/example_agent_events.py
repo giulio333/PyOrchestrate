@@ -30,11 +30,15 @@ class SimpleCounterAgent(PeriodicProcessAgent):
 
 
 if __name__ == "__main__":
-    # Create and start the agent
+
     agent = SimpleCounterAgent()
     agent.start()
 
-    # The join() method waits for the agent to complete
-    agent.join()
+    agent.state_events.start_event.wait()
+    print("Agent started.")
 
-    print("Agent terminated.")
+    agent.state_events.ready_event.wait()
+    print("Agent ready.")
+
+    agent.state_events.close_event.wait()
+    print("Agent closed.")
