@@ -81,7 +81,17 @@ export const enConfig = {
         {
           text: 'Basic Examples',
           items: [
-            { text: 'Project Initialization', link: '/examples/basic/project-initialization.md' },     
+            { text: 'Project Initialization', link: '/examples/basic/project-initialization.md' },
+            { text: 'Standalone Agent', link: '/examples/basic/standalone-agent.md' },     
+          ]
+        }
+      ],
+      '/examples/advanced': [
+        {
+          text: 'Advanced Examples',
+          items: [
+            { text: 'Multiple Standalone Agents', link: '/examples/advanced/multiple-agents.md' },
+            { text: 'Validation and Orchestrator', link: '/examples/advanced/validation-orchestrator.md' },     
           ]
         }
       ],

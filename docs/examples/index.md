@@ -21,6 +21,11 @@ features:
   - icon: 
       light: /mathematics.png
       dark: /mathematics.png
+    title: Advanced Examples
+    link: ./advanced/multiple-agents.md
+  - icon: 
+      light: /mathematics.png
+      dark: /mathematics.png
     title: Events Examples
     link: ./events/agent-state-events.md
 ---

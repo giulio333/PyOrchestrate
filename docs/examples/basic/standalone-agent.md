@@ -1,20 +1,25 @@
 ---
-title: State Events Usage
+title: Standalone Agent
 ---
 
-# State Events Usage
+# Standalone Agent
 
-This example demonstrates how to use agent state events to synchronize operations when running an agent in **standalone mode** (without an **orchestrator**).
+This example demonstrates how to use a PyOrchestrate agent in standalone mode, without the need for an orchestrator.
 
 ## Overview
 
-PyOrchestrate agents provide state events that can be used to wait for specific phases in the agent lifecycle. These events are particularly useful when running agents in **standalone mode**, allowing you to coordinate tasks based on the agent's current state.
+PyOrchestrate allows you to use agents in two main modes:
+1. Managed by an orchestrator (orchestrated mode)
+2. Running autonomously (standalone mode)
 
-In this example, we'll create a simple counter agent that counts up to a configured limit and show how to use its state events.
+The standalone mode is particularly useful when:
+- You need a single agent for a specific operation
+- You want to test an agent before integrating it into a more complex system
+- You're creating a small application that doesn't require a full orchestrator
 
 ## Agent Implementation
 
-Let's create a simple periodic agent called `SimpleCounterAgent`:
+Let's create a simple periodic agent called `SimpleCounterAgent` that counts up to a configured limit:
 
 ```python
 from PyOrchestrate.core.agent import PeriodicProcessAgent
@@ -48,41 +53,36 @@ class SimpleCounterAgent(PeriodicProcessAgent):
         self.logger.info(f"Count: {self.count} of {self.config.limit}")
 ```
 
-The `runner` method executes periodically based on the configured interval, incrementing and logging the counter value. This simple example lets us focus on the state events functionality.
+The `runner` method executes periodically based on the configured interval, incrementing and logging the counter value.
 
 ::: tip Configuration Tip
 PyOrchestrate agents use a nested `Config` class pattern for configuration. When extending an agent, you can override built-in attributes like `execution_interval` and `limit` through your custom `Config` class. This maintains type safety and enables proper parameter validation.
 :::
 
-## Using State Events
+## Running in Standalone Mode
 
-State events allow you to coordinate with an agent's lifecycle. When running an agent in standalone mode (not managed by an orchestrator), you can use these events to synchronize operations:
+To run the agent in standalone mode, create a main file that starts and manages the agent:
 
 ```python
 if __name__ == "__main__":
-
+    # Create and start the agent
     agent = SimpleCounterAgent()
     agent.start()
-
-    agent.state_events.start_event.wait()
-    print("Agent started.")
-
-    agent.state_events.ready_event.wait()
-    print("Agent ready.")
-
-    agent.state_events.close_event.wait()
-    print("Agent closed.")
+    
+    # The join() method waits for the agent to complete
+    agent.join()
+    
+    print("Agent terminated.")
 ```
 
 This code demonstrates how to:
 
-1. Wait for the agent to start (`start_event`) - the agent has begun initialization
-2. Wait for the agent to be ready (`ready_event`) - the agent has completed setup and is executing its main function
-3. Wait for the agent to close (`close_event`) - the agent has terminated its execution
+1. Create an instance of the agent
+2. Start the agent with the `start()` method
+3. Wait for the agent to complete with the `join()` method
 
-These state events work for both process-based and thread-based agents, making them a powerful tool for coordinating operations in complex applications.
+## Complete Example
 
-## Full Example
 Here's the complete example, including the agent and the main function:
 
 ```python
@@ -117,16 +117,14 @@ class SimpleCounterAgent(PeriodicProcessAgent):
         self.logger.info(f"Count: {self.count} of {self.config.limit}")
 
 if __name__ == "__main__":
-
+    # Create and start the agent
     agent = SimpleCounterAgent()
     agent.start()
-
-    agent.state_events.start_event.wait()
-    print("Agent started.")
-
-    agent.state_events.ready_event.wait()
-    print("Agent ready.")
-
-    agent.state_events.close_event.wait()
-    print("Agent closed.")
+    
+    # The join() method waits for the agent to complete
+    agent.join()
+    
+    print("Agent terminated.")
 ```
+
+This setup imports and registers the `WeatherCollector` agent with the orchestrator, which then manages its execution.
