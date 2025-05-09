@@ -15,6 +15,10 @@ In PyOrchestrate, validation is an important mechanism that helps ensure your ag
 3. Use the Orchestrator to manage multiple agents with different validation states
 4. Handle validation errors appropriately
 
+::: tip How Validation Works
+For a detailed explanation of how validation works in PyOrchestrate, please refer to the [Validation](../../learn/agents/index.md#validation) page.
+:::
+
 ## Agent Implementation
 
 Let's create a `SimpleAgent` that includes custom configuration validation:
@@ -125,26 +129,6 @@ if __name__ == "__main__":
     run_validation_example()
 ```
 
-## How Validation Works in PyOrchestrate
-
-PyOrchestrate's validation mechanism is designed to prevent runtime errors by checking configurations before agents start:
-
-1. **Validation Process:** When you register an agent with the Orchestrator, the agent's configuration is automatically validated using its `validate()` method.
-
-2. **Validation Results:** Each validation check produces a `ValidationResult` with:
-   - `field`: The configuration field being validated
-   - `message`: A descriptive message about the validation result
-   - `severity`: Either `WARNING` or `ERROR`
-
-3. **Validation Policy:** The `ValidationPolicy` determines how validation results are handled:
-   - `ignore_warnings`: When `True`, warnings are logged but don't prevent the agent from starting
-   - `ignore_errors`: When `False` (default), errors prevent the agent from starting
-
-4. **Orchestrator Behavior:** 
-   - Agents with validation errors will not be started (unless `ignore_errors=True`)
-   - Agents with only warnings will start if `ignore_warnings=True`
-   - The Orchestrator logs all validation issues for troubleshooting
-
 ## Complete Example
 
 Here's the complete code example with imports and main execution:
@@ -226,4 +210,3 @@ if __name__ == "__main__":
     )
     orchestrator.start()
     orchestrator.join()
-```

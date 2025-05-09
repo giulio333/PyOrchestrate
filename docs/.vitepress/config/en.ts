@@ -31,6 +31,7 @@ export const enConfig = {
         {
           text: 'Learn',
           items: [
+            { text: 'Introduction', link: '/learn/introduction' },
             {
               text: 'Core Concepts',
               items: [
@@ -91,7 +92,7 @@ export const enConfig = {
           text: 'Advanced Examples',
           items: [
             { text: 'Multiple Standalone Agents', link: '/examples/advanced/multiple-agents.md' },
-            { text: 'Validation and Orchestrator', link: '/examples/advanced/validation-orchestrator.md' },     
+            { text: 'Validation Policy', link: '/examples/advanced/validation.md' },     
           ]
         }
       ],
