@@ -13,8 +13,8 @@ class PeriodicAgentConfig(LoopingAgentConfig):
     Periodic agent configuration class.
 
     Attributes:
-        execution_interval (float): The interval between two consecutive executions.
-        delay_compensation (bool): Compensate the delay in the execution.
+        execution_interval (float): The interval between two consecutive executions. Default is 1.
+        delay_compensation (bool): Compensate the delay in the execution. Default is False.
         limit (int): The maximum number of iterations, defaults to -1 (infinite).
         logger (LoggerConfig): Logger configuration.
 
@@ -45,7 +45,13 @@ class PeriodicAgentConfig(LoopingAgentConfig):
     """
 
     execution_interval: float = 1
+    """
+    The interval between two consecutive executions.
+    """
     delay_compensation: bool = False
+    """
+    Compensate the delay in the execution.
+    """
 
     def __init__(
         self,

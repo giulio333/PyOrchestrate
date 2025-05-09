@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# filepath: /Users/giuliodigiamberardino/Documents/repository/PyOrchestrate/examples/example_agent_multiple_instances.py
-
 import random
 import time
 from typing import List, Optional
@@ -36,20 +33,12 @@ class VirtualSensorAgent(PeriodicProcessAgent):
     """
 
     class Config(PeriodicProcessAgent.Config):
-        # Type of sensor to simulate
         sensor_type: SensorType = SensorType.TEMPERATURE
-        # Sensor location
         location: str = "Main room"
-        # Initial sensor value
         initial_value: float = 20.0
-        # Maximum variance to simulate fluctuations in readings
         max_variance: float = 1.0
-        # Number of readings to perform before terminating
         max_readings: int = 20
-        # Interval between readings in seconds
         execution_interval: float = 1.0
-        # Enable debug
-        debug: bool = False
 
     config: Config
 
@@ -79,21 +68,15 @@ class VirtualSensorAgent(PeriodicProcessAgent):
         Returns:
             SensorReading: The new sensor reading.
         """
-        # Simulate a variation of the sensor value
         variance = random.uniform(-self.config.max_variance, self.config.max_variance)
 
-        # Update the current value
         self.current_value += variance
 
-        # Apply limits specific to sensor type
         if self.config.sensor_type == SensorType.TEMPERATURE:
-            # Temperature has a realistic lower and upper limit
             self.current_value = max(min(self.current_value, 40.0), -10.0)
         elif self.config.sensor_type == SensorType.HUMIDITY:
-            # Humidity between 0% and 100%
             self.current_value = max(min(self.current_value, 100.0), 0.0)
         elif self.config.sensor_type == SensorType.PRESSURE:
-            # Atmospheric pressure cannot be negative
             self.current_value = max(self.current_value, 900.0)
 
         # Create and return a new reading
@@ -122,25 +105,11 @@ class VirtualSensorAgent(PeriodicProcessAgent):
         reading = self.generate_sensor_reading()
         self.readings.append(reading)
 
-        # Log the reading
         self.logger.info(
             f"Reading {len(self.readings)}/{self.config.max_readings}: "
             f"{reading.sensor_type.value} in {reading.location} = "
             f"{reading.value}"
         )
-
-        self.logger.debug(
-            f"Timestamp: {reading.timestamp}, Raw value: {self.current_value}"
-        )
-
-    def get_readings(self) -> List[SensorReading]:
-        """
-        Returns all readings recorded by this agent.
-
-        Returns:
-            List[SensorReading]: List of sensor readings.
-        """
-        return self.readings
 
 
 def run_multiple_sensor_agents():
