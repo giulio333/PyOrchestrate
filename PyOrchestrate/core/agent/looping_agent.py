@@ -47,6 +47,9 @@ class LoopingAgentConfig(BaseAgent.Config):
     """
 
     limit: int = -1
+    """
+    The maximum number of iterations, defaults to -1 (infinite).
+    """
 
     def __init__(self, limit: int | None = None, **kwargs):
         super().__init__(**kwargs)
