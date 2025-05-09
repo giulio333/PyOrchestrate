@@ -221,7 +221,6 @@ class BaseAgent(BaseClass, ABC):
             self.control_events.setup_event.set()
             self.control_events.execute_event.set()
 
-        """Events related to external commands."""
         self.event_manager = event_manager or EventManager()
         """Event manager for handling events and callbacks."""
         self.plugin_manager = PluginManager(self.plugin)
