@@ -224,7 +224,7 @@ class LoopingProcessAgent(LoopingAgent, multiprocessing.Process, ABC):
         Initialize a new LoopingProcessAgent.
 
         Args:
-            name (str): The agent's name.
+            name (str): The agent's name. Defaults to None.
         """
         multiprocessing.Process.__init__(self, name=name)
         LoopingAgent.__init__(self, name=name, a_type="process", **kwargs)
@@ -247,7 +247,7 @@ class LoopingThreadAgent(LoopingAgent, threading.Thread, ABC):
         Initialize a new LoopingThreadAgent.
 
         Args:
-            name (str): The agent's name.
+            name (str): The agent's name. Defaults to None.
         """
         threading.Thread.__init__(self, name=name)
         LoopingAgent.__init__(self, name=name, a_type="thread", **kwargs)
