@@ -179,14 +179,45 @@ class PoolAgent(PeriodicAgent):
 
 
 class PoolProcessAgent(PoolAgent, multiprocessing.Process, ABC):
+    """
+    PoolProcessAgent class.
+
+    This class provides a common interface for agents that execute a cycle method in a loop using a separate process.
+
+    Args:
+        PoolAgent (_type_): PoolAgent class.
+        multiprocessing (_type_): multiprocessing module.
+        ABC (_type_): Abstract base class.
+    """
 
     def __init__(self, name: str | None = None, **kwargs):
+        """
+        Initialize a new PoolProcessAgent.
+
+        Args:
+            name (str | None, optional): The name of the agent. Defaults to None.
+        """
         multiprocessing.Process.__init__(self, name=name)
         PoolAgent.__init__(self, name=name, a_type="process", **kwargs)
 
 
 class PoolThreadAgent(PoolAgent, threading.Thread, ABC):
+    """
+    PoolThreadAgent class.
+    This class provides a common interface for agents that execute a cycle method in a loop using a separate thread.
+
+    Args:
+        PoolAgent (_type_): PoolAgent class.
+        threading (_type_): threading module.
+        ABC (_type_): Abstract base class.
+    """
 
     def __init__(self, name: str | None = None, **kwargs):
+        """
+        Initialize a new PoolThreadAgent.
+
+        Args:
+            name (str | None, optional): The name of the agent. Defaults to None.
+        """
         threading.Thread.__init__(self, name=name)
         PoolAgent.__init__(self, name=name, a_type="thread", **kwargs)
