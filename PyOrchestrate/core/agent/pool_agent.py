@@ -152,7 +152,7 @@ class PoolAgent(PeriodicAgent):
 
     def pre_runner(self):
         """
-        @temaplate
+        @template
 
         Run before the runner method.
         """
