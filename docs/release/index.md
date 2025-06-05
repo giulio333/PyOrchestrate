@@ -22,7 +22,7 @@ gitGraph
     merge feature/class-refactoring
     commit
     checkout development
-    commit id:"test defore merge"
+    commit id:"test before merge"
     checkout release
     merge development
     checkout main
