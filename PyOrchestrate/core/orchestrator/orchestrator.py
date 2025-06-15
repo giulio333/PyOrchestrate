@@ -139,26 +139,7 @@ class Orchestrator(BaseClass):
                 # Check if there are messages in the queue
                 msg = self.msg_channel.receive(timeout=self.config.check_interval)
                 if msg:
-                    self.logger.debug(
-                        f"Received message from {msg.sender}: {msg.type} - {msg.payload}"
-                    )
-
-                    if msg.type == "STATUS":
-                        if msg.payload == AgentEvent.AGENT_CLOSE.value:
-                            self.event_manager.emit(
-                                OrchestratorEvent.AGENT_TERMINATED,
-                                agent_name=msg.sender,
-                            )
-                        elif msg.payload == AgentEvent.AGENT_START.value:
-                            self.event_manager.emit(
-                                OrchestratorEvent.AGENT_STARTED,
-                                agent_name=msg.sender,
-                            )
-                        elif msg.payload == AgentEvent.AGENT_READY.value:
-                            self.event_manager.emit(
-                                OrchestratorEvent.AGENT_READY,
-                                agent_name=msg.sender,
-                            )
+                    self.handle_agent_message(msg)
 
             except Exception as e:
                 self.logger.error(f"Error in message handling thread: {e}")
@@ -199,6 +180,26 @@ class Orchestrator(BaseClass):
             else:
                 self.logger.debug("Message handling thread stopped successfully")
             self._message_thread = None
+
+    def handle_agent_message(self, msg: ServiceMessage) -> None:
+        """Process a single message coming from an agent."""
+        self.logger.debug(
+            f"Received message from {msg.sender}: {msg.type} - {msg.payload}"
+        )
+
+        if msg.type == "STATUS":
+            if msg.payload == AgentEvent.AGENT_CLOSE.value:
+                self.event_manager.emit(
+                    OrchestratorEvent.AGENT_TERMINATED, agent_name=msg.sender
+                )
+            elif msg.payload == AgentEvent.AGENT_START.value:
+                self.event_manager.emit(
+                    OrchestratorEvent.AGENT_STARTED, agent_name=msg.sender
+                )
+            elif msg.payload == AgentEvent.AGENT_READY.value:
+                self.event_manager.emit(
+                    OrchestratorEvent.AGENT_READY, agent_name=msg.sender
+                )
 
     def register_agent(
         self,
