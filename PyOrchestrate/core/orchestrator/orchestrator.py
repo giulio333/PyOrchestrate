@@ -30,7 +30,10 @@ class OrchestratorConfig(BaseClass.Config):
     """
 
     check_interval: float = 1
+    """The interval to check the agents."""
     max_workers: int = 5
+    """The maximum number of workers that can run concurrently."""
+
 
     def __init__(
         self,
@@ -137,7 +140,7 @@ class Orchestrator(BaseClass):
         while self._message_thread_running:
             try:
                 # Check if there are messages in the queue
-                msg = self.msg_channel.receive(timeout=self.config.check_interval)
+                msg = self.msg_channel.receive(timeout=1)
                 if msg:
                     self.handle_agent_message(msg)
 
@@ -145,7 +148,7 @@ class Orchestrator(BaseClass):
                 self.logger.error(f"Error in message handling thread: {e}")
 
             # Short pause to avoid excessive CPU usage
-            # time.sleep(0.01)
+            time.sleep(0.01)
 
         self.logger.debug("Message handling thread terminated")
 
