@@ -64,6 +64,11 @@ If you don't provide custom values, the Orchestrator will use the default values
 
 The Event Manager facilitates a set of events (`OrchestratorEvent`) that notify when something happens during the orchestration process (e.g., an agent completes). These events can be used as **signals** to perform specific actions (e.g., sending a message on Telegram).
 
+**Event Flow:**
+```
+Agent → MessageChannel → Orchestrator → EventManager → Callbacks
+```
+
 Available events are stored in the `OrchestratorEvent` class:
 
 | Event Name                     | Arguments                                        | Description                               |
@@ -71,6 +76,21 @@ Available events are stored in the `OrchestratorEvent` class:
 | `AGENT_STARTED`                |  `event_date`, `event_time`, `agent_name`        | Emitted when an agent starts.             |
 | `AGENT_TERMINATED`             |    `event_date`, `event_time`, `agent_name`      | Emitted when an agent terminates.         |
 | `ALL_AGENTS_TERMINATED`        |    `event_date`, `event_time`                    | Emitted when all agents have terminated.  |
+
+::: info Event Registration
+To register callbacks for these events, use the Orchestrator's EventManager:
+
+```python
+def send_telegram_message(event_date, event_time, agent_name):
+    # Your logic to send a message on Telegram
+    print(f"Agent {agent_name} started at {event_time}")
+
+orchestrator.register_event(
+    OrchestratorEvent.AGENT_STARTED,
+    send_telegram_message,
+)
+```
+:::
 
 ### Why Use Orchestrator?
 
@@ -146,7 +166,6 @@ All available parameters are
 | `custom_plugin`  | Plugin       | A custom plugin object for the agent. If not provided, the default plugin will be used. |
 | `control_events` | list         | A list of control events to be used by the agent. If not provided, the default events will be used. |
 | `state_events`  | list         | A list of state events to be used by the agent. If not provided, the default events will be used. |
-| `event_manager` | EventManager | The event manager to be used by the agent. If not provided, the default event manager will be used. |
 | `msg_channel`  | MessageChannel | The message channel to be used by the agent. If not provided, the Orchestrator's default message channel will be used. |
 | `kwargs`        | dict         | Additional keyword arguments to be passed to the agent constructor.         |
 

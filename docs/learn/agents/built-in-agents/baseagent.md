@@ -75,16 +75,19 @@ sequenceDiagram
     participant Config as Config
     participant StateEvents as StateEvents
     participant ControlEvents as ControlEvents
-    participant EventManager as EventManager
+    participant MessageChannel as MessageChannel
+    participant Orchestrator as Orchestrator
 
-    Agent->>EventManager: emit(AGENT_START)
+    Agent->>MessageChannel: send(AGENT_START)
+    MessageChannel->>Orchestrator: forward message
     Agent->>Config: validate_config()
     Agent->>ControlEvents: setup_event.wait()
     activate ControlEvents
     ControlEvents-->>Agent: control event triggered
     deactivate ControlEvents
     Agent->>Agent: setup()
-    Agent->>EventManager: emit(AGENT_SETUP)
+    Agent->>MessageChannel: send(AGENT_SETUP)
+    MessageChannel->>Orchestrator: forward message
     Agent->>StateEvents: ready_event.set()
     Agent->>ControlEvents: execute_event.wait()
     activate ControlEvents
@@ -92,7 +95,8 @@ sequenceDiagram
     deactivate ControlEvents
     Agent->>Agent: execute()
     Agent->>Agent: on_close()
-    Agent->>EventManager: emit(AGENT_CLOSE)
+    Agent->>MessageChannel: send(AGENT_CLOSE)
+    MessageChannel->>Orchestrator: forward message
     Agent->>StateEvents: close_event.set()
 ```
 

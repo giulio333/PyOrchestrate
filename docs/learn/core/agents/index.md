@@ -81,6 +81,15 @@ Each Agent manages two kinds of event systems.
 ![alt text](./events_l.svg){.light-only}
 ![alt text](./events_d.svg){.dark-only}
 
+### MessageChannel
+
+Agents do not emit events directly. Instead, when an agent needs to signal an event (such as a state change or a lifecycle transition), it sends a message through a **MessageChannel** to the Orchestrator. The Orchestrator then receives this message and emits the corresponding event using its EventManager. This architecture ensures a clear separation between agent logic and event handling, and allows for centralized monitoring and control.
+
+**Event flow:**
+```
+Agent → MessageChannel → Orchestrator → EventManager → Callbacks
+```
+
 ### State Events 
 
 These represent the internal status of the Agent. They indicate key lifecycle transitions such as:

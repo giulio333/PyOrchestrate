@@ -5,172 +5,79 @@ editLink: true
 
 # Event Manager
 
-The **Event Manager** is a core utility in PyOrchestrate that provides a centralized event handling mechanism. It enables decoupled communication between components through a publisher-subscriber pattern.
+The **Event Manager** in PyOrchestrate is a core component of the Orchestrator. It provides a robust, asynchronous, and type-safe mechanism for handling system-wide events related to agent lifecycle and orchestration.
 
-## Overview
+## How It Works
 
-The EventManager maintains a registry of event listeners (callbacks) that are executed when specific events are emitted. Key features include:
+- The Orchestrator owns a single EventManager instance.
+- Agents never interact directly with the EventManager. Instead, they send messages to the Orchestrator via a MessageChannel.
+- The Orchestrator receives these messages and emits the corresponding **OrchestratorEvent** through its EventManager.
+- Users can register callbacks for these events using `orchestrator.register_event()`.
 
-- Event registration and callback attachment
-- Asynchronous event emission using a thread pool
-- Safe execution that isolates errors in individual callbacks
-- Automatic addition of timestamp data to events
+## Event Types
 
-This component is fundamental to PyOrchestrate's event-driven architecture, allowing Agents and the Orchestrator to communicate without direct coupling.
+All events managed by the Orchestrator's EventManager are of type **OrchestratorEvent**. These include:
 
-## Core Concepts
+| Event Name                     | Arguments                                        | Description                               |
+|--------------------------------|--------------------------------------------------|-------------------------------------------|
+| `AGENT_STARTED`                |  `event_date`, `event_time`, `agent_name`        | Emitted when an agent starts.             |
+| `AGENT_TERMINATED`             |  `event_date`, `event_time`, `agent_name`        | Emitted when an agent terminates.         |
+| `ALL_AGENTS_TERMINATED`        |  `event_date`, `event_time`                      | Emitted when all agents have terminated.  |
+| `AGENT_READY`                  |  `event_date`, `event_time`, `agent_name`        | Emitted when an agent signals readiness.  |
+| `AGENT_ERROR`                  |  `event_date`, `event_time`, `agent_name`, `error_message` | Emitted when an agent reports an error.   |
 
-### Events
+## Registering Event Callbacks
 
-Events in PyOrchestrate are typically defined as Enum classes, providing a type-safe way to identify different event types. For example:
-
-```python
-from enum import Enum
-
-class AgentEvent(Enum):
-    AGENT_STARTED = "agent_started"
-    AGENT_STOPPED = "agent_stopped"
-    AGENT_ERROR = "agent_error"
-```
-
-### Event Manager
-
-The `EventManager` class manages the registration and emission of events:
-
-```python
-from PyOrchestrate.core.utilities.event_manager import EventManager
-from enum import Enum
-
-# Define events
-class MyEvents(Enum):
-    TASK_STARTED = "task_started"
-    TASK_COMPLETED = "task_completed"
-
-# Initialize event manager
-event_manager = EventManager()
-```
-
-## Using the Event Manager
-
-### Registering Event Handlers
-
-You can register callback functions to be executed when specific events are emitted:
-
-```python
-# Define a callback function
-def on_task_started(task_name, **kwargs):
-    print(f"Task {task_name} started at {kwargs.get('event_time')}")
-
-# Register the callback for the event
-event_manager.register_event(MyEvents.TASK_STARTED, on_task_started)
-```
-
-### Emitting Events
-
-To trigger an event and execute all registered callbacks:
-
-```python
-# Emit an event with custom parameters
-event_manager.emit(MyEvents.TASK_STARTED, task_name="data_processing")
-```
-
-The EventManager automatically adds timestamp information:
-- `event_date`: ISO formatted date when the event was emitted
-- `event_time`: ISO formatted time when the event was emitted
-
-### Complete Example
-
-Here's a complete example demonstrating the EventManager usage:
-
-```python
-from enum import Enum
-from PyOrchestrate.core.utilities.event_manager import EventManager
-
-# Define your events
-class MyEvents(Enum):
-    TASK_STARTED = "task_started"
-    TASK_COMPLETED = "task_completed"
-    TASK_FAILED = "task_failed"
-
-# Create callback functions
-def on_task_started(task_name, **kwargs):
-    print(f"Task {task_name} started at {kwargs.get('event_time')}")
-
-def on_task_completed(task_name, result, **kwargs):
-    print(f"Task {task_name} completed with result: {result}")
-
-def on_task_failed(task_name, error, **kwargs):
-    print(f"Task {task_name} failed with error: {error}")
-
-# Initialize the event manager
-event_manager = EventManager()
-
-# Register events and callbacks
-event_manager.register_event(MyEvents.TASK_STARTED, on_task_started)
-event_manager.register_event(MyEvents.TASK_COMPLETED, on_task_completed)
-event_manager.register_event(MyEvents.TASK_FAILED, on_task_failed)
-
-# Emit events
-event_manager.emit(MyEvents.TASK_STARTED, task_name="data_processing")
-event_manager.emit(MyEvents.TASK_COMPLETED, task_name="data_processing", result="success")
-event_manager.emit(MyEvents.TASK_FAILED, task_name="data_processing", error="timeout")
-
-# Shutdown when done
-event_manager.shutdown()
-```
-
-## Integration with Agents and Orchestrator
-
-Both Agents and the Orchestrator use the EventManager internally to handle state transitions and communicate with each other.
-
-### Agent Event Handling
-
-The EventManager powers the Agent's state event system:
-
-```python
-from PyOrchestrate.core.agent.events import AgentStateEvent
-
-# Register handler for agent events
-orchestrator.event_manager.register_event(
-    AgentStateEvent.STARTED, 
-    lambda agent_name, **kwargs: print(f"Agent {agent_name} started at {kwargs.get('event_time')}")
-)
-```
-
-### Orchestrator Event Handling
-
-Similarly, you can register handlers for Orchestrator events:
+To react to orchestration events, register your callback using the Orchestrator:
 
 ```python
 from PyOrchestrate.core.orchestrator.events import OrchestratorEvent
 
-# Register handler for orchestrator events
-orchestrator.event_manager.register_event(
-    OrchestratorEvent.ALL_AGENTS_TERMINATED,
-    lambda **kwargs: print(f"All agents terminated at {kwargs.get('event_time')}")
-)
+def on_agent_started(agent_name, event_time, **kwargs):
+    print(f"Agent {agent_name} started at {event_time}")
+
+orchestrator.register_event(OrchestratorEvent.AGENT_STARTED, on_agent_started)
 ```
 
-## Implementation Details
+## Agent Events Through Orchestrator
+
+When an agent changes state (start, ready, terminate, error), it sends a message to the Orchestrator via the MessageChannel. The Orchestrator then emits the corresponding OrchestratorEvent, triggering all registered callbacks for that event.
+
+**Event flow:**
+```mermaid
+flowchart LR
+    Agent -- sends event --> MessageChannel
+    MessageChannel -- forwards --> Orchestrator
+    Orchestrator -- emits event --> EventManager
+    EventManager -- triggers --> Callbacks
+```
+
+## Technical Details
 
 ### Parameter Filtering
 
-The EventManager automatically filters parameters based on each callback's signature, passing only the parameters that the callback accepts. This makes it flexible and easy to use without worrying about parameter compatibility.
+When emitting an event, the EventManager automatically inspects the signature of each registered callback and only passes the parameters that the callback accepts. This allows you to write concise and type-safe handlers without worrying about extra arguments.
 
-### Thread Pool
+- If your callback only needs `agent_name`, it will only receive that.
+- If you want full context, you can accept `**kwargs` to get all available data.
 
-Event callbacks are executed asynchronously using a thread pool executor. This ensures that event emission does not block the main thread and that slow callbacks do not affect the performance of other callbacks.
+### Thread Pool & Asynchronous Execution
+
+All event callbacks are executed asynchronously using a thread pool. This ensures that:
+- Event emission never blocks the main orchestration loop.
+- Slow or blocking callbacks do not delay other event handlers.
+- The number of concurrent callback executions is limited by the thread pool size (default: 10).
 
 ### Error Isolation
 
-Exceptions in one callback are caught and logged, preventing them from affecting the execution of other callbacks for the same event.
+If a callback raises an exception, the EventManager catches and logs the error, but continues executing all other callbacks for the same event. This guarantees that a bug in one handler does not affect the rest of the system.
 
 ### Shutdown
 
-When your application is done using the EventManager, you should call the `shutdown()` method to properly clean up resources:
+When the Orchestrator (or your application) is shutting down, the EventManager should be shut down gracefully to ensure all pending callbacks are completed. This is handled automatically, but you can also call:
 
 ```python
-event_manager.shutdown()
+orchestrator.event_manager.shutdown()
 ```
 
-This method is also automatically registered with Python's `atexit` module to ensure proper cleanup when the application terminates.
+This will wait for all running callbacks to finish and release resources.
