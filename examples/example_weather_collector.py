@@ -98,16 +98,16 @@ if __name__ == "__main__":
 
     orchestrator = Orchestrator(name="Orchestrator")
 
-    orchestrator.event_manager.register_event(
+    orchestrator.register_event(
         OrchestratorEvent.AGENT_READY, on_agent_ready
     )
-    orchestrator.event_manager.register_event(
+    orchestrator.register_event(
         OrchestratorEvent.AGENT_STARTED, on_agent_started
     )
-    orchestrator.event_manager.register_event(
+    orchestrator.register_event(
         OrchestratorEvent.AGENT_TERMINATED, on_agent_stopped
     )
-    orchestrator.event_manager.register_event(
+    orchestrator.register_event(
         OrchestratorEvent.ALL_AGENTS_TERMINATED, on_all_agents_stopped
     )
 

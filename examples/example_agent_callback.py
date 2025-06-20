@@ -94,9 +94,9 @@ if __name__ == "__main__":
     # Orchestrator initialization
     orchestrator = Orchestrator()
 
-    # Register event callbacks on the orchestrator's event manager
-    orchestrator.event_manager.register_event(OrchestratorEvent.AGENT_STARTED, on_agent_start)
-    orchestrator.event_manager.register_event(OrchestratorEvent.AGENT_TERMINATED, on_agent_close)
+    # Register event callbacks directly on the orchestrator
+    orchestrator.register_event(OrchestratorEvent.AGENT_STARTED, on_agent_start)
+    orchestrator.register_event(OrchestratorEvent.AGENT_TERMINATED, on_agent_close)
 
     # Registering agents
     fetch_agent: AgentEntry = orchestrator.register_agent(
