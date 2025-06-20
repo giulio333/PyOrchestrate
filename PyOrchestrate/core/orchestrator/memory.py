@@ -3,7 +3,6 @@ from typing import Dict, List, Optional, Type, Any
 
 from PyOrchestrate.core.agent import BaseAgent, AgentProtocol
 from PyOrchestrate.core.base import BaseClass
-from PyOrchestrate.core.utilities.event_manager import EventManager
 
 
 class AgentEntry:
@@ -52,7 +51,6 @@ class AgentEntry:
         config: Optional[BaseClass.Config] = None,
         plugin: Optional[BaseClass.Plugin] = None,
         record_event_callback: Optional[Any] = None,
-        event_manager: Optional[EventManager] = None,
         **kwargs: Any,
     ):
         self.agent_class = agent_class
@@ -65,7 +63,6 @@ class AgentEntry:
 
         self.control_events = control_events
         self.state_events = state_events
-        self.event_manager = event_manager
 
     @property
     def instance(self) -> AgentProtocol:
@@ -173,7 +170,6 @@ class AgentEntry:
         params["plugin"] = self.plugin
         params["control_events"] = self.control_events
         params["state_events"] = self.state_events
-        params["event_manager"] = self.event_manager
         params.update(self.kwargs)
 
         self._instance = self.agent_class(**params)
@@ -272,7 +268,6 @@ class OMemory:
         custom_plugin: Optional[BaseClass.Plugin] = None,
         control_events: Optional[BaseAgent.ControlEvents] = None,
         state_events: Optional[BaseAgent.StateEvents] = None,
-        event_manager: Optional[EventManager] = None,
         **kwargs: Any,
     ) -> AgentEntry:
         """
@@ -284,6 +279,9 @@ class OMemory:
         Notes:
             Every agent has a set of events that can be used to control its lifecycle. By default, all `ControlEvents` are
             set to ready. If no custom events are provided, the default events will be created.
+            
+            Events from agents are handled centrally by the orchestrator's event manager.
+            Agents communicate with the orchestrator via message channel.
 
         Args:
             agent_class (Type[BaseAgent]): The class of the agent to store.
@@ -292,7 +290,6 @@ class OMemory:
             custom_plugin (BasePlugin, optional): Custom plugin for the agent. Defaults to None.
             control_events (BaseAgent.ControlEvents, optional): Control events for the agent. Defaults to None.
             state_events (BaseAgent.StateEvents, optional): State events for the agent. Defaults to None.
-            event_manager (EventManager, optional): Event manager for the agent. Defaults to None.
             kwargs (Any): Additional keyword arguments for the agent.
 
         Returns:
@@ -313,7 +310,6 @@ class OMemory:
             config=custom_config,
             plugin=custom_plugin,
             record_event_callback=self._record_event,
-            event_manager=event_manager,
             **kwargs,
         )
         self._agents[name] = entry

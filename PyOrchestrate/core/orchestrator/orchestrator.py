@@ -80,9 +80,16 @@ class Orchestrator(BaseClass):
     """
     Orchestrator class to manages the agents.
 
+    The Orchestrator provides centralized event management and coordination for all agents.
+    Agents communicate with the orchestrator via message channels, and the orchestrator
+    handles all event processing and callback execution through its own event manager.
+
+    This centralized approach eliminates event duplication and provides a single point
+    of control for system-wide event handling.
+
     Attributes:
         memory (OMemory): Memory to store the agents.
-        event_manager (EventManager): Manages events among agents.
+        event_manager (EventManager): Centralized event manager for handling all agent events.
         dependencies (dict[str, list[str]]): Dependencies among agents.
 
     Methods:
@@ -136,7 +143,7 @@ class Orchestrator(BaseClass):
         Function executed in a separate thread to continuously check
         for incoming messages in the queue.
         """
-        self.logger.debug("Message handling thread started")
+        self.logger.trace("Message handling thread started")
         while self._message_thread_running:
             try:
                 # Check if there are messages in the queue
@@ -150,7 +157,7 @@ class Orchestrator(BaseClass):
             # Short pause to avoid excessive CPU usage
             time.sleep(0.01)
 
-        self.logger.debug("Message handling thread terminated")
+        self.logger.trace("Message handling thread terminated")
 
     def _start_message_thread(self):
         """
@@ -181,7 +188,7 @@ class Orchestrator(BaseClass):
             if self._message_thread.is_alive():
                 self.logger.warning("The message handling thread did not stop properly")
             else:
-                self.logger.debug("Message handling thread stopped successfully")
+                self.logger.trace("Message handling thread stopped successfully")
             self._message_thread = None
 
     def handle_agent_message(self, msg: ServiceMessage) -> None:
@@ -203,6 +210,14 @@ class Orchestrator(BaseClass):
                 self.event_manager.emit(
                     OrchestratorEvent.AGENT_READY, agent_name=msg.sender
                 )
+            elif msg.payload.startswith("ERROR:"):
+                error_msg = msg.payload[6:]  # Remove "ERROR:" prefix
+                self.logger.error(f"Agent {msg.sender} reported error: {error_msg}")
+                self.event_manager.emit(
+                    OrchestratorEvent.AGENT_ERROR, 
+                    agent_name=msg.sender, 
+                    error_message=error_msg
+                )
 
     def register_agent(
         self,
@@ -212,7 +227,6 @@ class Orchestrator(BaseClass):
         custom_plugin: BaseClass.Plugin | None = None,
         control_events: BaseAgent.ControlEvents | None = None,
         state_events: BaseAgent.StateEvents | None = None,
-        event_manager: EventManager | None = None,
         msg_channel: MessageChannel | None = None,
         **kwargs,
     ) -> AgentEntry:
@@ -221,6 +235,9 @@ class Orchestrator(BaseClass):
 
         Notes:
             After registering the agent, you can call the `start` method to start all agents.
+            
+            Events from agents are handled centrally by the orchestrator's event manager.
+            Agents communicate with the orchestrator via message channel.
 
         Warnings:
             agent_name must be unique.
@@ -232,7 +249,6 @@ class Orchestrator(BaseClass):
             custom_plugin: Custom plugin for the agent.
             control_events: Control events for the agent.
             state_events: State events for the agent.
-            event_manager: Event manager for the agent.
             msg_channel: Message channel for the agent.
             kwargs: Additional arguments for the agent.
 
@@ -247,7 +263,6 @@ class Orchestrator(BaseClass):
             custom_plugin=custom_plugin,
             control_events=control_events,
             state_events=state_events,
-            event_manager=event_manager,
             msg_channel=msg_channel or self.msg_channel,
             **kwargs,
         )
