@@ -12,6 +12,8 @@ class OrchestratorEvent(Enum):
     """Event emitted when an agent is started. Take the agent name as argument (`agent_name`)."""
     AGENT_TERMINATED = "agent_terminated"
     """Event emitted when an agent is terminated. Take the agent name as argument (`agent_name`)."""
+    AGENT_ERROR = "agent_error"
+    """Event emitted when an agent reports an error. Take the agent name and error message as arguments (`agent_name`, `error_message`)."""
     ALL_AGENTS_TERMINATED = "all_agents_terminated"
     """Event emitted when all agents are terminated. Take no arguments."""
 
