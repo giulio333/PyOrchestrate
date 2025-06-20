@@ -389,7 +389,7 @@ class Orchestrator(BaseClass):
         Callback to start the agent.
 
         Notes:
-            After starting the agent, it emits an `OrchestratorEvent.AGENT_STARTED` event and increments the `_running_agents` counter.
+            The agent will emit an `OrchestratorEvent.AGENT_STARTED` event through the message channel when it's actually started.
             If the maximum number of workers is reached, the agent is added to the waiting queue.
         """
         agent: AgentEntry = self.memory.get_agent(agent_name)
@@ -489,8 +489,6 @@ class Orchestrator(BaseClass):
         agent.start()
         self._running_agents += 1
         self._started_agents.add(agent_name)  # Track that the agent has been started
-
-        self.event_manager.emit(OrchestratorEvent.AGENT_STARTED, agent_name=agent.name)
 
     def simple_join(self) -> None:
         """
