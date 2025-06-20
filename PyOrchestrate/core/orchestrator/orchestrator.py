@@ -269,6 +269,22 @@ class Orchestrator(BaseClass):
         self.logger.debug(f"Agent '{name}' registered.")
         return agent_entry
 
+    def register_event(self, event_type, callback):
+        """
+        Register a callback function for a specific event type.
+
+        Args:
+            event_type: The type of event to listen for (e.g., OrchestratorEvent.AGENT_STARTED).
+            callback: The callback function to execute when the event occurs.
+                     The callback will receive the event data as arguments.
+
+        Example:
+            orchestrator.register_event(OrchestratorEvent.AGENT_STARTED, on_agent_start)
+            orchestrator.register_event(OrchestratorEvent.AGENT_TERMINATED, on_agent_terminated)
+        """
+        self.event_manager.register_event(event_type, callback)
+        self.logger.debug(f"Event callback registered for event type: {event_type}")
+
     def add_dependency(self, agent_name: str, depends_on: list[str]):
         """
         Add dependencies: agent_name depends on depends_on.
