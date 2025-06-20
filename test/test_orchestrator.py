@@ -1,10 +1,12 @@
-from multiprocessing.synchronize import Event
 import unittest
 from unittest.mock import MagicMock, call
+from datetime import datetime
 
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, OrchestratorEvent
 from PyOrchestrate.core.agent import BaseProcessAgent
 from PyOrchestrate.core.utilities.event_manager import EventManager
+from PyOrchestrate.core.utilities.event import AgentEvent
+from PyOrchestrate.core.utilities.messaging import ServiceMessage
 
 
 # Dummy agent to simulate an actual agent instance.
@@ -80,6 +82,27 @@ class TestOrchestrator(unittest.TestCase):
                 control_events=None,
                 state_events=None,
                 event_manager=None,
+            )
+
+    def test_handle_agent_message_events(self):
+        """Verify that handle_agent_message emits the correct events."""
+        event_map = {
+            AgentEvent.AGENT_CLOSE.value: OrchestratorEvent.AGENT_TERMINATED,
+            AgentEvent.AGENT_START.value: OrchestratorEvent.AGENT_STARTED,
+            AgentEvent.AGENT_READY.value: OrchestratorEvent.AGENT_READY,
+        }
+
+        for payload, expected_event in event_map.items():
+            self.orch.event_manager.emit.reset_mock()
+            msg = ServiceMessage(
+                sender="agent1",
+                type="STATUS",
+                payload=payload,
+                timestamp=datetime.now(),
+            )
+            self.orch.handle_agent_message(msg)
+            self.orch.event_manager.emit.assert_called_with(
+                expected_event, agent_name="agent1"
             )
 
     # def test_start_call(self):
