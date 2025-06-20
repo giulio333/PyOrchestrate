@@ -2,10 +2,10 @@ import time
 import requests
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
-from PyOrchestrate.core.utilities.event_manager import EventManager
-from PyOrchestrate.core.utilities.event import AgentEvent
+from PyOrchestrate.core.utilities.event import AgentEvent, OrchestratorEvent
 from PyOrchestrate.core.agent import BaseProcessAgent
 
+from PyOrchestrate.core.base.utilities import LoggerConfig
 
 class APIFetchAgent(BaseProcessAgent):
 
@@ -16,6 +16,8 @@ class APIFetchAgent(BaseProcessAgent):
         keyword: str = "and"
         # Polling interval in seconds
         poll_interval: float = 1.0
+        
+        logger_config = LoggerConfig("TRACE")
 
     config: Config
 
@@ -66,28 +68,39 @@ class APIFetchAgent(BaseProcessAgent):
         self.logger.info("APIFetchAgent terminated.")
 
 
-def on_agent_start(event_date, event_time):
-    message = f"Agent start. Date: {event_date}, Time: {event_time}"
-    print(message)
+def on_agent_start(agent_name, **kwargs):
+    """
+    Callback function triggered when an agent starts.
+    
+    Args:
+        agent_name (str): Name of the agent that started.
+        **kwargs: Additional event data.
+    """
+    print(f"Agent '{agent_name}' has started!")
 
 
-def on_agent_close(event_date, event_time):
-    message = f"Agent stop. Date: {event_date}, Time: {event_time}"
-    print(message)
+def on_agent_close(agent_name, **kwargs):
+    """
+    Callback function triggered when an agent terminates.
+    
+    Args:
+        agent_name (str): Name of the agent that terminated.
+        **kwargs: Additional event data.
+    """
+    print(f"Agent '{agent_name}' has terminated!")
 
 
 if __name__ == "__main__":
     # Orchestrator initialization
     orchestrator = Orchestrator()
 
-    # Create an EventManager
-    event_manager = EventManager()
-    event_manager.register_event(AgentEvent.AGENT_START, on_agent_start)
-    event_manager.register_event(AgentEvent.AGENT_CLOSE, on_agent_close)
+    # Register event callbacks on the orchestrator's event manager
+    orchestrator.event_manager.register_event(OrchestratorEvent.AGENT_STARTED, on_agent_start)
+    orchestrator.event_manager.register_event(OrchestratorEvent.AGENT_TERMINATED, on_agent_close)
 
     # Registering agents
     fetch_agent: AgentEntry = orchestrator.register_agent(
-        APIFetchAgent, "APIFetchAgent", event_manager=event_manager
+        APIFetchAgent, "APIFetchAgent"
     )
 
     # Starting agents

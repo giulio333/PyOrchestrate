@@ -2,11 +2,10 @@ from typing import List
 import unittest
 import sys
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call, ANY
 from datetime import datetime
 import time
 
-from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.agent.base_agent import (
     BaseAgent,
     ServiceMessage,
@@ -65,11 +64,11 @@ class TestBaseAgent(unittest.TestCase):
     def setUp(self):
 
         # Mock
-        self.event_manager = MagicMock(spec=EventManager)
         self.state_events = BaseAgent.StateEvents(MagicMock(), MagicMock(), MagicMock())
         self.control_events = BaseAgent.ControlEvents(
             MagicMock(), MagicMock(), MagicMock()
         )
+        self.msg_channel = MagicMock()
 
         # Create test config
         self.config = BaseAgent.Config()
@@ -85,7 +84,7 @@ class TestBaseAgent(unittest.TestCase):
             state_events=self.state_events,
             control_events=self.control_events,
             custom_attr="custom_value",
-            event_manager=self.event_manager,
+            msg_channel=self.msg_channel,
         )
 
     def test_initialization(self):
@@ -128,7 +127,7 @@ class TestBaseAgent(unittest.TestCase):
             a_type="process",
             state_events=self.state_events,
             control_events=self.control_events,
-            event_manager=self.event_manager,
+            msg_channel=self.msg_channel,
         )
         self.assertEqual(agent.name, "MyBaseAgent")
 
@@ -145,7 +144,7 @@ class TestBaseAgent(unittest.TestCase):
             a_type="process",
             state_events=self.state_events,
             control_events=self.control_events,
-            event_manager=self.event_manager,
+            msg_channel=self.msg_channel,
         )
         self.assertEqual(agent.config.logger_config.level, "WARNING")
         self.assertEqual(agent.config.logger_config.filename, "test.log")
@@ -240,7 +239,7 @@ class TestBaseAgent(unittest.TestCase):
             a_type="process",
             control_events=None,  # type:ignore
             state_events=None,  # type:ignore
-            event_manager=self.event_manager,
+            msg_channel=self.msg_channel,
         )
         agent_missing.logger = MagicMock()
 
@@ -255,13 +254,41 @@ class TestBaseAgent(unittest.TestCase):
         self.agent.run()
         self.state_events.close_event.set.assert_called_once()
 
-    def test_event_manager_emit_calls(self):
-        """Test event manager emit calls during run."""
+    def test_message_channel_send_calls(self):
+        """Test message channel send calls during run."""
         self.agent.logger = MagicMock()
         self.agent.run()
-        self.event_manager.emit.assert_any_call(AgentEvent.AGENT_START)
-        self.event_manager.emit.assert_any_call(AgentEvent.AGENT_READY)
-        self.event_manager.emit.assert_any_call(AgentEvent.AGENT_CLOSE)
+        
+        # Verify that messages were sent to the orchestrator
+        expected_calls = [
+            call("orchestrator", ANY),  # AGENT_START
+            call("orchestrator", ANY),  # AGENT_READY  
+            call("orchestrator", ANY),  # AGENT_CLOSE
+        ]
+        
+        self.msg_channel.send.assert_has_calls(expected_calls, any_order=False)
+        
+        # Verify the content of the messages
+        calls = self.msg_channel.send.call_args_list
+        self.assertEqual(len(calls), 3)
+        
+        # Check AGENT_START message
+        start_msg = calls[0][0][1]  # Second argument of first call
+        self.assertEqual(start_msg.sender, "test_base_agent")
+        self.assertEqual(start_msg.type, "STATUS")
+        self.assertEqual(start_msg.payload, AgentEvent.AGENT_START.value)
+        
+        # Check AGENT_READY message
+        ready_msg = calls[1][0][1]  # Second argument of second call
+        self.assertEqual(ready_msg.sender, "test_base_agent")
+        self.assertEqual(ready_msg.type, "STATUS")
+        self.assertEqual(ready_msg.payload, AgentEvent.AGENT_READY.value)
+        
+        # Check AGENT_CLOSE message
+        close_msg = calls[2][0][1]  # Second argument of third call
+        self.assertEqual(close_msg.sender, "test_base_agent")
+        self.assertEqual(close_msg.type, "STATUS")
+        self.assertEqual(close_msg.payload, AgentEvent.AGENT_CLOSE.value)
 
 
 class TestServiceMessage(unittest.TestCase):
@@ -302,11 +329,11 @@ class TestBaseAgentWithServiceMessage(unittest.TestCase):
 
     def setUp(self):
         # Mock
-        self.event_manager = MagicMock(spec=EventManager)
         self.state_events = BaseAgent.StateEvents(MagicMock(), MagicMock(), MagicMock())
         self.control_events = BaseAgent.ControlEvents(
             MagicMock(), MagicMock(), MagicMock()
         )
+        self.msg_channel = MagicMock()
 
         # Create test config
         self.config = BaseAgent.Config()
@@ -321,7 +348,7 @@ class TestBaseAgentWithServiceMessage(unittest.TestCase):
             a_type="process",
             state_events=self.state_events,
             control_events=self.control_events,
-            event_manager=self.event_manager,
+            msg_channel=self.msg_channel,
         )
         self.agent.logger = MagicMock()
 

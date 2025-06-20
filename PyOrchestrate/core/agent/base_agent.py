@@ -11,7 +11,6 @@ from enum import Enum
 from datetime import datetime
 
 from PyOrchestrate.core.base.base import BaseClass
-from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import AgentEvent
 from PyOrchestrate.core.plugins.plugin_manager import PluginManager
 from PyOrchestrate.core.utilities.validation import (
@@ -90,6 +89,10 @@ class BaseAgent(BaseClass, ABC):
     - state_events: For managing the agent's internal state
     - control_events: For handling external commands
 
+    Events are communicated to the orchestrator via message channel, allowing
+    centralized event management and coordination. The orchestrator handles
+    all event processing and callback execution.
+
     Warnings:
         When overriding methods, always call the parent implementation using super().
 
@@ -112,9 +115,6 @@ class BaseAgent(BaseClass, ABC):
         stop: Requests external termination of the agent.
         validate_config: Validates the configuration.
         on_stop: Handles cleanup when the agent is stopped.
-        register_plugin: Registers a plugin.
-        unregister_plugin: Unregisters a plugin.
-        get_plugin: Retrieves a registered plugin.
     """
 
     a_type: str = ""
@@ -159,7 +159,6 @@ class BaseAgent(BaseClass, ABC):
         a_type: Literal["process", "thread"] = "process",
         control_events: Optional[ControlEvents] = None,
         state_events: Optional[StateEvents] = None,
-        event_manager: Optional[EventManager] = None,
         msg_channel: Optional[MessageChannel] = None,
         **kwargs,
     ):
@@ -174,6 +173,9 @@ class BaseAgent(BaseClass, ABC):
         - State events track the agent's internal state transitions
         - Control events handle external commands and execution flow
 
+        Events are communicated to the orchestrator via message channel,
+        allowing centralized event management and coordination.
+
         Additional keyword arguments are automatically stored as instance
         attributes, allowing for flexible extension of the agent's properties.
 
@@ -184,7 +186,6 @@ class BaseAgent(BaseClass, ABC):
             a_type (Literal["process", "thread"]): The agent type.
             control_events (ControlEvents, optional): Events for external command handling.
             state_events (StateEvents, optional): Events for internal state management.
-            event_manager (EventManager, optional): Event manager for handling events and callbacks.
             msg_channel (MessageChannel, optional): Message channel for service communication.
             **kwargs: Additional keyword arguments for agent configuration.
         """
@@ -221,8 +222,6 @@ class BaseAgent(BaseClass, ABC):
             self.control_events.setup_event.set()
             self.control_events.execute_event.set()
 
-        self.event_manager = event_manager or EventManager()
-        """Event manager for handling events and callbacks."""
         self.plugin_manager = PluginManager(self.plugin)
         """Plugin manager for managing plugins."""
         self.msg_channel = msg_channel or MessageChannel(self.a_type)
@@ -278,7 +277,15 @@ class BaseAgent(BaseClass, ABC):
         except Exception as ex:
             self.logger.exception(f"[{self.name}] Error during execution: {ex}")
             self.termination_status = AgentTerminationStatus.CRITICAL
-            self.event_manager.emit(AgentEvent.AGENT_ERROR, {"error_message": str(ex)})
+            
+            # Send error message to orchestrator
+            error_message = ServiceMessage(
+                sender=self.name,
+                type="STATUS",
+                payload=f"ERROR:{str(ex)}",
+                timestamp=datetime.now(),
+            )
+            self.send_message(error_message)
 
         finally:
 
@@ -303,9 +310,10 @@ class BaseAgent(BaseClass, ABC):
         Notes:
             Override this method to implement custom initialization logic
             that should execute when the agent starts.
+            
+            Events are sent to the orchestrator via message channel
+            for centralized event handling.
         """
-        self.event_manager.emit(AgentEvent.AGENT_START)
-
         message = ServiceMessage(
             sender=self.name,
             type="STATUS",
@@ -317,9 +325,10 @@ class BaseAgent(BaseClass, ABC):
     def _handle_stop(self):
         """
         Handles cleanup when the agent is stopped.
+        
+        Events are sent to the orchestrator via message channel
+        for centralized event handling.
         """
-        self.event_manager.emit(AgentEvent.AGENT_CLOSE)
-
         message = ServiceMessage(
             sender=self.name,
             type="STATUS",
@@ -331,9 +340,10 @@ class BaseAgent(BaseClass, ABC):
     def _handle_ready(self):
         """
         Handles the agent's readiness state.
+        
+        Events are sent to the orchestrator via message channel
+        for centralized event handling.
         """
-        self.event_manager.emit(AgentEvent.AGENT_READY)
-
         message = ServiceMessage(
             sender=self.name,
             type="STATUS",
@@ -542,7 +552,6 @@ class AgentProtocol(Protocol):
     termination_status: AgentTerminationStatus
     config: BaseAgentConfig
     plugin: BaseClass.Plugin
-    event_manager: EventManager
     plugin_manager: PluginManager
     state_events: BaseAgent.StateEvents
     control_events: BaseAgent.ControlEvents
