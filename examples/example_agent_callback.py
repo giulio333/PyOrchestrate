@@ -2,7 +2,7 @@ import time
 import requests
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
-from PyOrchestrate.core.utilities.event import AgentEvent, OrchestratorEvent
+from PyOrchestrate.core.utilities.event import OrchestratorEvent
 from PyOrchestrate.core.agent import BaseProcessAgent
 
 from PyOrchestrate.core.base.utilities import LoggerConfig
@@ -16,7 +16,7 @@ class APIFetchAgent(BaseProcessAgent):
         keyword: str = "and"
         # Polling interval in seconds
         poll_interval: float = 1.0
-        
+
         logger_config = LoggerConfig("TRACE")
 
     config: Config
