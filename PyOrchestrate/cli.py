@@ -35,28 +35,34 @@ if __name__ == "__main__":
 """
 
 
-def main():
+def start_command(args: argparse.Namespace) -> None:
+    """Handle the ``start`` subcommand."""
+    create_project_structure(args.app_name)
+    print(f"Project structure for '{args.app_name}' created successfully.")
+
+
+def main() -> None:
     parser = argparse.ArgumentParser(description="PyOrchestrate CLI")
-    parser.add_argument("--version", "-v", action="store_true", help="Show version")
-    parser.add_argument("command", help="Command to execute", nargs="?")
-    parser.add_argument("app_name", help="Name of the app to create", nargs="?")
+    parser.add_argument(
+        "--version",
+        "-v",
+        action="version",
+        version="PyOrchestrate version 0.2.0",
+    )
+
+    subparsers = parser.add_subparsers(dest="command")
+
+    start_parser = subparsers.add_parser(
+        "start", help="Create a new project structure with the specified app name"
+    )
+    start_parser.add_argument("app_name", help="Name of the app to create")
+    start_parser.set_defaults(func=start_command)
 
     args = parser.parse_args()
 
-    if args.version:
-        print("PyOrchestrate version 0.1.0")
-    elif not args.command:
-        parser.print_help()
-        print("\nAvailable commands:")
-        print(
-            "  start <app_name>  Create a new project structure with the specified app name"
-        )
-        print("  --version, -v     Display the version of the PyOrchestrate framework")
-    elif args.command == "start" and args.app_name:
-        create_project_structure(args.app_name)
-        print(f"Project structure for '{args.app_name}' created successfully.")
+    if hasattr(args, "func"):
+        args.func(args)
     else:
-        print(f"Unknown command: {args.command}")
         parser.print_help()
 
 
