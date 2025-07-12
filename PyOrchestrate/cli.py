@@ -44,7 +44,7 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        print("PyOrchestrate version 0.1.0")
+        print("PyOrchestrate version 0.2.0")
     elif not args.command:
         parser.print_help()
         print("\nAvailable commands:")
