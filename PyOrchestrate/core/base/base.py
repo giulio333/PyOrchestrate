@@ -117,7 +117,25 @@ class BaseClassPlugin:
     Can be used to store Plugin objects.
     """
 
-    pass
+    def __init__(
+        self,
+        **kwargs,
+    ):
+
+        # store user-defined attributes
+        self._custom_attr: dict[str, Any] = kwargs
+
+    def __getattribute__(self, key: str) -> Any:
+        try:
+            custom_attr = object.__getattribute__(self, "_custom_attr")
+        except AttributeError:
+            custom_attr = {}
+        if key in custom_attr:
+            return custom_attr[key]
+        return object.__getattribute__(self, key)
+
+    def __str__(self):
+        return f"<{self.__class__.__name__} {self.__dict__}>"
 
 
 class BaseClass:
@@ -147,7 +165,7 @@ class BaseClass:
 
         Args:
             config (T): Configuration object.
-            plugin: Plugin instance to be used.
+            plugin (BaseClassPlugin): Plugin instance to be used.
             name (str | None): Identifier used for logging. Defaults to class name if None.
             **kwargs: Additional attributes to set on the instance.
 
@@ -155,7 +173,7 @@ class BaseClass:
             All kwargs are set as instance attributes directly.
         """
         self.config = config if config else self.Config()
-        self.plugin = plugin
+        self.plugin = plugin if plugin else self.Plugin()
         self.name = name if name else self.__class__.__name__
 
         # store user-defined attributes

@@ -12,6 +12,11 @@ class SocketType(IntEnum):
         SUB (int): Subscribe socket type.
         REQ (int): Request socket type.
         REP (int): Reply socket type.
+        PUSH (int): Push socket type.
+        PULL (int): Pull socket type.
+        ROUTER (int): Router socket type.
+        DEALER (int): Dealer socket type.
+        PAIR (int): Pair socket type.
     """
 
     PUB = zmq.PUB
@@ -20,6 +25,9 @@ class SocketType(IntEnum):
     REP = zmq.REP
     PUSH = zmq.PUSH
     PULL = zmq.PULL
+    ROUTER = zmq.ROUTER
+    DEALER = zmq.DEALER
+    PAIR = zmq.PAIR
 
 
 class ZeroMQPubSub(PluginProtocol):
@@ -65,9 +73,12 @@ class ZeroMQPubSub(PluginProtocol):
 
         Args:
             address (str): The address to bind/connect the socket.
-            socket_type (int): The type of ZeroMQ socket (e.g., SocketType.PUB, SocketType.SUB).
-            subscribe_topic (bytes): The topic to subscribe to (only for SocketType.SUB). Defaults to b"" (all topics).
-            context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
+            socket_type (int): The type of ZeroMQ socket
+                (e.g., SocketType.PUB, SocketType.SUB).
+            subscribe_topic (bytes): The topic to subscribe to
+                (only for SocketType.SUB). Defaults to b"" (all topics).
+            context (zmq.Context, optional): The ZeroMQ context.
+                Defaults to None.
         """
         self._socket: zmq.Socket | None = None
         self.context = context if context is not None else zmq.Context()
@@ -119,28 +130,53 @@ class ZeroMQPubSub(PluginProtocol):
         self.context.term()
         self._initialized = False
 
-    def recv(self) -> bytes:
+    def recv(self, blocking: bool = True) -> bytes:
         """
         Receives a message using ZeroMQ.
 
+        Args:
+            blocking (bool, optional): If True, the receive operation blocks until a message arrives.
+                                      If False, the receive returns immediately
+                                          and may raise zmq.error.Again
+                                      if no message is available. Defaults to True.
+
         Returns:
             bytes: The received message.
+
+        Raises:
+            zmq.error.Again: If no message is available and blocking is False.
         """
-        topic, message = self.socket.recv_multipart()
+        if blocking:
+            topic, message = self.socket.recv_multipart()
+        else:
+            topic, message = self.socket.recv_multipart(zmq.NOBLOCK)
         return message
 
-    def send(self, message: bytes, topic: bytes = b"") -> zmq.MessageTracker | None:
+    def send(
+        self, message: bytes, topic: bytes = b"", blocking: bool = True
+    ) -> zmq.MessageTracker | None:
         """
         Sends a message using ZeroMQ.
 
         Args:
             message (bytes): The message to be sent.
             topic (bytes, optional): The topic to use for the message. Defaults to b"".
+            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
+
+                complete. If False, returns immediately and may raise
+
+                zmq.error.Again if the message cannot be queued. Defaults to True.
 
         Returns:
             (zmq.MessageTracker | None): The result of the send operation or None.
+
+        Raises:
+            zmq.error.Again: If the message cannot be queued and blocking is False.
         """
-        return self.socket.send_multipart([topic, message])
+        if blocking:
+            return self.socket.send_multipart([topic, message])
+        else:
+            return self.socket.send_multipart([topic, message], zmq.NOBLOCK)
 
 
 class ZeroMQReqRep(PluginProtocol):
@@ -214,23 +250,52 @@ class ZeroMQReqRep(PluginProtocol):
 
         return self
 
-    def send(self, message: bytes) -> None:
+    def send(self, message: bytes, blocking: bool = True) -> None:
         """
         Sends a message using ZeroMQ.
 
         For zmq.REQ, sends the request.
         For zmq.REP, sends the reply.
-        """
-        self.socket.send(message)
 
-    def recv(self) -> bytes:
+        Args:
+            message (bytes): The message to be sent.
+            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
+
+                complete. If False, returns immediately and may raise
+
+                zmq.error.Again if the message cannot be queued. Defaults to True.
+
+        Raises:
+            zmq.error.Again: If the message cannot be queued and blocking is False.
+        """
+        if blocking:
+            self.socket.send(message)
+        else:
+            self.socket.send(message, zmq.NOBLOCK)
+
+    def recv(self, blocking: bool = True) -> bytes:
         """
         Receives a message using ZeroMQ.
 
         For zmq.REQ, receives the reply.
         For zmq.REP, receives the request.
+
+        Args:
+            blocking (bool, optional): If True, the receive operation blocks until a message arrives.
+                                      If False, the receive returns immediately
+                                          and may raise zmq.error.Again
+                                      if no message is available. Defaults to True.
+
+        Returns:
+            bytes: The received message.
+
+        Raises:
+            zmq.error.Again: If no message is available and blocking is False.
         """
-        return self.socket.recv()
+        if blocking:
+            return self.socket.recv()
+        else:
+            return self.socket.recv(zmq.NOBLOCK)
 
     def finalize(self):
         """
@@ -337,9 +402,11 @@ class ZeroMQPushPull(PluginProtocol):
 
         Args:
             message (bytes): The message to be sent.
-            blocking (bool, optional): If True, the send operation blocks until complete.
-                                      If False, the send returns immediately and may raise zmq.error.Again
-                                      if the message cannot be queued. Defaults to True.
+            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
+
+                complete. If False, returns immediately and may raise
+
+                zmq.error.Again if the message cannot be queued. Defaults to True.
 
         Raises:
             RuntimeError: If used with a PULL socket.
@@ -353,18 +420,32 @@ class ZeroMQPushPull(PluginProtocol):
         else:
             self.socket.send(message, zmq.NOBLOCK)
 
-    def recv(self) -> bytes:
+    def recv(self, blocking: bool = True) -> bytes:
         """
         Receives a message using ZeroMQ PULL socket.
 
         This method is only valid for SocketType.PULL sockets.
 
+        Args:
+            blocking (bool, optional): If True, the receive operation blocks until a message arrives.
+                                      If False, the receive returns immediately
+                                          and may raise zmq.error.Again
+                                      if no message is available. Defaults to True.
+
         Returns:
             bytes: The received message.
+
+        Raises:
+            RuntimeError: If used with a PUSH socket.
+            zmq.error.Again: If no message is available and blocking is False.
         """
         if self.socket_type != SocketType.PULL:
             raise RuntimeError("Cannot receive with a PUSH socket.")
-        return self.socket.recv()
+
+        if blocking:
+            return self.socket.recv()
+        else:
+            return self.socket.recv(zmq.NOBLOCK)
 
     def finalize(self):
         """
@@ -372,4 +453,459 @@ class ZeroMQPushPull(PluginProtocol):
         """
         self.socket.close()
         self.context.term()
+        self._initialized = False
+
+
+class ZeroMQRouterDealer(PluginProtocol):
+    """
+    ZeroMQ ROUTER/DEALER communication plugin.
+
+    This plugin provides advanced request/reply routing using ZeroMQ ROUTER/DEALER sockets.
+    ROUTER sockets can handle multiple clients and route messages based on client identity.
+    DEALER sockets can connect to multiple services and load balance requests.
+
+    Example:
+        >>> # Server side with ROUTER
+        >>> router = ZeroMQRouterDealer("tcp://*:5555", SocketType.ROUTER)
+        >>> router.initialize()
+        >>> identity, message = router.recv_multipart()
+        >>> router.send_multipart([identity, b"Response"])
+        >>>
+        >>> # Client side with DEALER
+        >>> dealer = ZeroMQRouterDealer("tcp://localhost:5555", SocketType.DEALER)
+        >>> dealer.initialize()
+        >>> dealer.send(b"Request")
+        >>> response = dealer.recv()
+
+    Attributes:
+        context (zmq.Context): The ZeroMQ context.
+        socket (zmq.Socket): The ZeroMQ socket.
+
+    Methods:
+        initialize: Initializes the ZeroMQ plugin.
+        send: Sends a message using ZeroMQ.
+        recv: Receives a message using ZeroMQ.
+        send_multipart: Sends a multipart message using ZeroMQ.
+        recv_multipart: Receives a multipart message using ZeroMQ.
+        finalize: Finalizes the ZeroMQ plugin.
+    """
+
+    def __init__(
+        self,
+        address: str,
+        socket_type: int,
+        context: zmq.Context | None = None,
+        identity: bytes | None = None,
+        hwm: int | None = None,
+    ):
+        """
+        Initializes the ZeroMQ ROUTER/DEALER plugin.
+
+        Args:
+            address (str): The address to bind/connect the socket.
+            socket_type (int): The type of ZeroMQ socket
+
+                (SocketType.ROUTER or SocketType.DEALER).
+            context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
+            identity (bytes, optional): The identity for DEALER socket. Defaults to None.
+            hwm (int, optional): The high water mark for the socket. Defaults to None.
+        """
+        self.address = address
+        self.socket_type = socket_type
+        self._socket: zmq.Socket | None = None
+        self.context = context if context is not None else zmq.Context()
+        self.identity = identity
+        self.hwm = hwm
+
+        self._initialized = False
+
+    @property
+    def socket(self) -> zmq.Socket:
+        if not self._socket:
+            raise RuntimeError(
+                "Socket not initialized. Did you forget to call initialize?"
+            )
+        return self._socket
+
+    def initialize(self):
+        """
+        Initializes the ZeroMQ plugin.
+
+        For SocketType.ROUTER, the socket binds to the address.
+        For SocketType.DEALER, the socket connects to the address.
+        """
+        if self._initialized:
+            return self
+
+        if self.socket_type == SocketType.ROUTER:
+            self._socket = self.context.socket(SocketType.ROUTER)
+            if self.hwm:
+                self._socket.setsockopt(zmq.RCVHWM, self.hwm)
+                self._socket.setsockopt(zmq.SNDHWM, self.hwm)
+            self._socket.bind(self.address)
+        elif self.socket_type == SocketType.DEALER:
+            self._socket = self.context.socket(SocketType.DEALER)
+            if self.identity:
+                self._socket.setsockopt(zmq.IDENTITY, self.identity)
+            if self.hwm:
+                self._socket.setsockopt(zmq.RCVHWM, self.hwm)
+                self._socket.setsockopt(zmq.SNDHWM, self.hwm)
+            self._socket.connect(self.address)
+        else:
+            raise ValueError("Unsupported socket type for ZeroMQRouterDealer plugin.")
+
+        self._initialized = True
+
+        return self
+
+    def send(self, message: bytes, blocking: bool = True) -> None:
+        """
+        Sends a message using ZeroMQ.
+
+        Args:
+            message (bytes): The message to be sent.
+            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
+
+                complete. If False, returns immediately and may raise
+
+                zmq.error.Again if the message cannot be queued. Defaults to True.
+
+        Raises:
+            zmq.error.Again: If the message cannot be queued and blocking is False.
+        """
+        if blocking:
+            self.socket.send(message)
+        else:
+            self.socket.send(message, zmq.NOBLOCK)
+
+    def recv(self, blocking: bool = True) -> bytes:
+        """
+        Receives a message using ZeroMQ.
+
+        Args:
+            blocking (bool, optional): If True, the receive operation blocks until a message arrives.
+                                      If False, the receive returns immediately
+                                          and may raise zmq.error.Again
+                                      if no message is available. Defaults to True.
+
+        Returns:
+            bytes: The received message.
+
+        Raises:
+            zmq.error.Again: If no message is available and blocking is False.
+        """
+        if blocking:
+            return self.socket.recv()
+        else:
+            return self.socket.recv(zmq.NOBLOCK)
+
+    def send_multipart(self, message_parts: list[bytes], blocking: bool = True) -> None:
+        """
+        Sends a multipart message using ZeroMQ.
+
+        This is particularly useful for ROUTER sockets which need to route messages
+        based on client identity.
+
+        Args:
+            message_parts (list[bytes]): The list of message parts
+
+                to be sent.
+            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
+
+                complete. If False, returns immediately and may raise
+
+                zmq.error.Again if the message cannot be queued. Defaults to True.
+
+        Raises:
+            zmq.error.Again: If the message cannot be queued and blocking is False.
+        """
+        if blocking:
+            self.socket.send_multipart(message_parts)
+        else:
+            self.socket.send_multipart(message_parts, zmq.NOBLOCK)
+
+    def recv_multipart(self, blocking: bool = True) -> list[bytes]:
+        """
+        Receives a multipart message using ZeroMQ.
+
+        This is particularly useful for ROUTER sockets which receive messages
+        with client identity as the first part.
+
+        Args:
+            blocking (bool, optional): If True, the receive operation blocks until a message arrives.
+                                      If False, the receive returns immediately
+                                          and may raise zmq.error.Again
+                                      if no message is available. Defaults to True.
+
+        Returns:
+            list[bytes]: The list of received message parts.
+
+        Raises:
+            zmq.error.Again: If no message is available and blocking is False.
+        """
+        if blocking:
+            return self.socket.recv_multipart()
+        else:
+            return self.socket.recv_multipart(zmq.NOBLOCK)
+
+    def finalize(self):
+        """
+        Finalizes the ZeroMQ plugin.
+        """
+        self.socket.close()
+        self.context.term()
+        self._initialized = False
+
+
+class ZeroMQPair(PluginProtocol):
+    """
+    ZeroMQ PAIR communication plugin.
+
+    This plugin provides bidirectional communication using ZeroMQ PAIR sockets.
+    PAIR sockets are designed for connecting two peers exclusively.
+
+    Example:
+        >>> # Peer A
+        >>> pair_a = ZeroMQPair("tcp://*:5555")
+        >>> pair_a.initialize()
+        >>> pair_a.send(b"Hello from A")
+        >>> message = pair_a.recv()
+        >>>
+        >>> # Peer B
+        >>> pair_b = ZeroMQPair("tcp://localhost:5555", bind=False)
+        >>> pair_b.initialize()
+        >>> message = pair_b.recv()
+        >>> pair_b.send(b"Hello from B")
+
+    Attributes:
+        context (zmq.Context): The ZeroMQ context.
+        socket (zmq.Socket): The ZeroMQ socket.
+
+    Methods:
+        initialize: Initializes the ZeroMQ plugin.
+        send: Sends a message using ZeroMQ.
+        recv: Receives a message using ZeroMQ.
+        finalize: Finalizes the ZeroMQ plugin.
+    """
+
+    def __init__(
+        self,
+        address: str,
+        bind: bool = True,
+        context: zmq.Context | None = None,
+        hwm: int | None = None,
+    ):
+        """
+        Initializes the ZeroMQ PAIR plugin.
+
+        Args:
+            address (str): The address to bind/connect the socket.
+            bind (bool, optional): If True, binds to the address.
+
+                If False, connects to the address. Defaults to True.
+            context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
+            hwm (int, optional): The high water mark for the socket. Defaults to None.
+        """
+        self.address = address
+        self.bind = bind
+        self._socket: zmq.Socket | None = None
+        self.context = context if context is not None else zmq.Context()
+        self.hwm = hwm
+
+        self._initialized = False
+
+    @property
+    def socket(self) -> zmq.Socket:
+        if not self._socket:
+            raise RuntimeError(
+                "Socket not initialized. Did you forget to call initialize?"
+            )
+        return self._socket
+
+    def initialize(self):
+        """
+        Initializes the ZeroMQ plugin.
+
+        Creates a PAIR socket and either binds or connects based on configuration.
+        """
+        if self._initialized:
+            return self
+
+        self._socket = self.context.socket(SocketType.PAIR)
+
+        if self.hwm:
+            self._socket.setsockopt(zmq.RCVHWM, self.hwm)
+            self._socket.setsockopt(zmq.SNDHWM, self.hwm)
+
+        if self.bind:
+            self._socket.bind(self.address)
+        else:
+            self._socket.connect(self.address)
+
+        self._initialized = True
+
+        return self
+
+    def send(self, message: bytes, blocking: bool = True) -> None:
+        """
+        Sends a message using ZeroMQ PAIR socket.
+
+        Args:
+            message (bytes): The message to be sent.
+            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
+
+                complete. If False, returns immediately and may raise
+
+                zmq.error.Again if the message cannot be queued. Defaults to True.
+
+        Raises:
+            zmq.error.Again: If the message cannot be queued and blocking is False.
+        """
+        if blocking:
+            self.socket.send(message)
+        else:
+            self.socket.send(message, zmq.NOBLOCK)
+
+    def recv(self, blocking: bool = True) -> bytes:
+        """
+        Receives a message using ZeroMQ PAIR socket.
+
+        Args:
+            blocking (bool, optional): If True, the receive operation blocks until a message arrives.
+                                      If False, the receive returns immediately
+                                          and may raise zmq.error.Again
+                                      if no message is available. Defaults to True.
+
+        Returns:
+            bytes: The received message.
+
+        Raises:
+            zmq.error.Again: If no message is available and blocking is False.
+        """
+        if blocking:
+            return self.socket.recv()
+        else:
+            return self.socket.recv(zmq.NOBLOCK)
+
+    def finalize(self):
+        """
+        Finalizes the ZeroMQ plugin.
+        """
+
+
+class ZeroMQPoller(PluginProtocol):
+    """
+    ZeroMQ Poller utility for non-blocking operations across multiple sockets.
+
+    This utility provides polling capabilities for multiple ZeroMQ sockets,
+    allowing non-blocking operations and event-driven programming.
+
+    Example:
+        >>> # Create multiple sockets
+        >>> pub = ZeroMQPubSub("tcp://*:5555", SocketType.PUB)
+        >>> sub = ZeroMQPubSub("tcp://localhost:5555", SocketType.SUB)
+        >>> pub.initialize()
+        >>> sub.initialize()
+        >>>
+        >>> # Create poller and register sockets
+        >>> poller = ZeroMQPoller()
+        >>> poller.initialize()
+        >>> poller.register(sub.socket, zmq.POLLIN)
+        >>> poller.register(pub.socket, zmq.POLLOUT)
+        >>>
+        >>> # Poll for events
+        >>> events = poller.poll(timeout=1000)  # 1 second timeout
+        >>> for socket, event in events:
+        >>>     if event & zmq.POLLIN:
+        >>>         # Socket is ready for reading
+        >>>         message = socket.recv(zmq.NOBLOCK)
+        >>>     elif event & zmq.POLLOUT:
+        >>>         # Socket is ready for writing
+        >>>         socket.send(b"Hello", zmq.NOBLOCK)
+
+    Attributes:
+        poller (zmq.Poller): The ZeroMQ poller instance.
+
+    Methods:
+        initialize: Initializes the ZeroMQ poller.
+        register: Registers a socket with the poller.
+        unregister: Unregisters a socket from the poller.
+        poll: Polls for events on registered sockets.
+        finalize: Finalizes the ZeroMQ poller.
+    """
+
+    def __init__(self, context: zmq.Context | None = None):
+        """
+        Initializes the ZeroMQ Poller.
+
+        Args:
+            context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
+        """
+        self.context = context if context is not None else zmq.Context()
+        self._poller: zmq.Poller | None = None
+        self._initialized = False
+
+    @property
+    def poller(self) -> zmq.Poller:
+        if not self._poller:
+            raise RuntimeError(
+                "Poller not initialized. Did you forget to call initialize?"
+            )
+        return self._poller
+
+    def initialize(self):
+        """
+        Initializes the ZeroMQ poller.
+        """
+        if self._initialized:
+            return self
+
+        self._poller = zmq.Poller()
+        self._initialized = True
+
+        return self
+
+    def register(self, socket: zmq.Socket, flags: int = zmq.POLLIN) -> None:
+        """
+        Registers a socket with the poller.
+
+        Args:
+            socket (zmq.Socket): The socket to register.
+            flags (int, optional): The polling flags (zmq.POLLIN, zmq.POLLOUT, or both).
+                                  Defaults to zmq.POLLIN.
+        """
+        self.poller.register(socket, flags)
+
+    def unregister(self, socket: zmq.Socket) -> None:
+        """
+        Unregisters a socket from the poller.
+
+        Args:
+            socket (zmq.Socket): The socket to unregister.
+        """
+        self.poller.unregister(socket)
+
+    def poll(self, timeout: int | None = None) -> list[tuple[zmq.Socket, int]]:
+        """
+        Polls for events on registered sockets.
+
+        Args:
+            timeout (int, optional): The timeout in milliseconds. If None, blocks indefinitely.
+                                   If 0, returns immediately (non-blocking).
+                                   Defaults to None.
+
+        Returns:
+            list[tuple[zmq.Socket, int]]: A list of (socket, event) tuples where
+                                         event is a bitmask of zmq.POLLIN, zmq.POLLOUT, etc.
+        """
+        return self.poller.poll(timeout)
+
+    def finalize(self):
+        """
+        Finalizes the ZeroMQ poller.
+        """
+        if self._poller:
+            # Note: zmq.Poller doesn't have a close method, just clear registered sockets
+            self._poller = None
+        self._initialized = False
         self._initialized = False
