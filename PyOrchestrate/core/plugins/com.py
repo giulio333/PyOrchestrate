@@ -29,11 +29,10 @@ class ZeroMQPubSub(PluginProtocol):
     This plugin provides communication using ZeroMQ Pub/Sub sockets.
 
     Example:
-        >>> from PyOrchestrate.core.plugins.com import ZeroMQPubSub
-        >>> import zmq
+        >>> from PyOrchestrate.core.plugins.com import ZeroMQPubSub, SocketType
         >>> zmq_plugin = ZeroMQPubSub("tcp://localhost:5555", SocketType.PUB)
         >>> zmq_plugin.initialize()
-        >>> zmq_plugin.send_string("Hello, World!")
+        >>> zmq_plugin.send(b"Hello, World!")
 
     Attributes:
         context (zmq.Context): The ZeroMQ context.
@@ -41,10 +40,7 @@ class ZeroMQPubSub(PluginProtocol):
 
     Methods:
         initialize: Initializes the ZeroMQ plugin.
-        execute: Executes the ZeroMQ plugin's core logic.
         finalize: Finalizes the ZeroMQ plugin.
-        send_string: Sends a message using ZeroMQ.
-        recv_string: Receives a message using ZeroMQ.
         recv: Receives a message using ZeroMQ.
         send: Sends a message using ZeroMQ.
         setsockopt: Sets a socket option.
@@ -150,7 +146,9 @@ class ZeroMQReqRep(PluginProtocol):
     This plugin provides communication using ZeroMQ REQ/REP sockets.
 
     Example:
-        >>> reqrep = ZeroMQReqRep("tcp://localhost:5555", zmq.REQ)
+        >>> from PyOrchestrate.core.plugins.com import ZeroMQReqRep, SocketType
+        >>> reqrep = ZeroMQReqRep("tcp://localhost:5555", SocketType.REQ)
+        >>> reqrep.initialize()
         >>> reqrep.send(b"Hello")
         >>> reply = reqrep.recv()
 
@@ -173,7 +171,7 @@ class ZeroMQReqRep(PluginProtocol):
 
         Args:
             address (str): The address to bind/connect the socket.
-            socket_type (int): The type of ZeroMQ socket (e.g., zmq.REQ, zmq.REP).
+            socket_type (int): The type of ZeroMQ socket (e.g., SocketType.REQ, SocketType.REP).
             context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
         """
         self.address = address
@@ -201,11 +199,11 @@ class ZeroMQReqRep(PluginProtocol):
         if self._initialized:
             return self
 
-        if self.socket_type == zmq.REQ:
-            self._socket = self.context.socket(zmq.REQ)
+        if self.socket_type == SocketType.REQ:
+            self._socket = self.context.socket(SocketType.REQ)
             self._socket.connect(self.address)
-        elif self.socket_type == zmq.REP:
-            self._socket = self.context.socket(zmq.REP)
+        elif self.socket_type == SocketType.REP:
+            self._socket = self.context.socket(SocketType.REP)
             self._socket.bind(self.address)
         else:
             raise ValueError("Unsupported socket type for ZeroMQReqRep plugin.")
@@ -218,8 +216,8 @@ class ZeroMQReqRep(PluginProtocol):
         """
         Sends a message using ZeroMQ.
 
-        For zmq.REQ, sends the request.
-        For zmq.REP, sends the reply.
+        For SocketType.REQ, sends the request.
+        For SocketType.REP, sends the reply.
         """
         self.socket.send(message)
 
@@ -227,8 +225,8 @@ class ZeroMQReqRep(PluginProtocol):
         """
         Receives a message using ZeroMQ.
 
-        For zmq.REQ, receives the reply.
-        For zmq.REP, receives the request.
+        For SocketType.REQ, receives the reply.
+        For SocketType.REP, receives the request.
         """
         return self.socket.recv()
 
@@ -250,6 +248,7 @@ class ZeroMQPushPull(PluginProtocol):
 
     Example:
         >>> # Producer (PUSH)
+        >>> from PyOrchestrate.core.plugins.com import ZeroMQPushPull, SocketType
         >>> push = ZeroMQPushPull("tcp://localhost:5555", SocketType.PUSH)
         >>> push.initialize()
         >>> push.send(b"Task data")
@@ -342,11 +341,11 @@ class ZeroMQPushPull(PluginProtocol):
                                       if the message cannot be queued. Defaults to True.
 
         Raises:
-            RuntimeError: If used with a PULL socket.
+            RuntimeError: If used with a SocketType.PULL socket.
             zmq.error.Again: If the message cannot be queued and blocking is False.
         """
         if self.socket_type != SocketType.PUSH:
-            raise RuntimeError("Cannot send with a PULL socket.")
+            raise RuntimeError("Cannot send with a SocketType.PULL socket.")
 
         if blocking:
             self.socket.send(message)
@@ -361,9 +360,12 @@ class ZeroMQPushPull(PluginProtocol):
 
         Returns:
             bytes: The received message.
+
+        Raises:
+            RuntimeError: If used with a SocketType.PUSH socket.
         """
         if self.socket_type != SocketType.PULL:
-            raise RuntimeError("Cannot receive with a PUSH socket.")
+            raise RuntimeError("Cannot receive with a SocketType.PUSH socket.")
         return self.socket.recv()
 
     def finalize(self):
