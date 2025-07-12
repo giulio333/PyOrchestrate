@@ -40,7 +40,7 @@ class RouterAgent(LoopingProcessAgent):
         super().cycle()
 
         try:
-            # Receive message with client identity
+            # Receive message with client identity (non-blocking)
             message_parts = self.plugin.zmq.recv_multipart(blocking=False)
             client_identity = message_parts[0]
             message = message_parts[1].decode()
@@ -94,6 +94,9 @@ class DealerAgent(PeriodicProcessAgent):
         message = f"Message {self.config.counter} from {self.config.dealer_id}"
         self.logger.info(f"Dealer {self.config.dealer_id} sending: {message}")
         self.plugin.zmq.send(message.encode())
+        
+        # Wait a moment for response
+        time.sleep(0.1)
         
         # Receive response from router
         try:
