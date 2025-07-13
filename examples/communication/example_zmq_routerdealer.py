@@ -1,8 +1,10 @@
 """
-Example demonstrating ZeroMQ Router/Dealer pattern for advanced request/reply routing.
+Example demonstrating ZeroMQ Router/Dealer pattern for advanced request/reply
+routing.
 
-This example shows how to use the ZeroMQRouterDealer class to create an advanced
-messaging system where one ROUTER socket can handle multiple DEALER clients.
+This example shows how to use the ZeroMQRouterDealer class to create an
+advanced messaging system where one ROUTER socket can handle multiple DEALER
+clients.
 
 The Router/Dealer pattern is useful for:
 - Load balancing between multiple workers
@@ -12,9 +14,13 @@ The Router/Dealer pattern is useful for:
 
 Run this script to see multiple dealers communicating with a single router.
 
-Known Issues:
-- DEALER identity must currently be set after instantiation instead of in constructor
-  This is a temporary limitation that will be addressed in future releases.
+Dynamic Plugin Configuration:
+- Each DealerAgent dynamically creates its ZeroMQ plugin with a unique
+  identity
+- The identity is passed from the agent's configuration to the plugin
+  constructor
+- This allows multiple dealers to have distinct identities in the same
+  application
 """
 
 import time
@@ -50,7 +56,7 @@ class RouterAgent(LoopingProcessAgent):
             message = message_parts[1].decode()
 
             self.logger.info(
-                f"Router received from {client_identity.decode()}: {message}"
+                f"Router received from {client_identity.decode()}: " f"{message}"
             )
 
             # Send response back to specific client
@@ -64,7 +70,7 @@ class RouterAgent(LoopingProcessAgent):
                 self.logger.info("Router processed enough messages, stopping")
                 self.stop()
 
-        except Exception as e:
+        except Exception:
             # No message available, continue
             time.sleep(0.01)
 
@@ -83,19 +89,23 @@ class DealerAgent(PeriodicProcessAgent):
     class Plugin(PeriodicProcessAgent.Plugin):
         """Plugin for the DealerAgent."""
 
-        zmq = ZeroMQRouterDealer("tcp://localhost:5555", SocketType.DEALER)
+        # Plugin will be created dynamically in setup() method
+        zmq: ZeroMQRouterDealer
 
     config: Config
     plugin: Plugin
 
     def setup(self):
         super().setup()
-        # Set dealer identity
-        # TODO: This is a known bug - identity should be passed in ZeroMQRouterDealer constructor
-        # instead of being set after instantiation. This will be fixed in a future release.
-        self.plugin.zmq.identity = (
-            self.config.dealer_id.encode()
-        )  # BUG: identity must be passed in ZeroMQRouterDealer constructor
+        # Create the ZeroMQ plugin dynamically with the correct identity
+        self.plugin.zmq = ZeroMQRouterDealer(
+            "tcp://localhost:5555",
+            SocketType.DEALER,
+            identity=self.config.dealer_id.encode(),
+        )
+        # Initialize the plugin manually since it wasn't created during
+        # class definition
+        self.plugin.zmq.initialize()
 
     def runner(self):
         super().runner()
@@ -119,6 +129,9 @@ class DealerAgent(PeriodicProcessAgent):
 
     def on_close(self):
         super().on_close()
+        # Manually finalize the plugin since it was created dynamically
+        if hasattr(self.plugin, "zmq") and self.plugin.zmq is not None:
+            self.plugin.zmq.finalize()
         self.logger.info(f"Dealer {self.config.dealer_id} shutting down")
 
 
