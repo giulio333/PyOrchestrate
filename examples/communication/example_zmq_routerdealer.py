@@ -56,15 +56,12 @@ class RouterAgent(LoopingProcessAgent):
             message = message_parts[1].decode()
 
             self.logger.info(
-                f"Router received from {client_identity.decode()}: "
-                f"{message}"
+                f"Router received from {client_identity.decode()}: " f"{message}"
             )
 
             # Send response back to specific client
             response = f"ACK from Router: {message}"
-            self.plugin.zmq.send_multipart([
-                client_identity, response.encode()
-            ])
+            self.plugin.zmq.send_multipart([client_identity, response.encode()])
 
             self.config.client_count += 1
 
@@ -93,7 +90,7 @@ class DealerAgent(PeriodicProcessAgent):
         """Plugin for the DealerAgent."""
 
         # Plugin will be created dynamically in setup() method
-        zmq = None
+        zmq: ZeroMQRouterDealer
 
     config: Config
     plugin: Plugin
@@ -104,7 +101,7 @@ class DealerAgent(PeriodicProcessAgent):
         self.plugin.zmq = ZeroMQRouterDealer(
             "tcp://localhost:5555",
             SocketType.DEALER,
-            identity=self.config.dealer_id.encode()
+            identity=self.config.dealer_id.encode(),
         )
         # Initialize the plugin manually since it wasn't created during
         # class definition
@@ -124,20 +121,16 @@ class DealerAgent(PeriodicProcessAgent):
         # Receive response from router
         try:
             response = self.plugin.zmq.recv(blocking=False).decode()
-            self.logger.info(
-                f"Dealer {self.config.dealer_id} received: {response}"
-            )
+            self.logger.info(f"Dealer {self.config.dealer_id} received: {response}")
         except Exception:
-            self.logger.warning(
-                f"Dealer {self.config.dealer_id} no response received"
-            )
+            self.logger.warning(f"Dealer {self.config.dealer_id} no response received")
 
         self.config.counter += 1
 
     def on_close(self):
         super().on_close()
         # Manually finalize the plugin since it was created dynamically
-        if hasattr(self.plugin, 'zmq') and self.plugin.zmq is not None:
+        if hasattr(self.plugin, "zmq") and self.plugin.zmq is not None:
             self.plugin.zmq.finalize()
         self.logger.info(f"Dealer {self.config.dealer_id} shutting down")
 
@@ -155,9 +148,7 @@ if __name__ == "__main__":
             f"DealerAgent_{dealer_id}",
             custom_config=DealerAgent.Config(
                 dealer_id=dealer_id,
-                execution_interval=0.3 + (
-                    int(dealer_id[-1]) * 0.1
-                ),  # Stagger timing
+                execution_interval=0.3 + (int(dealer_id[-1]) * 0.1),  # Stagger timing
             ),
         )
 
