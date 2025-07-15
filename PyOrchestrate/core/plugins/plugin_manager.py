@@ -8,14 +8,14 @@ class PluginManager:
     Class responsible for managing plugins, providing methods for initialization and finalization.
     """
 
-    def __init__(self, plugins):
+    def __init__(self, plugins: dict[str, PluginProtocol]):
         """
         Initialize the PluginManager with the provided plugins instance.
 
         Parameters:
-        plugins: An object containing plugin instances defined as attributes.
+            plugins: An object containing plugin instances defined as attributes.
         """
-        self.plugins = plugins
+        self.plugins: dict[str, PluginProtocol] = plugins
 
     def initialize_plugins(self):
         """
