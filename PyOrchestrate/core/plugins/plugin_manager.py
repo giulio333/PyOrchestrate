@@ -1,6 +1,7 @@
 """Module for managing plugin initialization and finalization."""
 
 from PyOrchestrate.core.plugins.plugin_protocols import PluginProtocol
+from PyOrchestrate.core.base.base import BaseClassPlugin
 
 
 class PluginManager:
@@ -8,14 +9,14 @@ class PluginManager:
     Class responsible for managing plugins, providing methods for initialization and finalization.
     """
 
-    def __init__(self, plugins: dict[str, PluginProtocol]):
+    def __init__(self, plugins: BaseClassPlugin):
         """
         Initialize the PluginManager with the provided plugins instance.
 
         Parameters:
             plugins: An object containing plugin instances defined as attributes.
         """
-        self.plugins: dict[str, PluginProtocol] = plugins
+        self.plugins: BaseClassPlugin = plugins
 
     def initialize_plugins(self):
         """

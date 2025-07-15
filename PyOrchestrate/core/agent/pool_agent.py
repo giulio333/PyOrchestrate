@@ -60,10 +60,10 @@ class PoolAgentConfig(PeriodicAgent.Config):
         super().__init__(**kwargs)
 
         if auto_reboot is not None:
-            self.auto_reboot: bool = auto_reboot
+            self.auto_reboot = auto_reboot
 
         if agents_entry is not None:
-            self.agents_entry: list[AgentEntry] = agents_entry
+            self.agents_entry = agents_entry
 
     def validate(self) -> List[ValidationResult]:
         """
