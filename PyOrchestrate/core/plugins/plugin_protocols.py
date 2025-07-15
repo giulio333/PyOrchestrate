@@ -10,8 +10,10 @@ The protocols defined in this module ensure that every plugin adheres to a commo
 thus promoting consistency and interoperability within the system.
 """
 
+from abc import ABC, abstractmethod
 
-class PluginProtocol:
+
+class PluginProtocol(ABC):
     """
     Base protocol for all plugins.
 
@@ -23,6 +25,7 @@ class PluginProtocol:
     Developers must implement these methods to ensure proper integration with the system.
     """
 
+    @abstractmethod
     def initialize(self):
         """
         Initializes the plugin.
@@ -32,6 +35,7 @@ class PluginProtocol:
         """
         pass
 
+    @abstractmethod
     def finalize(self):
         """
         Finalizes the plugin.

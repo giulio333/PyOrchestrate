@@ -130,11 +130,12 @@ class ZeroMQPubSub(PluginProtocol):
         """
         Receives a message using ZeroMQ.
 
+        - If blocking is True, the receive operation blocks until a message arrives.
+        - If blocking is False, the receive returns immediately and may raise zmq.error.Again
+          if no message is available.
+
         Args:
-            blocking (bool, optional): If True, the receive operation blocks until a message arrives.
-                                      If False, the receive returns immediately
-                                          and may raise zmq.error.Again
-                                      if no message is available. Defaults to True.
+            blocking (bool, optional): Whether to block or not. Defaults to True.
 
         Returns:
             bytes: The received message.
@@ -275,8 +276,18 @@ class ZeroMQReqRep(PluginProtocol):
         """
         Receives a message using ZeroMQ.
 
-        For zmq.REQ, receives the reply.
-        For zmq.REP, receives the request.
+        - If blocking is True, the receive operation blocks until a message arrives.
+        - If blocking is False, the receive returns immediately and may raise zmq.error.Again
+          if no message is available.
+
+        Args:
+            blocking (bool, optional): Whether to block or not. Defaults to True.
+
+        Returns:
+            bytes: The received message.
+
+        Raises:
+            zmq.error.Again: If no message is available and blocking is False.
         """
         if blocking:
             return self.socket.recv()
@@ -409,21 +420,17 @@ class ZeroMQPushPull(PluginProtocol):
 
     def recv(self, blocking: bool = True) -> bytes:
         """
-        Receives a message using ZeroMQ PULL socket.
+        Receives a message using ZeroMQ PULL.
 
-        This method is only valid for SocketType.PULL sockets.
+        - If blocking is True, the receive operation blocks until a message arrives.
+        - If blocking is False, the receive returns immediately and may raise zmq.error.Again
+          if no message is available.
 
         Args:
-            blocking (bool, optional): If True, the receive operation blocks until a message arrives.
-                                      If False, the receive returns immediately
-                                          and may raise zmq.error.Again
-                                      if no message is available. Defaults to True.
+            blocking (bool, optional): Whether to block or not. Defaults to True.
 
         Returns:
             bytes: The received message.
-
-        Raises:
-            RuntimeError: If used with a SocketType.PUSH socket.
 
         Raises:
             RuntimeError: If used with a PUSH socket.
@@ -572,11 +579,12 @@ class ZeroMQRouterDealer(PluginProtocol):
         """
         Receives a message using ZeroMQ.
 
+        - If blocking is True, the receive operation blocks until a message arrives.
+        - If blocking is False, the receive returns immediately and may raise zmq.error.Again
+          if no message is available.
+
         Args:
-            blocking (bool, optional): If True, the receive operation blocks until a message arrives.
-                                      If False, the receive returns immediately
-                                          and may raise zmq.error.Again
-                                      if no message is available. Defaults to True.
+            blocking (bool, optional): Whether to block or not. Defaults to True.
 
         Returns:
             bytes: The received message.
@@ -758,13 +766,14 @@ class ZeroMQPair(PluginProtocol):
 
     def recv(self, blocking: bool = True) -> bytes:
         """
-        Receives a message using ZeroMQ PAIR socket.
+        Receives a message using ZeroMQ PAIR.
+
+        - If blocking is True, the receive operation blocks until a message arrives.
+        - If blocking is False, the receive returns immediately and may raise zmq.error.Again
+          if no message is available.
 
         Args:
-            blocking (bool, optional): If True, the receive operation blocks until a message arrives.
-                                      If False, the receive returns immediately
-                                          and may raise zmq.error.Again
-                                      if no message is available. Defaults to True.
+            blocking (bool, optional): Whether to block or not. Defaults to True.
 
         Returns:
             bytes: The received message.
