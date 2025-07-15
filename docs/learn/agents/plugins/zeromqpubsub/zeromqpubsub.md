@@ -25,13 +25,13 @@ You can create a **Publisher** or **Subscriber** using the `ZeroMQPubSub` and us
 
 ```python
 from PyOrchestrate.core.agent import BaseProcessAgent
-from PyOrchestrate.core.plugins import ZeroMQPubSub
+from PyOrchestrate.core.plugins import ZeroMQPubSub, SocketType
 import zmq
 
 class MyAgent(BaseProcessAgent):
 
     class Plugin(BaseProcessAgent.Plugin):
-        zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
+        zmq = ZeroMQPubSub("tcp://localhost:5555", SocketType.PUB)
 
     plugin: Plugin
 
@@ -44,13 +44,13 @@ class MyAgent(BaseProcessAgent):
 
 ```python
 from PyOrchestrate.core.agent import PeriodicProcessAgent
-from PyOrchestrate.core.plugins import ZeroMQPubSub
+from PyOrchestrate.core.plugins import ZeroMQPubSub, SocketType
 import zmq
 
 class SubscriberAgent(PeriodicProcessAgent):
 
     class Plugin(PeriodicProcessAgent.Plugin):
-        zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+        zmq = ZeroMQPubSub("tcp://localhost:5555", SocketType.SUB)
 
     plugin: Plugin
 

@@ -53,7 +53,7 @@ class MyAgent(BaseProcessAgent):
         self.zmq.send("Hello, World!".encode())
 
     def on_close(self):
-        super().finalize()
+        super().on_close()
         self.zmq.finalize()  # Manual finalization
 ```
 

@@ -20,13 +20,13 @@ You can create a **Requester** or **Replier** using the `ZeroMQReqRep` and use t
 
 ```python
 from PyOrchestrate.core.agent import BaseProcessAgent
-from PyOrchestrate.core.plugins import ZeroMQReqRep
+from PyOrchestrate.core.plugins import ZeroMQReqRep, SocketType
 import zmq
 
 class RequesterAgent(BaseProcessAgent):
 
     class Plugin(BaseProcessAgent.Plugin):
-        zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REQ)
+        zmq = ZeroMQReqRep("tcp://localhost:5555", SocketType.REQ)
 
     plugin: Plugin
 
@@ -41,13 +41,13 @@ class RequesterAgent(BaseProcessAgent):
 
 ```python
 from PyOrchestrate.core.agent import PeriodicProcessAgent
-from PyOrchestrate.core.plugins import ZeroMQReqRep
+from PyOrchestrate.core.plugins import ZeroMQReqRep, SocketType
 import zmq
 
 class ReplierAgent(PeriodicProcessAgent):
 
     class Plugin(PeriodicProcessAgent.Plugin):
-        zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REP)
+        zmq = ZeroMQReqRep("tcp://localhost:5555", SocketType.REP)
 
     plugin: Plugin
 
