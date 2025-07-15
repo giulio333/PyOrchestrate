@@ -34,7 +34,6 @@ class OrchestratorConfig(BaseClass.Config):
     max_workers: int = 5
     """The maximum number of workers that can run concurrently."""
 
-
     def __init__(
         self,
         check_interval: float | None = None,
@@ -44,10 +43,10 @@ class OrchestratorConfig(BaseClass.Config):
         super().__init__(**kwargs)
 
         if check_interval is not None:
-            self.check_interval: float = check_interval
+            self.check_interval = check_interval
 
         if max_workers is not None:
-            self.max_workers: int = max_workers
+            self.max_workers = max_workers
 
     def validate(self) -> List[ValidationResult]:
         results = super().validate()
@@ -214,9 +213,9 @@ class Orchestrator(BaseClass):
                 error_msg = msg.payload[6:]  # Remove "ERROR:" prefix
                 self.logger.error(f"Agent {msg.sender} reported error: {error_msg}")
                 self.event_manager.emit(
-                    OrchestratorEvent.AGENT_ERROR, 
-                    agent_name=msg.sender, 
-                    error_message=error_msg
+                    OrchestratorEvent.AGENT_ERROR,
+                    agent_name=msg.sender,
+                    error_message=error_msg,
                 )
 
     def register_agent(
@@ -235,7 +234,7 @@ class Orchestrator(BaseClass):
 
         Notes:
             After registering the agent, you can call the `start` method to start all agents.
-            
+
             Events from agents are handled centrally by the orchestrator's event manager.
             Agents communicate with the orchestrator via message channel.
 
