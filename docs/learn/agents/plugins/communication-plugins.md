@@ -1,18 +1,17 @@
+
 # Communication Plugins
 
 Communication plugins in PyOrchestrate allow agents to interact with other agents, external systems, and more.
 
-## How to Use Communication Plugins
+## Using Communication Plugins: Automatic vs Manual Management
 
-You can easily use **pre-built** communication plugins in your agents simply by importing them from the `PyOrchestrate.core.plugins` module.
+PyOrchestrate provides two main ways to use communication plugins in your agents:
 
-For example, to use the `ZeroMQPubSub` plugin, you can import it as follows:
+### 1. Automatic Initialization/Finalization (Recommended)
 
-```python
-from PyOrchestrate.core.plugins import ZeroMQPubSub
-```
+By defining your plugins inside the `Plugin` inner class of your agent, PyOrchestrate will automatically handle their initialization and finalization during the agent's lifecycle. This is the recommended approach for most use cases.
 
-The `agent.plugin` object is useful for retrieving user-initialized plugins. The agent will autonomously initialize and release their resources at startup and shutdown. This ensures that the plugins are properly managed throughout the agent's lifecycle.
+**Example:**
 
 ```python
 from PyOrchestrate.core.agent import BaseProcessAgent
@@ -20,7 +19,6 @@ from PyOrchestrate.core.plugins import ZeroMQPubSub
 import zmq
 
 class MyAgent(BaseProcessAgent):
-
     class Plugin(BaseProcessAgent.Plugin):
         zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
 
@@ -31,107 +29,41 @@ class MyAgent(BaseProcessAgent):
         self.plugin.zmq.send("Hello, World!".encode())
 ```
 
-::: tip
-You can always put plugin outside the Plugin class and use it directly in the agent class but keep in mind that the plugin will not be initialized and finalized automatically.
+---
 
-You need to manually call the `plugin.initialize()` and `plugin.finalize()` methods to initialize and finalize the plugin.
-:::
+### 2. Manual Initialization/Finalization
 
-## Available Communication Plugins
+Alternatively, you can instantiate plugins directly in your agent (outside the `Plugin` class). In this case, you are responsible for manually initializing and finalizing the plugin.
 
-### ZeroMQPubSub Plugin
-
-The `ZeroMQPubSub` Plugin provides communication using ZeroMQ Pub/Sub sockets.
-
-**Example**
+**Example:**
 
 ```python
+from PyOrchestrate.core.agent import BaseProcessAgent
 from PyOrchestrate.core.plugins import ZeroMQPubSub
+import zmq
 
-# Initialize the ZeroMQPubSub plugin
-zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+class MyAgent(BaseProcessAgent):
+    def __init__(self):
+        super().__init__()
+        self.zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
+        self.zmq.initialize()  # Manual initialization
 
-# Receive a message
-message = zmq.recv()
-print("Received message:", message.decode())
+    def execute(self):
+        super().execute()
+        self.zmq.send("Hello, World!".encode())
+
+    def on_close(self):
+        super().finalize()
+        self.zmq.finalize()  # Manual finalization
 ```
 
-### ZeroMQReqRep Plugin
+**Notes:**
+- You must call `initialize()` on the plugin before using it.
+- You must call `finalize()` on the plugin when the agent is shutting down.
+- Resource management is your responsibility.
 
-The `ZeroMQReqRep` Plugin provides communication using ZeroMQ Request-Reply sockets.
+---
 
-**Example**
-
-```python
-from PyOrchestrate.core.plugins import ZeroMQReqRep
-
-# Initialize the ZeroMQReqRep plugin
-zmq = ZeroMQReqRep("tcp://localhost:5555", zmq.REQ)
-
-# Send a request
-zmq.send("Hello, Server!".encode())
-
-# Receive a reply
-reply = zmq.recv()
-print("Received reply:", reply.decode())
-```
-
-## Future Enhancements
-
-### HTTP Plugin
-
-The HTTP Plugin allows agents to communicate with external HTTP services.
-
-**Purpose**: To send and receive HTTP requests.
-
-**Example**
-
-```python
-from PyOrchestrate.core.plugins import HTTPPlugin
-
-# Initialize the HTTP Plugin
-http = HTTPPlugin("https://api.example.com")
-
-# Send a GET request and retrieve JSON data
-response = http.get("/data")
-print("Received data:", response.json())
-```
-
-### Database Plugin
-
-The Database Plugin provides methods to interact with various databases.
-
-**Purpose**: To perform database operations such as queries and updates.
-
-**Example**
-
-```python
-from PyOrchestrate.core.plugins import DatabasePlugin
-
-# Initialize the Database Plugin
-db = DatabasePlugin("database_connection_string")
-
-# Execute a query and log the results
-result = db.query("SELECT * FROM table")
-print("Query result:", result)
-```
-
-### MQTT Plugin
-
-The MQTT Plugin facilitates communication with MQTT brokers for IoT applications.
-
-**Purpose**: To publish and subscribe to MQTT topics.
-
-**Example**
-
-```python
-from PyOrchestrate.core.plugins import MQTTPlugin
-
-# Initialize the MQTT Plugin
-mqtt = MQTTPlugin("mqtt://broker.example.com")
-
-# Publish a message
-mqtt.publish("topic/test", "Hello, MQTT!")
-```
-
-For more detailed information about each communication plugin, refer to the respective sections above.
+::: tip
+Automatic management via the `Plugin` class is recommended for most scenarios. Manual management is useful for advanced or custom setups where you need more control over plugin lifecycle.
+:::
