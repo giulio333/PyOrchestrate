@@ -9,7 +9,7 @@ class FileWriter(PeriodicProcessAgent):
         """Process agent configuration class."""
 
         limit = 10
-        execution_interval = 10
+        execution_interval = 1
         directory = "/tmp"
 
     config: Config
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     orchestrator.register_agent(
         FileWriter,
         "FileWriter2",
-        custom_config=FileWriter.Config(execution_interval=1, directory="/tmp2"),
+        custom_config=FileWriter.Config(execution_interval=0.5, directory="/tmp2"),
     )
 
     # start agent

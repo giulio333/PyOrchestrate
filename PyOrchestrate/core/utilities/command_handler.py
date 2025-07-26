@@ -7,6 +7,7 @@ core Orchestrator functionality.
 """
 
 import json
+import time
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -49,6 +50,8 @@ class CommandHandler:
             return self._cmd_full_report()
         elif command == "dependencies":
             return self._cmd_show_dependencies()
+        elif command == "stats":
+            return self._cmd_stats()
         elif command == "shutdown":
             return self._cmd_shutdown()
         else:
@@ -213,6 +216,114 @@ class CommandHandler:
             "status": "success",
             "data": {"dependencies": dict(self.orchestrator.dependencies)},
         }
+
+    def _cmd_stats(self) -> dict:
+        """Get real-time statistics of all agents."""
+        agents_stats = []
+        for agent in self.orchestrator.memory.agents:
+            # Get basic agent info
+            agent_stat = {
+                "name": agent.name,
+                "alive": (
+                    agent.instance.is_alive()
+                    if hasattr(agent, "instance") and agent.instance
+                    else False
+                ),
+                "started": agent.name in self.orchestrator._started_agents,
+                "in_queue": agent.name in self.orchestrator._waiting_agents_queue,
+                "pid": (
+                    agent.instance.pid
+                    if hasattr(agent, "instance")
+                    and agent.instance
+                    and hasattr(agent.instance, "pid")
+                    else None
+                ),
+                "uptime": self._get_agent_uptime(agent),
+            }
+
+            # Add process-specific stats if available
+            if (
+                hasattr(agent, "instance")
+                and agent.instance
+                and hasattr(agent.instance, "pid")
+            ):
+                try:
+                    import psutil
+
+                    process = psutil.Process(agent.instance.pid)
+                    agent_stat.update(
+                        {
+                            "cpu_percent": process.cpu_percent(),
+                            "memory_mb": round(
+                                process.memory_info().rss / 1024 / 1024, 2
+                            ),
+                            "memory_percent": process.memory_percent(),
+                            "threads": process.num_threads(),
+                        }
+                    )
+                except (ImportError, psutil.NoSuchProcess, psutil.AccessDenied):
+                    # If psutil is not available or process not accessible
+                    agent_stat.update(
+                        {
+                            "cpu_percent": "N/A",
+                            "memory_mb": "N/A",
+                            "memory_percent": "N/A",
+                            "threads": "N/A",
+                        }
+                    )
+            else:
+                agent_stat.update(
+                    {
+                        "cpu_percent": "N/A",
+                        "memory_mb": "N/A",
+                        "memory_percent": "N/A",
+                        "threads": "N/A",
+                    }
+                )
+
+            agents_stats.append(agent_stat)
+
+        return {
+            "status": "success",
+            "data": {
+                "timestamp": datetime.now().isoformat(),
+                "orchestrator": {
+                    "running_agents": self.orchestrator._running_agents,
+                    "max_workers": self.orchestrator.config.max_workers,
+                    "waiting_agents": len(self.orchestrator._waiting_agents_queue),
+                },
+                "agents": agents_stats,
+            },
+        }
+
+    def _get_agent_uptime(self, agent) -> str:
+        """Calculate agent uptime if possible."""
+        try:
+            if (
+                hasattr(agent, "instance")
+                and agent.instance
+                and hasattr(agent.instance, "pid")
+            ):
+                import psutil
+
+                process = psutil.Process(agent.instance.pid)
+                create_time = process.create_time()
+                uptime_seconds = time.time() - create_time
+
+                hours = int(uptime_seconds // 3600)
+                minutes = int((uptime_seconds % 3600) // 60)
+                seconds = int(uptime_seconds % 60)
+
+                if hours > 0:
+                    return f"{hours}h {minutes}m {seconds}s"
+                elif minutes > 0:
+                    return f"{minutes}m {seconds}s"
+                else:
+                    return f"{seconds}s"
+            else:
+                return "N/A"
+        except (ImportError, Exception):
+            return "N/A"
 
     def _cmd_shutdown(self) -> dict:
         """Shutdown the orchestrator gracefully."""

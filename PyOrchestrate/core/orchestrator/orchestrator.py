@@ -264,7 +264,7 @@ class Orchestrator(BaseClass):
 
     def handle_external_command(self, msg: ServiceMessage) -> None:
         """Process external commands from CLI."""
-        self.logger.debug(f"Received external command from {msg.sender}: {msg.payload}")
+        # self.logger.debug(f"Received external command from {msg.sender}: {msg.payload}")
 
         try:
             import json
@@ -521,7 +521,7 @@ class Orchestrator(BaseClass):
         """
 
         all_finished: bool = False
-        notified: set = set()
+        # notified: set = set()
 
         while not all_finished and not self._shutdown_requested:
             alive_count = 0
@@ -530,11 +530,12 @@ class Orchestrator(BaseClass):
                 if not agent.instance.is_alive():
                     # Check if the agent was started before decrementing
                     if (
-                        agent.name in self._started_agents
-                        and agent.name not in notified
+                        agent.name
+                        in self._started_agents
+                        # and agent.name not in notified
                     ):
                         self.logger.info(f"Agent '{agent.name}' ended.")
-                        notified.add(agent.name)
+                        # notified.add(agent.name)
                         self._running_agents -= 1
 
                         self._started_agents.remove(agent.name)
@@ -547,25 +548,25 @@ class Orchestrator(BaseClass):
             if alive_count == 0 and not self._waiting_agents_queue:
                 if self.config.enable_command_interface:
                     # In CLI mode, keep running even after all agents finish
-                    self.logger.info(
-                        "All agents have finished, but keeping orchestrator running for CLI control..."
-                    )
-                    self.logger.info(
-                        "Use 'shutdown' command to terminate the orchestrator"
-                    )
-                    self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
-
-                    # Keep running until shutdown is requested
-                    while not self._shutdown_requested:
-                        time.sleep(self.config.check_interval)
-
-                    self.logger.info(
-                        "Shutdown requested via CLI, terminating orchestrator..."
-                    )
-                    break
+                    if not hasattr(self, "_all_agents_terminated_notified"):
+                        self.logger.info(
+                            "All agents have finished, but keeping orchestrator running for CLI control..."
+                        )
+                        self.logger.info(
+                            "Use 'shutdown' command to terminate the orchestrator"
+                        )
+                        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
+                        self._all_agents_terminated_notified = True
+                    # Don't set all_finished = True, continue monitoring for restarted agents
                 else:
+                    # In normal mode, terminate when all agents are done
                     all_finished = True
+                    self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
             else:
+                # Reset notification flag if we have agents running again
+                if hasattr(self, "_all_agents_terminated_notified"):
+                    delattr(self, "_all_agents_terminated_notified")
+
                 time.sleep(self.config.check_interval)
 
         self.logger.info("Orchestrator is shutting down...")
