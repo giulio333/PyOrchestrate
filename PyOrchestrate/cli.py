@@ -43,9 +43,19 @@ if __name__ == "__main__":
 
 
 def start_command(args: argparse.Namespace) -> None:
-    """Handle the ``start`` subcommand."""
+    """Handle the ``create`` subcommand."""
     create_project_structure(args.app_name)
     print(f"Project structure for '{args.app_name}' created successfully.")
+    print(
+        f"📁 Created directories: {args.app_name}/models, {args.app_name}/configurations"
+    )
+    print(f"📄 Created file: {args.app_name}/starter.py")
+    print(f"\n🚀 To get started:")
+    print(f"   cd {args.app_name}")
+    print(f"   python starter.py")
+    print(f"\n📋 Then use CLI commands to control it:")
+    print(f"   python -m PyOrchestrate.cli ps")
+    print(f"   python -m PyOrchestrate.cli shutdown")
 
 
 def send_command(args: argparse.Namespace) -> None:
@@ -204,11 +214,11 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command")
 
     # Project creation command
-    start_parser = subparsers.add_parser(
-        "start", help="Create a new project structure with the specified app name"
+    create_parser = subparsers.add_parser(
+        "create", help="Create a new project structure with the specified app name"
     )
-    start_parser.add_argument("app_name", help="Name of the app to create")
-    start_parser.set_defaults(func=start_command)
+    create_parser.add_argument("app_name", help="Name of the app to create")
+    create_parser.set_defaults(func=start_command)
 
     # External command interface
     for cmd_name, cmd_help in [
@@ -217,8 +227,9 @@ def main() -> None:
         ("status", "Get orchestrator or agent status"),
         ("report", "Get full orchestrator report"),
         ("dependencies", "Show agent dependencies"),
+        ("start", "Start a specific agent"),
         ("stop", "Stop a specific agent"),
-        ("start-agent", "Start a specific agent"),
+        ("shutdown", "Shutdown the orchestrator gracefully"),
     ]:
         cmd_parser = subparsers.add_parser(cmd_name, help=cmd_help)
         cmd_parser.add_argument(
@@ -226,7 +237,7 @@ def main() -> None:
             default="/tmp/pyorchestrate.sock",
             help="Path to orchestrator socket (default: /tmp/pyorchestrate.sock)",
         )
-        if cmd_name in ["status", "stop", "start-agent"]:
+        if cmd_name in ["status", "stop", "start"]:
             cmd_parser.add_argument("agent_name", nargs="?", help="Agent name")
         cmd_parser.add_argument(
             "--format", choices=["table", "json"], default="table", help="Output format"
@@ -245,10 +256,6 @@ def main() -> None:
 
 def send_command_wrapper(args: argparse.Namespace, command: str) -> None:
     """Wrapper to handle different command types."""
-    # Build command list based on command type
-    if command == "start-agent":
-        command = "start"
-
     if hasattr(args, "agent_name") and args.agent_name:
         args.command = [command, args.agent_name]
     else:
