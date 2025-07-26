@@ -49,6 +49,8 @@ class CommandHandler:
             return self._cmd_full_report()
         elif command == "dependencies":
             return self._cmd_show_dependencies()
+        elif command == "shutdown":
+            return self._cmd_shutdown()
         else:
             return {"status": "error", "message": f"Unknown command: {command}"}
 
@@ -211,3 +213,18 @@ class CommandHandler:
             "status": "success",
             "data": {"dependencies": dict(self.orchestrator.dependencies)},
         }
+
+    def _cmd_shutdown(self) -> dict:
+        """Shutdown the orchestrator gracefully."""
+        try:
+            self.logger.info("Shutdown command received via CLI")
+
+            # Signal the orchestrator to shutdown
+            self.orchestrator._shutdown_requested = True
+
+            return {"status": "success", "message": "Orchestrator shutdown initiated"}
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to shutdown orchestrator: {str(e)}",
+            }

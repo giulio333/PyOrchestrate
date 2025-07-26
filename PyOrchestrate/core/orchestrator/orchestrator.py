@@ -167,6 +167,7 @@ class Orchestrator(BaseClass):
         self._running_agents = 0
         self._waiting_agents_queue = deque()  # Queue for waiting agents
         self._started_agents = set()  # Set for agents that have been started
+        self._shutdown_requested = False  # Flag for graceful shutdown via CLI
 
         # Flag to control the execution of the message thread
         self._message_thread_running = False
@@ -511,6 +512,10 @@ class Orchestrator(BaseClass):
         Notes:
             This method blocks the current thread until all agents are terminated.
 
+            If command interface is enabled, the orchestrator will continue running
+            even after all agents have finished, allowing remote control via CLI.
+            Use the 'shutdown' command to terminate the orchestrator in this mode.
+
             - When agent is terminated, it emits an `OrchestratorEvent.AGENT_TERMINATED` event.
             - When all agents are terminated, it emits an `OrchestratorEvent.ALL_AGENTS_TERMINATED` event.
         """
@@ -518,7 +523,7 @@ class Orchestrator(BaseClass):
         all_finished: bool = False
         notified: set = set()
 
-        while not all_finished:
+        while not all_finished and not self._shutdown_requested:
             alive_count = 0
 
             for agent in self.memory.agents:
@@ -540,12 +545,30 @@ class Orchestrator(BaseClass):
                     alive_count += 1
 
             if alive_count == 0 and not self._waiting_agents_queue:
-                all_finished = True
+                if self.config.enable_command_interface:
+                    # In CLI mode, keep running even after all agents finish
+                    self.logger.info(
+                        "All agents have finished, but keeping orchestrator running for CLI control..."
+                    )
+                    self.logger.info(
+                        "Use 'shutdown' command to terminate the orchestrator"
+                    )
+                    self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
+
+                    # Keep running until shutdown is requested
+                    while not self._shutdown_requested:
+                        time.sleep(self.config.check_interval)
+
+                    self.logger.info(
+                        "Shutdown requested via CLI, terminating orchestrator..."
+                    )
+                    break
+                else:
+                    all_finished = True
             else:
                 time.sleep(self.config.check_interval)
 
-        self.logger.info("All agents have terminated.")
-        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
+        self.logger.info("Orchestrator is shutting down...")
 
         # Stop the message handling thread
         self._stop_message_thread()
