@@ -43,12 +43,6 @@ def on_agent_stopped(agent_name: str):
     send_telegram_message(message)
 
 
-def on_all_agents_stopped():
-    message = "All agents stopped."
-    print(message)
-    send_telegram_message(message)
-
-
 class WeatherCollector(PeriodicProcessAgent):
 
     class Config(PeriodicProcessAgent.Config):
@@ -98,18 +92,9 @@ if __name__ == "__main__":
 
     orchestrator = Orchestrator(name="Orchestrator")
 
-    orchestrator.register_event(
-        OrchestratorEvent.AGENT_READY, on_agent_ready
-    )
-    orchestrator.register_event(
-        OrchestratorEvent.AGENT_STARTED, on_agent_started
-    )
-    orchestrator.register_event(
-        OrchestratorEvent.AGENT_TERMINATED, on_agent_stopped
-    )
-    orchestrator.register_event(
-        OrchestratorEvent.ALL_AGENTS_TERMINATED, on_all_agents_stopped
-    )
+    orchestrator.register_event(OrchestratorEvent.AGENT_READY, on_agent_ready)
+    orchestrator.register_event(OrchestratorEvent.AGENT_STARTED, on_agent_started)
+    orchestrator.register_event(OrchestratorEvent.AGENT_TERMINATED, on_agent_stopped)
 
     orchestrator.register_agent(WeatherCollector, "WeatherCollector1")
     orchestrator.register_agent(

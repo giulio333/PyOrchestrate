@@ -517,11 +517,10 @@ class Orchestrator(BaseClass):
             Use the 'shutdown' command to terminate the orchestrator in this mode.
 
             - When agent is terminated, it emits an `OrchestratorEvent.AGENT_TERMINATED` event.
-            - When all agents are terminated, it emits an `OrchestratorEvent.ALL_AGENTS_TERMINATED` event.
         """
 
         all_finished: bool = False
-        # notified: set = set()
+        self._shutdown_requested = not self.config.enable_command_interface
 
         while not all_finished and not self._shutdown_requested:
             alive_count = 0
@@ -529,15 +528,9 @@ class Orchestrator(BaseClass):
             for agent in self.memory.agents:
                 if not agent.instance.is_alive():
                     # Check if the agent was started before decrementing
-                    if (
-                        agent.name
-                        in self._started_agents
-                        # and agent.name not in notified
-                    ):
+                    if agent.name in self._started_agents:
                         self.logger.info(f"Agent '{agent.name}' ended.")
-                        # notified.add(agent.name)
                         self._running_agents -= 1
-
                         self._started_agents.remove(agent.name)
 
                         # Start an agent from the waiting queue if available
@@ -546,27 +539,9 @@ class Orchestrator(BaseClass):
                     alive_count += 1
 
             if alive_count == 0 and not self._waiting_agents_queue:
-                if self.config.enable_command_interface:
-                    # In CLI mode, keep running even after all agents finish
-                    if not hasattr(self, "_all_agents_terminated_notified"):
-                        self.logger.info(
-                            "All agents have finished, but keeping orchestrator running for CLI control..."
-                        )
-                        self.logger.info(
-                            "Use 'shutdown' command to terminate the orchestrator"
-                        )
-                        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
-                        self._all_agents_terminated_notified = True
-                    # Don't set all_finished = True, continue monitoring for restarted agents
-                else:
-                    # In normal mode, terminate when all agents are done
+                if not self.config.enable_command_interface:
                     all_finished = True
-                    self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
             else:
-                # Reset notification flag if we have agents running again
-                if hasattr(self, "_all_agents_terminated_notified"):
-                    delattr(self, "_all_agents_terminated_notified")
-
                 time.sleep(self.config.check_interval)
 
         self.logger.info("Orchestrator is shutting down...")
@@ -615,7 +590,6 @@ class Orchestrator(BaseClass):
         for agent in self.memory.agents:
             agent.join()
         self.logger.info("All processes or threads have terminated.")
-        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
