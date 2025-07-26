@@ -26,6 +26,8 @@ class OrchestratorConfig(BaseClass.Config):
     Attributes:
         check_interval (float): The interval to check the agents.
         max_workers (int): The maximum number of workers that can run concurrently.
+        enable_command_interface (bool): Enable external command interface via UNIX socket.
+        command_socket_path (str): Path to the UNIX socket for external commands.
         logger (LoggerConfig): Logger configuration.
     """
 
@@ -33,11 +35,17 @@ class OrchestratorConfig(BaseClass.Config):
     """The interval to check the agents."""
     max_workers: int = 5
     """The maximum number of workers that can run concurrently."""
+    enable_command_interface: bool = False
+    """Enable external command interface via UNIX socket."""
+    command_socket_path: str = "/tmp/pyorchestrate.sock"
+    """Path to the UNIX socket for external commands."""
 
     def __init__(
         self,
         check_interval: float | None = None,
         max_workers: int | None = None,
+        enable_command_interface: bool | None = None,
+        command_socket_path: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -47,6 +55,12 @@ class OrchestratorConfig(BaseClass.Config):
 
         if max_workers is not None:
             self.max_workers = max_workers
+
+        if enable_command_interface is not None:
+            self.enable_command_interface = enable_command_interface
+
+        if command_socket_path is not None:
+            self.command_socket_path = command_socket_path
 
     def validate(self) -> List[ValidationResult]:
         results = super().validate()
@@ -65,6 +79,15 @@ class OrchestratorConfig(BaseClass.Config):
                 ValidationResult(
                     field="max_workers",
                     message="max_workers must be greater than 0.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+
+        if self.enable_command_interface and not self.command_socket_path:
+            results.append(
+                ValidationResult(
+                    field="command_socket_path",
+                    message="command_socket_path must be specified when enable_command_interface is True.",
                     severity=ValidationSeverity.ERROR,
                 )
             )
@@ -126,6 +149,16 @@ class Orchestrator(BaseClass):
         self.event_manager = EventManager()
         self.msg_channel = MessageChannel("process")
 
+        # Command interface for external CLI commands
+        self.command_channel = None
+        if self.config.enable_command_interface:
+            self.command_channel = MessageChannel(
+                "unix_socket", self.config.command_socket_path
+            )
+            self.logger.debug(
+                f"Command interface enabled on socket: {self.config.command_socket_path}"
+            )
+
         self.dependencies: dict[str, list[str]] = defaultdict(list)
         self._running_agents = 0
         self._waiting_agents_queue = deque()  # Queue for waiting agents
@@ -145,10 +178,16 @@ class Orchestrator(BaseClass):
         self.logger.trace("Message handling thread started")
         while self._message_thread_running:
             try:
-                # Check if there are messages in the queue
-                msg = self.msg_channel.receive(timeout=1)
+                # Check if there are messages in the queue from agents
+                msg = self.msg_channel.receive(timeout=0.5)
                 if msg:
                     self.handle_agent_message(msg)
+
+                # Check if there are external commands (if command interface is enabled)
+                if self.command_channel:
+                    cmd_msg = self.command_channel.receive(timeout=0.5)
+                    if cmd_msg:
+                        self.handle_external_command(cmd_msg)
 
             except Exception as e:
                 self.logger.error(f"Error in message handling thread: {e}")
@@ -217,6 +256,220 @@ class Orchestrator(BaseClass):
                     agent_name=msg.sender,
                     error_message=error_msg,
                 )
+
+    def handle_external_command(self, msg: ServiceMessage) -> None:
+        """Process external commands from CLI."""
+        self.logger.debug(f"Received external command from {msg.sender}: {msg.payload}")
+
+        try:
+            import json
+            from datetime import datetime
+
+            cmd_data = json.loads(msg.payload)
+            command = cmd_data.get("command")
+            args = cmd_data.get("args", [])
+
+            response = self._execute_command(command, args)
+
+            # Send response back through the command channel
+            if self.command_channel:
+                self.command_channel.send(
+                    "cli",
+                    ServiceMessage(
+                        sender="orchestrator",
+                        type="STATUS",
+                        payload=json.dumps(response),
+                        timestamp=datetime.now(),
+                    ),
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error processing external command: {e}")
+            error_response = {"status": "error", "message": str(e)}
+            if self.command_channel:
+                self.command_channel.send(
+                    "cli",
+                    ServiceMessage(
+                        sender="orchestrator",
+                        type="STATUS",
+                        payload=json.dumps(error_response),
+                        timestamp=datetime.now(),
+                    ),
+                )
+
+    def _execute_command(self, command: str, args: list) -> dict:
+        """Execute external commands and return structured responses."""
+        if command in ["ps", "list"]:
+            return self._cmd_list_agents()
+        elif command == "start" and args:
+            return self._cmd_start_agent(args[0])
+        elif command == "stop" and args:
+            return self._cmd_stop_agent(args[0])
+        elif command == "status" and args:
+            return self._cmd_agent_status(args[0])
+        elif command == "status":
+            return self._cmd_orchestrator_status()
+        elif command == "report":
+            return self._cmd_full_report()
+        elif command == "dependencies":
+            return self._cmd_show_dependencies()
+        else:
+            return {"status": "error", "message": f"Unknown command: {command}"}
+
+    def _cmd_list_agents(self) -> dict:
+        """List all registered agents with their status."""
+        agents_info = []
+        for agent in self.memory.agents:
+            agents_info.append(
+                {
+                    "name": agent.name,
+                    "alive": (
+                        agent.instance.is_alive()
+                        if hasattr(agent, "instance") and agent.instance
+                        else False
+                    ),
+                    "started": agent.name in self._started_agents,
+                    "in_queue": agent.name in self._waiting_agents_queue,
+                }
+            )
+        return {
+            "status": "success",
+            "data": {
+                "agents": agents_info,
+                "running_count": self._running_agents,
+                "max_workers": self.config.max_workers,
+                "waiting_count": len(self._waiting_agents_queue),
+            },
+        }
+
+    def _cmd_start_agent(self, agent_name: str) -> dict:
+        """Start a specific agent."""
+        try:
+            if agent_name in self._started_agents:
+                return {
+                    "status": "error",
+                    "message": f"Agent {agent_name} is already started",
+                }
+
+            if agent_name not in [agent.name for agent in self.memory.agents]:
+                return {
+                    "status": "error",
+                    "message": f"Agent {agent_name} is not registered",
+                }
+
+            # Start the agent using existing logic
+            self._start_agent_callback(agent_name)
+            return {
+                "status": "success",
+                "message": f"Agent {agent_name} start initiated",
+            }
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to start agent {agent_name}: {str(e)}",
+            }
+
+    def _cmd_stop_agent(self, agent_name: str) -> dict:
+        """Stop a specific agent."""
+        try:
+            agent = self.memory.get_agent(agent_name)
+            if not agent:
+                return {"status": "error", "message": f"Agent {agent_name} not found"}
+
+            agent.stop()
+            if agent_name in self._started_agents:
+                self._started_agents.remove(agent_name)
+                self._running_agents -= 1
+
+            return {"status": "success", "message": f"Agent {agent_name} stopped"}
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to stop agent {agent_name}: {str(e)}",
+            }
+
+    def _cmd_agent_status(self, agent_name: str) -> dict:
+        """Get detailed status of a specific agent."""
+        try:
+            agent = self.memory.get_agent(agent_name)
+            if not agent:
+                return {"status": "error", "message": f"Agent {agent_name} not found"}
+
+            return {
+                "status": "success",
+                "data": {
+                    "name": agent.name,
+                    "alive": (
+                        agent.instance.is_alive()
+                        if hasattr(agent, "instance") and agent.instance
+                        else False
+                    ),
+                    "started": agent.name in self._started_agents,
+                    "in_queue": agent.name in self._waiting_agents_queue,
+                    "dependencies": self.dependencies.get(agent.name, []),
+                },
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to get status for {agent_name}: {str(e)}",
+            }
+
+    def _cmd_orchestrator_status(self) -> dict:
+        """Get overall orchestrator status."""
+        return {
+            "status": "success",
+            "data": {
+                "total_agents": len(self.memory.agents),
+                "running_agents": self._running_agents,
+                "max_workers": self.config.max_workers,
+                "waiting_agents": len(self._waiting_agents_queue),
+                "command_interface_enabled": self.config.enable_command_interface,
+                "command_socket_path": (
+                    self.config.command_socket_path
+                    if self.config.enable_command_interface
+                    else None
+                ),
+            },
+        }
+
+    def _cmd_full_report(self) -> dict:
+        """Get full orchestrator report."""
+        agents_info = []
+        for agent in self.memory.agents:
+            agents_info.append(
+                {
+                    "name": agent.name,
+                    "alive": (
+                        agent.instance.is_alive()
+                        if hasattr(agent, "instance") and agent.instance
+                        else False
+                    ),
+                    "started": agent.name in self._started_agents,
+                    "in_queue": agent.name in self._waiting_agents_queue,
+                    "dependencies": self.dependencies.get(agent.name, []),
+                }
+            )
+
+        return {
+            "status": "success",
+            "data": {
+                "orchestrator": {
+                    "running_agents": self._running_agents,
+                    "max_workers": self.config.max_workers,
+                    "waiting_agents": len(self._waiting_agents_queue),
+                    "check_interval": self.config.check_interval,
+                },
+                "agents": agents_info,
+                "dependencies": dict(self.dependencies),
+            },
+        }
+
+    def _cmd_show_dependencies(self) -> dict:
+        """Show agent dependencies."""
+        return {"status": "success", "data": {"dependencies": dict(self.dependencies)}}
 
     def register_agent(
         self,
@@ -460,6 +713,11 @@ class Orchestrator(BaseClass):
         # Stop the message handling thread
         self._stop_message_thread()
 
+        # Close command channel if enabled
+        if self.command_channel:
+            self.command_channel.close()
+            self.logger.debug("Command interface closed")
+
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
     def _start_waiting_agent(self):
@@ -535,3 +793,10 @@ class Orchestrator(BaseClass):
     def _info(self):
         self.logger.debug(f"Config: check_interval={self.config.check_interval}")
         self.logger.debug(f"Config: max_workers={self.config.max_workers}")
+        self.logger.debug(
+            f"Config: enable_command_interface={self.config.enable_command_interface}"
+        )
+        if self.config.enable_command_interface:
+            self.logger.debug(
+                f"Config: command_socket_path={self.config.command_socket_path}"
+            )
