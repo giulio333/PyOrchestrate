@@ -41,7 +41,7 @@ if __name__ == "__main__":
     orchestrator.register_agent(
         FileWriter,
         "FileWriter2",
-        custom_config=FileWriter.Config(execution_interval=0.5, directory="/tmp2"),
+        custom_config=FileWriter.Config(execution_interval=2, directory="/tmp2"),
     )
 
     # start agent
