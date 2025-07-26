@@ -222,8 +222,7 @@ def main() -> None:
     ]:
         cmd_parser = subparsers.add_parser(cmd_name, help=cmd_help)
         cmd_parser.add_argument(
-            "socket",
-            nargs="?",
+            "--socket",
             default="/tmp/pyorchestrate.sock",
             help="Path to orchestrator socket (default: /tmp/pyorchestrate.sock)",
         )
