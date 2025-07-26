@@ -1,7 +1,7 @@
 import time
 import threading
 from collections import defaultdict, deque
-from typing import List, final
+from typing import List, Optional, final
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
@@ -17,7 +17,7 @@ from PyOrchestrate.core.utilities.validation import (
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.validation import ValidationResult
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
-
+from PyOrchestrate.core.orchestrator.command.server import CommandServer
 
 class OrchestratorConfig(BaseClass.Config):
     """
@@ -33,11 +33,14 @@ class OrchestratorConfig(BaseClass.Config):
     """The interval to check the agents."""
     max_workers: int = 5
     """The maximum number of workers that can run concurrently."""
+    command_socket: Optional[str] = None
+    """Path to UNIX socket for receiving external commands."""
 
     def __init__(
         self,
         check_interval: float | None = None,
         max_workers: int | None = None,
+        command_socket: Optional[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -47,6 +50,9 @@ class OrchestratorConfig(BaseClass.Config):
 
         if max_workers is not None:
             self.max_workers = max_workers
+
+        if command_socket is not None:
+            self.command_socket = command_socket
 
     def validate(self) -> List[ValidationResult]:
         results = super().validate()
@@ -65,6 +71,15 @@ class OrchestratorConfig(BaseClass.Config):
                 ValidationResult(
                     field="max_workers",
                     message="max_workers must be greater than 0.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+
+        if self.command_socket is not None and not isinstance(self.command_socket, str):
+            results.append(
+                ValidationResult(
+                    field="command_socket",
+                    message="command_socket must be a string path.",
                     severity=ValidationSeverity.ERROR,
                 )
             )
@@ -136,6 +151,10 @@ class Orchestrator(BaseClass):
         self._message_thread = None
         # Start the thread to check messages
         self._start_message_thread()
+
+        self._command_server: Optional[CommandServer] = None
+        if self.config.command_socket:
+            self.start_command_server(self.config.command_socket)
 
     def _message_thread_function(self):
         """
@@ -414,6 +433,8 @@ class Orchestrator(BaseClass):
             agent.stop()
             self.logger.info(f"Stopping agent '{agent.name}'.")
 
+        self._stop_command_server()
+
     def join(self) -> None:
         """
         Check the status of all agents and wait for them to complete.
@@ -459,6 +480,7 @@ class Orchestrator(BaseClass):
 
         # Stop the message handling thread
         self._stop_message_thread()
+        self._stop_command_server()
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
@@ -535,3 +557,73 @@ class Orchestrator(BaseClass):
     def _info(self):
         self.logger.debug(f"Config: check_interval={self.config.check_interval}")
         self.logger.debug(f"Config: max_workers={self.config.max_workers}")
+
+    # ------------------------------------------------------------------
+    # External command server management
+    # ------------------------------------------------------------------
+    def start_command_server(self, socket_path: str) -> None:
+        """Start the UNIX command server if not already running."""
+        if self._command_server:
+            return
+        self._command_server = CommandServer(self, socket_path)
+        self._command_server.start()
+        self.logger.debug(f"Command server listening on {socket_path}")
+
+    def _stop_command_server(self) -> None:
+        if self._command_server:
+            self._command_server.stop()
+            self._command_server = None
+            self.logger.debug("Command server stopped")
+
+    # ------------------------------------------------------------------
+    # Command processing
+    # ------------------------------------------------------------------
+    def process_command(self, command: str) -> str:
+        """Process an external command string and return a response."""
+        parts = command.strip().split()
+        if not parts:
+            return "ERR empty command"
+
+        cmd = parts[0].lower()
+        if cmd == "ps":
+            lines = []
+            for ag in self.memory.agents:
+                if ag._instance is None:
+                    status = "not_started"
+                else:
+                    status = "alive" if ag.instance.is_alive() else "stopped"
+                lines.append(f"{ag.name}: {status}")
+            return "\n".join(lines)
+
+        if cmd == "start" and len(parts) >= 2:
+            name = parts[1]
+            try:
+                self._start_agent_callback(name)
+            except Exception as e:
+                return f"ERR {e}"
+            return f"started {name}"
+
+        if cmd == "stop" and len(parts) >= 2:
+            name = parts[1]
+            try:
+                ag = self.memory.get_agent(name)
+                ag.stop()
+            except Exception as e:
+                return f"ERR {e}"
+            return f"stopping {name}"
+
+        if cmd == "status" and len(parts) >= 2:
+            name = parts[1]
+            try:
+                ag = self.memory.get_agent(name)
+                if ag._instance is None:
+                    return "not_started"
+                return ag.status()
+            except Exception as e:
+                return f"ERR {e}"
+
+        if cmd == "shutdown":
+            self.stop()
+            return "shutting down"
+
+        return "ERR unknown command"

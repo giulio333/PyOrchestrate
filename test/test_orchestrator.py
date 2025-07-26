@@ -105,6 +105,15 @@ class TestOrchestrator(unittest.TestCase):
                 expected_event, agent_name="agent1"
             )
 
+    def test_process_command_ps(self):
+        self.orch.register_agent(agent_class=DummyAgent, name="agent1")
+        out = self.orch.process_command("ps")
+        self.assertIn("agent1", out)
+
+    def test_process_command_unknown(self):
+        resp = self.orch.process_command("foobar")
+        self.assertTrue(resp.startswith("ERR"))
+
     # def test_start_call(self):
     #     """
     #     Test the start and termination flow of an agent in the orchestrator.
