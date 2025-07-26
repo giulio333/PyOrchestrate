@@ -1,0 +1,213 @@
+"""
+Command Handler for PyOrchestrate CLI Interface
+
+This module contains the CommandHandler class which processes external CLI commands
+and provides structured responses. This separates command handling logic from the
+core Orchestrator functionality.
+"""
+
+import json
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
+
+
+class CommandHandler:
+    """
+    Handles external CLI commands for the orchestrator.
+
+    This class processes commands received from the CLI interface and returns
+    structured responses. It keeps the command logic separate from the core
+    orchestrator functionality.
+    """
+
+    def __init__(self, orchestrator: "Orchestrator"):
+        """
+        Initialize the command handler with an orchestrator reference.
+
+        Args:
+            orchestrator: The orchestrator instance to operate on
+        """
+        self.orchestrator = orchestrator
+        self.logger = orchestrator.logger
+
+    def execute_command(self, command: str, args: list) -> dict:
+        """Execute external commands and return structured responses."""
+        if command in ["ps", "list"]:
+            return self._cmd_list_agents()
+        elif command == "start" and args:
+            return self._cmd_start_agent(args[0])
+        elif command == "stop" and args:
+            return self._cmd_stop_agent(args[0])
+        elif command == "status" and args:
+            return self._cmd_agent_status(args[0])
+        elif command == "status":
+            return self._cmd_orchestrator_status()
+        elif command == "report":
+            return self._cmd_full_report()
+        elif command == "dependencies":
+            return self._cmd_show_dependencies()
+        else:
+            return {"status": "error", "message": f"Unknown command: {command}"}
+
+    def _cmd_list_agents(self) -> dict:
+        """List all registered agents with their status."""
+        agents_info = []
+        for agent in self.orchestrator.memory.agents:
+            agents_info.append(
+                {
+                    "name": agent.name,
+                    "alive": (
+                        agent.instance.is_alive()
+                        if hasattr(agent, "instance") and agent.instance
+                        else False
+                    ),
+                    "started": agent.name in self.orchestrator._started_agents,
+                    "in_queue": agent.name in self.orchestrator._waiting_agents_queue,
+                }
+            )
+        return {
+            "status": "success",
+            "data": {
+                "agents": agents_info,
+                "running_count": self.orchestrator._running_agents,
+                "max_workers": self.orchestrator.config.max_workers,
+                "waiting_count": len(self.orchestrator._waiting_agents_queue),
+            },
+        }
+
+    def _cmd_start_agent(self, agent_name: str) -> dict:
+        """Start a specific agent."""
+        try:
+            if agent_name in self.orchestrator._started_agents:
+                return {
+                    "status": "error",
+                    "message": f"Agent {agent_name} is already started",
+                }
+
+            if agent_name not in [
+                agent.name for agent in self.orchestrator.memory.agents
+            ]:
+                return {
+                    "status": "error",
+                    "message": f"Agent {agent_name} is not registered",
+                }
+
+            # Start the agent using existing logic
+            self.orchestrator._start_agent_callback(agent_name)
+            return {
+                "status": "success",
+                "message": f"Agent {agent_name} start initiated",
+            }
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to start agent {agent_name}: {str(e)}",
+            }
+
+    def _cmd_stop_agent(self, agent_name: str) -> dict:
+        """Stop a specific agent."""
+        try:
+            agent = self.orchestrator.memory.get_agent(agent_name)
+            if not agent:
+                return {"status": "error", "message": f"Agent {agent_name} not found"}
+
+            agent.stop()
+            if agent_name in self.orchestrator._started_agents:
+                self.orchestrator._started_agents.remove(agent_name)
+                self.orchestrator._running_agents -= 1
+
+            return {"status": "success", "message": f"Agent {agent_name} stopped"}
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to stop agent {agent_name}: {str(e)}",
+            }
+
+    def _cmd_agent_status(self, agent_name: str) -> dict:
+        """Get detailed status of a specific agent."""
+        try:
+            agent = self.orchestrator.memory.get_agent(agent_name)
+            if not agent:
+                return {"status": "error", "message": f"Agent {agent_name} not found"}
+
+            return {
+                "status": "success",
+                "data": {
+                    "name": agent.name,
+                    "alive": (
+                        agent.instance.is_alive()
+                        if hasattr(agent, "instance") and agent.instance
+                        else False
+                    ),
+                    "started": agent.name in self.orchestrator._started_agents,
+                    "in_queue": agent.name in self.orchestrator._waiting_agents_queue,
+                    "dependencies": self.orchestrator.dependencies.get(agent.name, []),
+                },
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to get status for {agent_name}: {str(e)}",
+            }
+
+    def _cmd_orchestrator_status(self) -> dict:
+        """Get overall orchestrator status."""
+        return {
+            "status": "success",
+            "data": {
+                "total_agents": len(self.orchestrator.memory.agents),
+                "running_agents": self.orchestrator._running_agents,
+                "max_workers": self.orchestrator.config.max_workers,
+                "waiting_agents": len(self.orchestrator._waiting_agents_queue),
+                "command_interface_enabled": self.orchestrator.config.enable_command_interface,
+                "command_socket_path": (
+                    self.orchestrator.config.command_socket_path
+                    if self.orchestrator.config.enable_command_interface
+                    else None
+                ),
+            },
+        }
+
+    def _cmd_full_report(self) -> dict:
+        """Get full orchestrator report."""
+        agents_info = []
+        for agent in self.orchestrator.memory.agents:
+            agents_info.append(
+                {
+                    "name": agent.name,
+                    "alive": (
+                        agent.instance.is_alive()
+                        if hasattr(agent, "instance") and agent.instance
+                        else False
+                    ),
+                    "started": agent.name in self.orchestrator._started_agents,
+                    "in_queue": agent.name in self.orchestrator._waiting_agents_queue,
+                    "dependencies": self.orchestrator.dependencies.get(agent.name, []),
+                }
+            )
+
+        return {
+            "status": "success",
+            "data": {
+                "orchestrator": {
+                    "running_agents": self.orchestrator._running_agents,
+                    "max_workers": self.orchestrator.config.max_workers,
+                    "waiting_agents": len(self.orchestrator._waiting_agents_queue),
+                    "check_interval": self.orchestrator.config.check_interval,
+                },
+                "agents": agents_info,
+                "dependencies": dict(self.orchestrator.dependencies),
+            },
+        }
+
+    def _cmd_show_dependencies(self) -> dict:
+        """Show agent dependencies."""
+        return {
+            "status": "success",
+            "data": {"dependencies": dict(self.orchestrator.dependencies)},
+        }
