@@ -25,7 +25,7 @@ export const enConfig = {
       { text: 'Learn', link: '/learn/' },
       { text: 'CLI', link: '/cli/' },
       { text: 'Examples', link: '/examples/' },
-      { text: 'Advanced', link: '/advanced/built-in-agents/' },
+      { text: 'Advanced', link: '/advanced/' },
     ],
     sidebar: {
       '/learn': [
@@ -124,10 +124,17 @@ export const enConfig = {
           ]
         }
       ],
-      '/advanced/built-in-agents': [
+      '/advanced': [
         {
-          text: 'Advanced Agents',
+          text: 'Advanced',
           items: [
+            {
+              text: 'Architecture',
+              collapsed: false,
+              items: [
+                { text: 'MessageChannel', link: '/advanced/architecture/message-channel' },
+              ]
+            },
             {
               text: 'Built-in Agents',
               collapsed: false,
@@ -139,6 +146,7 @@ export const enConfig = {
           ]
         }
       ],
+
     },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/giulio333/PyOrchestrateDocumentation' }

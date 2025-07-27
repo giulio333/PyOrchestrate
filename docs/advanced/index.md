@@ -1,25 +1,8 @@
 ---
-layout: home
-
-hero:
-  name: "Advanced"
-  image:
-    light: /eng_l.png
-    dark: /eng_d.png
-    alt: VitePress
-  actions:
-    - theme: brand
-      text: Suggestions?
-      link: https://github.com/giulio333/CodeInMind
-
-features:
-  - icon: 
-      light: /mathematics.png
-      dark: /mathematics.png
-    title: Agents
-    link: ./built-in-agents
-  - icon: 
-      light: /physics.png
-      dark: /physics.png
-    title: Orchestrator
+title: Advanced
+editLink: true
 ---
+
+# Advanced
+
+Thi section provides in-depth information about the advanced features and components of PyOrchestrate, including built-in agents, architecture, and more. It is designed for users who want to leverage the full potential of PyOrchestrate in their projects.
