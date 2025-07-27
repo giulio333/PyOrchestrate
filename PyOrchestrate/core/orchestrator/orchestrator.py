@@ -153,7 +153,6 @@ class Orchestrator(BaseClass):
 
         # Command interface for external CLI commands
         self.command_channel = None
-        self.command_handler = None
         if self.config.enable_command_interface:
             self.command_channel = MessageChannel(
                 "unix_socket", self.config.command_socket_path
