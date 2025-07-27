@@ -54,7 +54,7 @@ class MessageChannel:
         self._socket.listen(5)
         self._socket.settimeout(1.0)  # Non-blocking with timeout
 
-        self._clients = []  # Store client connections
+        self._clients: list[socket.socket] = []  # Store client connections
 
     def send(self, target: str, msg: ServiceMessage) -> None:
         if self.a_type in ["thread", "process"]:
@@ -73,9 +73,8 @@ class MessageChannel:
                 + b"\n"
             )
 
-            for client in self._clients[
-                :
-            ]:  # Use slice copy to avoid modification during iteration
+            # Use slice copy to avoid modification during iteration
+            for client in self._clients[:]:
                 try:
                     client.send(msg_data)
                 except:
