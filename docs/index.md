@@ -24,6 +24,8 @@ features:
     details: Design agents that fit your needs by extending and customizing base classes.
   - title: Orchestrator Management Made Easy
     details: Set up, manage, and scale your orchestrations seamlessly.
+  - title: Real-time CLI Control
+    details: Monitor, control, and debug your running orchestrator with powerful CLI commands.
   - title: Built-In Monitoring and Logging
     details: Track performance and troubleshoot issues with ease.
 ---

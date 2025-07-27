@@ -23,6 +23,7 @@ export const enConfig = {
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Learn', link: '/learn/' },
+      { text: 'CLI', link: '/cli/' },
       { text: 'Examples', link: '/examples/' },
       { text: 'Advanced', link: '/advanced/' },
     ],
@@ -37,7 +38,7 @@ export const enConfig = {
               items: [
                 { text: 'Orchestrator', link: '/learn/core/orchestrator/' },
                 { text: 'Agent', link: '/learn/core/agents/' },
-        
+
               ]
             },
             {
@@ -45,6 +46,7 @@ export const enConfig = {
               items: [
                 { text: 'Agent', link: '/learn/agents/' },
                 { text: 'Orchestrator', link: '/learn/orchestrator/' },
+                { text: 'CLI Commands', link: '/cli/' },
               ]
             },
             {
@@ -64,11 +66,11 @@ export const enConfig = {
             {
               text: 'Plugins',
               collapsed: true,
-              items:[
-                { 
-                  text: 'Communication', 
-                  link: '/learn/agents/plugins/communication-plugins', 
-                  items:[
+              items: [
+                {
+                  text: 'Communication',
+                  link: '/learn/agents/plugins/communication-plugins',
+                  items: [
                     { text: 'ZeroMQPubSub', link: '/learn/agents/plugins/zeromqpubsub/zeromqpubsub' },
                     { text: 'ZeroMQReqRep', link: '/learn/agents/plugins/zeromqreqrep/zeromqreqrep' },
                   ]
@@ -78,12 +80,23 @@ export const enConfig = {
           ]
         }
       ],
+      '/cli': [
+        {
+          text: 'CLI Reference',
+          items: [
+            { text: 'Overview', link: '/cli/' },
+            { text: 'Runtime Commands', link: '/cli/runtime-commands' },
+            { text: 'Configuration', link: '/cli/configuration' },
+            { text: 'Examples', link: '/cli/examples' },
+          ]
+        }
+      ],
       '/examples/basic': [
         {
           text: 'Basic Examples',
           items: [
             { text: 'Project Initialization', link: '/examples/basic/project-initialization.md' },
-            { text: 'Standalone Agent', link: '/examples/basic/standalone-agent.md' },     
+            { text: 'Standalone Agent', link: '/examples/basic/standalone-agent.md' },
           ]
         }
       ],
@@ -92,7 +105,15 @@ export const enConfig = {
           text: 'Advanced Examples',
           items: [
             { text: 'Multiple Standalone Agents', link: '/examples/advanced/multiple-agents.md' },
-            { text: 'Validation Policy', link: '/examples/advanced/validation.md' },     
+            { text: 'Validation Policy', link: '/examples/advanced/validation.md' },
+          ]
+        }
+      ],
+      '/examples/cli': [
+        {
+          text: 'CLI Examples',
+          items: [
+            { text: 'Runtime Control', link: '/examples/cli/runtime-control.md' },
           ]
         }
       ],
@@ -100,7 +121,7 @@ export const enConfig = {
         {
           text: 'Events Examples',
           items: [
-            { text: 'Agent State Event', link: '/examples/events/agent-state-events.md' },     
+            { text: 'Agent State Event', link: '/examples/events/agent-state-events.md' },
           ]
         }
       ],

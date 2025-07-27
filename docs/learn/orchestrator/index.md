@@ -92,7 +92,20 @@ orchestrator.register_event(
 ```
 :::
 
-### Why Use Orchestrator?
+### Runtime Control and Monitoring
+
+PyOrchestrate provides a powerful CLI interface for real-time control and monitoring of running orchestrators. This enables:
+
+- **Dynamic agent management**: Start, stop, and monitor agents without restarting the orchestrator
+- **System inspection**: Get detailed statistics and performance metrics
+- **DevOps integration**: Integrate with monitoring systems and automation tools
+- **Remote debugging**: Troubleshoot running applications via command interface
+
+::: tip Learn More
+See the [CLI Documentation](/cli/) for complete command reference and examples.
+:::
+
+## Why PyOrchestrate?
 
 Is not mandatory to use the Orchestrator, but it provides several advantages. Using the Orchestrator can help you automate the management of multiple agents (threads or processes), making it easier to coordinate their activities and ensuring that they work together effectively.
 
