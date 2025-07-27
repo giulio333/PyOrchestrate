@@ -25,7 +25,7 @@ export const enConfig = {
       { text: 'Learn', link: '/learn/' },
       { text: 'CLI', link: '/cli/' },
       { text: 'Examples', link: '/examples/' },
-      { text: 'Advanced', link: '/advanced/' },
+      { text: 'Advanced', link: '/advanced/built-in-agents/' },
     ],
     sidebar: {
       '/learn': [
