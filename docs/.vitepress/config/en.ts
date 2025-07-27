@@ -46,7 +46,6 @@ export const enConfig = {
               items: [
                 { text: 'Agent', link: '/learn/agents/' },
                 { text: 'Orchestrator', link: '/learn/orchestrator/' },
-                { text: 'CLI Commands', link: '/cli/' },
               ]
             },
             {
