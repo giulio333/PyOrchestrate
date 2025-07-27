@@ -59,29 +59,36 @@ class CommandHandler:
 
     def _cmd_list_agents(self) -> dict:
         """List all registered agents with their status."""
-        agents_info = []
-        for agent in self.orchestrator.memory.agents:
-            agents_info.append(
-                {
-                    "name": agent.name,
-                    "alive": (
-                        agent.instance.is_alive()
-                        if hasattr(agent, "instance") and agent.instance
-                        else False
-                    ),
-                    "started": agent.name in self.orchestrator._started_agents,
-                    "in_queue": agent.name in self.orchestrator._waiting_agents_queue,
-                }
-            )
-        return {
-            "status": "success",
-            "data": {
-                "agents": agents_info,
-                "running_count": self.orchestrator._running_agents,
-                "max_workers": self.orchestrator.config.max_workers,
-                "waiting_count": len(self.orchestrator._waiting_agents_queue),
-            },
-        }
+        try:
+            agents_info = []
+            for agent in self.orchestrator.memory.agents:
+                agents_info.append(
+                    {
+                        "name": agent.name,
+                        "alive": (
+                            agent.instance.is_alive()
+                            if hasattr(agent, "instance") and agent.instance
+                            else False
+                        ),
+                        "started": agent.name in self.orchestrator._started_agents,
+                        "in_queue": agent.name
+                        in self.orchestrator._waiting_agents_queue,
+                    }
+                )
+            return {
+                "status": "success",
+                "data": {
+                    "agents": agents_info,
+                    "running_count": self.orchestrator._running_agents,
+                    "max_workers": self.orchestrator.config.max_workers,
+                    "waiting_count": len(self.orchestrator._waiting_agents_queue),
+                },
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to list agents: {str(e)}",
+            }
 
     def _cmd_start_agent(self, agent_name: str) -> dict:
         """Start a specific agent."""
@@ -162,28 +169,89 @@ class CommandHandler:
 
     def _cmd_orchestrator_status(self) -> dict:
         """Get overall orchestrator status."""
-        return {
-            "status": "success",
-            "data": {
-                "total_agents": len(self.orchestrator.memory.agents),
-                "running_agents": self.orchestrator._running_agents,
-                "max_workers": self.orchestrator.config.max_workers,
-                "waiting_agents": len(self.orchestrator._waiting_agents_queue),
-                "command_interface_enabled": self.orchestrator.config.enable_command_interface,
-                "command_socket_path": (
-                    self.orchestrator.config.command_socket_path
-                    if self.orchestrator.config.enable_command_interface
-                    else None
-                ),
-            },
-        }
+        try:
+            return {
+                "status": "success",
+                "data": {
+                    "total_agents": len(self.orchestrator.memory.agents),
+                    "running_agents": self.orchestrator._running_agents,
+                    "max_workers": self.orchestrator.config.max_workers,
+                    "waiting_agents": len(self.orchestrator._waiting_agents_queue),
+                    "command_interface_enabled": self.orchestrator.config.enable_command_interface,
+                    "command_socket_path": (
+                        self.orchestrator.config.command_socket_path
+                        if self.orchestrator.config.enable_command_interface
+                        else None
+                    ),
+                },
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to get orchestrator status: {str(e)}",
+            }
 
     def _cmd_full_report(self) -> dict:
         """Get full orchestrator report."""
-        agents_info = []
-        for agent in self.orchestrator.memory.agents:
-            agents_info.append(
-                {
+        try:
+            agents_info = []
+            for agent in self.orchestrator.memory.agents:
+                agents_info.append(
+                    {
+                        "name": agent.name,
+                        "alive": (
+                            agent.instance.is_alive()
+                            if hasattr(agent, "instance") and agent.instance
+                            else False
+                        ),
+                        "started": agent.name in self.orchestrator._started_agents,
+                        "in_queue": agent.name
+                        in self.orchestrator._waiting_agents_queue,
+                        "dependencies": self.orchestrator.dependencies.get(
+                            agent.name, []
+                        ),
+                    }
+                )
+
+            return {
+                "status": "success",
+                "data": {
+                    "orchestrator": {
+                        "running_agents": self.orchestrator._running_agents,
+                        "max_workers": self.orchestrator.config.max_workers,
+                        "waiting_agents": len(self.orchestrator._waiting_agents_queue),
+                        "check_interval": self.orchestrator.config.check_interval,
+                    },
+                    "agents": agents_info,
+                    "dependencies": dict(self.orchestrator.dependencies),
+                },
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to generate full report: {str(e)}",
+            }
+
+    def _cmd_show_dependencies(self) -> dict:
+        """Show agent dependencies."""
+        try:
+            return {
+                "status": "success",
+                "data": {"dependencies": dict(self.orchestrator.dependencies)},
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to show dependencies: {str(e)}",
+            }
+
+    def _cmd_stats(self) -> dict:
+        """Get real-time statistics of all agents."""
+        try:
+            agents_stats = []
+            for agent in self.orchestrator.memory.agents:
+                # Get basic agent info
+                agent_stat = {
                     "name": agent.name,
                     "alive": (
                         agent.instance.is_alive()
@@ -192,77 +260,47 @@ class CommandHandler:
                     ),
                     "started": agent.name in self.orchestrator._started_agents,
                     "in_queue": agent.name in self.orchestrator._waiting_agents_queue,
-                    "dependencies": self.orchestrator.dependencies.get(agent.name, []),
+                    "pid": (
+                        agent.instance.pid
+                        if hasattr(agent, "instance")
+                        and agent.instance
+                        and hasattr(agent.instance, "pid")
+                        else None
+                    ),
+                    "uptime": self._get_agent_uptime(agent),
                 }
-            )
 
-        return {
-            "status": "success",
-            "data": {
-                "orchestrator": {
-                    "running_agents": self.orchestrator._running_agents,
-                    "max_workers": self.orchestrator.config.max_workers,
-                    "waiting_agents": len(self.orchestrator._waiting_agents_queue),
-                    "check_interval": self.orchestrator.config.check_interval,
-                },
-                "agents": agents_info,
-                "dependencies": dict(self.orchestrator.dependencies),
-            },
-        }
-
-    def _cmd_show_dependencies(self) -> dict:
-        """Show agent dependencies."""
-        return {
-            "status": "success",
-            "data": {"dependencies": dict(self.orchestrator.dependencies)},
-        }
-
-    def _cmd_stats(self) -> dict:
-        """Get real-time statistics of all agents."""
-        agents_stats = []
-        for agent in self.orchestrator.memory.agents:
-            # Get basic agent info
-            agent_stat = {
-                "name": agent.name,
-                "alive": (
-                    agent.instance.is_alive()
-                    if hasattr(agent, "instance") and agent.instance
-                    else False
-                ),
-                "started": agent.name in self.orchestrator._started_agents,
-                "in_queue": agent.name in self.orchestrator._waiting_agents_queue,
-                "pid": (
-                    agent.instance.pid
-                    if hasattr(agent, "instance")
+                # Add process-specific stats if available
+                if (
+                    hasattr(agent, "instance")
                     and agent.instance
                     and hasattr(agent.instance, "pid")
-                    else None
-                ),
-                "uptime": self._get_agent_uptime(agent),
-            }
+                ):
+                    try:
+                        import psutil
 
-            # Add process-specific stats if available
-            if (
-                hasattr(agent, "instance")
-                and agent.instance
-                and hasattr(agent.instance, "pid")
-            ):
-                try:
-                    import psutil
-
-                    process = psutil.Process(agent.instance.pid)
-                    agent_stat.update(
-                        {
-                            "cpu_percent": process.cpu_percent(),
-                            "memory_mb": round(
-                                process.memory_info().rss / 1024 / 1024, 2
-                            ),
-                            "memory_percent": process.memory_percent(),
-                            "threads": process.num_threads(),
-                        }
-                    )
-                except (ImportError, psutil.NoSuchProcess, psutil.AccessDenied):
-                    # If psutil is not available or process not accessible
+                        process = psutil.Process(agent.instance.pid)
+                        agent_stat.update(
+                            {
+                                "cpu_percent": process.cpu_percent(),
+                                "memory_mb": round(
+                                    process.memory_info().rss / 1024 / 1024, 2
+                                ),
+                                "memory_percent": process.memory_percent(),
+                                "threads": process.num_threads(),
+                            }
+                        )
+                    except (ImportError, psutil.NoSuchProcess, psutil.AccessDenied):
+                        # If psutil is not available or process not accessible
+                        agent_stat.update(
+                            {
+                                "cpu_percent": "N/A",
+                                "memory_mb": "N/A",
+                                "memory_percent": "N/A",
+                                "threads": "N/A",
+                            }
+                        )
+                else:
                     agent_stat.update(
                         {
                             "cpu_percent": "N/A",
@@ -271,30 +309,26 @@ class CommandHandler:
                             "threads": "N/A",
                         }
                     )
-            else:
-                agent_stat.update(
-                    {
-                        "cpu_percent": "N/A",
-                        "memory_mb": "N/A",
-                        "memory_percent": "N/A",
-                        "threads": "N/A",
-                    }
-                )
 
-            agents_stats.append(agent_stat)
+                agents_stats.append(agent_stat)
 
-        return {
-            "status": "success",
-            "data": {
-                "timestamp": datetime.now().isoformat(),
-                "orchestrator": {
-                    "running_agents": self.orchestrator._running_agents,
-                    "max_workers": self.orchestrator.config.max_workers,
-                    "waiting_agents": len(self.orchestrator._waiting_agents_queue),
+            return {
+                "status": "success",
+                "data": {
+                    "timestamp": datetime.now().isoformat(),
+                    "orchestrator": {
+                        "running_agents": self.orchestrator._running_agents,
+                        "max_workers": self.orchestrator.config.max_workers,
+                        "waiting_agents": len(self.orchestrator._waiting_agents_queue),
+                    },
+                    "agents": agents_stats,
                 },
-                "agents": agents_stats,
-            },
-        }
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to get statistics: {str(e)}",
+            }
 
     def _get_agent_uptime(self, agent) -> str:
         """Calculate agent uptime if possible."""
