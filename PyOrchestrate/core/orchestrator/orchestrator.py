@@ -234,7 +234,12 @@ class Orchestrator(BaseClass):
             self._message_thread = None
 
     def handle_agent_message(self, msg: ServiceMessage) -> None:
-        """Process a single message coming from an agent."""
+        """
+        Process a single message coming from an agent.
+
+        Notes:
+            Only messages of type 'STATUS' are processed and relayed to the orchestrator's `EventManager`.
+        """
         self.logger.debug(
             f"Received message from {msg.sender}: {msg.type} - {msg.payload}"
         )
