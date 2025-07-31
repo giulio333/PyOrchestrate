@@ -122,14 +122,12 @@ class PeriodicAgent(LoopingAgent):
     def __init__(self, name: str | None = None, **kwargs):
         super().__init__(name=name, **kwargs)
 
-        self._timer = None
         self.interval = self.config.execution_interval
         self.compensate_delay = self.config.delay_compensation
 
     def setup(self):
         super().setup()
-        self._timer = PeriodicTimer(
-            logger=self.logger,
+        self.timer = PeriodicTimer(
             interval=self.interval,
             compensate_delay=self.compensate_delay,
         )

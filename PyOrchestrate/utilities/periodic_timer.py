@@ -35,9 +35,6 @@ Example:
 """
 
 import time
-import threading
-import multiprocessing
-from logging import Logger
 
 
 class PeriodicTimer:
@@ -55,12 +52,11 @@ class PeriodicTimer:
         next_time (float): The scheduled start time for the next iteration.
     """
 
-    def __init__(self, logger: object, interval: float, compensate_delay: bool = True):
+    def __init__(self, interval: float, compensate_delay: bool = True):
         """
         Initializes a new instance of PeriodicTimer.
 
         Args:
-            logger (Logger): The logger to use for reporting any errors or warnings.
             interval (float): The time interval in seconds between each iteration.
                 Must be a positive number representing the desired period.
             compensate_delay (bool, optional): If set to True, the timer will adjust the
@@ -73,7 +69,6 @@ class PeriodicTimer:
         if interval <= 0:
             raise ValueError("Interval must be a positive number representing seconds.")
 
-        self.logger = logger
         self.interval: float = interval
         self.compensate_delay: bool = compensate_delay
         self.next_time: float = time.perf_counter()
@@ -88,7 +83,7 @@ class PeriodicTimer:
         prevent delays from accumulating over iterations.
 
         Args:
-            stop_event (threading.Event): An event used to signal the thread to stop waiting
+            stop_event (threading.Event | multiprocessing.Event): An event used to signal the thread to stop waiting
                 and terminate the loop. If the event is set during the wait period, the
                 method returns immediately.
 
