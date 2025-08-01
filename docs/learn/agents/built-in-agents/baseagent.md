@@ -106,7 +106,8 @@ The `BaseAgent` class defines its own configuration object via the `Config` clas
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
-| logger_config | `LoggerConfig` | Defines configuration for the logger. |
+| logger_config | `LoggerConfig()` | Defines configuration for the logger. |
+| validation_policy | `ValidationPolicy()` | Defines the validation policy. |
 
 To learn more about the configuration object, click [here](../index.md#configuration).
 

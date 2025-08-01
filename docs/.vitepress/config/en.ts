@@ -60,6 +60,7 @@ export const enConfig = {
               items: [
                 { text: 'BaseAgent', link: '/learn/agents/built-in-agents/baseagent' },
                 { text: 'LoopingAgent', link: '/learn/agents/built-in-agents/loopingagent' },
+                { text: 'PeriodicAgent', link: '/learn/agents/built-in-agents/periodicagent' },
               ]
             },
             {

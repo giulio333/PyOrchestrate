@@ -108,12 +108,12 @@ The `LoopingAgent` class defines its own configuration object via the `Config` c
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
-| logger_config | `LoggerConfig` | Defines configuration for the logger. |
+| logger_config | `LoggerConfig()` | Defines configuration for the logger. |
+| validation_policy | `ValidationPolicy()` | Defines the validation policy. |
 | limit | -1 | The number of times the agent will cycle. A value of -1 means the agent will run indefinitely. |
 
 
-Click [here](/learn/agents/index#configuration) to learn more about configuration objects.
-
+To learn more about the configuration object, click [here](../index.md#configuration).
 
 ## Use Case
 
@@ -150,7 +150,7 @@ The setup method waits for the `control_events.setup_event` to be triggered, giv
 Be sure to call the parent method if you override it.
 :::
 
-### execute
+### cycle
 
 ```python
 @abstractmethod

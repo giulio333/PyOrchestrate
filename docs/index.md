@@ -11,8 +11,8 @@ hero:
     alt: Banner
   actions:
     - theme: brand
-      text: Explore Agents
-      link: /learn/agents
+      text: Explore
+      link: /learn/core/orchestrator
     - theme: alt
       text: Get Started
       link: /api-examples
