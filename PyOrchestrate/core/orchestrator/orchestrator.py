@@ -1,5 +1,6 @@
 import time
 import threading
+import json
 from collections import defaultdict, deque
 from typing import List, final
 
@@ -17,6 +18,7 @@ from PyOrchestrate.core.utilities.validation import (
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.validation import ValidationResult
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
+from PyOrchestrate.core.utilities.command_handler import CommandHandler
 
 
 class OrchestratorConfig(BaseClass.Config):
@@ -26,6 +28,8 @@ class OrchestratorConfig(BaseClass.Config):
     Attributes:
         check_interval (float): The interval to check the agents.
         max_workers (int): The maximum number of workers that can run concurrently.
+        enable_command_interface (bool): Enable external command interface via UNIX socket.
+        command_socket_path (str): Path to the UNIX socket for external commands.
         logger (LoggerConfig): Logger configuration.
     """
 
@@ -33,11 +37,17 @@ class OrchestratorConfig(BaseClass.Config):
     """The interval to check the agents."""
     max_workers: int = 5
     """The maximum number of workers that can run concurrently."""
+    enable_command_interface: bool = False
+    """Enable external command interface via UNIX socket."""
+    command_socket_path: str = "/tmp/pyorchestrate.sock"
+    """Path to the UNIX socket for external commands."""
 
     def __init__(
         self,
         check_interval: float | None = None,
         max_workers: int | None = None,
+        enable_command_interface: bool | None = None,
+        command_socket_path: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -47,6 +57,12 @@ class OrchestratorConfig(BaseClass.Config):
 
         if max_workers is not None:
             self.max_workers = max_workers
+
+        if enable_command_interface is not None:
+            self.enable_command_interface = enable_command_interface
+
+        if command_socket_path is not None:
+            self.command_socket_path = command_socket_path
 
     def validate(self) -> List[ValidationResult]:
         results = super().validate()
@@ -65,6 +81,15 @@ class OrchestratorConfig(BaseClass.Config):
                 ValidationResult(
                     field="max_workers",
                     message="max_workers must be greater than 0.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+
+        if self.enable_command_interface and not self.command_socket_path:
+            results.append(
+                ValidationResult(
+                    field="command_socket_path",
+                    message="command_socket_path must be specified when enable_command_interface is True.",
                     severity=ValidationSeverity.ERROR,
                 )
             )
@@ -126,10 +151,22 @@ class Orchestrator(BaseClass):
         self.event_manager = EventManager()
         self.msg_channel = MessageChannel("process")
 
+        # Command interface for external CLI commands
+        self.command_channel = None
+        if self.config.enable_command_interface:
+            self.command_channel = MessageChannel(
+                "unix_socket", self.config.command_socket_path
+            )
+            self.command_handler = CommandHandler(self)
+            self.logger.debug(
+                f"Command interface enabled on socket: {self.config.command_socket_path}"
+            )
+
         self.dependencies: dict[str, list[str]] = defaultdict(list)
         self._running_agents = 0
         self._waiting_agents_queue = deque()  # Queue for waiting agents
         self._started_agents = set()  # Set for agents that have been started
+        self._shutdown_requested = False  # Flag for graceful shutdown via CLI
 
         # Flag to control the execution of the message thread
         self._message_thread_running = False
@@ -145,10 +182,16 @@ class Orchestrator(BaseClass):
         self.logger.trace("Message handling thread started")
         while self._message_thread_running:
             try:
-                # Check if there are messages in the queue
-                msg = self.msg_channel.receive(timeout=1)
+                # Check if there are messages in the queue from agents
+                msg = self.msg_channel.receive(timeout=0.5)
                 if msg:
                     self.handle_agent_message(msg)
+
+                # Check if there are external commands (if command interface is enabled)
+                if self.command_channel:
+                    cmd_msg = self.command_channel.receive(timeout=0.5)
+                    if cmd_msg:
+                        self.handle_external_command(cmd_msg)
 
             except Exception as e:
                 self.logger.error(f"Error in message handling thread: {e}")
@@ -191,7 +234,12 @@ class Orchestrator(BaseClass):
             self._message_thread = None
 
     def handle_agent_message(self, msg: ServiceMessage) -> None:
-        """Process a single message coming from an agent."""
+        """
+        Process a single message coming from an agent.
+
+        Notes:
+            Only messages of type 'STATUS' are processed and relayed to the orchestrator's `EventManager`.
+        """
         self.logger.debug(
             f"Received message from {msg.sender}: {msg.type} - {msg.payload}"
         )
@@ -216,6 +264,53 @@ class Orchestrator(BaseClass):
                     OrchestratorEvent.AGENT_ERROR,
                     agent_name=msg.sender,
                     error_message=error_msg,
+                )
+
+    def handle_external_command(self, msg: ServiceMessage) -> None:
+        """Process external commands from CLI."""
+        # self.logger.debug(f"Received external command from {msg.sender}: {msg.payload}")
+
+        try:
+            import json
+            from datetime import datetime
+
+            cmd_data = json.loads(msg.payload)
+            command = cmd_data.get("command")
+            args = cmd_data.get("args", [])
+
+            # Delegate command execution to the command handler
+            if self.command_handler:
+                response = self.command_handler.execute_command(command, args)
+            else:
+                response = {
+                    "status": "error",
+                    "message": "Command interface not enabled",
+                }
+
+            # Send response back through the command channel
+            if self.command_channel:
+                self.command_channel.send(
+                    "cli",
+                    ServiceMessage(
+                        sender="orchestrator",
+                        type="STATUS",
+                        payload=json.dumps(response),
+                        timestamp=datetime.now(),
+                    ),
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error processing external command: {e}")
+            error_response = {"status": "error", "message": str(e)}
+            if self.command_channel:
+                self.command_channel.send(
+                    "cli",
+                    ServiceMessage(
+                        sender="orchestrator",
+                        type="STATUS",
+                        payload=json.dumps(error_response),
+                        timestamp=datetime.now(),
+                    ),
                 )
 
     def register_agent(
@@ -421,27 +516,25 @@ class Orchestrator(BaseClass):
         Notes:
             This method blocks the current thread until all agents are terminated.
 
+            If command interface is enabled, the orchestrator will continue running
+            even after all agents have finished, allowing remote control via CLI.
+            Use the 'shutdown' command to terminate the orchestrator in this mode.
+
             - When agent is terminated, it emits an `OrchestratorEvent.AGENT_TERMINATED` event.
-            - When all agents are terminated, it emits an `OrchestratorEvent.ALL_AGENTS_TERMINATED` event.
         """
 
         all_finished: bool = False
-        notified: set = set()
+        self._shutdown_requested = not self.config.enable_command_interface
 
-        while not all_finished:
+        while not all_finished and not self._shutdown_requested:
             alive_count = 0
 
             for agent in self.memory.agents:
                 if not agent.instance.is_alive():
                     # Check if the agent was started before decrementing
-                    if (
-                        agent.name in self._started_agents
-                        and agent.name not in notified
-                    ):
+                    if agent.name in self._started_agents:
                         self.logger.info(f"Agent '{agent.name}' ended.")
-                        notified.add(agent.name)
                         self._running_agents -= 1
-
                         self._started_agents.remove(agent.name)
 
                         # Start an agent from the waiting queue if available
@@ -450,15 +543,20 @@ class Orchestrator(BaseClass):
                     alive_count += 1
 
             if alive_count == 0 and not self._waiting_agents_queue:
-                all_finished = True
+                if not self.config.enable_command_interface:
+                    all_finished = True
             else:
                 time.sleep(self.config.check_interval)
 
-        self.logger.info("All agents have terminated.")
-        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
+        self.logger.info("Orchestrator is shutting down...")
 
         # Stop the message handling thread
         self._stop_message_thread()
+
+        # Close command channel if enabled
+        if self.command_channel:
+            self.command_channel.close()
+            self.logger.debug("Command interface closed")
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
@@ -496,7 +594,6 @@ class Orchestrator(BaseClass):
         for agent in self.memory.agents:
             agent.join()
         self.logger.info("All processes or threads have terminated.")
-        self.event_manager.emit(OrchestratorEvent.ALL_AGENTS_TERMINATED)
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
@@ -535,3 +632,10 @@ class Orchestrator(BaseClass):
     def _info(self):
         self.logger.debug(f"Config: check_interval={self.config.check_interval}")
         self.logger.debug(f"Config: max_workers={self.config.max_workers}")
+        self.logger.debug(
+            f"Config: enable_command_interface={self.config.enable_command_interface}"
+        )
+        if self.config.enable_command_interface:
+            self.logger.debug(
+                f"Config: command_socket_path={self.config.command_socket_path}"
+            )
