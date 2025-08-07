@@ -38,7 +38,7 @@ class TestEventManager(unittest.TestCase):
         self.assertFalse(em._shutdown)
         self.assertIsNone(em._executor)
         self.assertEqual(len(em._listeners), 0)
-        self.assertIsInstance(em._executor_lock, threading.Lock)
+        self.assertIsInstance(em._executor_lock, type(threading.Lock()))
         em.shutdown()
 
     def test_register_event_single_callback(self):
