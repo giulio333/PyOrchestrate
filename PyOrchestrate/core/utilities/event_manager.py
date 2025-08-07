@@ -3,8 +3,7 @@ event_manager module.
 This module implements the EventManager class for centralized event handling within the application.
 EventManager keeps a dictionary of callbacks (listeners) associated with events identified by their name.
 Use this class to:
-- Register unique events.
-- Attach callback functions to events.
+- Register unique events and attach callback functions to them.
 - Emit events passing specific parameters and default data (event date and time).
 It isolates errors in one callback so that they do not affect the execution of others.
 """
@@ -13,6 +12,7 @@ from enum import Enum
 import inspect
 import logging
 import atexit
+import threading
 from datetime import datetime
 from typing import Callable, Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
@@ -34,8 +34,7 @@ class EventManager:
         _shutdown (bool): Flag indicating if the event manager is shutting down.
 
     Features:
-        - register_event: Registers a new event if not already present.
-        - connect: Attaches a callback to an event (registering the event if necessary).
+        - register_event: Registers a new event and attaches a callback to it.
         - emit: Emits the event by calling all attached callbacks, including default data such as event date and time.
         - shutdown: Safely shuts down the event manager and its thread pool.
 
@@ -89,13 +88,14 @@ class EventManager:
         self._shutdown: bool = False
         self._max_workers: int = max_workers
         self._executor: Optional[ThreadPoolExecutor] = None
+        self._executor_lock: threading.Lock = threading.Lock()
 
         # Register executor shutdown when the application terminates
         atexit.register(self.shutdown)
 
     def register_event(self, event: Enum, callback: Callable):
         """
-        Attaches a callback to an event.
+        Registers and attaches a callback to an event.
 
         If the event is not present, it is automatically registered.
         Callbacks are stored in the order they are added.
@@ -106,7 +106,7 @@ class EventManager:
             callback (Callable): The function to be invoked when the event is emitted.
 
         Example:
-            >>> event_manager.connect(AgentEvent.AGENT_START, on_agent_started)
+            >>> event_manager.register_event(AgentEvent.AGENT_START, on_agent_started)
         """
         # register the event if it doesn't exist
         if event.name not in self._listeners:
@@ -138,8 +138,18 @@ class EventManager:
             )
             return
 
+        # Thread-safe lazy initialization of executor
         if self._executor is None:
-            self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
+            with self._executor_lock:
+                # Double-check pattern to avoid race condition
+                if self._executor is None and not self._shutdown:
+                    self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
+                elif self._shutdown:
+                    logger.warning(
+                        "EventManager shutdown during executor initialization, ignoring event: %s",
+                        event.name,
+                    )
+                    return
 
         listeners = []
         if event.name in self._listeners:
@@ -148,26 +158,75 @@ class EventManager:
         if not listeners:
             return
 
-        # Create default data
-        default_data = {
-            "event_date": datetime.now().date().isoformat(),
-            "event_time": datetime.now().time().isoformat(),
-        }
+        # Create default data only if needed by at least one callback
+        default_data = self._create_default_data_if_needed(listeners)
 
         for callback in listeners:
             # Filter parameters based on function signature
             sig = inspect.signature(callback)
-            filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+
+            # Check if callback accepts **kwargs (variable keyword arguments)
+            accepts_var_kwargs = any(
+                p.kind == p.VAR_KEYWORD for p in sig.parameters.values()
+            )
+
+            if accepts_var_kwargs:
+                # If callback accepts **kwargs, pass all kwargs
+                filtered_kwargs = kwargs.copy()
+            else:
+                # Otherwise, filter kwargs based on parameter names
+                filtered_kwargs = {
+                    k: v for k, v in kwargs.items() if k in sig.parameters
+                }
 
             # Add default data only if the callback accepts these parameters
             for key, value in default_data.items():
-                if key in sig.parameters:
+                if accepts_var_kwargs or key in sig.parameters:
                     filtered_kwargs[key] = value
 
             # Execute callback asynchronously
-            self._executor.submit(
-                self._execute_callback, callback, args, filtered_kwargs
+            if self._executor is not None:  # Safety check
+                self._executor.submit(
+                    self._execute_callback, callback, args, filtered_kwargs
+                )
+
+    def _create_default_data_if_needed(
+        self, listeners: List[Callable]
+    ) -> Dict[str, str]:
+        """
+        Creates default data only if at least one callback needs it.
+
+        Args:
+            listeners: List of callback functions to check.
+
+        Returns:
+            Dictionary with default data if needed, empty dictionary otherwise.
+        """
+        default_keys = {"event_date", "event_time"}
+
+        # Check if any listener needs default data
+        needs_default_data = False
+        for callback in listeners:
+            sig = inspect.signature(callback)
+
+            # Check if callback accepts **kwargs or explicitly named default parameters
+            accepts_var_kwargs = any(
+                p.kind == p.VAR_KEYWORD for p in sig.parameters.values()
             )
+            has_default_params = any(key in sig.parameters for key in default_keys)
+
+            if accepts_var_kwargs or has_default_params:
+                needs_default_data = True
+                break
+
+        if not needs_default_data:
+            return {}
+
+        # Create default data only when needed
+        return {
+            "event_date": datetime.now().date().isoformat(),
+            "event_time": datetime.now().time().isoformat(),
+        }
 
     def _execute_callback(self, callback: Callable, args, kwargs):
         """
