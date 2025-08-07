@@ -130,10 +130,13 @@ class Orchestrator(BaseClass):
     Config = OrchestratorConfig
     Plugin = OrchestratorPlugin
 
+    config: OrchestratorConfig
+    plugin: OrchestratorPlugin
+
     def __init__(
         self,
-        config: BaseClass.Config | None = None,
-        plugin: BaseClass.Plugin | None = None,
+        config: OrchestratorConfig | None = None,
+        plugin: OrchestratorPlugin | None = None,
         name: str | None = None,
     ):
         super().__init__(
@@ -524,9 +527,10 @@ class Orchestrator(BaseClass):
         """
 
         all_finished: bool = False
-        self._shutdown_requested = not self.config.enable_command_interface
 
-        while not all_finished and not self._shutdown_requested:
+        while (not all_finished) or (
+            self.config.enable_command_interface and not self._shutdown_requested
+        ):
             alive_count = 0
 
             for agent in self.memory.agents:
@@ -543,10 +547,10 @@ class Orchestrator(BaseClass):
                     alive_count += 1
 
             if alive_count == 0 and not self._waiting_agents_queue:
-                if not self.config.enable_command_interface:
-                    all_finished = True
-            else:
-                time.sleep(self.config.check_interval)
+                # if not self.config.enable_command_interface:
+                all_finished = True
+
+            time.sleep(self.config.check_interval)
 
         self.logger.info("Orchestrator is shutting down...")
 
