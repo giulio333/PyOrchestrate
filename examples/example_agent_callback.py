@@ -7,6 +7,7 @@ from PyOrchestrate.core.agent import BaseProcessAgent
 
 from PyOrchestrate.core.base.utilities import LoggerConfig
 
+
 class APIFetchAgent(BaseProcessAgent):
 
     class Config(BaseProcessAgent.Config):
@@ -65,13 +66,14 @@ class APIFetchAgent(BaseProcessAgent):
         """
         Logs the termination of the agent.
         """
+        super().on_stop()
         self.logger.info("APIFetchAgent terminated.")
 
 
 def on_agent_start(agent_name, **kwargs):
     """
     Callback function triggered when an agent starts.
-    
+
     Args:
         agent_name (str): Name of the agent that started.
         **kwargs: Additional event data.
@@ -79,10 +81,21 @@ def on_agent_start(agent_name, **kwargs):
     print(f"Agent '{agent_name}' has started!")
 
 
+def on_agent_ready(agent_name, **kwargs):
+    """
+    Callback function triggered when an agent is ready.
+
+    Args:
+        agent_name (str): Name of the agent that is ready.
+        **kwargs: Additional event data.
+    """
+    print(f"Agent '{agent_name}' is ready!")
+
+
 def on_agent_close(agent_name, **kwargs):
     """
     Callback function triggered when an agent terminates.
-    
+
     Args:
         agent_name (str): Name of the agent that terminated.
         **kwargs: Additional event data.
@@ -96,6 +109,7 @@ if __name__ == "__main__":
 
     # Register event callbacks directly on the orchestrator
     orchestrator.register_event(OrchestratorEvent.AGENT_STARTED, on_agent_start)
+    orchestrator.register_event(OrchestratorEvent.AGENT_READY, on_agent_ready)
     orchestrator.register_event(OrchestratorEvent.AGENT_TERMINATED, on_agent_close)
 
     # Registering agents
