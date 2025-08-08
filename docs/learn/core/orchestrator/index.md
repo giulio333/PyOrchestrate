@@ -8,7 +8,7 @@ editLink: true
 The **Orchestrator** is the component in charge of supervising and coordinating your **Agents**. It takes care of starting them, managing their lifecycle, and making sure everything runs smoothly — whether you're using threads, processes, or a mix of both.
 
 
-## 🟢 Getting Started
+## Getting Started
 
 ### Registering Agents
 
@@ -43,7 +43,7 @@ For example, imagine you have a `FileWriterAgent` that writes data to a file. By
 - For more details on Agent's parameters and configuration, check out the [Agent Overview](../../agents/index.md#overview).
 :::
 
-## ⚙️ Execution Lifecycle
+## Execution Lifecycle
 
 ### Lifecycle policy (RunMode)
 
@@ -90,7 +90,7 @@ If the limit is reached, additional Agents are treated as **queued Agents**: the
 If you don’t need advanced lifecycle control or event tracking, the Orchestrator also offers a `simple_join()` method. It blocks until the orchestrator terminates according to its `RunMode` (in `DAEMON`, you’ll need to explicitly shut it down for it to return).
 
 
-## 🔔 Events and Monitoring
+## Events and Monitoring
 
 ### Reacting to Events
 
@@ -104,7 +104,7 @@ At any moment, you can ask the Orchestrator to report the status of all Agents: 
 
 It also logs each Agent’s lifecycle, including events like `start`, `stop`, and `join`, along with timestamps. This makes debugging and monitoring much easier, especially in long-running or production systems.
 
-## 🧠 Advanced Control
+## Advanced Control
 
 ### Advanced Features and Observability
 

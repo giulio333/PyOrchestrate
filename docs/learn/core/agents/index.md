@@ -9,7 +9,7 @@ editLink: true
 
 Each Agent encapsulates a specific task and can run either in a separate **thread** or **process**. The Agent class provides a standardized lifecycle and configuration system, allowing you to focus solely on your business logic.
 
-## 🟢 Getting Started
+## Getting Started
 
 ### Agent Types
 
@@ -53,7 +53,7 @@ Agents can run as:
 
 This is defined at the time of Agent creation and is managed internally by the Orchestrator.
 
-## 🔁 Lifecycle
+## Lifecycle
 
 ![alt text](./lifecycle_l.svg){.light-only}
 ![alt text](./lifecycle_d.svg){.dark-only}
@@ -74,7 +74,7 @@ All Agents follow a standardized lifecycle:
 
 Throughout this lifecycle, internal and external events are used to synchronize actions and manage state transitions.
 
-## 🧠 Observability and Events
+## Observability and Events
 
 Each Agent manages two kinds of event systems.
 
@@ -118,7 +118,7 @@ Control events give you fine-grained control over each phase of execution, allow
 To learn more about the different events, check out the [Agent Control Events](../../agents/index.md#controlevents) section.
 :::
 
-## 🧪 Validation and Safety
+## Validation and Safety
 
 Each Agent comes with a built-in system to check if its configuration is correct before it starts running. This helps catch mistakes early and keeps your system safe and predictable.
 
@@ -140,7 +140,7 @@ You can assign different severity levels to each validation rule using `Validati
 To learn more about the different validation policies, check out the [Validation](../../agents/index.md#validation) section.
 :::
 
-## 🔄 Grouping and Control
+## Grouping and Control
 
 Agents can be grouped into **logical collections**, allowing the Orchestrator to manage them together. Groups can be used to filter Agents by function, priority, or lifecycle stage.
 
