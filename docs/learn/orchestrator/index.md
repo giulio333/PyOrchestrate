@@ -48,6 +48,7 @@ Available attributes are
 | `check_interval`| int          | The interval (in seconds) at which the Orchestrator checks the status of agents. |
 | `max_workers`   | int          | The maximum number of worker threads to use for executing tasks.            |
 | `logger`        | LoggerConfig | The logger configuration object.                                            |
+| `run_mode`      | RunMode      | Lifecycle policy: `STOP_ON_EMPTY` or `DAEMON`. |
 
 ::: info Example
 For example to create an Orchestrator with a maximum of 2 workers, you can do the following:
@@ -94,7 +95,7 @@ orchestrator.register_event(
 
 ### Runtime Control and Monitoring
 
-PyOrchestrate provides a powerful CLI interface for real-time control and monitoring of running orchestrators. This enables:
+PyOrchestrate provides a powerful CLI interface for real-time control and monitoring of running orchestrators. The CLI is fully decoupled from lifecycle policy: enabling it does not change `RunMode`. This enables:
 
 - **Dynamic agent management**: Start, stop, and monitor agents without restarting the orchestrator
 - **System inspection**: Get detailed statistics and performance metrics

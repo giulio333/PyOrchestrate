@@ -45,12 +45,19 @@ For example, imagine you have a `FileWriterAgent` that writes data to a file. By
 
 ## ⚙️ Execution Lifecycle
 
+### Lifecycle policy (RunMode)
+
+The Orchestrator’s liveness is governed by an explicit lifecycle policy called `RunMode` and it’s required in the orchestrator configuration.
+
+- `STOP_ON_EMPTY` — batch-like: the orchestrator exits when all agents have completed and the queue is empty.
+- `DAEMON` — service-like: the orchestrator stays alive until you explicitly shut it down, even if there are no running agents.
+
 ### How Agent Execution Works
 
 ![alt text](./execution_l.svg){.light-only}
 ![alt text](./execution_d.svg){.dark-only}
 
-This section describes the behavior of the **Standard Orchestrator**. Here's how it works, step by step:
+This section describes how execution proceeds; final liveness depends solely on the selected `RunMode`:
 
 1. **Check dependencies**  
 
@@ -64,9 +71,9 @@ This section describes the behavior of the **Standard Orchestrator**. Here's how
 
    The Orchestrator keeps track of all active Agents. When one finishes, it emits an `AGENT_TERMINATED` event and starts the next queued Agent, if any.
 
-4. **Gracefully stop Agents**  
+4. **Graceful termination vs. daemon behavior**  
 
-   Once all Agents have completed and the queue is empty, the Orchestrator emits an `ALL_AGENTS_TERMINATED` event and shuts itself down.
+   When all Agents have completed and the queue is empty, the Orchestrator emits an `ALL_AGENTS_TERMINATED` event. In `STOP_ON_EMPTY` it then terminates. In `DAEMON` it remains alive until you request shutdown.
 
 ::: tip
 You can subclass the `Orchestrator` class to change its behavior and plug in your own logic.
@@ -80,7 +87,7 @@ If the limit is reached, additional Agents are treated as **queued Agents**: the
 
 ### A Simpler Way to Wait
 
-If you don’t need advanced lifecycle control or event tracking, the Orchestrator also offers a `simple_join()` method. It just waits for all Agents to finish — no queues, no events, just a clean wait until the job is done.
+If you don’t need advanced lifecycle control or event tracking, the Orchestrator also offers a `simple_join()` method. It blocks until the orchestrator terminates according to its `RunMode` (in `DAEMON`, you’ll need to explicitly shut it down for it to return).
 
 
 ## 🔔 Events and Monitoring
@@ -115,6 +122,7 @@ You can adjust how the Orchestrator behaves using its configuration `Orchestrato
 
 - `check_interval`: how often it checks the status of running Agents
 - `max_workers`: how many Agents can run in parallel
+- `run_mode` (required): lifecycle policy (`STOP_ON_EMPTY` or `DAEMON`). The CLI, if enabled, does not affect this policy.
 
 ::: tip
 
