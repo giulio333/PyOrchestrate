@@ -2,7 +2,11 @@ import unittest
 from unittest.mock import MagicMock, call
 from datetime import datetime
 
-from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, OrchestratorEvent
+from PyOrchestrate.core.orchestrator.orchestrator import (
+    Orchestrator,
+    OrchestratorEvent,
+    RunMode,
+)
 from PyOrchestrate.core.agent import BaseProcessAgent
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import AgentEvent
@@ -23,7 +27,10 @@ class DummyAgent(BaseProcessAgent):
 
 class TestOrchestrator(unittest.TestCase):
     def setUp(self):
-        self.orch = Orchestrator(name="test_orchestrator")
+        self.orch = Orchestrator(
+            config=Orchestrator.Config(run_mode=RunMode.STOP_ON_EMPTY),
+            name="test_orchestrator",
+        )
         self.orch.event_manager.emit = MagicMock(
             side_effect=self.orch.event_manager.emit
         )
@@ -93,7 +100,7 @@ class TestOrchestrator(unittest.TestCase):
         }
 
         for payload, expected_event in event_map.items():
-            self.orch.event_manager.emit.reset_mock()
+            self.orch.event_manager.emit.reset_mock()  # type: ignore
             msg = ServiceMessage(
                 sender="agent1",
                 type="STATUS",
@@ -101,7 +108,7 @@ class TestOrchestrator(unittest.TestCase):
                 timestamp=datetime.now(),
             )
             self.orch.handle_agent_message(msg)
-            self.orch.event_manager.emit.assert_called_with(
+            self.orch.event_manager.emit.assert_called_with(  # type: ignore
                 expected_event, agent_name="agent1"
             )
 

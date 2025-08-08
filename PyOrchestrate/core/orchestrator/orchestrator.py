@@ -3,6 +3,7 @@ import threading
 import json
 from collections import defaultdict, deque
 from typing import List, final
+from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
@@ -21,6 +22,13 @@ from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessag
 from PyOrchestrate.core.utilities.command_handler import CommandHandler
 
 
+class RunMode(Enum):
+    """Execution mode for the Orchestrator main loop."""
+
+    STOP_ON_EMPTY = "stop_on_empty"  # Stop when all agents finished
+    DAEMON = "daemon"  # Keep running until explicitly shutdown
+
+
 class OrchestratorConfig(BaseClass.Config):
     """
     Orchestrator configuration class.
@@ -31,6 +39,7 @@ class OrchestratorConfig(BaseClass.Config):
         enable_command_interface (bool): Enable external command interface via UNIX socket.
         command_socket_path (str): Path to the UNIX socket for external commands.
         logger (LoggerConfig): Logger configuration.
+        run_mode (RunMode): Required lifecycle policy, defaults to RunMode.STOP_ON_EMPTY.
     """
 
     check_interval: float = 1
@@ -41,6 +50,8 @@ class OrchestratorConfig(BaseClass.Config):
     """Enable external command interface via UNIX socket."""
     command_socket_path: str = "/tmp/pyorchestrate.sock"
     """Path to the UNIX socket for external commands."""
+    run_mode: RunMode = RunMode.STOP_ON_EMPTY
+    """Required explicit run mode. Must be set to RunMode.STOP_ON_EMPTY or RunMode.DAEMON."""
 
     def __init__(
         self,
@@ -48,6 +59,7 @@ class OrchestratorConfig(BaseClass.Config):
         max_workers: int | None = None,
         enable_command_interface: bool | None = None,
         command_socket_path: str | None = None,
+        run_mode: RunMode | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -63,6 +75,9 @@ class OrchestratorConfig(BaseClass.Config):
 
         if command_socket_path is not None:
             self.command_socket_path = command_socket_path
+
+        if run_mode is not None:
+            self.run_mode = run_mode
 
     def validate(self) -> List[ValidationResult]:
         results = super().validate()
@@ -90,6 +105,17 @@ class OrchestratorConfig(BaseClass.Config):
                 ValidationResult(
                     field="command_socket_path",
                     message="command_socket_path must be specified when enable_command_interface is True.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+
+        if getattr(self, "run_mode", None) is None or not isinstance(
+            self.run_mode, RunMode
+        ):
+            results.append(
+                ValidationResult(
+                    field="run_mode",
+                    message="run_mode is required and must be one of RunMode.STOP_ON_EMPTY or RunMode.DAEMON.",
                     severity=ValidationSeverity.ERROR,
                 )
             )
@@ -528,9 +554,7 @@ class Orchestrator(BaseClass):
 
         all_finished: bool = False
 
-        while (not all_finished) or (
-            self.config.enable_command_interface and not self._shutdown_requested
-        ):
+        while self._should_continue_running(all_finished):
             alive_count = 0
 
             for agent in self.memory.agents:
@@ -547,7 +571,6 @@ class Orchestrator(BaseClass):
                     alive_count += 1
 
             if alive_count == 0 and not self._waiting_agents_queue:
-                # if not self.config.enable_command_interface:
                 all_finished = True
 
             time.sleep(self.config.check_interval)
@@ -563,6 +586,19 @@ class Orchestrator(BaseClass):
             self.logger.debug("Command interface closed")
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
+
+    def _should_continue_running(self, all_finished: bool) -> bool:
+        """Decide whether the main join loop should continue based on run_mode.
+
+        Notes:
+            - DAEMON: keep running until shutdown requested.
+            - STOP_ON_EMPTY: stop when all agents have finished.
+        """
+        rm = self.config.run_mode
+        if rm == RunMode.DAEMON:
+            return not self._shutdown_requested
+        # Default enforced by validation: STOP_ON_EMPTY
+        return not all_finished
 
     def _start_waiting_agent(self):
         """
@@ -643,3 +679,9 @@ class Orchestrator(BaseClass):
             self.logger.debug(
                 f"Config: command_socket_path={self.config.command_socket_path}"
             )
+        # Log run_mode explicitly (mandatory)
+        rm = getattr(self.config, "run_mode", None)
+        if isinstance(rm, RunMode):
+            self.logger.debug(f"Config: run_mode={rm.value}")
+        else:
+            self.logger.debug(f"Config: run_mode={rm}")
