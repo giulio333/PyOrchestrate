@@ -34,19 +34,25 @@ class MessageChannel:
     specified type, allowing seamless communication between system components.
 
     Attributes:
-        a_type: The type of communication channel ('thread', 'process', or 'unix_socket').
-        socket_path: Path to the UNIX domain socket file (only used for 'unix_socket' type).
+        a_type: The type of communication channel ('thread', 'process', 'unix_socket', or 'unix_socket_client').
+        socket_path: Path to the UNIX domain socket file (only used for 'unix_socket' types).
 
     Example:
-        >>> channel = MessageChannel('thread')
+        >>> # Server mode
+        >>> server = MessageChannel('unix_socket')
         >>> msg = ServiceMessage('agent1', 'STATUS', 'running', datetime.now())
-        >>> channel.send('target', msg)
-        >>> received = channel.receive(timeout=1.0)
+        >>> server.send('target', msg)
+        >>> received = server.receive(timeout=1.0)
+        
+        >>> # Client mode  
+        >>> client = MessageChannel('unix_socket_client', '/tmp/pyorchestrate.sock')
+        >>> response = client.send_and_receive(msg, timeout=5.0)
+        >>> client.close()
     """
 
     def __init__(
         self,
-        a_type: Literal["thread", "process", "unix_socket"],
+        a_type: Literal["thread", "process", "unix_socket", "unix_socket_client"],
         socket_path: str = DEFAULT_SOCKET_PATH,
     ):
         self.a_type = a_type
@@ -57,10 +63,13 @@ class MessageChannel:
         elif a_type == "process":
             self._queue = multiprocessing.Queue()
         elif a_type == "unix_socket":
-            self._setup_unix_socket()
+            self._setup_unix_socket_server()
+            self._clients: list[socket.socket] = []  # Store client connections
+        elif a_type == "unix_socket_client":
+            self._socket: Optional[socket.socket] = None
         else:
             raise ValueError(
-                "Invalid a_type. Must be 'thread', 'process', or 'unix_socket'."
+                "Invalid a_type. Must be 'thread', 'process', 'unix_socket', or 'unix_socket_client'."
             )
 
     def send(self, target: str, msg: ServiceMessage) -> None:
@@ -68,7 +77,8 @@ class MessageChannel:
 
         Sends a ServiceMessage through the appropriate communication mechanism based on
         the channel type. For thread/process queues, the message is queued directly.
-        For UNIX sockets, the message is broadcast to all connected clients.
+        For UNIX sockets, the message is broadcast to all connected clients (server mode)
+        or sent to the server (client mode).
 
         Args:
             target: The intended recipient identifier (currently unused but kept for
@@ -83,14 +93,17 @@ class MessageChannel:
         if self.a_type in ["thread", "process"]:
             self._queue.put(msg)  # Store only the message
         elif self.a_type == "unix_socket":
-            self._send_to_unix_socket(msg)
+            self._send_to_unix_socket_server(msg)
+        elif self.a_type == "unix_socket_client":
+            self._send_to_unix_socket_client(msg)
 
     def receive(self, timeout: Optional[float] = None) -> Optional[ServiceMessage]:
         """Receive a message from the communication channel.
 
         Attempts to receive a ServiceMessage from the appropriate communication mechanism.
         For thread/process queues, it retrieves from the queue with optional timeout.
-        For UNIX sockets, it checks for new connections and reads from existing clients.
+        For UNIX sockets, it checks for new connections and reads from existing clients
+        (server mode) or reads from the server connection (client mode).
 
         Args:
             timeout: Maximum time in seconds to wait for a message. If None, the method
@@ -110,7 +123,9 @@ class MessageChannel:
             except queue.Empty:
                 return None
         elif self.a_type == "unix_socket":
-            msg = self._receive_from_unix_socket(timeout)
+            msg = self._receive_from_unix_socket_server(timeout)
+        elif self.a_type == "unix_socket_client":
+            msg = self._receive_from_unix_socket_client(timeout or CLIENT_RECEIVE_TIMEOUT)
 
         return msg
 
@@ -119,9 +134,10 @@ class MessageChannel:
 
         Performs cleanup operations specific to the communication channel type.
         For UNIX socket channels, this includes:
-        - Closing all active client connections
-        - Shutting down the server socket
-        - Removing the socket file from the filesystem
+        - Closing all active client connections (server mode)
+        - Closing the client connection (client mode)
+        - Shutting down the server socket (server mode)
+        - Removing the socket file from the filesystem (server mode)
 
         For thread and process queues, no cleanup is necessary as the queue
         objects are automatically garbage collected.
@@ -132,19 +148,25 @@ class MessageChannel:
         """
         if self.a_type == "unix_socket":
             # Close all client connections
-            for client in self._clients:
-                client.close()
-            self._clients.clear()
+            if hasattr(self, '_clients'):
+                for client in self._clients:
+                    client.close()
+                self._clients.clear()
 
             # Close server socket
-            self._socket.close()
+            if hasattr(self, '_socket') and self._socket:
+                self._socket.close()
 
             # Remove socket file
             if os.path.exists(self.socket_path):
                 os.unlink(self.socket_path)
+        elif self.a_type == "unix_socket_client":
+            if hasattr(self, '_socket') and self._socket:
+                self._socket.close()
+                self._socket = None
 
-    def _send_to_unix_socket(self, msg: ServiceMessage) -> None:
-        """Send message to all connected UNIX socket clients."""
+    def _send_to_unix_socket_server(self, msg: ServiceMessage) -> None:
+        """Send message to all connected UNIX socket clients (server mode)."""
         msg_data = (
             json.dumps(
                 {
@@ -166,10 +188,42 @@ class MessageChannel:
                 self._clients.remove(client)
                 client.close()
 
-    def _receive_from_unix_socket(
+    def _send_to_unix_socket_client(self, msg: ServiceMessage) -> bool:
+        """Send message to server (client mode). Returns True if successful."""
+        if not self._socket:
+            if not self._connect_to_server():
+                return False
+                
+        try:
+            msg_data = (
+                json.dumps({
+                    "sender": msg.sender,
+                    "type": msg.type,
+                    "payload": msg.payload,
+                    "timestamp": msg.timestamp.isoformat(),
+                }).encode() + b"\n"
+            )
+            self._socket.send(msg_data)
+            return True
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            return False
+
+    def _connect_to_server(self) -> bool:
+        """Connect to server (client mode). Returns True if successful."""
+        try:
+            self._socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self._socket.connect(self.socket_path)
+            return True
+        except (FileNotFoundError, ConnectionRefusedError, OSError):
+            if self._socket:
+                self._socket.close()
+                self._socket = None
+            return False
+
+    def _receive_from_unix_socket_server(
         self, timeout: Optional[float] = None
     ) -> Optional[ServiceMessage]:
-        """Receive message from UNIX socket clients.
+        """Receive message from UNIX socket clients (server mode).
 
         Args:
             timeout: Maximum time in seconds to wait for a message. If None, uses
@@ -211,9 +265,55 @@ class MessageChannel:
         except Exception:
             return None
 
-    def _setup_unix_socket(self):
+    def send_and_receive(self, msg: ServiceMessage, timeout: float = 5.0) -> Optional[ServiceMessage]:
+        """Send a message and wait for response (client mode only).
+        
+        Args:
+            msg: ServiceMessage to send.
+            timeout: Maximum time to wait for response in seconds.
+            
+        Returns:
+            ServiceMessage response if successful, None otherwise.
         """
-        Setup UNIX domain socket for external communication.
+        if self.a_type != "unix_socket_client":
+            raise ValueError("send_and_receive is only available for unix_socket_client mode")
+            
+        if not self._socket:
+            if not self._connect_to_server():
+                return None
+                
+        if not self._send_to_unix_socket_client(msg):
+            self.close()
+            return None
+            
+        response = self._receive_from_unix_socket_client(timeout)
+        self.close()
+        return response
+
+    def _receive_from_unix_socket_client(self, timeout: float = 5.0) -> Optional[ServiceMessage]:
+        """Receive a message from server (client mode)."""
+        if not self._socket:
+            return None
+            
+        try:
+            self._socket.settimeout(timeout)
+            data = self._socket.recv(BUFFER_SIZE)
+            if data:
+                msg_str = data.decode().strip()
+                msg_data = json.loads(msg_str)
+                return ServiceMessage(
+                    sender=msg_data["sender"],
+                    type=msg_data["type"],
+                    payload=msg_data["payload"],
+                    timestamp=datetime.fromisoformat(msg_data["timestamp"]),
+                )
+        except (socket.timeout, json.JSONDecodeError, KeyError, OSError):
+            pass
+        return None
+
+    def _setup_unix_socket_server(self):
+        """
+        Setup UNIX domain socket for external communication (server mode).
 
         Creates a UNIX domain socket, binds it to the specified path,
         and configures it to listen for incoming connections with a timeout.
@@ -228,5 +328,3 @@ class MessageChannel:
         self._socket.bind(self.socket_path)
         self._socket.listen(SOCKET_LISTEN_BACKLOG)
         self._socket.settimeout(SOCKET_TIMEOUT)  # Non-blocking with timeout
-
-        self._clients: list[socket.socket] = []  # Store client connections
