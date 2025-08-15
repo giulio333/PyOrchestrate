@@ -405,7 +405,7 @@ class Orchestrator(BaseClass):
         except Exception as e:
             self.logger.error(f"Error processing external command: {e}")
 
-            # New: traccia errore
+            # Track error
             self.event_store.record(
                 category="cli",
                 type="CLI_ERROR",
