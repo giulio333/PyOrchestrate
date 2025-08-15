@@ -387,25 +387,20 @@ class Orchestrator(BaseClass):
             args = cmd_data.get("args", [])
 
             # Delegate command execution to the command handler
-            if self.command_handler:
-                response = self.command_handler.execute_command(command, args)
-            else:
-                response = {
-                    "status": "error",
-                    "message": "Command interface not enabled",
-                }
+            assert self.command_handler, "Command handler not initialized"
+            response = self.command_handler.execute_command(command, args)
 
             # Send response back through the command channel
-            if self.command_channel:
-                self.command_channel.send(
-                    "cli",
-                    ServiceMessage(
-                        sender="orchestrator",
-                        type="STATUS",
-                        payload=json.dumps(response),
-                        timestamp=datetime.now(),
-                    ),
-                )
+            assert self.command_channel, "Command channel not initialized"
+            self.command_channel.send(
+                "cli",
+                ServiceMessage(
+                    sender="orchestrator",
+                    type="STATUS",
+                    payload=json.dumps(response),
+                    timestamp=datetime.now(),
+                ),
+            )
 
         except Exception as e:
             self.logger.error(f"Error processing external command: {e}")
