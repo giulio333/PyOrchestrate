@@ -20,15 +20,11 @@ def get_orchestrator_status(socket_path):
 # Usage
 status = get_orchestrator_status("/tmp/pyorchestrate.sock")
 if status:
-    if status.get("status") == "success":
-        data = status["data"]
-        print(f"Orchestrator Status:")
-        print(f"  Total agents: {data.get('total_agents', 'unknown')}")
-        print(f"  Running agents: {data.get('running_agents', 'unknown')}")
-        print(f"  Waiting agents: {data.get('waiting_agents', 'unknown')}")
-        print(f"  Max workers: {data.get('max_workers', 'unknown')}")
-        print(f"  Socket path: {data.get('command_socket_path', 'unknown')}")
-    else:
-        print(f"Error: {status.get('message', 'Unknown error')}")
+    print(f"Orchestrator Status:")
+    print(f"  Total agents: {status.get('total_agents', 'unknown')}")
+    print(f"  Running agents: {status.get('running_agents', 'unknown')}")
+    print(f"  Waiting agents: {status.get('waiting_agents', 'unknown')}")
+    print(f"  Max workers: {status.get('max_workers', 'unknown')}")
+    print(f"  Socket path: {status.get('command_socket_path', 'unknown')}")
 else:
     print("Failed to get orchestrator status")
