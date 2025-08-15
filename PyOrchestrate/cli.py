@@ -358,6 +358,20 @@ def send_command_wrapper(args: argparse.Namespace, command: str) -> None:
     """Wrapper to handle different command types."""
     if hasattr(args, "agent_name") and args.agent_name:
         args.command = [command, args.agent_name]
+    elif command in ["history", "history-stats"]:
+        # For history commands, create a parameters dict
+        params = {}
+        if hasattr(args, "last") and args.last is not None:
+            params["last"] = args.last
+        if hasattr(args, "agent") and args.agent is not None:
+            params["agent"] = args.agent
+        if hasattr(args, "type") and args.type is not None:
+            params["type"] = args.type
+        if hasattr(args, "after_seq") and args.after_seq is not None:
+            params["after_seq"] = args.after_seq
+        
+        # Pass parameters as JSON string
+        args.command = [command, json.dumps(params)]
     elif hasattr(args, "filters") and args.filters:
         args.command = [command, args.filters]
     else:
