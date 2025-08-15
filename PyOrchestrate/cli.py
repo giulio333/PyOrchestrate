@@ -7,6 +7,8 @@ import signal
 import sys
 from datetime import datetime
 
+from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
+
 
 def create_project_structure(app_name):
     """
@@ -62,11 +64,10 @@ def start_command(args: argparse.Namespace) -> None:
 
 
 def send_command(args: argparse.Namespace) -> None:
-    """Send a command to a running orchestrator via UNIX socket."""
+    """Send a command to a running orchestrator via MessageChannelClient."""
     try:
-        # Create socket connection
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.connect(args.socket)
+        # Create MessageChannel client
+        client = MessageChannel("unix_socket_client", args.socket)
 
         # Prepare command message
         cmd_data = {
@@ -74,23 +75,19 @@ def send_command(args: argparse.Namespace) -> None:
             "args": args.command[1:] if len(args.command) > 1 else [],
         }
 
-        msg_data = {
-            "sender": "cli",
-            "type": "COMMAND",
-            "payload": json.dumps(cmd_data),
-            "timestamp": datetime.now().isoformat(),
-        }
+        # Create ServiceMessage
+        msg = ServiceMessage(
+            sender="cli",
+            type="COMMAND",
+            payload=json.dumps(cmd_data),
+            timestamp=datetime.now(),
+        )
 
-        # Send command
-        sock.send(json.dumps(msg_data).encode() + b"\n")
+        # Send command and receive response
+        response_msg = client.send_and_receive(msg, timeout=5.0)
 
-        # Receive response
-        sock.settimeout(5.0)  # 5 second timeout
-        response_data = sock.recv(4096).decode().strip()
-
-        if response_data:
-            response_msg = json.loads(response_data)
-            response_payload = json.loads(response_msg["payload"])
+        if response_msg:
+            response_payload = json.loads(response_msg.payload)
 
             # Format output
             if response_payload.get("status") == "success":
@@ -114,23 +111,14 @@ def send_command(args: argparse.Namespace) -> None:
                 else:
                     print(f"Error: {response_payload.get('message', 'Unknown error')}")
         else:
-            print("No response received from orchestrator")
+            print(
+                f"Error: Cannot connect to socket {args.socket}. Is the orchestrator running with command interface enabled?"
+            )
 
-    except FileNotFoundError:
-        print(
-            f"Error: Cannot connect to socket {args.socket}. Is the orchestrator running with command interface enabled?"
-        )
-    except json.JSONDecodeError as e:
-        print(f"Error: Invalid response format: {e}")
-    except socket.timeout:
-        print("Error: Timeout waiting for response from orchestrator")
+    except ImportError:
+        print("Error: Cannot import MessageChannelClient. PyOrchestrate not properly installed.")
     except Exception as e:
         print(f"Error: {e}")
-    finally:
-        try:
-            sock.close()
-        except:
-            pass
 
 
 def print_formatted_response(command: str, response_data: dict) -> None:
@@ -415,33 +403,22 @@ def stats_command(args: argparse.Namespace) -> None:
 
             # Get stats from orchestrator
             try:
-                # Create socket connection
-                sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                sock.connect(args.socket)
+                # Create MessageChannel client
+                client = MessageChannel("unix_socket_client", args.socket)
 
-                # Prepare stats command
-                cmd_data = {
-                    "command": "stats",
-                    "args": [],
-                }
+                # Create ServiceMessage for stats command
+                msg = ServiceMessage(
+                    sender="cli",
+                    type="COMMAND", 
+                    payload=json.dumps({"command": "stats", "args": []}),
+                    timestamp=datetime.now(),
+                )
 
-                msg_data = {
-                    "sender": "cli",
-                    "type": "COMMAND",
-                    "payload": json.dumps(cmd_data),
-                    "timestamp": datetime.now().isoformat(),
-                }
+                # Send command and receive response
+                response_msg = client.send_and_receive(msg, timeout=5.0)
 
-                # Send command
-                sock.send(json.dumps(msg_data).encode() + b"\n")
-
-                # Receive response
-                sock.settimeout(5.0)
-                response_data = sock.recv(8192).decode().strip()
-
-                if response_data:
-                    response_msg = json.loads(response_data)
-                    response_payload = json.loads(response_msg["payload"])
+                if response_msg:
+                    response_payload = json.loads(response_msg.payload)
 
                     if response_payload.get("status") == "success":
                         print_stats_output(response_payload)
@@ -450,20 +427,13 @@ def stats_command(args: argparse.Namespace) -> None:
                             f"Error: {response_payload.get('message', 'Unknown error')}"
                         )
                 else:
-                    print("No response received from orchestrator")
+                    print(f"Error: Cannot connect to socket {args.socket}")
+                    print("Is the orchestrator running with command interface enabled?")
+                    break
 
-            except FileNotFoundError:
-                print(f"Error: Cannot connect to socket {args.socket}")
-                print("Is the orchestrator running with command interface enabled?")
-                break
             except Exception as e:
                 print(f"Error: {e}")
                 break
-            finally:
-                try:
-                    sock.close()
-                except:
-                    pass
 
             # Wait before next update
             time.sleep(args.interval)
