@@ -285,10 +285,6 @@ class Orchestrator(BaseClass):
         """
         self.logger.trace("Message handling thread started")
 
-        # Track message thread started
-        self.event_store.record(
-            category="orchestrator", type="MSG_THREAD_STARTED", severity="INFO"
-        )
         while self._message_thread_running:
             try:
                 # Check if there are messages in the queue from agents
@@ -422,8 +418,8 @@ class Orchestrator(BaseClass):
                 data={"error": str(e)},
             )
 
-            error_response = {"status": "error", "message": str(e)}
             if self.command_channel:
+                error_response = {"status": "error", "message": str(e)}
                 self.command_channel.send(
                     "cli",
                     ServiceMessage(

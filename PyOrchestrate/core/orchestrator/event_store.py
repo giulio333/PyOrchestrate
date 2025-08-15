@@ -7,8 +7,10 @@ Uses a ring buffer (deque with maxlen) for O(1) append operations and minimal ov
 
 import time
 import threading
+from datetime import datetime
+import json
 from collections import deque, defaultdict
-from typing import NamedTuple, Optional, Mapping, List, Dict
+from typing import NamedTuple, Optional, List, Dict
 
 
 class EventRecord(NamedTuple):
@@ -33,7 +35,33 @@ class EventRecord(NamedTuple):
     type: str
     agent: Optional[str]
     severity: str
-    data: Optional[Mapping[str, str]]
+    data: Optional[dict[str, str]]
+
+    def to_dict(self) -> Dict[str, object]:
+        """Return a JSON-serializable dict representation of the event.
+
+        Includes an ISO8601 `timestamp` string for convenience while preserving
+        numeric `t_wall` and `t_mono_ns` for consumers that need them.
+        """
+        data = dict(self.data) if self.data is not None else None
+        return {
+            "seq": self.seq,
+            "t_wall": self.t_wall,
+            "timestamp": datetime.fromtimestamp(self.t_wall).isoformat(),
+            "t_mono_ns": self.t_mono_ns,
+            "category": self.category,
+            "type": self.type,
+            "agent": self.agent,
+            "severity": self.severity,
+            "data": data,
+        }
+
+    def to_json(self, **json_kwargs) -> str:
+        """Return a JSON string representation of the event.
+
+        Passes json_kwargs to json.dumps (e.g. indent=2, ensure_ascii=False).
+        """
+        return json.dumps(self.to_dict(), **json_kwargs)
 
 
 class EventStore:
@@ -80,7 +108,7 @@ class EventStore:
         type: str,
         agent: str | None = None,
         severity: str = "INFO",
-        data: Mapping[str, str] | None = None,
+        data: dict[str, str] | None = None,
     ) -> None:
         """
         Record a new event with O(1) complexity.
