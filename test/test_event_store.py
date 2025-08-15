@@ -250,9 +250,9 @@ class TestOrchestratorEventIntegration:
             config=Orchestrator.Config(run_mode=RunMode.STOP_ON_EMPTY)
         )
 
-        # Check that ORCH_INIT event was recorded
+        # Check that INIT event was recorded
         events = orchestrator.event_store.last()
-        init_events = [e for e in events if e.type == "ORCH_INIT"]
+        init_events = [e for e in events if e.type == "INIT"]
         assert len(init_events) == 1
         assert init_events[0].category == "orchestrator"
         assert init_events[0].data is not None
