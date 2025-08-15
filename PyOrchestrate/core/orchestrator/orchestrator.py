@@ -249,7 +249,6 @@ class Orchestrator(BaseClass):
 
     def _register_history_hooks(self):
         """Register automatic event history hooks for all orchestrator events."""
-        # Hook: registra qualunque evento lanci dall'orchestrator
         for ev in OrchestratorEvent:
 
             def _cb(ev=ev, **kw):
