@@ -24,7 +24,13 @@ from PyOrchestrate.core.utilities.command_handler import CommandHandler
 
 
 class RunMode(Enum):
-    """Execution mode for the Orchestrator main loop."""
+    """
+    Execution mode for the Orchestrator main loop.
+
+    Available modes:
+    - STOP_ON_EMPTY: Stop when all agents finished
+    - DAEMON: Keep running until explicitly shutdown
+    """
 
     STOP_ON_EMPTY = "stop_on_empty"
     """Stop when all agents finished"""
