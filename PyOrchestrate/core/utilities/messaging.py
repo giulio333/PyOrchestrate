@@ -43,8 +43,8 @@ class MessageChannel:
         >>> msg = ServiceMessage('agent1', 'STATUS', 'running', datetime.now())
         >>> server.send('target', msg)
         >>> received = server.receive(timeout=1.0)
-        
-        >>> # Client mode  
+
+        >>> # Client mode
         >>> client = MessageChannel('unix_socket_client', '/tmp/pyorchestrate.sock')
         >>> response = client.send_and_receive(msg, timeout=5.0)
         >>> client.close()
@@ -125,7 +125,9 @@ class MessageChannel:
         elif self.a_type == "unix_socket":
             msg = self._receive_from_unix_socket_server(timeout)
         elif self.a_type == "unix_socket_client":
-            msg = self._receive_from_unix_socket_client(timeout or CLIENT_RECEIVE_TIMEOUT)
+            msg = self._receive_from_unix_socket_client(
+                timeout or CLIENT_RECEIVE_TIMEOUT
+            )
 
         return msg
 
@@ -148,20 +150,20 @@ class MessageChannel:
         """
         if self.a_type == "unix_socket":
             # Close all client connections
-            if hasattr(self, '_clients'):
+            if hasattr(self, "_clients"):
                 for client in self._clients:
                     client.close()
                 self._clients.clear()
 
             # Close server socket
-            if hasattr(self, '_socket') and self._socket:
+            if hasattr(self, "_socket") and self._socket:
                 self._socket.close()
 
             # Remove socket file
             if os.path.exists(self.socket_path):
                 os.unlink(self.socket_path)
         elif self.a_type == "unix_socket_client":
-            if hasattr(self, '_socket') and self._socket:
+            if hasattr(self, "_socket") and self._socket:
                 self._socket.close()
                 self._socket = None
 
@@ -193,15 +195,19 @@ class MessageChannel:
         if not self._socket:
             if not self._connect_to_server():
                 return False
-                
+
         try:
+            assert self._socket is not None, "Socket must be connected before sending"
             msg_data = (
-                json.dumps({
-                    "sender": msg.sender,
-                    "type": msg.type,
-                    "payload": msg.payload,
-                    "timestamp": msg.timestamp.isoformat(),
-                }).encode() + b"\n"
+                json.dumps(
+                    {
+                        "sender": msg.sender,
+                        "type": msg.type,
+                        "payload": msg.payload,
+                        "timestamp": msg.timestamp.isoformat(),
+                    }
+                ).encode()
+                + b"\n"
             )
             self._socket.send(msg_data)
             return True
@@ -235,6 +241,9 @@ class MessageChannel:
         try:
             # Accept new connections
             try:
+                assert (
+                    self._socket is not None
+                ), "Socket must be connected before accepting"
                 client_socket, _ = self._socket.accept()
                 self._clients.append(client_socket)
             except socket.timeout:
@@ -265,36 +274,42 @@ class MessageChannel:
         except Exception:
             return None
 
-    def send_and_receive(self, msg: ServiceMessage, timeout: float = 5.0) -> Optional[ServiceMessage]:
+    def send_and_receive(
+        self, msg: ServiceMessage, timeout: float = 5.0
+    ) -> Optional[ServiceMessage]:
         """Send a message and wait for response (client mode only).
-        
+
         Args:
             msg: ServiceMessage to send.
             timeout: Maximum time to wait for response in seconds.
-            
+
         Returns:
             ServiceMessage response if successful, None otherwise.
         """
         if self.a_type != "unix_socket_client":
-            raise ValueError("send_and_receive is only available for unix_socket_client mode")
-            
+            raise ValueError(
+                "send_and_receive is only available for unix_socket_client mode"
+            )
+
         if not self._socket:
             if not self._connect_to_server():
                 return None
-                
+
         if not self._send_to_unix_socket_client(msg):
             self.close()
             return None
-            
+
         response = self._receive_from_unix_socket_client(timeout)
         self.close()
         return response
 
-    def _receive_from_unix_socket_client(self, timeout: float = 5.0) -> Optional[ServiceMessage]:
+    def _receive_from_unix_socket_client(
+        self, timeout: float = 5.0
+    ) -> Optional[ServiceMessage]:
         """Receive a message from server (client mode)."""
         if not self._socket:
             return None
-            
+
         try:
             self._socket.settimeout(timeout)
             data = self._socket.recv(BUFFER_SIZE)

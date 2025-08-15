@@ -116,7 +116,9 @@ def send_command(args: argparse.Namespace) -> None:
             )
 
     except ImportError:
-        print("Error: Cannot import MessageChannelClient. PyOrchestrate not properly installed.")
+        print(
+            "Error: Cannot import MessageChannelClient. PyOrchestrate not properly installed."
+        )
     except Exception as e:
         print(f"Error: {e}")
 
@@ -409,7 +411,7 @@ def stats_command(args: argparse.Namespace) -> None:
                 # Create ServiceMessage for stats command
                 msg = ServiceMessage(
                     sender="cli",
-                    type="COMMAND", 
+                    type="COMMAND",
                     payload=json.dumps({"command": "stats", "args": []}),
                     timestamp=datetime.now(),
                 )
