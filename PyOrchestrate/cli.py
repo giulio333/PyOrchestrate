@@ -201,6 +201,77 @@ def print_formatted_response(command: str, response_data: dict) -> None:
                 if deps:
                     print(f"  {agent} -> {', '.join(deps)}")
 
+    elif command == "history":
+        events = data.get("events", [])
+        count = data.get("count", 0)
+        filters = data.get("filters", {})
+        capacity_info = data.get("capacity_info", {})
+
+        print(f"=== Event History ({count} events) ===")
+        if filters:
+            filter_parts = []
+            if filters.get("agent"):
+                filter_parts.append(f"agent={filters['agent']}")
+            if filters.get("type"):
+                filter_parts.append(f"type={filters['type']}")
+            if filters.get("last"):
+                filter_parts.append(f"last={filters['last']}")
+            if filters.get("after_seq"):
+                filter_parts.append(f"after_seq={filters['after_seq']}")
+
+            if filter_parts:
+                print(f"Filters: {', '.join(filter_parts)}")
+
+        print(
+            f"Buffer: {capacity_info.get('current_size', 0)}/{capacity_info.get('capacity', 0)} events"
+        )
+        print()
+
+        if events:
+            print(
+                f"{'SEQ':<6} {'TIME':<19} {'CATEGORY':<12} {'TYPE':<20} {'AGENT':<15} {'SEV':<5}"
+            )
+            print("-" * 80)
+            for event in events:
+                timestamp = event.get("timestamp", "")[:19]  # Truncate timestamp
+                category = event.get("category", "")[:11]
+                event_type = event.get("type", "")[:19]
+                agent = (event.get("agent") or "")[:14]
+                severity = event.get("severity", "")[:4]
+                seq = event.get("seq", 0)
+
+                print(
+                    f"{seq:<6} {timestamp:<19} {category:<12} {event_type:<20} {agent:<15} {severity:<5}"
+                )
+        else:
+            print("No events found")
+
+    elif command == "history-stats":
+        statistics = data.get("statistics", {})
+        capacity_info = data.get("capacity_info", {})
+        agent_filter = data.get("agent_filter")
+        timestamp = data.get("timestamp", "")
+
+        print("=== Event Statistics ===")
+        print(f"Timestamp: {timestamp}")
+        if agent_filter:
+            print(f"Agent Filter: {agent_filter}")
+        print(
+            f"Buffer: {capacity_info.get('current_size', 0)}/{capacity_info.get('capacity', 0)} events"
+        )
+        print(f"Total Events: {capacity_info.get('total_events', 0)}")
+        print()
+
+        by_type = statistics.get("by_type", {})
+        if by_type:
+            print("Event Type Breakdown:")
+            # Sort by count descending
+            sorted_events = sorted(by_type.items(), key=lambda x: x[1], reverse=True)
+            for event_type, count in sorted_events:
+                print(f"  {event_type:<25} {count:>6}")
+        else:
+            print("No event statistics available")
+
     else:
         print(json.dumps(response_data, indent=2))
 
@@ -233,6 +304,8 @@ def main() -> None:
         ("start", "Start a specific agent"),
         ("stop", "Stop a specific agent"),
         ("shutdown", "Shutdown the orchestrator gracefully"),
+        ("history", "Get event history with optional filtering"),
+        ("history-stats", "Get aggregated event statistics"),
     ]:
         cmd_parser = subparsers.add_parser(cmd_name, help=cmd_help)
         cmd_parser.add_argument(
@@ -242,6 +315,13 @@ def main() -> None:
         )
         if cmd_name in ["status", "stop", "start"]:
             cmd_parser.add_argument("agent_name", nargs="?", help="Agent name")
+        elif cmd_name in ["history", "history-stats"]:
+            cmd_parser.add_argument("--last", type=int, help="Number of last events")
+            cmd_parser.add_argument("--agent", type=str, help="Filter by agent name")
+            cmd_parser.add_argument("--type", type=str, help="Filter by event type")
+            cmd_parser.add_argument(
+                "--after-seq", type=int, help="Filter by sequence number"
+            )
         cmd_parser.add_argument(
             "--format", choices=["table", "json"], default="table", help="Output format"
         )
@@ -278,6 +358,8 @@ def send_command_wrapper(args: argparse.Namespace, command: str) -> None:
     """Wrapper to handle different command types."""
     if hasattr(args, "agent_name") and args.agent_name:
         args.command = [command, args.agent_name]
+    elif hasattr(args, "filters") and args.filters:
+        args.command = [command, args.filters]
     else:
         args.command = [command]
 
