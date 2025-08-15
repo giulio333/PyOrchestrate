@@ -7,6 +7,7 @@ from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
+from PyOrchestrate.core.orchestrator.event_store import EventStore
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import OrchestratorEvent, AgentEvent
 from PyOrchestrate.core.utilities.validation import (
@@ -40,6 +41,8 @@ class OrchestratorConfig(BaseClass.Config):
         command_socket_path (str): Path to the UNIX socket for external commands.
         logger (LoggerConfig): Logger configuration.
         run_mode (RunMode): Required lifecycle policy, defaults to RunMode.STOP_ON_EMPTY.
+        history_max_events (int): Maximum number of events to store in history (ring buffer size).
+        history_payload_bytes (int): Maximum size for event payload data.
     """
 
     check_interval: float = 1
@@ -52,6 +55,10 @@ class OrchestratorConfig(BaseClass.Config):
     """Path to the UNIX socket for external commands."""
     run_mode: RunMode = RunMode.STOP_ON_EMPTY
     """Required explicit run mode. Must be set to RunMode.STOP_ON_EMPTY or RunMode.DAEMON."""
+    history_max_events: int = 5000
+    """Maximum number of events to store in history (ring buffer size)."""
+    history_payload_bytes: int = 256
+    """Maximum size for event payload data."""
 
     def __init__(
         self,
@@ -60,6 +67,8 @@ class OrchestratorConfig(BaseClass.Config):
         enable_command_interface: bool | None = None,
         command_socket_path: str | None = None,
         run_mode: RunMode | None = None,
+        history_max_events: int | None = None,
+        history_payload_bytes: int | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -78,6 +87,12 @@ class OrchestratorConfig(BaseClass.Config):
 
         if run_mode is not None:
             self.run_mode = run_mode
+
+        if history_max_events is not None:
+            self.history_max_events = history_max_events
+
+        if history_payload_bytes is not None:
+            self.history_payload_bytes = history_payload_bytes
 
     def validate(self) -> List[ValidationResult]:
         results = super().validate()
@@ -119,6 +134,25 @@ class OrchestratorConfig(BaseClass.Config):
                     severity=ValidationSeverity.ERROR,
                 )
             )
+
+        if self.history_max_events <= 0:
+            results.append(
+                ValidationResult(
+                    field="history_max_events",
+                    message="history_max_events must be greater than 0.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+
+        if self.history_payload_bytes <= 0:
+            results.append(
+                ValidationResult(
+                    field="history_payload_bytes",
+                    message="history_payload_bytes must be greater than 0.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+
         return results
 
 
@@ -180,6 +214,12 @@ class Orchestrator(BaseClass):
         self.event_manager = EventManager()
         self.msg_channel = MessageChannel("process")
 
+        # Event store for history tracking
+        self.event_store = EventStore(
+            capacity=self.config.history_max_events,
+            payload_max_bytes=self.config.history_payload_bytes,
+        )
+
         # Command interface for external CLI commands
         self.command_channel = None
         if self.config.enable_command_interface:
@@ -200,8 +240,36 @@ class Orchestrator(BaseClass):
         # Flag to control the execution of the message thread
         self._message_thread_running = False
         self._message_thread = None
+
+        # Register event history hooks
+        self._register_history_hooks()
+
         # Start the thread to check messages
         self._start_message_thread()
+
+    def _register_history_hooks(self):
+        """Register automatic event history hooks for all orchestrator events."""
+        # Hook: registra qualunque evento lanci dall'orchestrator
+        for ev in OrchestratorEvent:
+
+            def _cb(ev=ev, **kw):
+                sev = "ERROR" if ev == OrchestratorEvent.AGENT_ERROR else "INFO"
+                self.event_store.record(
+                    category="orchestrator",
+                    type=ev.name,
+                    agent=kw.get("agent_name"),
+                    severity=sev,
+                    data={k: str(v) for k, v in kw.items() if k != "agent_name"},
+                )
+
+            self.register_event(ev, _cb)
+
+        self.event_store.record(
+            category="orchestrator",
+            type="INIT",
+            severity="INFO",
+            data={"run_mode": self.config.run_mode.value},
+        )
 
     def _message_thread_function(self):
         """
@@ -209,6 +277,11 @@ class Orchestrator(BaseClass):
         for incoming messages in the queue.
         """
         self.logger.trace("Message handling thread started")
+
+        # Track message thread started
+        self.event_store.record(
+            category="orchestrator", type="MSG_THREAD_STARTED", severity="INFO"
+        )
         while self._message_thread_running:
             try:
                 # Check if there are messages in the queue from agents
@@ -229,6 +302,11 @@ class Orchestrator(BaseClass):
             time.sleep(0.01)
 
         self.logger.trace("Message handling thread terminated")
+
+        # Track message thread stopped
+        self.event_store.record(
+            category="orchestrator", type="MSG_THREAD_STOPPED", severity="INFO"
+        )
 
     def _start_message_thread(self):
         """
@@ -297,8 +375,6 @@ class Orchestrator(BaseClass):
 
     def handle_external_command(self, msg: ServiceMessage) -> None:
         """Process external commands from CLI."""
-        # self.logger.debug(f"Received external command from {msg.sender}: {msg.payload}")
-
         try:
             import json
             from datetime import datetime
@@ -330,6 +406,15 @@ class Orchestrator(BaseClass):
 
         except Exception as e:
             self.logger.error(f"Error processing external command: {e}")
+
+            # New: traccia errore
+            self.event_store.record(
+                category="cli",
+                type="CLI_ERROR",
+                severity="ERROR",
+                data={"error": str(e)},
+            )
+
             error_response = {"status": "error", "message": str(e)}
             if self.command_channel:
                 self.command_channel.send(
@@ -524,6 +609,18 @@ class Orchestrator(BaseClass):
                 f"Max workers limit reached. Adding {agent_name} to waiting queue."
             )
             self._waiting_agents_queue.append(agent_name)
+
+            # Track agent queued event
+            self.event_store.record(
+                category="orchestrator",
+                type="QUEUED",
+                agent=agent_name,
+                severity="WARN",
+                data={
+                    "running_agents": str(self._running_agents),
+                    "max_workers": str(self.config.max_workers),
+                },
+            )
             return
 
         agent.start()
@@ -577,6 +674,14 @@ class Orchestrator(BaseClass):
 
         self.logger.info("Orchestrator is shutting down...")
 
+        # Track orchestrator shutdown
+        self.event_store.record(
+            category="orchestrator",
+            type="SHUTDOWN",
+            severity="INFO",
+            data={"total_agents": str(len(self.memory.agents))},
+        )
+
         # Stop the message handling thread
         self._stop_message_thread()
 
@@ -620,6 +725,18 @@ class Orchestrator(BaseClass):
         agent_name = self._waiting_agents_queue.popleft()
         self.logger.info(
             f"Starting waiting agent {agent_name} from queue... (Running agents: {self._running_agents}, Limit: {self.config.max_workers})"
+        )
+
+        # Track agent started from queue
+        self.event_store.record(
+            category="orchestrator",
+            type="STARTED_FROM_QUEUE",
+            agent=agent_name,
+            severity="INFO",
+            data={
+                "running_agents": str(self._running_agents),
+                "max_workers": str(self.config.max_workers),
+            },
         )
 
         agent = self.memory.get_agent(agent_name)

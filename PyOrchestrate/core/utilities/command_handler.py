@@ -52,6 +52,10 @@ class CommandHandler:
             return self._cmd_show_dependencies()
         elif command == "stats":
             return self._cmd_stats()
+        elif command == "history":
+            return self._cmd_history(args)
+        elif command == "history-stats":
+            return self._cmd_history_stats(args)
         elif command == "shutdown":
             return self._cmd_shutdown()
         else:
@@ -372,4 +376,101 @@ class CommandHandler:
             return {
                 "status": "error",
                 "message": f"Failed to shutdown orchestrator: {str(e)}",
+            }
+
+    def _cmd_history(self, args: list) -> dict:
+        """Get event history with optional filtering."""
+        try:
+            # Parse arguments (expecting a dict-like structure or individual params)
+            if args and isinstance(args[0], str):
+                try:
+                    # Try to parse as JSON
+                    params = json.loads(args[0])
+                except (json.JSONDecodeError, ValueError):
+                    # Fall back to simple parameter parsing
+                    params = {}
+            elif args and isinstance(args[0], dict):
+                params = args[0]
+            else:
+                params = {}
+
+            # Extract parameters with defaults
+            last = int(params.get("last", 100))
+            agent = params.get("agent")
+            event_type = params.get("type")
+            after_seq = (
+                int(params.get("after_seq", 0)) if params.get("after_seq") else None
+            )
+
+            # Get events from the event store
+            events = self.orchestrator.event_store.last(
+                n=last,
+                agent=agent,
+                type=event_type,
+                after_seq=after_seq,
+            )
+
+            # Convert EventRecord namedtuples to dictionaries for JSON serialization
+            events_data = []
+            for event in events:
+                event_dict = event._asdict()
+                # Convert timestamp to ISO format for better readability
+                event_dict["timestamp"] = datetime.fromtimestamp(
+                    event.t_wall
+                ).isoformat()
+                events_data.append(event_dict)
+
+            return {
+                "status": "success",
+                "data": {
+                    "events": events_data,
+                    "count": len(events_data),
+                    "filters": {
+                        "last": last,
+                        "agent": agent,
+                        "type": event_type,
+                        "after_seq": after_seq,
+                    },
+                    "capacity_info": self.orchestrator.event_store.get_capacity_info(),
+                },
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to get event history: {str(e)}",
+            }
+
+    def _cmd_history_stats(self, args: list) -> dict:
+        """Get aggregated event statistics."""
+        try:
+            # Parse arguments
+            if args and isinstance(args[0], str):
+                try:
+                    params = json.loads(args[0])
+                except (json.JSONDecodeError, ValueError):
+                    params = {}
+            elif args and isinstance(args[0], dict):
+                params = args[0]
+            else:
+                params = {}
+
+            agent = params.get("agent")
+
+            # Get statistics from the event store
+            stats = self.orchestrator.event_store.stats(agent=agent)
+            capacity_info = self.orchestrator.event_store.get_capacity_info()
+
+            return {
+                "status": "success",
+                "data": {
+                    "statistics": stats,
+                    "capacity_info": capacity_info,
+                    "agent_filter": agent,
+                    "timestamp": datetime.now().isoformat(),
+                },
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to get event statistics: {str(e)}",
             }
