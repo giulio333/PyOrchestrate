@@ -11,6 +11,17 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false,
+        },
+        {
+            "name": "CLI",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/Users/giuliodigiamberardino/Documents/repository/PyOrchestrate/PyOrchestrate/cli.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "history"
+            ]
         }
     ]
 }
