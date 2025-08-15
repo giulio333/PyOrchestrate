@@ -9,7 +9,9 @@ core Orchestrator functionality.
 import json
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
+from PyOrchestrate.core.orchestrator.event_store import EventRecord
 
 if TYPE_CHECKING:
     from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
@@ -403,7 +405,7 @@ class CommandHandler:
             )
 
             # Get events from the event store
-            events = self.orchestrator.event_store.last(
+            events: List[EventRecord] = self.orchestrator.event_store.last(
                 n=last,
                 agent=agent,
                 type=event_type,
@@ -411,14 +413,7 @@ class CommandHandler:
             )
 
             # Convert EventRecord namedtuples to dictionaries for JSON serialization
-            events_data = []
-            for event in events:
-                event_dict = event._asdict()
-                # Convert timestamp to ISO format for better readability
-                event_dict["timestamp"] = datetime.fromtimestamp(
-                    event.t_wall
-                ).isoformat()
-                events_data.append(event_dict)
+            events_data = [event.to_dict() for event in events]
 
             return {
                 "status": "success",
@@ -460,15 +455,14 @@ class CommandHandler:
             stats = self.orchestrator.event_store.stats(agent=agent)
             capacity_info = self.orchestrator.event_store.get_capacity_info()
 
-            return {
-                "status": "success",
-                "data": {
-                    "statistics": stats,
-                    "capacity_info": capacity_info,
-                    "agent_filter": agent,
-                    "timestamp": datetime.now().isoformat(),
-                },
+            data = {
+                "statistics": stats,
+                "capacity_info": capacity_info,
+                "agent_filter": agent,
+                "timestamp": datetime.now().isoformat(),
             }
+
+            return {"status": "success", "data": data}
         except Exception as e:
             return {
                 "status": "error",

@@ -65,6 +65,36 @@ class TestEventStore:
         assert len(event.data["long"]) == 10
         assert event.data["long"].endswith("...")
 
+    def test_eventrecord_to_dict_and_json(self):
+        """Verify EventRecord.to_dict() and to_json() shapes and values."""
+        store = EventStore()
+        store.record(
+            category="test",
+            type="TYPE_X",
+            agent="agent-1",
+            severity="WARN",
+            data={"k": "v"},
+        )
+
+        event = store._events[0]
+        d = event.to_dict()
+
+        # Basic keys
+        assert d["seq"] == event.seq
+        assert "timestamp" in d and isinstance(d["timestamp"], str)
+        assert d["category"] == "test"
+        assert d["type"] == "TYPE_X"
+        assert d["agent"] == "agent-1"
+        assert d["data"]["k"] == "v"
+
+        # JSON serialization returns a valid JSON string
+        j = event.to_json()
+        assert isinstance(j, str)
+        import json as _json
+
+        parsed = _json.loads(j)
+        assert parsed["seq"] == event.seq
+
     def test_ring_buffer_behavior(self):
         """Test ring buffer capacity limits."""
         store = EventStore(capacity=3)

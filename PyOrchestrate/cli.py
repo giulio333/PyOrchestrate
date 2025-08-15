@@ -94,14 +94,25 @@ def send_command(args: argparse.Namespace) -> None:
 
             # Format output
             if response_payload.get("status") == "success":
-                if args.format == "json":
-                    print(json.dumps(response_payload, indent=2))
+                if hasattr(args, "format") and args.format == "json":
+                    # Print only the data section for machine-friendly output
+                    print(
+                        json.dumps(
+                            response_payload.get("data", {}),
+                            indent=2,
+                            ensure_ascii=False,
+                        )
+                    )
                 else:
                     print_formatted_response(
                         args.command[0] if args.command else "status", response_payload
                     )
             else:
-                print(f"Error: {response_payload.get('message', 'Unknown error')}")
+                # Error responses: JSON if requested, otherwise human message
+                if hasattr(args, "format") and args.format == "json":
+                    print(json.dumps(response_payload, indent=2, ensure_ascii=False))
+                else:
+                    print(f"Error: {response_payload.get('message', 'Unknown error')}")
         else:
             print("No response received from orchestrator")
 
@@ -369,7 +380,7 @@ def send_command_wrapper(args: argparse.Namespace, command: str) -> None:
             params["type"] = args.type
         if hasattr(args, "after_seq") and args.after_seq is not None:
             params["after_seq"] = args.after_seq
-        
+
         # Pass parameters as JSON string
         args.command = [command, json.dumps(params)]
     elif hasattr(args, "filters") and args.filters:
