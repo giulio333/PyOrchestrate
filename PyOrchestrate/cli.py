@@ -7,7 +7,7 @@ import signal
 import sys
 from datetime import datetime
 
-from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
+from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage, make_request
 
 
 def create_project_structure(app_name):
@@ -69,17 +69,20 @@ def send_command(args: argparse.Namespace) -> None:
         # Create MessageChannel client
         client = MessageChannel("unix_socket_client", args.socket)
 
-        # Prepare command message
-        cmd_data = {
-            "command": args.command[0] if args.command else "status",
-            "args": args.command[1:] if len(args.command) > 1 else [],
-        }
+        # Prepare command using new standardized request format
+        command = args.command[0] if args.command else "status"
+        cmd_args = args.command[1:] if len(args.command) > 1 else []
+        
+        request_payload = make_request(
+            command=command,
+            args=cmd_args
+        )
 
-        # Create ServiceMessage
+        # Create ServiceMessage with new standardized payload
         msg = ServiceMessage(
             sender="cli",
             type="COMMAND",
-            payload=json.dumps(cmd_data),
+            payload=request_payload,
             timestamp=datetime.now(),
         )
 
@@ -87,7 +90,7 @@ def send_command(args: argparse.Namespace) -> None:
         response_msg = client.send_and_receive(msg, timeout=5.0)
 
         if response_msg:
-            response_payload = json.loads(response_msg.payload)
+            response_payload = response_msg.payload  # Now already a dict
 
             # Format output
             if response_payload.get("status") == "success":
@@ -101,9 +104,7 @@ def send_command(args: argparse.Namespace) -> None:
                         )
                     )
                 else:
-                    print_formatted_response(
-                        args.command[0] if args.command else "status", response_payload
-                    )
+                    print_formatted_response(command, response_payload)
             else:
                 # Error responses: JSON if requested, otherwise human message
                 if hasattr(args, "format") and args.format == "json":
@@ -408,11 +409,13 @@ def stats_command(args: argparse.Namespace) -> None:
                 # Create MessageChannel client
                 client = MessageChannel("unix_socket_client", args.socket)
 
-                # Create ServiceMessage for stats command
+                # Create ServiceMessage for stats command using new protocol
+                request_payload = make_request(command="stats", args=[])
+                
                 msg = ServiceMessage(
                     sender="cli",
                     type="COMMAND",
-                    payload=json.dumps({"command": "stats", "args": []}),
+                    payload=request_payload,
                     timestamp=datetime.now(),
                 )
 
@@ -420,7 +423,7 @@ def stats_command(args: argparse.Namespace) -> None:
                 response_msg = client.send_and_receive(msg, timeout=5.0)
 
                 if response_msg:
-                    response_payload = json.loads(response_msg.payload)
+                    response_payload = response_msg.payload  # Already a dict
 
                     if response_payload.get("status") == "success":
                         print_stats_output(response_payload)

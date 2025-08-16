@@ -4,9 +4,10 @@ import socket
 import os
 import json
 import time
+import uuid
 from datetime import datetime
 from dataclasses import dataclass, asdict
-from typing import Union, Optional, Literal
+from typing import Union, Optional, Literal, Dict, Any
 
 
 # Constants
@@ -15,13 +16,114 @@ SOCKET_LISTEN_BACKLOG = 5
 SOCKET_TIMEOUT = 1.0
 CLIENT_RECEIVE_TIMEOUT = 0.1
 BUFFER_SIZE = 4096
+PROTOCOL_VERSION = "1.0"
+
+
+def now_iso() -> str:
+    """Return current timestamp in ISO format."""
+    return datetime.now().isoformat()
+
+
+def generate_request_id() -> str:
+    """Generate a unique request ID."""
+    return str(uuid.uuid4())
+
+
+def make_request(command: str, args: Optional[list] = None, request_id: Optional[str] = None, meta: Optional[dict] = None) -> dict:
+    """Create a standardized request payload.
+    
+    Args:
+        command: Command name
+        args: Command arguments
+        request_id: Optional request ID for correlation
+        meta: Optional metadata
+        
+    Returns:
+        Standardized request dict
+    """
+    return {
+        "command": command,
+        "args": args or [],
+        "request_id": request_id or generate_request_id(),
+        "timestamp": now_iso(),
+        "meta": meta or {}
+    }
+
+
+def make_response(status: str, data: Any = None, message: Optional[str] = None, 
+                 code: int = 0, request_id: Optional[str] = None, error: Optional[dict] = None) -> dict:
+    """Create a standardized response payload.
+    
+    Args:
+        status: "success" or "error"
+        data: Response data
+        message: Human readable message
+        code: Error code (0 = success)
+        request_id: Request ID for correlation
+        error: Error details dict
+        
+    Returns:
+        Standardized response dict
+    """
+    response = {
+        "status": status,
+        "code": code,
+        "message": message or "",
+        "data": data or {},
+        "request_id": request_id,
+        "timestamp": now_iso(),
+        "protocol_version": PROTOCOL_VERSION
+    }
+    
+    if status == "error" and error:
+        response["error"] = error
+    elif status == "error" and isinstance(data, Exception):
+        response["error"] = {
+            "type": type(data).__name__,
+            "message": str(data)
+        }
+        response["data"] = {}
+        
+    return response
+
+
+def pack_envelope(sender: str, msg_type: str, payload: dict) -> bytes:
+    """Pack a message envelope for transmission.
+    
+    Args:
+        sender: Message sender identifier
+        msg_type: Message type ("COMMAND", "STATUS", etc.)
+        payload: Message payload dict
+        
+    Returns:
+        Encoded message bytes with newline terminator
+    """
+    envelope = {
+        "sender": sender,
+        "type": msg_type,
+        "payload": payload,
+        "timestamp": now_iso()
+    }
+    return (json.dumps(envelope, ensure_ascii=False) + "\n").encode()
+
+
+def unpack_envelope(raw_bytes: bytes) -> dict:
+    """Unpack a message envelope from transmission.
+    
+    Args:
+        raw_bytes: Raw message bytes
+        
+    Returns:
+        Unpacked envelope dict
+    """
+    return json.loads(raw_bytes.decode().strip())
 
 
 @dataclass
 class ServiceMessage:
     sender: str
     type: Literal["COMMAND", "STATUS"]
-    payload: str
+    payload: Dict[str, Any]  # Now always a dict instead of string
     timestamp: datetime
 
 
@@ -169,17 +271,7 @@ class MessageChannel:
 
     def _send_to_unix_socket_server(self, msg: ServiceMessage) -> None:
         """Send message to all connected UNIX socket clients (server mode)."""
-        msg_data = (
-            json.dumps(
-                {
-                    "sender": msg.sender,
-                    "type": msg.type,
-                    "payload": msg.payload,
-                    "timestamp": msg.timestamp.isoformat(),
-                }
-            ).encode()
-            + b"\n"
-        )
+        msg_data = pack_envelope(msg.sender, msg.type, msg.payload)
 
         # Use slice copy to avoid modification during iteration
         for client in self._clients[:]:
@@ -198,18 +290,8 @@ class MessageChannel:
 
         try:
             assert self._socket is not None, "Socket must be connected before sending"
-            msg_data = (
-                json.dumps(
-                    {
-                        "sender": msg.sender,
-                        "type": msg.type,
-                        "payload": msg.payload,
-                        "timestamp": msg.timestamp.isoformat(),
-                    }
-                ).encode()
-                + b"\n"
-            )
-            self._socket.send(msg_data)
+            envelope = pack_envelope(msg.sender, msg.type, msg.payload)
+            self._socket.send(envelope)
             return True
         except (BrokenPipeError, ConnectionResetError, OSError):
             return False
@@ -255,14 +337,14 @@ class MessageChannel:
                     client.settimeout(client_timeout)
                     data = client.recv(BUFFER_SIZE)
                     if data:
-                        msg_str = data.decode().strip()
-                        msg_data = json.loads(msg_str)
-                        return ServiceMessage(
-                            sender=msg_data["sender"],
-                            type=msg_data["type"],
-                            payload=msg_data["payload"],
-                            timestamp=datetime.fromisoformat(msg_data["timestamp"]),
-                        )
+                        envelope = unpack_envelope(data)
+                        if envelope:
+                            return ServiceMessage(
+                                sender=envelope["sender"],
+                                type=envelope["type"],
+                                payload=envelope["payload"],
+                                timestamp=envelope["timestamp"],
+                            )
                 except (socket.timeout, json.JSONDecodeError, KeyError):
                     pass  # No data or invalid data
                 except (BrokenPipeError, ConnectionResetError, OSError):
@@ -314,14 +396,14 @@ class MessageChannel:
             self._socket.settimeout(timeout)
             data = self._socket.recv(BUFFER_SIZE)
             if data:
-                msg_str = data.decode().strip()
-                msg_data = json.loads(msg_str)
-                return ServiceMessage(
-                    sender=msg_data["sender"],
-                    type=msg_data["type"],
-                    payload=msg_data["payload"],
-                    timestamp=datetime.fromisoformat(msg_data["timestamp"]),
-                )
+                envelope = unpack_envelope(data)
+                if envelope:
+                    return ServiceMessage(
+                        sender=envelope["sender"],
+                        type=envelope["type"],
+                        payload=envelope["payload"],
+                        timestamp=envelope["timestamp"],
+                    )
         except (socket.timeout, json.JSONDecodeError, KeyError, OSError):
             pass
         return None
