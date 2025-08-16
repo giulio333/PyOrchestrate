@@ -134,6 +134,27 @@ class ServiceMessage:
     payload: Dict[str, Any]  # Always a dict for consistency
     timestamp: datetime
 
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "sender": self.sender,
+            "type": self.type,
+            "payload": self.payload,
+            "timestamp": self.timestamp,
+        }
+
+    def to_json(self, **json_kwargs) -> str:
+        """Return a JSON string representation of the event.
+
+        Passes json_kwargs to json.dumps (e.g. indent=2, ensure_ascii=False).
+        """
+        return json.dumps(
+            self.to_dict(),
+            **json_kwargs,
+        )
+
+    def __str__(self) -> str:
+        return f"ServiceMessage(sender={self.sender}, type={self.type})"
+
 
 class MessageChannel:
     """A message channel for communication between agents and orchestrators.

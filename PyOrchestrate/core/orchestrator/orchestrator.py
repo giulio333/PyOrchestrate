@@ -345,9 +345,7 @@ class Orchestrator(BaseClass):
         Notes:
             Only messages of type 'STATUS' are processed and relayed to the orchestrator's `EventManager`.
         """
-        self.logger.debug(
-            f"Received message from {msg.sender}: {msg.type} - {msg.payload}"
-        )
+        self.logger.debug(f"Received {msg}: {msg.payload}")
 
         if msg.type == "STATUS":
             event = msg.payload.get("event")
