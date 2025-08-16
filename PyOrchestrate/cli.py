@@ -388,7 +388,6 @@ def stats_command(args: argparse.Namespace) -> None:
 
     def signal_handler(sig, frame):
         """Handle Ctrl+C gracefully."""
-        client.close()
         print("\n\nMonitoring stopped.")
         sys.exit(0)
 
@@ -422,7 +421,9 @@ def stats_command(args: argparse.Namespace) -> None:
                 )
 
                 # Send command and receive response
-                response_msg = client.send_and_receive(msg, timeout=5.0)
+                response_msg = client.send_and_receive(
+                    msg, timeout=5.0, auto_close=True
+                )
 
                 if response_msg:
                     response_payload = response_msg.payload  # Already a dict
