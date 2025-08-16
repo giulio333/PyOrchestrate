@@ -10,7 +10,7 @@ from datetime import datetime
 from PyOrchestrate.core.utilities.messaging import (
     MessageChannel,
     ServiceMessage,
-    make_request,
+    make_request_payload,
 )
 
 
@@ -77,7 +77,7 @@ def send_command(args: argparse.Namespace) -> None:
         command = args.command[0] if args.command else "status"
         cmd_args = args.command[1:] if len(args.command) > 1 else []
 
-        request_payload = make_request(command=command, args=cmd_args)
+        request_payload = make_request_payload(command=command, args=cmd_args)
 
         # Create ServiceMessage with new standardized payload
         msg = ServiceMessage(
@@ -388,6 +388,7 @@ def stats_command(args: argparse.Namespace) -> None:
 
     def signal_handler(sig, frame):
         """Handle Ctrl+C gracefully."""
+        client.close()
         print("\n\nMonitoring stopped.")
         sys.exit(0)
 
@@ -411,7 +412,7 @@ def stats_command(args: argparse.Namespace) -> None:
                 client = MessageChannel("unix_socket_client", args.socket)
 
                 # Create ServiceMessage for stats command using new protocol
-                request_payload = make_request(command="stats", args=[])
+                request_payload = make_request_payload(command="stats", args=[])
 
                 msg = ServiceMessage(
                     sender="cli",

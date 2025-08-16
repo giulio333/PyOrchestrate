@@ -29,7 +29,7 @@ def generate_request_id() -> str:
     return str(uuid.uuid4())
 
 
-def make_request(
+def make_request_payload(
     command: str,
     args: Optional[list] = None,
     request_id: Optional[str] = None,
@@ -55,7 +55,7 @@ def make_request(
     }
 
 
-def make_response(
+def make_response_payload(
     status: str,
     data: Any = None,
     message: Optional[str] = None,

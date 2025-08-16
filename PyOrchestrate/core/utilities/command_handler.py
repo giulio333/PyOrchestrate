@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
 from PyOrchestrate.core.orchestrator.event_store import EventRecord
-from PyOrchestrate.core.utilities.messaging import make_response
+from PyOrchestrate.core.utilities.messaging import make_response_payload
 
 if TYPE_CHECKING:
     from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
@@ -64,7 +64,7 @@ class CommandHandler:
         elif command == "shutdown":
             return self._cmd_shutdown(request_id)
         else:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Unknown command: {command}",
                 code=400,
@@ -97,9 +97,11 @@ class CommandHandler:
                 "waiting_count": len(self.orchestrator._waiting_agents_queue),
             }
 
-            return make_response(status="success", data=data, request_id=request_id)
+            return make_response_payload(
+                status="success", data=data, request_id=request_id
+            )
         except Exception as e:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Failed to list agents: {str(e)}",
                 code=500,
@@ -112,7 +114,7 @@ class CommandHandler:
         """Start a specific agent."""
         try:
             if agent_name in self.orchestrator._started_agents:
-                return make_response(
+                return make_response_payload(
                     status="error",
                     message=f"Agent {agent_name} is already started",
                     code=409,
@@ -122,7 +124,7 @@ class CommandHandler:
             if agent_name not in [
                 agent.name for agent in self.orchestrator.memory.agents
             ]:
-                return make_response(
+                return make_response_payload(
                     status="error",
                     message=f"Agent {agent_name} is not registered",
                     code=404,
@@ -131,14 +133,14 @@ class CommandHandler:
 
             # Start the agent using existing logic
             self.orchestrator._start_agent_callback(agent_name)
-            return make_response(
+            return make_response_payload(
                 status="success",
                 message=f"Agent {agent_name} start initiated",
                 request_id=request_id,
             )
 
         except Exception as e:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Failed to start agent {agent_name}: {str(e)}",
                 code=500,
@@ -152,7 +154,7 @@ class CommandHandler:
         try:
             agent = self.orchestrator.memory.get_agent(agent_name)
             if not agent:
-                return make_response(
+                return make_response_payload(
                     status="error",
                     message=f"Agent {agent_name} not found",
                     code=404,
@@ -164,14 +166,14 @@ class CommandHandler:
                 self.orchestrator._started_agents.remove(agent_name)
                 self.orchestrator._running_agents -= 1
 
-            return make_response(
+            return make_response_payload(
                 status="success",
                 message=f"Agent {agent_name} stopped",
                 request_id=request_id,
             )
 
         except Exception as e:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Failed to stop agent {agent_name}: {str(e)}",
                 code=500,
@@ -185,7 +187,7 @@ class CommandHandler:
         try:
             agent = self.orchestrator.memory.get_agent(agent_name)
             if not agent:
-                return make_response(
+                return make_response_payload(
                     status="error",
                     message=f"Agent {agent_name} not found",
                     code=404,
@@ -204,9 +206,11 @@ class CommandHandler:
                 "dependencies": self.orchestrator.dependencies.get(agent.name, []),
             }
 
-            return make_response(status="success", data=data, request_id=request_id)
+            return make_response_payload(
+                status="success", data=data, request_id=request_id
+            )
         except Exception as e:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Failed to get status for {agent_name}: {str(e)}",
                 code=500,
@@ -229,9 +233,11 @@ class CommandHandler:
                 ),
             }
 
-            return make_response(status="success", data=data, request_id=request_id)
+            return make_response_payload(
+                status="success", data=data, request_id=request_id
+            )
         except Exception as e:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Failed to get orchestrator status: {str(e)}",
                 code=500,
@@ -260,7 +266,7 @@ class CommandHandler:
                     }
                 )
 
-            return make_response(
+            return make_response_payload(
                 status="success",
                 data={
                     "orchestrator": {
@@ -275,7 +281,7 @@ class CommandHandler:
                 request_id=request_id,
             )
         except Exception as e:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Failed to generate full report: {str(e)}",
                 code=500,
@@ -285,13 +291,13 @@ class CommandHandler:
     def _cmd_show_dependencies(self, request_id: Optional[str] = None) -> dict:
         """Show agent dependencies."""
         try:
-            return make_response(
+            return make_response_payload(
                 status="success",
                 data={"dependencies": dict(self.orchestrator.dependencies)},
                 request_id=request_id,
             )
         except Exception as e:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Failed to show dependencies: {str(e)}",
                 code=500,
@@ -365,7 +371,7 @@ class CommandHandler:
 
                 agents_stats.append(agent_stat)
 
-            return make_response(
+            return make_response_payload(
                 status="success",
                 data={
                     "timestamp": datetime.now().isoformat(),
@@ -379,7 +385,7 @@ class CommandHandler:
                 request_id=request_id,
             )
         except Exception as e:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Failed to get statistics: {str(e)}",
                 code=500,
@@ -423,13 +429,13 @@ class CommandHandler:
             # Signal the orchestrator to shutdown
             self.orchestrator._shutdown_requested = True
 
-            return make_response(
+            return make_response_payload(
                 status="success",
                 message="Orchestrator shutdown initiated",
                 request_id=request_id,
             )
         except Exception as e:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Failed to shutdown orchestrator: {str(e)}",
                 code=500,
@@ -471,7 +477,7 @@ class CommandHandler:
             # Convert EventRecord namedtuples to dictionaries for JSON serialization
             events_data = [event.to_dict() for event in events]
 
-            return make_response(
+            return make_response_payload(
                 status="success",
                 data={
                     "events": events_data,
@@ -487,7 +493,7 @@ class CommandHandler:
                 request_id=request_id,
             )
         except Exception as e:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Failed to get event history: {str(e)}",
                 code=500,
@@ -521,13 +527,13 @@ class CommandHandler:
                 "timestamp": datetime.now().isoformat(),
             }
 
-            return make_response(
+            return make_response_payload(
                 status="success",
                 data=data,
                 request_id=request_id,
             )
         except Exception as e:
-            return make_response(
+            return make_response_payload(
                 status="error",
                 message=f"Failed to get event statistics: {str(e)}",
                 code=500,
