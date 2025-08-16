@@ -14,15 +14,22 @@ To enable CLI runtime commands, you need to configure your orchestrator with the
 ### Basic Configuration
 
 ```python
-from PyOrchestrate.core.orchestrator import BaseOrchestrator
+from PyOrchestrate.core.orchestrator import Orchestrator
 
-class MyOrchestrator(BaseOrchestrator):
-    class Config(BaseOrchestrator.Config):
-        # Enable the command interface
-        enable_command_interface: bool = True
-        
-        # UNIX socket path for communication
-        command_socket_path: str = "/tmp/pyorchestrate.sock"
+if __name__ == "__main__":
+    # Initialize Orchestrator with command interface enabled
+    config = Orchestrator.Config(
+        enable_command_interface=True,
+        command_socket_path="/tmp/pyorchestrate.sock"
+    )
+    orchestrator = Orchestrator(config=config)
+
+    # Register your agents
+    # orchestrator.register_agent(YourAgent, "YourAgentName")
+
+    # Start orchestrator
+    orchestrator.start()
+    orchestrator.join()
 ```
 
 ### Advanced Configuration
@@ -30,20 +37,29 @@ class MyOrchestrator(BaseOrchestrator):
 For production environments, you may want additional configuration options:
 
 ```python
-class MyOrchestrator(BaseOrchestrator):
-    class Config(BaseOrchestrator.Config):
+from PyOrchestrate.core.orchestrator import Orchestrator
+
+if __name__ == "__main__":
+    # Advanced configuration for production
+    config = Orchestrator.Config(
         # Command interface settings
-        enable_command_interface: bool = True
-        command_socket_path: str = "/var/run/pyorchestrate/orchestrator.sock"
-        
-        # Security settings
-        command_socket_permissions: int = 0o660  # rw-rw----
-        command_timeout: int = 30  # seconds
-        
-        # Logging for CLI operations
-        log_cli_commands: bool = True
-        cli_audit_log_path: str = "/var/log/pyorchestrate/cli.log"
+        enable_command_interface=True,
+        command_socket_path="/var/run/pyorchestrate/orchestrator.sock"
+    )
+    
+    orchestrator = Orchestrator(config=config)
+    
+    # Register your agents
+    # orchestrator.register_agent(YourAgent, "YourAgentName")
+    
+    # Start orchestrator
+    orchestrator.start()
+    orchestrator.join()
 ```
+
+::: tip Socket Configuration
+The socket path must be accessible to both the orchestrator and the CLI. Make sure the directories exist and have the correct permissions.
+:::
 
 ## Configuration Options
 
@@ -54,22 +70,9 @@ class MyOrchestrator(BaseOrchestrator):
 | `enable_command_interface` | `bool` | `False` | Enable/disable the CLI command interface |
 | `command_socket_path` | `str` | `"/tmp/pyorchestrate.sock"` | Path to the UNIX socket file |
 
-### Security Settings
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `command_socket_permissions` | `int` | `0o600` | UNIX socket file permissions |
-| `command_timeout` | `int` | `30` | Command execution timeout in seconds |
-| `allowed_commands` | `List[str]` | `None` | Whitelist of allowed commands (None = all) |
-| `blocked_commands` | `List[str]` | `[]` | Blacklist of blocked commands |
-
-### Logging Settings
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `log_cli_commands` | `bool` | `True` | Log all CLI command executions |
-| `cli_audit_log_path` | `str` | `None` | Separate audit log file for CLI operations |
-| `cli_log_level` | `str` | `"INFO"` | Log level for CLI operations |
+::: info Simplified Configuration
+The current CLI implementation supports basic configuration options. Advanced security and logging options may be available in future versions.
+:::
 
 ## Socket Configuration
 
@@ -79,32 +82,27 @@ Choose socket paths based on your deployment environment:
 
 **Development:**
 ```python
-command_socket_path: str = "/tmp/pyorchestrate.sock"
+config = Orchestrator.Config(
+    enable_command_interface=True,
+    command_socket_path="/tmp/pyorchestrate.sock"
+)
 ```
 
 **Production (single user):**
 ```python
-command_socket_path: str = "/var/run/pyorchestrate/orchestrator.sock"
+config = Orchestrator.Config(
+    enable_command_interface=True,
+    command_socket_path="/var/run/pyorchestrate/orchestrator.sock"
+)
 ```
 
 **Production (multi-user):**
 ```python
-command_socket_path: str = "/var/run/pyorchestrate/orchestrator-{user}.sock"
-```
-
-### Socket Permissions
-
-Configure appropriate permissions for your security requirements:
-
-```python
-# Owner read/write only (most secure)
-command_socket_permissions: int = 0o600  # rw-------
-
-# Owner and group read/write
-command_socket_permissions: int = 0o660  # rw-rw----
-
-# Owner, group, and others read/write (least secure)
-command_socket_permissions: int = 0o666  # rw-rw-rw-
+import os
+config = Orchestrator.Config(
+    enable_command_interface=True,
+    command_socket_path=f"/var/run/pyorchestrate/orchestrator-{os.getenv('USER')}.sock"
+)
 ```
 
 ## Security Configuration

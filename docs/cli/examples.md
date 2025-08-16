@@ -13,18 +13,18 @@ This page provides practical examples of using the PyOrchestrate CLI for various
 
 ```bash
 # Initialize a new PyOrchestrate project
-pyorchestrate init my-weather-app
+pyorchestrate create my-weather-app
 cd my-weather-app
 
 # Start your orchestrator with CLI enabled
-python main.py &
+python starter.py &
 ORCHESTRATOR_PID=$!
 
 # Wait for orchestrator to start
 sleep 2
 
 # Check if orchestrator is running
-pyorchestrate stats
+pyorchestrate status
 
 # Monitor agents during development
 pyorchestrate ps
@@ -33,6 +33,12 @@ pyorchestrate ps
 pyorchestrate start WeatherAgent
 pyorchestrate status WeatherAgent
 pyorchestrate stop WeatherAgent
+
+# Check event history
+pyorchestrate history --last 10
+
+# Monitor real-time stats
+pyorchestrate stats --interval 3
 
 # Clean shutdown for development
 pyorchestrate shutdown
@@ -55,21 +61,21 @@ while true; do
     echo "Time: $(date)"
     echo "----------------------------------------"
     
-    if pyorchestrate stats "$SOCKET" 2>/dev/null | jq -e '.status == "success"' > /dev/null; then
+    if pyorchestrate status --socket "$SOCKET" --format json > /dev/null 2>&1; then
         echo "Orchestrator Status: RUNNING ✓"
         
         # Show agent summary
         echo -e "\nAgent Summary:"
-        pyorchestrate stats "$SOCKET" | jq -r '
-            .data.orchestrator | 
+        pyorchestrate status --socket "$SOCKET" --format json | jq -r '
+            .data | 
             "  Total: \(.total_agents)  Running: \(.running_agents)  Waiting: \(.waiting_agents)"
         '
         
         # Show individual agents
         echo -e "\nAgent Details:"
-        pyorchestrate ps "$SOCKET" | jq -r '
+        pyorchestrate ps --socket "$SOCKET" --format json | jq -r '
             .data.agents[] | 
-            "  \(.name): \(.status) (PID: \(.pid))"
+            "  \(.agent_name): \(if .alive then "ALIVE" else "DEAD" end) (Started: \(if .started then "YES" else "NO" end))"
         '
         
     else
@@ -101,24 +107,26 @@ log() {
 
 check_orchestrator_health() {
     local stats_output
-    stats_output=$(pyorchestrate stats "$SOCKET" 2>/dev/null)
+    stats_output=$(pyorchestrate status --socket "$SOCKET" --format json 2>/dev/null)
     
     if [ $? -ne 0 ]; then
         log "ERROR: Cannot connect to orchestrator"
         return 1
     fi
     
-    local failed_agents
-    failed_agents=$(echo "$stats_output" | jq -r '.data.orchestrator.failed_agents')
+    local running_agents total_agents
+    running_agents=$(echo "$stats_output" | jq -r '.data.running_agents // 0')
+    total_agents=$(echo "$stats_output" | jq -r '.data.total_agents // 0')
+    local failed_agents=$((total_agents - running_agents))
     
     if [ "$failed_agents" -gt "$ALERT_THRESHOLD" ]; then
         log "ALERT: $failed_agents agents have failed (threshold: $ALERT_THRESHOLD)"
         
         # Get details of failed agents
-        pyorchestrate ps "$SOCKET" | jq -r '
+        pyorchestrate ps --socket "$SOCKET" --format json | jq -r '
             .data.agents[] | 
-            select(.status == "failed") | 
-            "FAILED AGENT: \(.name) - Last seen: \(.last_activity)"
+            select(.alive == false) | 
+            "FAILED AGENT: \(.agent_name) - Alive: \(.alive) - Started: \(.started)"
         ' | while read line; do
             log "$line"
         done
@@ -155,27 +163,27 @@ log() {
 
 restart_failed_agents() {
     local failed_agents
-    failed_agents=$(pyorchestrate ps "$SOCKET" | jq -r '
+    failed_agents=$(pyorchestrate ps --socket "$SOCKET" --format json | jq -r '
         .data.agents[] | 
-        select(.status == "failed") | 
-        .name
+        select(.alive == false) | 
+        .agent_name
     ')
     
     for agent in $failed_agents; do
         log "Attempting to restart failed agent: $agent"
         
         # Try to restart the agent
-        if pyorchestrate start "$agent" "$SOCKET" > /dev/null 2>&1; then
-            log "SUCCESS: Restarted $agent"
+        if pyorchestrate start "$agent" --socket "$SOCKET" --format json > /dev/null 2>&1; then
+            log "SUCCESS: Restart command sent for $agent"
             
             # Wait and verify it's running
             sleep 5
-            status=$(pyorchestrate status "$agent" "$SOCKET" | jq -r '.data.status')
+            alive=$(pyorchestrate status "$agent" --socket "$SOCKET" --format json 2>/dev/null | jq -r '.data.alive // false')
             
-            if [ "$status" = "running" ]; then
-                log "VERIFIED: $agent is now running"
+            if [ "$alive" = "true" ]; then
+                log "VERIFIED: $agent is now alive"
             else
-                log "WARNING: $agent restart failed - status: $status"
+                log "WARNING: $agent restart failed - alive: $alive"
             fi
         else
             log "ERROR: Failed to restart $agent"
@@ -213,7 +221,7 @@ while true; do
         exit 1
     fi
     
-    if pyorchestrate stats "$SOCKET" > /dev/null 2>&1; then
+    if pyorchestrate status --socket "$SOCKET" --format json > /dev/null 2>&1; then
         echo "✓ Orchestrator is responding"
         break
     fi
@@ -227,17 +235,15 @@ expected_agents=("WeatherAgent" "DataProcessor" "AlertManager" "LogCollector")
 all_agents_ready=true
 
 for agent in "${expected_agents[@]}"; do
-    status=$(pyorchestrate status "$agent" "$SOCKET" 2>/dev/null | jq -r '.data.status')
+    alive=$(pyorchestrate status "$agent" --socket "$SOCKET" --format json 2>/dev/null | jq -r '.data.alive // false')
     
-    if [ "$status" = "running" ]; then
+    if [ "$alive" = "true" ]; then
         echo "✓ $agent is running"
     else
-        echo "✗ $agent is not running (status: $status)"
+        echo "✗ $agent is not running (alive: $alive)"
         all_agents_ready=false
     fi
-done
-
-if [ "$all_agents_ready" = true ]; then
+doneif [ "$all_agents_ready" = true ]; then
     echo "✓ Deployment verification successful"
     exit 0
 else
@@ -269,7 +275,7 @@ services:
       sh -c "
         while true; do
           echo '=== System Status ===' 
-          pyorchestrate stats /var/run/pyorchestrate/orchestrator.sock || echo 'Orchestrator not ready'
+          pyorchestrate status --socket /var/run/pyorchestrate/orchestrator.sock --format table || echo 'Orchestrator not ready'
           sleep 30
         done
       "
@@ -316,10 +322,10 @@ spec:
         - |
           while true; do
             # Export metrics for Prometheus
-            pyorchestrate stats /var/run/pyorchestrate/orchestrator.sock | \
-              jq -r '.data.orchestrator | 
-                "# HELP pyorchestrate_running_agents Number of running agents\n# TYPE pyorchestrate_running_agents gauge\npyorchestrate_running_agents \(.running_agents)\n# HELP pyorchestrate_failed_agents Number of failed agents\n# TYPE pyorchestrate_failed_agents gauge\npyorchestrate_failed_agents \(.failed_agents)"
-              ' > /tmp/metrics.txt
+            pyorchestrate status --socket /var/run/pyorchestrate/orchestrator.sock --format json | \
+              jq -r '.data | 
+                "# HELP pyorchestrate_running_agents Number of running agents\n# TYPE pyorchestrate_running_agents gauge\npyorchestrate_running_agents \(.running_agents // 0)\n# HELP pyorchestrate_total_agents Total number of agents\n# TYPE pyorchestrate_total_agents gauge\npyorchestrate_total_agents \(.total_agents // 0)"
+              ' > /tmp/metrics.txt 2>/dev/null || echo "# Metrics unavailable" > /tmp/metrics.txt
             sleep 30
           done
         
@@ -340,30 +346,26 @@ SOCKET="/var/run/pyorchestrate/prod.sock"
 METRICS_FILE="/var/lib/prometheus/pyorchestrate.prom"
 
 # Get orchestrator stats
-stats=$(pyorchestrate stats "$SOCKET" 2>/dev/null)
+stats=$(pyorchestrate status --socket "$SOCKET" --format json 2>/dev/null)
 
 if [ $? -eq 0 ]; then
     # Export metrics in Prometheus format
     cat > "$METRICS_FILE" << EOF
 # HELP pyorchestrate_total_agents Total number of agents
 # TYPE pyorchestrate_total_agents gauge
-pyorchestrate_total_agents $(echo "$stats" | jq '.data.orchestrator.total_agents')
+pyorchestrate_total_agents $(echo "$stats" | jq '.data.total_agents // 0')
 
 # HELP pyorchestrate_running_agents Number of running agents  
 # TYPE pyorchestrate_running_agents gauge
-pyorchestrate_running_agents $(echo "$stats" | jq '.data.orchestrator.running_agents')
+pyorchestrate_running_agents $(echo "$stats" | jq '.data.running_agents // 0')
 
-# HELP pyorchestrate_failed_agents Number of failed agents
-# TYPE pyorchestrate_failed_agents gauge
-pyorchestrate_failed_agents $(echo "$stats" | jq '.data.orchestrator.failed_agents')
+# HELP pyorchestrate_waiting_agents Number of waiting agents
+# TYPE pyorchestrate_waiting_agents gauge
+pyorchestrate_waiting_agents $(echo "$stats" | jq '.data.waiting_agents // 0')
 
-# HELP pyorchestrate_memory_usage_bytes Memory usage in bytes
-# TYPE pyorchestrate_memory_usage_bytes gauge
-pyorchestrate_memory_usage_bytes $(echo "$stats" | jq '.data.system.memory_usage_bytes')
-
-# HELP pyorchestrate_cpu_usage_percent CPU usage percentage
-# TYPE pyorchestrate_cpu_usage_percent gauge  
-pyorchestrate_cpu_usage_percent $(echo "$stats" | jq '.data.system.cpu_usage_percent')
+# HELP pyorchestrate_max_workers Maximum worker threads
+# TYPE pyorchestrate_max_workers gauge
+pyorchestrate_max_workers $(echo "$stats" | jq '.data.max_workers // 0')
 EOF
 
     echo "Metrics exported to $METRICS_FILE"
@@ -403,14 +405,16 @@ send_alert() {
 }
 
 # Check orchestrator health
-stats=$(pyorchestrate stats "$SOCKET" 2>/dev/null)
+stats=$(pyorchestrate status --socket "$SOCKET" --format json 2>/dev/null)
 
 if [ $? -ne 0 ]; then
     send_alert "critical" "PyOrchestrate Orchestrator Down" "Cannot connect to orchestrator socket"
     exit 1
 fi
 
-failed_agents=$(echo "$stats" | jq '.data.orchestrator.failed_agents')
+running_agents=$(echo "$stats" | jq '.data.running_agents // 0')
+total_agents=$(echo "$stats" | jq '.data.total_agents // 0')
+failed_agents=$((total_agents - running_agents))
 
 if [ "$failed_agents" -gt 0 ]; then
     send_alert "warning" "PyOrchestrate Agents Failed" "$failed_agents agents have failed"
@@ -437,14 +441,15 @@ enter_maintenance() {
     mkdir -p "$BACKUP_DIR/$(date +%Y%m%d_%H%M%S)"
     
     # Get current state for restoration
-    pyorchestrate report "$SOCKET" > "$BACKUP_DIR/pre_maintenance_report.json"
+    pyorchestrate ps --socket "$SOCKET" --format json > "$BACKUP_DIR/pre_maintenance_agents.json"
+    pyorchestrate status --socket "$SOCKET" --format json > "$BACKUP_DIR/pre_maintenance_status.json"
     
     # Gracefully stop non-critical agents
     non_critical_agents=("DataProcessor" "LogCollector")
     
     for agent in "${non_critical_agents[@]}"; do
         echo "Stopping $agent..."
-        pyorchestrate stop "$agent" "$SOCKET"
+        pyorchestrate stop "$agent" --socket "$SOCKET"
     done
     
     echo "Maintenance mode active"
@@ -454,15 +459,15 @@ exit_maintenance() {
     echo "Exiting maintenance mode..."
     
     # Restart stopped agents
-    backup_report=$(ls -t "$BACKUP_DIR"/pre_maintenance_report.json | head -1)
+    backup_agents=$(ls -t "$BACKUP_DIR"/pre_maintenance_agents.json | head -1)
     
-    if [ -f "$backup_report" ]; then
-        # Extract agents that were running before maintenance
-        running_agents=$(jq -r '.data.agents[] | select(.status == "running") | .name' "$backup_report")
+    if [ -f "$backup_agents" ]; then
+        # Extract agents that were alive before maintenance
+        running_agents=$(jq -r '.data.agents[] | select(.alive == true) | .agent_name' "$backup_agents")
         
         for agent in $running_agents; do
             echo "Starting $agent..."
-            pyorchestrate start "$agent" "$SOCKET"
+            pyorchestrate start "$agent" --socket "$SOCKET"
         done
     fi
     
@@ -496,7 +501,8 @@ mkdir -p "$RESULTS_DIR"
 
 # Pre-test state capture
 echo "Capturing pre-test state..."
-pyorchestrate report "$SOCKET" > "$RESULTS_DIR/pre_test_state.json"
+pyorchestrate ps --socket "$SOCKET" --format json > "$RESULTS_DIR/pre_test_agents.json"
+pyorchestrate status --socket "$SOCKET" --format json > "$RESULTS_DIR/pre_test_status.json"
 
 # Start load test monitoring
 monitor_during_test() {
@@ -504,7 +510,7 @@ monitor_during_test() {
     
     while [ -f "/tmp/load_test_running" ]; do
         timestamp=$(date +%s)
-        pyorchestrate stats "$SOCKET" > "$RESULTS_DIR/stats_$timestamp.json"
+        pyorchestrate status --socket "$SOCKET" --format json > "$RESULTS_DIR/stats_$timestamp.json" 2>/dev/null
         sleep 5
     done
     
@@ -543,10 +549,19 @@ print("=" * 40)
 
 for stats_file in stats_files:
     with open(stats_file) as f:
-        data = json.load(f)
-        timestamp = os.path.basename(stats_file).replace('stats_', '').replace('.json', '')
-        stats = data['data']['orchestrator']
-        print(f"Time {timestamp}: Running={stats['running_agents']}, Failed={stats['failed_agents']}")
+        try:
+            data = json.load(f)
+            timestamp = os.path.basename(stats_file).replace('stats_', '').replace('.json', '')
+            if 'data' in data and data['data']:
+                stats = data['data']
+                running = stats.get('running_agents', 0)
+                total = stats.get('total_agents', 0)
+                waiting = stats.get('waiting_agents', 0)
+                print(f"Time {timestamp}: Running={running}/{total}, Waiting={waiting}")
+            else:
+                print(f"Time {timestamp}: No data available")
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f"Time {timestamp}: Error reading data - {e}")
 
 print("=" * 40)
 print(f"Detailed results saved in: {results_dir}")
@@ -578,7 +593,7 @@ fi
 
 # 2. Check socket connectivity
 log "Step 2: Testing CLI connectivity..."
-if ! pyorchestrate stats "$SOCKET" > /dev/null 2>&1; then
+if ! pyorchestrate status --socket "$SOCKET" --format json > /dev/null 2>&1; then
     log "ERROR: Cannot connect to orchestrator"
     exit 1
 fi
@@ -586,7 +601,8 @@ fi
 # 3. Verify all agents started
 log "Step 3: Verifying agent startup..."
 expected_count=5
-running_count=$(pyorchestrate stats "$SOCKET" | jq '.data.orchestrator.running_agents')
+orchestrator_stats=$(pyorchestrate status --socket "$SOCKET" --format json)
+running_count=$(echo "$orchestrator_stats" | jq '.data.running_agents // 0')
 
 if [ "$running_count" -ne "$expected_count" ]; then
     log "WARNING: Expected $expected_count agents, found $running_count running"
@@ -594,7 +610,7 @@ fi
 
 # 4. Performance baseline
 log "Step 4: Capturing performance baseline..."
-pyorchestrate stats "$SOCKET" > "/var/log/pyorchestrate/baseline_$(date +%Y%m%d_%H%M%S).json"
+pyorchestrate status --socket "$SOCKET" --format json > "/var/log/pyorchestrate/baseline_$(date +%Y%m%d_%H%M%S).json"
 
 log "Deployment verification completed successfully"
 ```

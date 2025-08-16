@@ -13,18 +13,26 @@ The CLI offers two main categories of functionality:
 
 Basic commands for project initialization and setup:
 
-- **Project initialization**: Bootstrap new PyOrchestrate projects
-- **Configuration validation**: Validate your project configuration  
-- **Development utilities**: Tools for development workflows
+- **Project creation**: `create` - Bootstrap new PyOrchestrate projects with proper structure
+- **Version information**: `--version` - Display CLI version information
 
 ## Runtime Commands
 
 Advanced commands for real-time control of running orchestrators:
 
-- **Agent monitoring**: View status and statistics of running agents
-- **Dynamic control**: Start, stop, and manage agents on-demand
-- **System inspection**: Get detailed reports and metrics
-- **Remote management**: Control orchestrators via UNIX sockets
+- **Agent monitoring**: `ps`/`list` - View status and statistics of running agents
+- **Dynamic control**: `start`/`stop` - Start, stop, and manage agents on-demand
+- **System inspection**: `status` - Get detailed reports for orchestrator or specific agents
+- **Dependencies**: `dependencies` - Show agent dependency graph
+- **Event tracking**: `history`/`history-stats` - Get event history and statistics
+- **Real-time monitoring**: `stats` - Continuous monitoring like `docker stats`
+- **Remote management**: `shutdown` - Gracefully shutdown orchestrator via UNIX sockets
+
+### Output Formats
+
+All runtime commands support two output formats:
+- **Table format** (`--format table`): Human-readable output with formatted tables (default)
+- **JSON format** (`--format json`): Machine-readable structured output for automation
 
 ::: tip Real-time Control
 The runtime commands enable DevOps workflows, monitoring integration, and dynamic agent management without stopping your orchestrator.
@@ -35,7 +43,7 @@ The runtime commands enable DevOps workflows, monitoring integration, and dynami
 The CLI is automatically installed when you install PyOrchestrate:
 
 ```bash
-pip install pyorchestrate
+pip install .
 ```
 
 Verify the installation:
@@ -50,10 +58,10 @@ pyorchestrate --help
 
 ```bash
 # Initialize a new project
-pyorchestrate init my-project
+pyorchestrate create my-project
 
-# Run basic validation
-pyorchestrate validate
+# Show CLI version
+pyorchestrate --version
 ```
 
 ### Runtime Control
@@ -62,9 +70,10 @@ To use runtime commands, your orchestrator must be configured with the command i
 
 ```python
 # In your orchestrator configuration
-class OrchestratorConfig(BaseOrchestrator.Config):
-    enable_command_interface: bool = True
-    command_socket_path: str = "/tmp/pyorchestrate.sock"
+config = Orchestrator.Config(
+    enable_command_interface=True,
+    command_socket_path="/tmp/pyorchestrate.sock"
+)
 ```
 
 Then you can control the running orchestrator:
@@ -73,11 +82,17 @@ Then you can control the running orchestrator:
 # List all agents and their status
 pyorchestrate ps
 
-# Get orchestrator statistics  
+# Get orchestrator statistics (real-time monitoring)
 pyorchestrate stats
 
 # Start a specific agent
 pyorchestrate start MyAgent
+
+# Get event history
+pyorchestrate history --last 10
+
+# Shutdown orchestrator
+pyorchestrate shutdown
 ```
 
 ## Architecture
