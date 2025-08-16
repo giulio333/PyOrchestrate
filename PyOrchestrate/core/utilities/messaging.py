@@ -262,6 +262,35 @@ class MessageChannel:
 
         return msg
 
+    def send_and_receive(
+        self, msg: ServiceMessage, timeout: float = 5.0
+    ) -> Optional[ServiceMessage]:
+        """Send a message and wait for response (client mode only).
+
+        Args:
+            msg: ServiceMessage to send.
+            timeout: Maximum time to wait for response in seconds.
+
+        Returns:
+            ServiceMessage response if successful, None otherwise.
+        """
+        if self.a_type != "unix_socket_client":
+            raise ValueError(
+                "send_and_receive is only available for unix_socket_client mode"
+            )
+
+        if not self._socket:
+            if not self._connect_to_server():
+                return None
+
+        if not self._send_to_unix_socket_client(msg):
+            self.close()
+            return None
+
+        response = self._receive_from_unix_socket_client(timeout)
+        self.close()
+        return response
+
     def close(self):
         """Close the message channel and cleanup resources.
 
@@ -384,35 +413,6 @@ class MessageChannel:
             return None
         except Exception:
             return None
-
-    def send_and_receive(
-        self, msg: ServiceMessage, timeout: float = 5.0
-    ) -> Optional[ServiceMessage]:
-        """Send a message and wait for response (client mode only).
-
-        Args:
-            msg: ServiceMessage to send.
-            timeout: Maximum time to wait for response in seconds.
-
-        Returns:
-            ServiceMessage response if successful, None otherwise.
-        """
-        if self.a_type != "unix_socket_client":
-            raise ValueError(
-                "send_and_receive is only available for unix_socket_client mode"
-            )
-
-        if not self._socket:
-            if not self._connect_to_server():
-                return None
-
-        if not self._send_to_unix_socket_client(msg):
-            self.close()
-            return None
-
-        response = self._receive_from_unix_socket_client(timeout)
-        self.close()
-        return response
 
     def _receive_from_unix_socket_client(
         self, timeout: float = 5.0
