@@ -10,7 +10,6 @@ from datetime import datetime
 from PyOrchestrate.core.utilities.messaging import (
     MessageChannel,
     ServiceMessage,
-    make_request_payload,
 )
 
 
@@ -77,14 +76,10 @@ def send_command(args: argparse.Namespace) -> None:
         command = args.command[0] if args.command else "status"
         cmd_args = args.command[1:] if len(args.command) > 1 else []
 
-        request_payload = make_request_payload(command=command, args=cmd_args)
-
-        # Create ServiceMessage with new standardized payload
-        msg = ServiceMessage(
+        msg = ServiceMessage.create_command(
             sender="cli",
-            type="COMMAND",
-            payload=request_payload,
-            timestamp=datetime.now(),
+            command=command,
+            args=cmd_args,
         )
 
         # Send command and receive response
@@ -410,14 +405,10 @@ def stats_command(args: argparse.Namespace) -> None:
                 # Create MessageChannel client
                 client = MessageChannel("unix_socket_client", args.socket)
 
-                # Create ServiceMessage for stats command using new protocol
-                request_payload = make_request_payload(command="stats", args=[])
-
-                msg = ServiceMessage(
+                msg = ServiceMessage.create_command(
                     sender="cli",
-                    type="COMMAND",
-                    payload=request_payload,
-                    timestamp=datetime.now(),
+                    command="stats",
+                    args=[],
                 )
 
                 # Send command and receive response

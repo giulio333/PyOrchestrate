@@ -279,11 +279,10 @@ class BaseAgent(BaseClass, ABC):
             self.termination_status = AgentTerminationStatus.CRITICAL
 
             # Send error message to orchestrator
-            error_message = ServiceMessage(
+            error_message = ServiceMessage.create_status(
                 sender=self.name,
-                type="STATUS",
-                payload={"event": "ERROR", "message": str(ex)},
-                timestamp=datetime.now(),
+                status="error",
+                error=str(ex),
             )
             self.send_message(error_message)
 
@@ -314,13 +313,12 @@ class BaseAgent(BaseClass, ABC):
             Events are sent to the orchestrator via message channel
             for centralized event handling.
         """
-        message = ServiceMessage(
+        msg = ServiceMessage.create_status(
             sender=self.name,
-            type="STATUS",
-            payload={"event": AgentEvent.AGENT_START.value},
-            timestamp=datetime.now(),
+            status="success",
+            event_name=AgentEvent.AGENT_START.value,
         )
-        self.send_message(message)
+        self.send_message(msg)
 
     def _handle_stop(self):
         """
@@ -329,13 +327,12 @@ class BaseAgent(BaseClass, ABC):
         Events are sent to the orchestrator via message channel
         for centralized event handling.
         """
-        message = ServiceMessage(
+        msg = ServiceMessage.create_status(
             sender=self.name,
-            type="STATUS",
-            payload={"event": AgentEvent.AGENT_CLOSE.value},
-            timestamp=datetime.now(),
+            status="success",
+            event_name=AgentEvent.AGENT_CLOSE.value,
         )
-        self.send_message(message)
+        self.send_message(msg)
 
     def _handle_ready(self):
         """
@@ -344,13 +341,12 @@ class BaseAgent(BaseClass, ABC):
         Events are sent to the orchestrator via message channel
         for centralized event handling.
         """
-        message = ServiceMessage(
+        msg = ServiceMessage.create_status(
             sender=self.name,
-            type="STATUS",
-            payload={"event": AgentEvent.AGENT_READY.value},
-            timestamp=datetime.now(),
+            status="success",
+            event_name=AgentEvent.AGENT_READY.value,
         )
-        self.send_message(message)
+        self.send_message(msg)
 
     def setup(self):
         """

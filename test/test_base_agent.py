@@ -276,19 +276,28 @@ class TestBaseAgent(unittest.TestCase):
         start_msg = calls[0][0][1]  # Second argument of first call
         self.assertEqual(start_msg.sender, "test_base_agent")
         self.assertEqual(start_msg.type, "STATUS")
-        self.assertEqual(start_msg.payload, {"event": AgentEvent.AGENT_START.value})
+        self.assertEqual(
+            start_msg.payload,
+            {"status": "success", "error": "", "event": AgentEvent.AGENT_START.value},
+        )
 
         # Check AGENT_READY message
         ready_msg = calls[1][0][1]  # Second argument of second call
         self.assertEqual(ready_msg.sender, "test_base_agent")
         self.assertEqual(ready_msg.type, "STATUS")
-        self.assertEqual(ready_msg.payload, {"event": AgentEvent.AGENT_READY.value})
+        self.assertEqual(
+            ready_msg.payload,
+            {"status": "success", "error": "", "event": AgentEvent.AGENT_READY.value},
+        )
 
         # Check AGENT_CLOSE message
         close_msg = calls[2][0][1]  # Second argument of third call
         self.assertEqual(close_msg.sender, "test_base_agent")
         self.assertEqual(close_msg.type, "STATUS")
-        self.assertEqual(close_msg.payload, {"event": AgentEvent.AGENT_CLOSE.value})
+        self.assertEqual(
+            close_msg.payload,
+            {"status": "success", "error": "", "event": AgentEvent.AGENT_CLOSE.value},
+        )
 
 
 class TestServiceMessage(unittest.TestCase):

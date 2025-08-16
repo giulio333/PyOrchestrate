@@ -20,7 +20,10 @@ from PyOrchestrate.core.utilities.validation import (
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.validation import ValidationResult
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
-from PyOrchestrate.core.utilities.command_handler import CommandHandler
+from PyOrchestrate.core.utilities.command_handler import (
+    CommandHandler,
+    CommandException,
+)
 
 
 class RunMode(Enum):
@@ -345,7 +348,7 @@ class Orchestrator(BaseClass):
         Notes:
             Only messages of type 'STATUS' are processed and relayed to the orchestrator's `EventManager`.
         """
-        self.logger.debug(f"Received {msg}: {msg.payload}")
+        self.logger.debug(f"Received {msg}: {msg.payload.get('event')}")
 
         if msg.type == "STATUS":
             event = msg.payload.get("event")
@@ -387,19 +390,29 @@ class Orchestrator(BaseClass):
 
             # Delegate command execution to the command handler
             assert self.command_handler, "Command handler not initialized"
-            response = self.command_handler.execute_command(command, args, request_id)
+
+            try:
+                response = self.command_handler.execute_command(
+                    command, args, request_id
+                )
+                msg = ServiceMessage.create_command_response(
+                    sender="orchestrator",
+                    status="success",
+                    data=response,
+                    request_id=request_id,
+                )
+            except CommandException as e:
+                msg = ServiceMessage.create_command_response(
+                    sender="orchestrator",
+                    status="error",
+                    error=str(e),
+                    code=e.code,
+                    request_id=request_id,
+                )
 
             # Send response back through the command channel
             assert self.command_channel, "Command channel not initialized"
-            self.command_channel.send(
-                "cli",
-                ServiceMessage(
-                    sender="orchestrator",
-                    type="STATUS",
-                    payload=response,  # Already a dict
-                    timestamp=datetime.now(),
-                ),
-            )
+            self.command_channel.send("cli", msg)
 
         except Exception as e:
             self.logger.error(f"Error processing external command: {e}")
@@ -413,14 +426,13 @@ class Orchestrator(BaseClass):
             )
 
             if self.command_channel:
-                error_response = {"status": "error", "message": str(e)}
                 self.command_channel.send(
                     "cli",
-                    ServiceMessage(
+                    ServiceMessage.create_command_response(
                         sender="orchestrator",
-                        type="STATUS",
-                        payload=error_response,
-                        timestamp=datetime.now(),
+                        status="error",
+                        error=str(e),
+                        request_id=request_id,
                     ),
                 )
 
