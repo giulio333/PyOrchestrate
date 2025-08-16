@@ -95,38 +95,6 @@ def make_response_payload(
     return response
 
 
-def pack_envelope(sender: str, msg_type: str, payload: dict) -> bytes:
-    """Pack a message envelope for transmission.
-
-    Args:
-        sender: Message sender identifier
-        msg_type: Message type ("COMMAND", "STATUS", etc.)
-        payload: Message payload dict
-
-    Returns:
-        Encoded message bytes with newline terminator
-    """
-    envelope = {
-        "sender": sender,
-        "type": msg_type,
-        "payload": payload,
-        "timestamp": now_iso(),
-    }
-    return (json.dumps(envelope, ensure_ascii=False) + "\n").encode()
-
-
-def unpack_envelope(raw_bytes: bytes) -> dict:
-    """Unpack a message envelope from transmission.
-
-    Args:
-        raw_bytes: Raw message bytes
-
-    Returns:
-        Unpacked envelope dict
-    """
-    return json.loads(raw_bytes.decode().strip())
-
-
 @dataclass
 class ServiceMessage:
     sender: str
@@ -150,6 +118,87 @@ class ServiceMessage:
         return json.dumps(
             self.to_dict(),
             **json_kwargs,
+        )
+
+    def to_bytes(self) -> bytes:
+        """Convert ServiceMessage to bytes for transmission.
+        
+        Returns:
+            Encoded message bytes with newline terminator
+        """
+        envelope = {
+            "sender": self.sender,
+            "type": self.type,
+            "payload": self.payload,
+            "timestamp": self.timestamp.isoformat() if isinstance(self.timestamp, datetime) else self.timestamp,
+        }
+        return (json.dumps(envelope, ensure_ascii=False) + "\n").encode()
+
+    @classmethod
+    def from_bytes(cls, raw_bytes: bytes) -> "ServiceMessage":
+        """Create ServiceMessage from bytes received from transmission.
+        
+        Args:
+            raw_bytes: Raw message bytes
+            
+        Returns:
+            ServiceMessage instance
+            
+        Raises:
+            json.JSONDecodeError: If the bytes cannot be decoded as JSON
+            KeyError: If required fields are missing from the envelope
+            ValueError: If timestamp cannot be parsed
+        """
+        envelope = json.loads(raw_bytes.decode().strip())
+        
+        # Parse timestamp back to datetime if it's a string
+        timestamp = envelope["timestamp"]
+        if isinstance(timestamp, str):
+            timestamp = datetime.fromisoformat(timestamp)
+        
+        return cls(
+            sender=envelope["sender"],
+            type=envelope["type"],
+            payload=envelope["payload"],
+            timestamp=timestamp,
+        )
+
+    @classmethod
+    def create_command(cls, sender: str, payload: Dict[str, Any], timestamp: Optional[datetime] = None) -> "ServiceMessage":
+        """Create a COMMAND type ServiceMessage.
+        
+        Args:
+            sender: Message sender identifier
+            payload: Command payload dictionary
+            timestamp: Optional timestamp (defaults to now)
+            
+        Returns:
+            ServiceMessage instance with type="COMMAND"
+        """
+        return cls(
+            sender=sender,
+            type="COMMAND",
+            payload=payload,
+            timestamp=timestamp or datetime.now()
+        )
+
+    @classmethod
+    def create_status(cls, sender: str, payload: Dict[str, Any], timestamp: Optional[datetime] = None) -> "ServiceMessage":
+        """Create a STATUS type ServiceMessage.
+        
+        Args:
+            sender: Message sender identifier
+            payload: Status payload dictionary
+            timestamp: Optional timestamp (defaults to now)
+            
+        Returns:
+            ServiceMessage instance with type="STATUS"
+        """
+        return cls(
+            sender=sender,
+            type="STATUS",
+            payload=payload,
+            timestamp=timestamp or datetime.now()
         )
 
     def __str__(self) -> str:
@@ -333,7 +382,7 @@ class MessageChannel:
 
     def _send_to_unix_socket_server(self, msg: ServiceMessage) -> None:
         """Send message to all connected UNIX socket clients (server mode)."""
-        msg_data = pack_envelope(msg.sender, msg.type, msg.payload)
+        msg_data = msg.to_bytes()
 
         # Use slice copy to avoid modification during iteration
         for client in self._clients[:]:
@@ -352,7 +401,7 @@ class MessageChannel:
 
         try:
             assert self._socket is not None, "Socket must be connected before sending"
-            envelope = pack_envelope(msg.sender, msg.type, msg.payload)
+            envelope = msg.to_bytes()
             self._socket.send(envelope)
             return True
         except (BrokenPipeError, ConnectionResetError, OSError):
@@ -399,14 +448,7 @@ class MessageChannel:
                     client.settimeout(client_timeout)
                     data = client.recv(BUFFER_SIZE)
                     if data:
-                        envelope = unpack_envelope(data)
-                        if envelope:
-                            return ServiceMessage(
-                                sender=envelope["sender"],
-                                type=envelope["type"],
-                                payload=envelope["payload"],
-                                timestamp=envelope["timestamp"],
-                            )
+                        return ServiceMessage.from_bytes(data)
                 except (socket.timeout, json.JSONDecodeError, KeyError):
                     pass  # No data or invalid data
                 except (BrokenPipeError, ConnectionResetError, OSError):
@@ -429,14 +471,7 @@ class MessageChannel:
             self._socket.settimeout(timeout)
             data = self._socket.recv(BUFFER_SIZE)
             if data:
-                envelope = unpack_envelope(data)
-                if envelope:
-                    return ServiceMessage(
-                        sender=envelope["sender"],
-                        type=envelope["type"],
-                        payload=envelope["payload"],
-                        timestamp=envelope["timestamp"],
-                    )
+                return ServiceMessage.from_bytes(data)
         except (socket.timeout, json.JSONDecodeError, KeyError, OSError):
             pass
         return None
