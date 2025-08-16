@@ -307,6 +307,7 @@ class ArgumentParser:
             ("dependencies", "Show agent dependencies"),
             ("start", "Start a specific agent"),
             ("stop", "Stop a specific agent"),
+            ("commands", "List allowed commands for this orchestrator"),
             ("shutdown", "Shutdown the orchestrator gracefully"),
             ("history", "Get event history with optional filtering"),
             ("history-stats", "Get aggregated event statistics"),
@@ -448,6 +449,8 @@ class OutputFormatter:
             return OutputFormatter._format_status(data)
         elif command == "dependencies":
             return OutputFormatter._format_dependencies(data)
+        elif command == "commands":
+            return OutputFormatter._format_allowed_commands(data)
         elif command in ["start", "stop"]:
             return response_data.get("message", "Operation completed")
         elif command == "history":
@@ -525,6 +528,36 @@ class OutputFormatter:
             return "\n".join(output)
         else:
             return "No dependencies configured"
+
+    @staticmethod
+    def _format_allowed_commands(data: Dict[str, Any]) -> str:
+        """Format allowed commands output."""
+        output = []
+        allowed = data.get("allowed_commands", [])
+        total_available = data.get("total_available_commands", [])
+        restrictions_active = data.get("restrictions_active", False)
+        restricted = data.get("restricted_commands", [])
+
+        if restrictions_active:
+            output.append("🔒 COMMAND RESTRICTIONS ACTIVE")
+            output.append("")
+            output.append(f"Allowed commands ({len(allowed)}):")
+            for cmd in allowed:
+                output.append(f"  ✅ {cmd}")
+
+            if restricted:
+                output.append("")
+                output.append(f"Restricted commands ({len(restricted)}):")
+                for cmd in restricted:
+                    output.append(f"  ❌ {cmd}")
+        else:
+            output.append("🔓 ALL COMMANDS ALLOWED")
+            output.append("")
+            output.append(f"Available commands ({len(total_available)}):")
+            for cmd in total_available:
+                output.append(f"  ✅ {cmd}")
+
+        return "\n".join(output)
 
     @staticmethod
     def _format_history(data: Dict[str, Any]) -> str:

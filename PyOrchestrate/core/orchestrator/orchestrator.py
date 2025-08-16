@@ -20,10 +20,6 @@ from PyOrchestrate.core.utilities.validation import (
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.validation import ValidationResult
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
-from PyOrchestrate.core.utilities.command_handler import (
-    CommandHandler,
-    CommandException,
-)
 
 
 class RunMode(Enum):
@@ -64,6 +60,8 @@ class OrchestratorConfig(BaseClass.Config):
     """Enable external command interface via UNIX socket."""
     command_socket_path: str = "/tmp/pyorchestrate.sock"
     """Path to the UNIX socket for external commands."""
+    allowed_commands: set[str] | str | None = None
+    """Allowed commands for CLI interface. Can be a set of commands, a preset name, or None for all commands."""
     run_mode: RunMode = RunMode.STOP_ON_EMPTY
     """Required explicit run mode. Must be set to RunMode.STOP_ON_EMPTY or RunMode.DAEMON."""
     history_max_events: int = 5000
@@ -77,6 +75,7 @@ class OrchestratorConfig(BaseClass.Config):
         max_workers: int | None = None,
         enable_command_interface: bool | None = None,
         command_socket_path: str | None = None,
+        allowed_commands: set[str] | str | None = None,
         run_mode: RunMode | None = None,
         history_max_events: int | None = None,
         history_payload_bytes: int | None = None,
@@ -90,6 +89,7 @@ class OrchestratorConfig(BaseClass.Config):
             max_workers (int | None, optional): The maximum number of workers that can run concurrently. Defaults to None.
             enable_command_interface (bool | None, optional): Enable external command interface via UNIX socket. Defaults to None.
             command_socket_path (str | None, optional): Path to the UNIX socket for external commands. Defaults to None.
+            allowed_commands (set[str] | str | None, optional): Allowed commands for CLI interface. Can be a set of commands, a preset name, or None for all commands. Defaults to None.
             run_mode (RunMode | None, optional): Required lifecycle policy. Must be set to RunMode.STOP_ON_EMPTY or RunMode.DAEMON. Defaults to None.
             history_max_events (int | None, optional): Maximum number of events to store in history (ring buffer size). Defaults to None.
             history_payload_bytes (int | None, optional): Maximum size for event payload data. Defaults to None.
@@ -107,6 +107,9 @@ class OrchestratorConfig(BaseClass.Config):
 
         if command_socket_path is not None:
             self.command_socket_path = command_socket_path
+
+        if allowed_commands is not None:
+            self.allowed_commands = allowed_commands
 
         if run_mode is not None:
             self.run_mode = run_mode
@@ -175,6 +178,45 @@ class OrchestratorConfig(BaseClass.Config):
                     severity=ValidationSeverity.ERROR,
                 )
             )
+
+        # Validate allowed_commands
+        if self.allowed_commands is not None:
+            # Import here to avoid circular imports
+            from PyOrchestrate.core.utilities.command_handler import CommandPermissions
+
+            if isinstance(self.allowed_commands, str):
+                # Check if it's a valid preset name
+                try:
+                    CommandPermissions.get_preset(self.allowed_commands)
+                except ValueError as e:
+                    results.append(
+                        ValidationResult(
+                            field="allowed_commands",
+                            message=str(e),
+                            severity=ValidationSeverity.ERROR,
+                        )
+                    )
+            elif isinstance(self.allowed_commands, set):
+                # Validate that all commands are known
+                unknown_commands = (
+                    self.allowed_commands - CommandPermissions.ALL_COMMANDS
+                )
+                if unknown_commands:
+                    results.append(
+                        ValidationResult(
+                            field="allowed_commands",
+                            message=f"Unknown commands: {', '.join(unknown_commands)}. Available commands: {', '.join(sorted(CommandPermissions.ALL_COMMANDS))}",
+                            severity=ValidationSeverity.WARNING,
+                        )
+                    )
+            else:
+                results.append(
+                    ValidationResult(
+                        field="allowed_commands",
+                        message="allowed_commands must be a set of command names, a preset name string, or None.",
+                        severity=ValidationSeverity.ERROR,
+                    )
+                )
 
         return results
 
@@ -246,10 +288,13 @@ class Orchestrator(BaseClass):
         # Command interface for external CLI commands
         self.command_channel = None
         if self.config.enable_command_interface:
+            # Import here to avoid circular imports
+            from PyOrchestrate.core.utilities.command_handler import CommandHandler
+
             self.command_channel = MessageChannel(
                 "unix_socket", self.config.command_socket_path
             )
-            self.command_handler = CommandHandler(self)
+            self.command_handler = CommandHandler(self, self.config.allowed_commands)
             self.logger.debug(
                 f"Command interface enabled on socket: {self.config.command_socket_path}"
             )
@@ -413,14 +458,27 @@ class Orchestrator(BaseClass):
                     data=response,
                     request_id=request_id,
                 )
-            except CommandException as e:
-                msg = ServiceMessage.create_command_response(
-                    sender="orchestrator",
-                    status="error",
-                    error=str(e),
-                    code=e.code,
-                    request_id=request_id,
+            except Exception as e:
+                # Import here to avoid circular imports
+                from PyOrchestrate.core.utilities.command_handler import (
+                    CommandException,
                 )
+
+                if isinstance(e, CommandException):
+                    msg = ServiceMessage.create_command_response(
+                        sender="orchestrator",
+                        status="error",
+                        error=str(e),
+                        code=e.code,
+                        request_id=request_id,
+                    )
+                else:
+                    msg = ServiceMessage.create_command_response(
+                        sender="orchestrator",
+                        status="error",
+                        error=str(e),
+                        request_id=request_id,
+                    )
 
             # Send response back through the command channel
             assert self.command_channel, "Command channel not initialized"
@@ -817,6 +875,17 @@ class Orchestrator(BaseClass):
             self.logger.debug(
                 f"Config: command_socket_path={self.config.command_socket_path}"
             )
+            # Log allowed commands information
+            if self.config.allowed_commands is None:
+                self.logger.debug("Config: allowed_commands=ALL (no restrictions)")
+            elif isinstance(self.config.allowed_commands, str):
+                self.logger.debug(
+                    f"Config: allowed_commands={self.config.allowed_commands} (preset)"
+                )
+            elif isinstance(self.config.allowed_commands, set):
+                self.logger.debug(
+                    f"Config: allowed_commands={sorted(self.config.allowed_commands)} (custom)"
+                )
         # Log run_mode explicitly (mandatory)
         rm = getattr(self.config, "run_mode", None)
         if isinstance(rm, RunMode):
