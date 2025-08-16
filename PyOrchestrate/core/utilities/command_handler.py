@@ -9,13 +9,119 @@ core Orchestrator functionality.
 import json
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Set
+from enum import Enum
 
 from PyOrchestrate.core.orchestrator.event_store import EventRecord
 from PyOrchestrate.core.utilities.messaging import make_response_payload
 
 if TYPE_CHECKING:
     from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
+
+
+class CommandPermissions:
+    """
+    Command permissions management for PyOrchestrate CLI interface.
+
+    Provides predefined permission sets for different environments and
+    utilities for command filtering.
+    """
+
+    # All available commands
+    ALL_COMMANDS = {
+        "ps",
+        "list",
+        "start",
+        "stop",
+        "status",
+        "dependencies",
+        "stats",
+        "history",
+        "history-stats",
+        "shutdown",
+        "commands",
+    }
+
+    # Predefined permission sets
+    PRODUCTION = {
+        "ps",
+        "list",
+        "status",
+        "dependencies",
+        "stats",
+        "history",
+        "history-stats",
+        "commands",
+    }
+
+    DEVELOPMENT = ALL_COMMANDS.copy()
+
+    READ_ONLY = {
+        "ps",
+        "list",
+        "status",
+        "dependencies",
+        "stats",
+        "history",
+        "history-stats",
+        "commands",
+    }
+
+    MONITORING = {
+        "ps",
+        "list",
+        "status",
+        "stats",
+        "history",
+        "history-stats",
+        "commands",
+    }
+
+    @classmethod
+    def validate_commands(cls, commands: Set[str]) -> Set[str]:
+        """
+        Validate and filter out unknown commands.
+
+        Args:
+            commands: Set of command names to validate
+
+        Returns:
+            Set of valid commands
+        """
+        unknown_commands = commands - cls.ALL_COMMANDS
+        if unknown_commands:
+            # Log warning about unknown commands but don't fail
+            pass
+        return commands & cls.ALL_COMMANDS
+
+    @classmethod
+    def get_preset(cls, preset_name: str) -> Set[str]:
+        """
+        Get a predefined permission set.
+
+        Args:
+            preset_name: Name of the preset (production, development, read_only, monitoring)
+
+        Returns:
+            Set of allowed commands
+
+        Raises:
+            ValueError: If preset_name is not recognized
+        """
+        presets = {
+            "production": cls.PRODUCTION,
+            "development": cls.DEVELOPMENT,
+            "read_only": cls.READ_ONLY,
+            "monitoring": cls.MONITORING,
+        }
+
+        if preset_name.lower() not in presets:
+            available = ", ".join(presets.keys())
+            raise ValueError(
+                f"Unknown preset '{preset_name}'. Available presets: {available}"
+            )
+
+        return presets[preset_name.lower()].copy()
 
 
 class CommandException(Exception):
@@ -35,20 +141,51 @@ class CommandHandler:
     orchestrator functionality.
     """
 
-    def __init__(self, orchestrator: "Orchestrator"):
+    def __init__(
+        self,
+        orchestrator: "Orchestrator",
+        allowed_commands: set[str] | str | None = None,
+    ):
         """
         Initialize the command handler with an orchestrator reference.
 
         Args:
             orchestrator: The orchestrator instance to operate on
+            allowed_commands: Set of allowed commands, preset name, or None for all commands
         """
         self.orchestrator = orchestrator
         self.logger = orchestrator.logger
+
+        # Process allowed_commands
+        if allowed_commands is None:
+            self.allowed_commands = CommandPermissions.ALL_COMMANDS.copy()
+        elif isinstance(allowed_commands, str):
+            self.allowed_commands = CommandPermissions.get_preset(allowed_commands)
+        elif isinstance(allowed_commands, set):
+            self.allowed_commands = CommandPermissions.validate_commands(
+                allowed_commands
+            )
+        else:
+            raise ValueError(
+                "allowed_commands must be a set, string preset name, or None"
+            )
+
+        self.logger.debug(
+            f"Command handler initialized with allowed commands: {sorted(self.allowed_commands)}"
+        )
 
     def execute_command(
         self, command: str, args: list, request_id: Optional[str] = None
     ) -> dict:
         """Execute external commands and return structured responses."""
+
+        # Check if command is allowed
+        if command not in self.allowed_commands:
+            raise CommandException(
+                f"Command '{command}' is not allowed. Allowed commands: {', '.join(sorted(self.allowed_commands))}",
+                code=403,
+            )
+
         if command in ["ps", "list"]:
             return self._cmd_list_agents(request_id)
         elif command == "start" and args:
@@ -67,6 +204,8 @@ class CommandHandler:
             return self._cmd_history(args, request_id)
         elif command == "history-stats":
             return self._cmd_history_stats(args, request_id)
+        elif command == "commands":
+            return self._cmd_allowed_commands(request_id)
         elif command == "shutdown":
             return self._cmd_shutdown(request_id)
         else:
@@ -429,4 +568,23 @@ class CommandHandler:
         except Exception as e:
             raise CommandException(
                 f"Failed to get event statistics: {str(e)}", code=500
+            )
+
+    def _cmd_allowed_commands(self, request_id: Optional[str] = None) -> dict:
+        """List allowed commands for this orchestrator instance."""
+        try:
+            return {
+                "allowed_commands": sorted(list(self.allowed_commands)),
+                "total_available_commands": sorted(
+                    list(CommandPermissions.ALL_COMMANDS)
+                ),
+                "restrictions_active": len(self.allowed_commands)
+                < len(CommandPermissions.ALL_COMMANDS),
+                "restricted_commands": sorted(
+                    list(CommandPermissions.ALL_COMMANDS - self.allowed_commands)
+                ),
+            }
+        except Exception as e:
+            raise CommandException(
+                f"Failed to get allowed commands: {str(e)}", code=500
             )
