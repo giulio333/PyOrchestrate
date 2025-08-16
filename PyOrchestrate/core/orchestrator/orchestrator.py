@@ -306,11 +306,6 @@ class Orchestrator(BaseClass):
 
         self.logger.trace("Message handling thread terminated")
 
-        # Track message thread stopped
-        self.event_store.record(
-            category="orchestrator", type="MSG_THREAD_STOPPED", severity="INFO"
-        )
-
     def _start_message_thread(self):
         """
         Start a separate thread to handle incoming messages.
@@ -355,20 +350,22 @@ class Orchestrator(BaseClass):
         )
 
         if msg.type == "STATUS":
-            if msg.payload == AgentEvent.AGENT_CLOSE.value:
+            event = msg.payload.get("event")
+
+            if event == AgentEvent.AGENT_CLOSE.value:
                 self.event_manager.emit(
                     OrchestratorEvent.AGENT_TERMINATED, agent_name=msg.sender
                 )
-            elif msg.payload == AgentEvent.AGENT_START.value:
+            elif event == AgentEvent.AGENT_START.value:
                 self.event_manager.emit(
                     OrchestratorEvent.AGENT_STARTED, agent_name=msg.sender
                 )
-            elif msg.payload == AgentEvent.AGENT_READY.value:
+            elif event == AgentEvent.AGENT_READY.value:
                 self.event_manager.emit(
                     OrchestratorEvent.AGENT_READY, agent_name=msg.sender
                 )
-            elif msg.payload.startswith("ERROR:"):
-                error_msg = msg.payload[6:]  # Remove "ERROR:" prefix
+            elif event == "ERROR":
+                error_msg = msg.payload.get("message", "Unknown error")
                 self.logger.error(f"Agent {msg.sender} reported error: {error_msg}")
                 self.event_manager.emit(
                     OrchestratorEvent.AGENT_ERROR,
@@ -386,6 +383,10 @@ class Orchestrator(BaseClass):
             command = cmd_data.get("command")
             args = cmd_data.get("args", [])
             request_id = cmd_data.get("request_id")
+
+            # Ensure command is not None
+            if not command:
+                raise ValueError("Command is required")
 
             # Delegate command execution to the command handler
             assert self.command_handler, "Command handler not initialized"
@@ -421,7 +422,7 @@ class Orchestrator(BaseClass):
                     ServiceMessage(
                         sender="orchestrator",
                         type="STATUS",
-                        payload=json.dumps(error_response),
+                        payload=error_response,
                         timestamp=datetime.now(),
                     ),
                 )

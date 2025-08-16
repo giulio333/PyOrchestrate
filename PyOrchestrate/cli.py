@@ -7,7 +7,11 @@ import signal
 import sys
 from datetime import datetime
 
-from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage, make_request
+from PyOrchestrate.core.utilities.messaging import (
+    MessageChannel,
+    ServiceMessage,
+    make_request,
+)
 
 
 def create_project_structure(app_name):
@@ -72,11 +76,8 @@ def send_command(args: argparse.Namespace) -> None:
         # Prepare command using new standardized request format
         command = args.command[0] if args.command else "status"
         cmd_args = args.command[1:] if len(args.command) > 1 else []
-        
-        request_payload = make_request(
-            command=command,
-            args=cmd_args
-        )
+
+        request_payload = make_request(command=command, args=cmd_args)
 
         # Create ServiceMessage with new standardized payload
         msg = ServiceMessage(
@@ -411,7 +412,7 @@ def stats_command(args: argparse.Namespace) -> None:
 
                 # Create ServiceMessage for stats command using new protocol
                 request_payload = make_request(command="stats", args=[])
-                
+
                 msg = ServiceMessage(
                     sender="cli",
                     type="COMMAND",
