@@ -79,9 +79,14 @@ class CommandHandler:
         try:
             agents_info = []
             for agent in self.orchestrator.memory.agents:
+
+                assert agent.config, "Agent config must be defined"
+
                 agents_info.append(
                     {
-                        "name": agent.name,
+                        "agent_name": agent.name,
+                        "class_name": agent.agent_class.__name__,
+                        "config": agent.config.to_dict(),
                         "alive": (
                             agent.instance.is_alive()
                             if hasattr(agent, "instance") and agent.instance
