@@ -76,6 +76,26 @@ class BaseAgentConfig(BaseClass.Config):
 
         return results
 
+    def to_dict(self) -> dict:
+        """
+        Convert the agent configuration to a dictionary.
+
+        Returns:
+            dict: Dictionary representation of the agent configuration.
+        """
+        instance_attrs = {}
+        for key, value in self.__dict__.items():
+            if not key.startswith("_"):
+                instance_attrs[key] = value
+
+        class_attrs = {}
+        for key, value in self.__class__.__dict__.items():
+            if not key.startswith("_"):
+                class_attrs[key] = value
+
+        # instance attributes take precedence over class attributes
+        return {**class_attrs, **instance_attrs}
+
 
 class BaseAgent(BaseClass, ABC):
     """

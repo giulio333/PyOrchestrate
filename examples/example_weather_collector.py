@@ -4,7 +4,7 @@ import time
 import os
 import logging
 from multiprocessing import set_start_method
-from PyOrchestrate.core.orchestrator import Orchestrator
+from PyOrchestrate.core.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
 from PyOrchestrate.core.base.exceptions import RecoverableException
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
@@ -83,14 +83,15 @@ class WeatherCollector(PeriodicProcessAgent):
             if self.config.print_result:
                 self.logger.info(f"Risultato: {data}")
 
-        except requests.RequestException as e:
+        except Exception as e:
             raise RecoverableException(f"Errore nella richiesta: {e}")
 
 
 if __name__ == "__main__":
     set_start_method("spawn")
 
-    orchestrator = Orchestrator(name="Orchestrator")
+    o_config = Orchestrator.Config(run_mode=RunMode.DAEMON)
+    orchestrator = Orchestrator(name="Orchestrator", config=o_config)
 
     orchestrator.register_event(OrchestratorEvent.AGENT_READY, on_agent_ready)
     orchestrator.register_event(OrchestratorEvent.AGENT_STARTED, on_agent_started)
