@@ -122,7 +122,7 @@ class ServiceMessage:
 
     def to_bytes(self) -> bytes:
         """Convert ServiceMessage to bytes for transmission.
-        
+
         Returns:
             Encoded message bytes with newline terminator
         """
@@ -130,32 +130,36 @@ class ServiceMessage:
             "sender": self.sender,
             "type": self.type,
             "payload": self.payload,
-            "timestamp": self.timestamp.isoformat() if isinstance(self.timestamp, datetime) else self.timestamp,
+            "timestamp": (
+                self.timestamp.isoformat()
+                if isinstance(self.timestamp, datetime)
+                else self.timestamp
+            ),
         }
         return (json.dumps(envelope, ensure_ascii=False) + "\n").encode()
 
     @classmethod
     def from_bytes(cls, raw_bytes: bytes) -> "ServiceMessage":
         """Create ServiceMessage from bytes received from transmission.
-        
+
         Args:
             raw_bytes: Raw message bytes
-            
+
         Returns:
             ServiceMessage instance
-            
+
         Raises:
             json.JSONDecodeError: If the bytes cannot be decoded as JSON
             KeyError: If required fields are missing from the envelope
             ValueError: If timestamp cannot be parsed
         """
         envelope = json.loads(raw_bytes.decode().strip())
-        
+
         # Parse timestamp back to datetime if it's a string
         timestamp = envelope["timestamp"]
         if isinstance(timestamp, str):
             timestamp = datetime.fromisoformat(timestamp)
-        
+
         return cls(
             sender=envelope["sender"],
             type=envelope["type"],
@@ -164,14 +168,16 @@ class ServiceMessage:
         )
 
     @classmethod
-    def create_command(cls, sender: str, payload: Dict[str, Any], timestamp: Optional[datetime] = None) -> "ServiceMessage":
+    def create_command(
+        cls, sender: str, payload: Dict[str, Any], timestamp: Optional[datetime] = None
+    ) -> "ServiceMessage":
         """Create a COMMAND type ServiceMessage.
-        
+
         Args:
             sender: Message sender identifier
             payload: Command payload dictionary
             timestamp: Optional timestamp (defaults to now)
-            
+
         Returns:
             ServiceMessage instance with type="COMMAND"
         """
@@ -179,18 +185,20 @@ class ServiceMessage:
             sender=sender,
             type="COMMAND",
             payload=payload,
-            timestamp=timestamp or datetime.now()
+            timestamp=timestamp or datetime.now(),
         )
 
     @classmethod
-    def create_status(cls, sender: str, payload: Dict[str, Any], timestamp: Optional[datetime] = None) -> "ServiceMessage":
+    def create_status(
+        cls, sender: str, payload: Dict[str, Any], timestamp: Optional[datetime] = None
+    ) -> "ServiceMessage":
         """Create a STATUS type ServiceMessage.
-        
+
         Args:
             sender: Message sender identifier
             payload: Status payload dictionary
             timestamp: Optional timestamp (defaults to now)
-            
+
         Returns:
             ServiceMessage instance with type="STATUS"
         """
@@ -198,7 +206,7 @@ class ServiceMessage:
             sender=sender,
             type="STATUS",
             payload=payload,
-            timestamp=timestamp or datetime.now()
+            timestamp=timestamp or datetime.now(),
         )
 
     def __str__(self) -> str:
