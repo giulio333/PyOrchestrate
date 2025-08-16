@@ -483,7 +483,7 @@ class OutputFormatter:
                 started = "YES" if agent.get("started") else "NO"
                 queued = "YES" if agent.get("in_queue") else "NO"
                 output.append(
-                    f"{agent['name']:<20} {status:<10} {started:<8} {queued:<8}"
+                    f"{agent['agent_name']:<20} {status:<10} {started:<8} {queued:<8}"
                 )
         else:
             output.append("No agents registered")
