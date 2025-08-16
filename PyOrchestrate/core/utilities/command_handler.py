@@ -59,8 +59,6 @@ class CommandHandler:
             return self._cmd_agent_status(args[0], request_id)
         elif command == "status":
             return self._cmd_orchestrator_status(request_id)
-        elif command == "report":
-            return self._cmd_full_report(request_id)
         elif command == "dependencies":
             return self._cmd_show_dependencies(request_id)
         elif command == "stats":
@@ -215,43 +213,6 @@ class CommandHandler:
         except Exception as e:
             raise CommandException(
                 f"Failed to get orchestrator status: {str(e)}", code=500
-            )
-
-    def _cmd_full_report(self, request_id: Optional[str] = None) -> dict:
-        """Get full orchestrator report."""
-        try:
-            agents_info = []
-            for agent in self.orchestrator.memory.agents:
-                agents_info.append(
-                    {
-                        "name": agent.name,
-                        "alive": (
-                            agent.instance.is_alive()
-                            if hasattr(agent, "instance") and agent.instance
-                            else False
-                        ),
-                        "started": agent.name in self.orchestrator._started_agents,
-                        "in_queue": agent.name
-                        in self.orchestrator._waiting_agents_queue,
-                        "dependencies": self.orchestrator.dependencies.get(
-                            agent.name, []
-                        ),
-                    }
-                )
-
-            return {
-                "orchestrator": {
-                    "running_agents": self.orchestrator._running_agents,
-                    "max_workers": self.orchestrator.config.max_workers,
-                    "waiting_agents": len(self.orchestrator._waiting_agents_queue),
-                    "check_interval": self.orchestrator.config.check_interval,
-                },
-                "agents": agents_info,
-                "dependencies": dict(self.orchestrator.dependencies),
-            }
-        except Exception as e:
-            raise CommandException(
-                f"Failed to generate full report: {str(e)}", code=500
             )
 
     def _cmd_show_dependencies(self, request_id: Optional[str] = None) -> dict:
