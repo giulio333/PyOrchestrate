@@ -77,7 +77,12 @@ def create_pretty_json_response(data: Dict[str, Any]) -> JSONResponse:
 
 
 def create_html_response(
-    title: str, data: Dict[str, Any], endpoint: str, is_stats: bool = False
+    title: str,
+    data: Dict[str, Any],
+    endpoint: str,
+    is_stats: bool = False,
+    show_filters: bool = False,
+    current_params: Optional[Dict[str, Any]] = None,
 ) -> HTMLResponse:
     """Create an HTML response with syntax-highlighted JSON."""
     pretty_json = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True)
@@ -210,6 +215,88 @@ def create_html_response(
                 border-radius: 12px;
                 border: 1px solid var(--glass-border);
                 backdrop-filter: blur(20px) saturate(180%);
+            }}
+            
+            .filters-section {{
+                display: flex;
+                gap: 16px;
+                align-items: center;
+                flex-wrap: wrap;
+                background: var(--surface-bg);
+                padding: 16px;
+                border-radius: 10px;
+                border: 1px solid var(--border-primary);
+                margin-bottom: 20px;
+            }}
+            
+            .filter-group {{
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                min-width: 120px;
+            }}
+            
+            .filter-group label {{
+                color: var(--text-secondary);
+                font-size: 12px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }}
+            
+            .filter-group input, .filter-group select {{
+                background: var(--surface-hover);
+                border: 1px solid var(--border-secondary);
+                color: var(--text-primary);
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 14px;
+                transition: border-color 0.2s;
+            }}
+            
+            .filter-group input:focus, .filter-group select:focus {{
+                outline: none;
+                border-color: var(--accent-primary);
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            }}
+            
+            .filter-actions {{
+                display: flex;
+                gap: 8px;
+                align-items: end;
+                margin-left: auto;
+            }}
+            
+            .filter-btn {{
+                background: var(--accent-primary);
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 500;
+                transition: all 0.2s;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }}
+            
+            .filter-btn:hover {{
+                background: var(--accent-secondary);
+                transform: translateY(-1px);
+            }}
+            
+            .filter-btn.secondary {{
+                background: var(--surface-hover);
+                color: var(--text-secondary);
+                border: 1px solid var(--border-secondary);
+            }}
+            
+            .filter-btn.secondary:hover {{
+                background: var(--surface-bg);
+                color: var(--text-primary);
             }}
             
             .auto-refresh-control {{
@@ -429,6 +516,45 @@ def create_html_response(
             <strong>Updated:</strong> <span id="timestamp">{data.get('timestamp', 'N/A')}</span>
         </div>
         
+        {'''
+        <div class="filters-section">
+            ''' + ('''
+            <div class="filter-group">
+                <label for="filter-agent">Agent Name</label>
+                <input type="text" id="filter-agent" placeholder="Enter agent name..." value="''' + str(current_params.get('agent', '') if current_params else '') + '''">
+            </div>
+            ''' if endpoint == '/api/agents' else '') + '''
+            ''' + ('''
+            <div class="filter-group">
+                <label for="filter-agent">Agent</label>
+                <input type="text" id="filter-agent" placeholder="Enter agent name..." value="''' + str(current_params.get('agent', '') if current_params else '') + '''">
+            </div>
+            <div class="filter-group">
+                <label for="filter-event-type">Event Type</label>
+                <select id="filter-event-type">
+                    <option value="">All Events</option>
+                    <option value="AGENT_START"''' + (' selected' if current_params and current_params.get('event_type') == 'AGENT_START' else '') + '''>Agent Start</option>
+                    <option value="AGENT_READY"''' + (' selected' if current_params and current_params.get('event_type') == 'AGENT_READY' else '') + '''>Agent Ready</option>
+                    <option value="AGENT_CLOSE"''' + (' selected' if current_params and current_params.get('event_type') == 'AGENT_CLOSE' else '') + '''>Agent Close</option>
+                    <option value="AGENT_ERROR"''' + (' selected' if current_params and current_params.get('event_type') == 'AGENT_ERROR' else '') + '''>Agent Error</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filter-last">Last N Events</label>
+                <input type="number" id="filter-last" min="1" max="1000" placeholder="50" value="''' + str(current_params.get('last', '') if current_params and current_params.get('last') else '') + '''">
+            </div>
+            <div class="filter-group">
+                <label for="filter-after-seq">After Sequence</label>
+                <input type="number" id="filter-after-seq" min="0" placeholder="0" value="''' + str(current_params.get('after_seq', '') if current_params and current_params.get('after_seq') else '') + '''">
+            </div>
+            ''' if endpoint == '/api/history' else '') + '''
+            <div class="filter-actions">
+                <button class="filter-btn" onclick="applyFilters()">🔍 Apply Filters</button>
+                <button class="filter-btn secondary" onclick="clearFilters()">🗑️ Clear</button>
+            </div>
+        </div>
+        ''' if show_filters else ''}
+        
         <div class="controls">
             <button class="refresh-btn" onclick="manualRefresh()" id="refresh-btn">🔄 Refresh</button>
             
@@ -615,6 +741,51 @@ def create_html_response(
             // Initialize page
             displayJSON();
             
+            // Filter functions
+            function applyFilters() {{
+                const currentUrl = new URL(window.location);
+                const params = new URLSearchParams();
+                
+                // Get filter values based on current page
+                const endpoint = currentUrl.pathname;
+                
+                if (endpoint === '/api/agents') {{
+                    const agentFilter = document.getElementById('filter-agent');
+                    if (agentFilter && agentFilter.value.trim()) {{
+                        // For agents page, redirect to specific agent endpoint
+                        window.location.href = '/api/agents/' + encodeURIComponent(agentFilter.value.trim());
+                        return;
+                    }}
+                }} else if (endpoint === '/api/history') {{
+                    const agentFilter = document.getElementById('filter-agent');
+                    const eventTypeFilter = document.getElementById('filter-event-type');
+                    const lastFilter = document.getElementById('filter-last');
+                    const afterSeqFilter = document.getElementById('filter-after-seq');
+                    
+                    if (agentFilter && agentFilter.value.trim()) {{
+                        params.set('agent', agentFilter.value.trim());
+                    }}
+                    if (eventTypeFilter && eventTypeFilter.value) {{
+                        params.set('event_type', eventTypeFilter.value);
+                    }}
+                    if (lastFilter && lastFilter.value) {{
+                        params.set('last', lastFilter.value);
+                    }}
+                    if (afterSeqFilter && afterSeqFilter.value) {{
+                        params.set('after_seq', afterSeqFilter.value);
+                    }}
+                }}
+                
+                // Apply filters by updating URL
+                const newUrl = currentUrl.pathname + (params.toString() ? '?' + params.toString() : '');
+                window.location.href = newUrl;
+            }}
+            
+            function clearFilters() {{
+                const currentUrl = new URL(window.location);
+                window.location.href = currentUrl.pathname;
+            }}
+            
             // Setup auto-refresh for stats page
             {f'''
             const autoRefreshCheckbox = document.getElementById('auto-refresh');
@@ -765,7 +936,9 @@ class PyOrchestrateWebServer:
             ):
                 return create_pretty_json_response(response)
             else:
-                return create_html_response("Agents List", response, "/api/agents")
+                return create_html_response(
+                    "Agents List", response, "/api/agents", show_filters=True
+                )
 
         @self.app.get("/api/agents/{agent_name}")
         async def get_agent_status(
@@ -882,7 +1055,23 @@ class PyOrchestrateWebServer:
             ):
                 return create_pretty_json_response(response)
             else:
-                return create_html_response("Event History", response, "/api/history")
+                current_params = {}
+                if last is not None:
+                    current_params["last"] = last
+                if agent is not None:
+                    current_params["agent"] = agent
+                if event_type is not None:
+                    current_params["event_type"] = event_type
+                if after_seq is not None:
+                    current_params["after_seq"] = after_seq
+
+                return create_html_response(
+                    "Event History",
+                    response,
+                    "/api/history",
+                    show_filters=True,
+                    current_params=current_params,
+                )
 
         @self.app.get("/api/history/stats")
         async def get_history_stats(
