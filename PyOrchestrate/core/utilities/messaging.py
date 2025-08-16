@@ -29,15 +29,20 @@ def generate_request_id() -> str:
     return str(uuid.uuid4())
 
 
-def make_request(command: str, args: Optional[list] = None, request_id: Optional[str] = None, meta: Optional[dict] = None) -> dict:
+def make_request(
+    command: str,
+    args: Optional[list] = None,
+    request_id: Optional[str] = None,
+    meta: Optional[dict] = None,
+) -> dict:
     """Create a standardized request payload.
-    
+
     Args:
         command: Command name
         args: Command arguments
         request_id: Optional request ID for correlation
         meta: Optional metadata
-        
+
     Returns:
         Standardized request dict
     """
@@ -46,14 +51,20 @@ def make_request(command: str, args: Optional[list] = None, request_id: Optional
         "args": args or [],
         "request_id": request_id or generate_request_id(),
         "timestamp": now_iso(),
-        "meta": meta or {}
+        "meta": meta or {},
     }
 
 
-def make_response(status: str, data: Any = None, message: Optional[str] = None, 
-                 code: int = 0, request_id: Optional[str] = None, error: Optional[dict] = None) -> dict:
+def make_response(
+    status: str,
+    data: Any = None,
+    message: Optional[str] = None,
+    code: int = 0,
+    request_id: Optional[str] = None,
+    error: Optional[dict] = None,
+) -> dict:
     """Create a standardized response payload.
-    
+
     Args:
         status: "success" or "error"
         data: Response data
@@ -61,7 +72,7 @@ def make_response(status: str, data: Any = None, message: Optional[str] = None,
         code: Error code (0 = success)
         request_id: Request ID for correlation
         error: Error details dict
-        
+
     Returns:
         Standardized response dict
     """
@@ -72,29 +83,26 @@ def make_response(status: str, data: Any = None, message: Optional[str] = None,
         "data": data or {},
         "request_id": request_id,
         "timestamp": now_iso(),
-        "protocol_version": PROTOCOL_VERSION
+        "protocol_version": PROTOCOL_VERSION,
     }
-    
+
     if status == "error" and error:
         response["error"] = error
     elif status == "error" and isinstance(data, Exception):
-        response["error"] = {
-            "type": type(data).__name__,
-            "message": str(data)
-        }
+        response["error"] = {"type": type(data).__name__, "message": str(data)}
         response["data"] = {}
-        
+
     return response
 
 
 def pack_envelope(sender: str, msg_type: str, payload: dict) -> bytes:
     """Pack a message envelope for transmission.
-    
+
     Args:
         sender: Message sender identifier
         msg_type: Message type ("COMMAND", "STATUS", etc.)
         payload: Message payload dict
-        
+
     Returns:
         Encoded message bytes with newline terminator
     """
@@ -102,17 +110,17 @@ def pack_envelope(sender: str, msg_type: str, payload: dict) -> bytes:
         "sender": sender,
         "type": msg_type,
         "payload": payload,
-        "timestamp": now_iso()
+        "timestamp": now_iso(),
     }
     return (json.dumps(envelope, ensure_ascii=False) + "\n").encode()
 
 
 def unpack_envelope(raw_bytes: bytes) -> dict:
     """Unpack a message envelope from transmission.
-    
+
     Args:
         raw_bytes: Raw message bytes
-        
+
     Returns:
         Unpacked envelope dict
     """
@@ -123,7 +131,7 @@ def unpack_envelope(raw_bytes: bytes) -> dict:
 class ServiceMessage:
     sender: str
     type: Literal["COMMAND", "STATUS"]
-    payload: Dict[str, Any]  # Now always a dict instead of string
+    payload: Dict[str, Any]  # Always a dict for consistency
     timestamp: datetime
 
 

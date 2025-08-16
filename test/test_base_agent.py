@@ -258,37 +258,37 @@ class TestBaseAgent(unittest.TestCase):
         """Test message channel send calls during run."""
         self.agent.logger = MagicMock()
         self.agent.run()
-        
+
         # Verify that messages were sent to the orchestrator
         expected_calls = [
             call("orchestrator", ANY),  # AGENT_START
-            call("orchestrator", ANY),  # AGENT_READY  
+            call("orchestrator", ANY),  # AGENT_READY
             call("orchestrator", ANY),  # AGENT_CLOSE
         ]
-        
+
         self.msg_channel.send.assert_has_calls(expected_calls, any_order=False)
-        
+
         # Verify the content of the messages
         calls = self.msg_channel.send.call_args_list
         self.assertEqual(len(calls), 3)
-        
+
         # Check AGENT_START message
         start_msg = calls[0][0][1]  # Second argument of first call
         self.assertEqual(start_msg.sender, "test_base_agent")
         self.assertEqual(start_msg.type, "STATUS")
-        self.assertEqual(start_msg.payload, AgentEvent.AGENT_START.value)
-        
+        self.assertEqual(start_msg.payload, {"event": AgentEvent.AGENT_START.value})
+
         # Check AGENT_READY message
         ready_msg = calls[1][0][1]  # Second argument of second call
         self.assertEqual(ready_msg.sender, "test_base_agent")
         self.assertEqual(ready_msg.type, "STATUS")
-        self.assertEqual(ready_msg.payload, AgentEvent.AGENT_READY.value)
-        
+        self.assertEqual(ready_msg.payload, {"event": AgentEvent.AGENT_READY.value})
+
         # Check AGENT_CLOSE message
         close_msg = calls[2][0][1]  # Second argument of third call
         self.assertEqual(close_msg.sender, "test_base_agent")
         self.assertEqual(close_msg.type, "STATUS")
-        self.assertEqual(close_msg.payload, AgentEvent.AGENT_CLOSE.value)
+        self.assertEqual(close_msg.payload, {"event": AgentEvent.AGENT_CLOSE.value})
 
 
 class TestServiceMessage(unittest.TestCase):
@@ -300,13 +300,15 @@ class TestServiceMessage(unittest.TestCase):
         message = ServiceMessage(
             sender="test_agent",
             type="STATUS",
-            payload="test message",
+            payload={"event": "test_event", "message": "test message"},
             timestamp=timestamp,
         )
 
         self.assertEqual(message.sender, "test_agent")
         self.assertEqual(message.type, "STATUS")
-        self.assertEqual(message.payload, "test message")
+        self.assertEqual(
+            message.payload, {"event": "test_event", "message": "test message"}
+        )
         self.assertEqual(message.timestamp, timestamp)
 
 
@@ -358,7 +360,7 @@ class TestBaseAgentWithServiceMessage(unittest.TestCase):
         message = ServiceMessage(
             sender=self.agent.name,
             type="STATUS",
-            payload="test message",
+            payload={"event": "test_event", "message": "test message"},
             timestamp=timestamp,
         )
 
@@ -368,7 +370,9 @@ class TestBaseAgentWithServiceMessage(unittest.TestCase):
         sent_message = self.agent.sent_messages[0]
         self.assertEqual(sent_message.sender, "test_service_agent")
         self.assertEqual(sent_message.type, "STATUS")
-        self.assertEqual(sent_message.payload, "test message")
+        self.assertEqual(
+            sent_message.payload, {"event": "test_event", "message": "test message"}
+        )
         self.assertEqual(sent_message.timestamp, timestamp)
 
 
