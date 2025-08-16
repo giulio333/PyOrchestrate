@@ -103,11 +103,16 @@ class ServiceMessage:
     timestamp: datetime
 
     def to_dict(self) -> Dict[str, object]:
+        timestamp = (
+            self.timestamp.isoformat()
+            if isinstance(self.timestamp, datetime)
+            else self.timestamp
+        )
         return {
             "sender": self.sender,
             "type": self.type,
             "payload": self.payload,
-            "timestamp": self.timestamp,
+            "timestamp": timestamp,
         }
 
     def to_json(self, **json_kwargs) -> str:
