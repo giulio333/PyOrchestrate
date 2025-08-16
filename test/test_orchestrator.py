@@ -101,12 +101,12 @@ class TestOrchestrator(unittest.TestCase):
 
         for payload, expected_event in event_map.items():
             self.orch.event_manager.emit.reset_mock()  # type: ignore
-            msg = ServiceMessage(
+            msg = ServiceMessage.create_status(
                 sender="agent1",
-                type="STATUS",
-                payload=payload,
-                timestamp=datetime.now(),
+                status="success",
+                event_name=payload,
             )
+
             self.orch.handle_agent_message(msg)
             self.orch.event_manager.emit.assert_called_with(  # type: ignore
                 expected_event, agent_name="agent1"

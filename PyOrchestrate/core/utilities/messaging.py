@@ -174,14 +174,21 @@ class ServiceMessage:
 
     @classmethod
     def create_command(
-        cls, sender: str, payload: Dict[str, Any], timestamp: Optional[datetime] = None
+        cls,
+        sender: str,
+        command: str,
+        args: Optional[list] = None,
+        request_id: Optional[str] = None,
+        meta: Optional[dict] = None,
     ) -> "ServiceMessage":
         """Create a COMMAND type ServiceMessage.
 
         Args:
             sender: Message sender identifier
-            payload: Command payload dictionary
-            timestamp: Optional timestamp (defaults to now)
+            command: Command name
+            args: Optional command arguments
+            request_id: Optional request identifier
+            meta: Optional metadata
 
         Returns:
             ServiceMessage instance with type="COMMAND"
@@ -189,20 +196,68 @@ class ServiceMessage:
         return cls(
             sender=sender,
             type="COMMAND",
-            payload=payload,
-            timestamp=timestamp or datetime.now(),
+            payload={
+                "command": command,
+                "args": args or [],
+                "request_id": request_id or generate_request_id(),
+                "timestamp": now_iso(),
+                "meta": meta or {},
+            },
+            timestamp=datetime.now(),
+        )
+
+    @classmethod
+    def create_command_response(
+        cls,
+        sender: str,
+        status: Literal["success", "error"],
+        code: int = 0,
+        data: Optional[dict] = None,
+        request_id: Optional[str] = None,
+        error: Optional[str] = None,
+    ) -> "ServiceMessage":
+        """Create a COMMAND type ServiceMessage.
+
+        Args:
+            sender: Message sender identifier
+            status: Command status (e.g., "success", "error")
+            code: Command response code (e.g., 200, 404)
+            data: Optional command data
+            request_id: Optional request identifier
+            error: Optional error information
+
+        Returns:
+            ServiceMessage instance with type="COMMAND"
+        """
+        return cls(
+            sender=sender,
+            type="COMMAND",
+            payload={
+                "status": status,
+                "error": error,
+                "code": code,
+                "data": data or {},
+                "request_id": request_id,
+                "timestamp": now_iso(),
+                "protocol_version": PROTOCOL_VERSION,
+            },
+            timestamp=datetime.now(),
         )
 
     @classmethod
     def create_status(
-        cls, sender: str, payload: Dict[str, Any], timestamp: Optional[datetime] = None
+        cls,
+        sender: str,
+        status: str,
+        event_name: Optional[str] = None,
+        error: Optional[str] = None,
     ) -> "ServiceMessage":
         """Create a STATUS type ServiceMessage.
 
         Args:
             sender: Message sender identifier
-            payload: Status payload dictionary
-            timestamp: Optional timestamp (defaults to now)
+            status: Status message content
+            data: Optional additional data to include in the status message
 
         Returns:
             ServiceMessage instance with type="STATUS"
@@ -210,8 +265,12 @@ class ServiceMessage:
         return cls(
             sender=sender,
             type="STATUS",
-            payload=payload,
-            timestamp=timestamp or datetime.now(),
+            payload={
+                "status": status,
+                "error": error or "",
+                "event": event_name or "",
+            },
+            timestamp=datetime.now(),
         )
 
     def __str__(self) -> str:
