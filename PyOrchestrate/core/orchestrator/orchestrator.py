@@ -382,13 +382,14 @@ class Orchestrator(BaseClass):
             import json
             from datetime import datetime
 
-            cmd_data = json.loads(msg.payload)
+            cmd_data = msg.payload  # Now already a dict
             command = cmd_data.get("command")
             args = cmd_data.get("args", [])
+            request_id = cmd_data.get("request_id")
 
             # Delegate command execution to the command handler
             assert self.command_handler, "Command handler not initialized"
-            response = self.command_handler.execute_command(command, args)
+            response = self.command_handler.execute_command(command, args, request_id)
 
             # Send response back through the command channel
             assert self.command_channel, "Command channel not initialized"
@@ -397,7 +398,7 @@ class Orchestrator(BaseClass):
                 ServiceMessage(
                     sender="orchestrator",
                     type="STATUS",
-                    payload=json.dumps(response),
+                    payload=response,  # Already a dict
                     timestamp=datetime.now(),
                 ),
             )
