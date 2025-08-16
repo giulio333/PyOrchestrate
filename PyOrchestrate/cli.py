@@ -304,7 +304,6 @@ class ArgumentParser:
             ("ps", "List all agents and their status"),
             ("list", "List all agents and their status"),
             ("status", "Get orchestrator or agent status"),
-            ("report", "Get full orchestrator report"),
             ("dependencies", "Show agent dependencies"),
             ("start", "Start a specific agent"),
             ("stop", "Stop a specific agent"),
@@ -451,8 +450,6 @@ class OutputFormatter:
             return OutputFormatter._format_dependencies(data)
         elif command in ["start", "stop"]:
             return response_data.get("message", "Operation completed")
-        elif command == "report":
-            return OutputFormatter._format_report(data)
         elif command == "history":
             return OutputFormatter._format_history(data)
         elif command == "history-stats":
@@ -528,36 +525,6 @@ class OutputFormatter:
             return "\n".join(output)
         else:
             return "No dependencies configured"
-
-    @staticmethod
-    def _format_report(data: Dict[str, Any]) -> str:
-        """Format report output."""
-        output = []
-        orchestrator_data = data.get("orchestrator", {})
-        agents = data.get("agents", [])
-        dependencies = data.get("dependencies", {})
-
-        output.append("=== Orchestrator Report ===")
-        output.append(f"Running Agents: {orchestrator_data.get('running_agents', 0)}")
-        output.append(f"Max Workers: {orchestrator_data.get('max_workers', 0)}")
-        output.append(f"Waiting Agents: {orchestrator_data.get('waiting_agents', 0)}")
-        output.append(f"Check Interval: {orchestrator_data.get('check_interval', 0)}s")
-        output.append("")
-
-        if agents:
-            output.append("=== Agents ===")
-            for agent in agents:
-                output.append(
-                    f"  {agent['name']}: {'ALIVE' if agent.get('alive') else 'DEAD'}"
-                )
-
-        if dependencies:
-            output.append("\n=== Dependencies ===")
-            for agent, deps in dependencies.items():
-                if deps:
-                    output.append(f"  {agent} -> {', '.join(deps)}")
-
-        return "\n".join(output)
 
     @staticmethod
     def _format_history(data: Dict[str, Any]) -> str:
