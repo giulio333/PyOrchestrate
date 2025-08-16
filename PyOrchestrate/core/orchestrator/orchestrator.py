@@ -374,7 +374,6 @@ class Orchestrator(BaseClass):
     def handle_external_command(self, msg: ServiceMessage) -> None:
         """Process external commands from CLI."""
         try:
-            import json
             from datetime import datetime
 
             cmd_data = msg.payload  # Now already a dict
