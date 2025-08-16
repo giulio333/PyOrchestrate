@@ -263,13 +263,14 @@ class MessageChannel:
         return msg
 
     def send_and_receive(
-        self, msg: ServiceMessage, timeout: float = 5.0
+        self, msg: ServiceMessage, timeout: float = 5.0, auto_close: bool = False
     ) -> Optional[ServiceMessage]:
         """Send a message and wait for response (client mode only).
 
         Args:
             msg: ServiceMessage to send.
             timeout: Maximum time to wait for response in seconds.
+            auto_close: Whether to close the connection automatically after receiving a response.
 
         Returns:
             ServiceMessage response if successful, None otherwise.
@@ -288,7 +289,10 @@ class MessageChannel:
             return None
 
         response = self._receive_from_unix_socket_client(timeout)
-        self.close()
+
+        if auto_close:
+            self.close()
+
         return response
 
     def close(self):
