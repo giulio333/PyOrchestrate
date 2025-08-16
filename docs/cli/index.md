@@ -28,6 +28,15 @@ Advanced commands for real-time control of running orchestrators:
 - **Real-time monitoring**: `stats` - Continuous monitoring like `docker stats`
 - **Remote management**: `shutdown` - Gracefully shutdown orchestrator via UNIX sockets
 
+## Web Interface
+
+PyOrchestrate also provides a web-based interface for monitoring and controlling your orchestrator:
+
+- **Web dashboard**: `pyorchestrate-web` - Launch a web interface for visual monitoring and control
+- **Real-time updates**: Live dashboard with agent status, statistics, and logs
+- **Authentication**: Optional token-based authentication for secure access
+- **Remote access**: Web-based alternative to CLI commands
+
 ### Output Formats
 
 All runtime commands support two output formats:
@@ -60,8 +69,14 @@ pyorchestrate --help
 # Initialize a new project
 pyorchestrate create my-project
 
-# Show CLI version
-pyorchestrate --version
+# Show CLI help
+pyorchestrate --help
+
+# Show WebServer help
+pyorchestrate-web --help
+
+# Start web interface
+pyorchestrate-web --host 0.0.0.0 --port 8080 --socket /tmp/pyorchestrate.sock
 ```
 
 ### Runtime Control
@@ -93,6 +108,9 @@ pyorchestrate history --last 10
 
 # Shutdown orchestrator
 pyorchestrate shutdown
+
+# Start web interface for visual monitoring
+pyorchestrate-web --port 8080 --socket /tmp/pyorchestrate.sock
 ```
 
 ## Architecture
@@ -108,12 +126,16 @@ Commands that communicate with a running orchestrator via UNIX sockets, enabling
 ```mermaid
 graph TD
     A[CLI Client] --> B{Command Type}
+    A1[Web Interface] --> B
     B -->|Direct| C[Project Files]
     B -->|Runtime| D[UNIX Socket]
     D --> E[Running Orchestrator]
     E --> F[Agent Manager]
     E --> G[Statistics Engine]
     E --> H[Command Handler]
+    A1 --> I[Web Dashboard]
+    I --> J[Real-time Updates]
+    I --> K[Agent Control]
 ```
 
 ## Security Considerations
@@ -126,7 +148,8 @@ graph TD
 ## Next Steps
 
 - Learn about [Runtime Commands](./runtime-commands) for real-time orchestrator control
-- Explore [Configuration](./configuration) options for the command interface
+- Explore [Web Interface](./web-interface) for browser-based monitoring and control
+- Check [Configuration](./configuration) options for the command interface
 - See practical [Examples](./examples) of CLI usage in different scenarios
 
 The PyOrchestrate CLI bridges the gap between development and operations, providing both developer-friendly tools and production-ready management capabilities.

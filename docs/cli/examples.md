@@ -41,7 +41,54 @@ pyorchestrate history --last 10
 pyorchestrate stats --interval 3
 
 # Clean shutdown for development
-pyorchestrate shutdown
+python -m PyOrchestrate.cli shutdown
+
+# Alternative: Start web interface for visual monitoring
+pyorchestrate-web --port 3000 --socket /tmp/pyorchestrate.sock
+```
+
+### Web Interface Development Setup
+
+```bash
+#!/bin/bash
+# web-dev-setup.sh - Development setup with web interface
+
+PROJECT_NAME="my-weather-app"
+SOCKET_PATH="/tmp/${PROJECT_NAME}.sock"
+WEB_PORT=3000
+
+# Create and setup project
+python -m PyOrchestrate.cli create "$PROJECT_NAME"
+cd "$PROJECT_NAME"
+
+# Start orchestrator in background
+python starter.py &
+ORCH_PID=$!
+
+# Wait for orchestrator to start
+sleep 3
+
+# Start web interface
+pyorchestrate-web --port "$WEB_PORT" --socket "$SOCKET_PATH" &
+WEB_PID=$!
+
+echo "Development environment ready:"
+echo "  Project: $PROJECT_NAME"
+echo "  Orchestrator PID: $ORCH_PID"
+echo "  Web Interface: http://localhost:$WEB_PORT"
+echo "  Socket: $SOCKET_PATH"
+
+# Cleanup function
+cleanup() {
+    echo "Cleaning up development environment..."
+    kill $WEB_PID 2>/dev/null
+    python -m PyOrchestrate.cli shutdown --socket "$SOCKET_PATH" 2>/dev/null
+    kill $ORCH_PID 2>/dev/null
+}
+
+trap cleanup EXIT
+echo "Press Ctrl+C to stop all services"
+wait
 ```
 
 ### Development Monitoring Script
@@ -281,6 +328,24 @@ services:
       "
     depends_on:
       - orchestrator
+      
+  web-interface:
+    image: pyorchestrate/cli
+    ports:
+      - "8080:8080"
+    volumes:
+      - socket-volume:/var/run/pyorchestrate
+    environment:
+      - PYORCHESTRATE_AUTH_TOKEN=${AUTH_TOKEN:-changeme}
+    command: |
+      pyorchestrate-web 
+        --host 0.0.0.0 
+        --port 8080 
+        --socket /var/run/pyorchestrate/orchestrator.sock
+        --enable-auth 
+        --auth-token ${PYORCHESTRATE_AUTH_TOKEN}
+    depends_on:
+      - orchestrator
 
 volumes:
   socket-volume:
@@ -328,6 +393,26 @@ spec:
               ' > /tmp/metrics.txt 2>/dev/null || echo "# Metrics unavailable" > /tmp/metrics.txt
             sleep 30
           done
+        - name: web-interface
+          image: my-pyorchestrate-cli:latest
+          ports:
+          - containerPort: 8080
+          volumeMounts:
+          - name: socket-volume
+            mountPath: /var/run/pyorchestrate
+          env:
+          - name: AUTH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: pyorchestrate-secret
+                key: auth-token
+          command:
+          - pyorchestrate-web
+          - --host=0.0.0.0
+          - --port=8080
+          - --socket=/var/run/pyorchestrate/orchestrator.sock
+          - --enable-auth
+          - --auth-token=$(AUTH_TOKEN)
         
       volumes:
       - name: socket-volume
@@ -613,6 +698,94 @@ log "Step 4: Capturing performance baseline..."
 pyorchestrate status --socket "$SOCKET" --format json > "/var/log/pyorchestrate/baseline_$(date +%Y%m%d_%H%M%S).json"
 
 log "Deployment verification completed successfully"
+```
+
+### Web Interface Production Setup
+
+```bash
+#!/bin/bash
+# web-production-setup.sh - Production web interface deployment
+
+SOCKET="/var/run/pyorchestrate/prod.sock"
+WEB_PORT=8080
+AUTH_TOKEN=$(openssl rand -hex 32)
+LOG_FILE="/var/log/pyorchestrate/web.log"
+
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
+}
+
+# Start web interface with authentication
+start_web_interface() {
+    log "Starting PyOrchestrate Web Interface..."
+    
+    # Create log directory
+    mkdir -p "$(dirname "$LOG_FILE")"
+    
+    # Start web interface
+    pyorchestrate-web \
+        --host 0.0.0.0 \
+        --port "$WEB_PORT" \
+        --socket "$SOCKET" \
+        --enable-auth \
+        --auth-token "$AUTH_TOKEN" \
+        >> "$LOG_FILE" 2>&1 &
+    
+    WEB_PID=$!
+    
+    # Wait for web interface to start
+    sleep 3
+    
+    # Test web interface
+    if curl -f -H "Authorization: Bearer $AUTH_TOKEN" \
+            "http://localhost:$WEB_PORT/api/status" > /dev/null 2>&1; then
+        log "Web interface started successfully (PID: $WEB_PID)"
+        log "Dashboard available at: http://localhost:$WEB_PORT"
+        log "Authentication token: $AUTH_TOKEN"
+        
+        # Save token to secure file
+        echo "$AUTH_TOKEN" > /etc/pyorchestrate/web-token
+        chmod 600 /etc/pyorchestrate/web-token
+        
+        return 0
+    else
+        log "ERROR: Web interface failed to start"
+        return 1
+    fi
+}
+
+# Health check for web interface
+check_web_health() {
+    local token_file="/etc/pyorchestrate/web-token"
+    
+    if [ -f "$token_file" ]; then
+        local token=$(cat "$token_file")
+        
+        if curl -f -H "Authorization: Bearer $token" \
+                "http://localhost:$WEB_PORT/api/status" > /dev/null 2>&1; then
+            log "Web interface health check: OK"
+            return 0
+        else
+            log "Web interface health check: FAILED"
+            return 1
+        fi
+    else
+        log "Web interface token file not found"
+        return 1
+    fi
+}
+
+# Main execution
+if start_web_interface; then
+    # Setup periodic health checks
+    while true; do
+        sleep 60
+        check_web_health || break
+    done
+else
+    log "Failed to start web interface"
+    exit 1
+fi
 ```
 
 These examples demonstrate real-world usage patterns for the PyOrchestrate CLI, from simple development workflows to complex production monitoring and automation scenarios.
