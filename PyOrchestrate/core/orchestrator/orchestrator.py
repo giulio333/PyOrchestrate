@@ -60,7 +60,7 @@ class OrchestratorConfig(BaseClass.Config):
     """The interval to check the agents."""
     max_workers: int = 5
     """The maximum number of workers that can run concurrently."""
-    enable_command_interface: bool = False
+    enable_command_interface: bool = True
     """Enable external command interface via UNIX socket."""
     command_socket_path: str = "/tmp/pyorchestrate.sock"
     """Path to the UNIX socket for external commands."""
@@ -82,6 +82,18 @@ class OrchestratorConfig(BaseClass.Config):
         history_payload_bytes: int | None = None,
         **kwargs,
     ):
+        """
+        Initialize the OrchestratorConfig.
+
+        Args:
+            check_interval (float | None, optional): The interval to check the agents. Defaults to None.
+            max_workers (int | None, optional): The maximum number of workers that can run concurrently. Defaults to None.
+            enable_command_interface (bool | None, optional): Enable external command interface via UNIX socket. Defaults to None.
+            command_socket_path (str | None, optional): Path to the UNIX socket for external commands. Defaults to None.
+            run_mode (RunMode | None, optional): Required lifecycle policy. Must be set to RunMode.STOP_ON_EMPTY or RunMode.DAEMON. Defaults to None.
+            history_max_events (int | None, optional): Maximum number of events to store in history (ring buffer size). Defaults to None.
+            history_payload_bytes (int | None, optional): Maximum size for event payload data. Defaults to None.
+        """
         super().__init__(**kwargs)
 
         if check_interval is not None:
