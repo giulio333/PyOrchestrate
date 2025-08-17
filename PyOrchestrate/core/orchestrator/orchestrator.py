@@ -1,17 +1,16 @@
 import time
 import threading
-import json
 from collections import defaultdict, deque
 from typing import List, final
 from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
+from PyOrchestrate.core.utilities.command_handler import CommandException
 from PyOrchestrate.core.orchestrator.event_store import EventStore
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import OrchestratorEvent, AgentEvent
 from PyOrchestrate.core.utilities.validation import (
-    ValidationPolicy,
     ValidationResult,
     ValidationSeverity,
     ConfigValidationError,
@@ -42,14 +41,14 @@ class OrchestratorConfig(BaseClass.Config):
     Orchestrator configuration class.
 
     Attributes:
-        check_interval (float): The interval to check the agents.
-        max_workers (int): The maximum number of workers that can run concurrently.
-        enable_command_interface (bool): Enable external command interface via UNIX socket.
-        command_socket_path (str): Path to the UNIX socket for external commands.
+        check_interval (float): The interval to check the agents. Defaults to 1.
+        max_workers (int): The maximum number of workers that can run concurrently. Defaults to 5.
+        enable_command_interface (bool): Enable external command interface via UNIX socket. Defaults to True.
+        command_socket_path (str): Path to the UNIX socket for external commands. Defaults to "/tmp/pyorchestrate.sock".
         logger (LoggerConfig): Logger configuration.
-        run_mode (RunMode): Required lifecycle policy, defaults to RunMode.STOP_ON_EMPTY.
-        history_max_events (int): Maximum number of events to store in history (ring buffer size).
-        history_payload_bytes (int): Maximum size for event payload data.
+        run_mode (RunMode): Required lifecycle policy. Defaults to RunMode.STOP_ON_EMPTY.
+        history_max_events (int): Maximum number of events to store in history (ring buffer size). Defaults to 5000.
+        history_payload_bytes (int): Maximum size for event payload data. Defaults to 256.
     """
 
     check_interval: float = 1
@@ -178,45 +177,6 @@ class OrchestratorConfig(BaseClass.Config):
                     severity=ValidationSeverity.ERROR,
                 )
             )
-
-        # Validate allowed_commands
-        if self.allowed_commands is not None:
-            # Import here to avoid circular imports
-            from PyOrchestrate.core.utilities.command_handler import CommandPermissions
-
-            if isinstance(self.allowed_commands, str):
-                # Check if it's a valid preset name
-                try:
-                    CommandPermissions.get_preset(self.allowed_commands)
-                except ValueError as e:
-                    results.append(
-                        ValidationResult(
-                            field="allowed_commands",
-                            message=str(e),
-                            severity=ValidationSeverity.ERROR,
-                        )
-                    )
-            elif isinstance(self.allowed_commands, set):
-                # Validate that all commands are known
-                unknown_commands = (
-                    self.allowed_commands - CommandPermissions.ALL_COMMANDS
-                )
-                if unknown_commands:
-                    results.append(
-                        ValidationResult(
-                            field="allowed_commands",
-                            message=f"Unknown commands: {', '.join(unknown_commands)}. Available commands: {', '.join(sorted(CommandPermissions.ALL_COMMANDS))}",
-                            severity=ValidationSeverity.WARNING,
-                        )
-                    )
-            else:
-                results.append(
-                    ValidationResult(
-                        field="allowed_commands",
-                        message="allowed_commands must be a set of command names, a preset name string, or None.",
-                        severity=ValidationSeverity.ERROR,
-                    )
-                )
 
         return results
 
@@ -434,8 +394,6 @@ class Orchestrator(BaseClass):
     def handle_external_command(self, msg: ServiceMessage) -> None:
         """Process external commands from CLI."""
         try:
-            from datetime import datetime
-
             cmd_data = msg.payload  # Now already a dict
             command = cmd_data.get("command")
             args = cmd_data.get("args", [])
@@ -445,40 +403,26 @@ class Orchestrator(BaseClass):
             if not command:
                 raise ValueError("Command is required")
 
-            # Delegate command execution to the command handler
             assert self.command_handler, "Command handler not initialized"
 
             try:
-                response = self.command_handler.execute_command(
-                    command, args, request_id
-                )
+                # Delegate command execution to the command handler
+                response = self.command_handler.execute_command(command, args)
                 msg = ServiceMessage.create_command_response(
                     sender="orchestrator",
                     status="success",
                     data=response,
                     request_id=request_id,
                 )
-            except Exception as e:
-                # Import here to avoid circular imports
-                from PyOrchestrate.core.utilities.command_handler import (
-                    CommandException,
+            except CommandException as e:
+                self.logger.warning(f"Command '{command}' failed: {e}")
+                msg = ServiceMessage.create_command_response(
+                    sender="orchestrator",
+                    status="error",
+                    error=str(e),
+                    code=e.code,
+                    request_id=request_id,
                 )
-
-                if isinstance(e, CommandException):
-                    msg = ServiceMessage.create_command_response(
-                        sender="orchestrator",
-                        status="error",
-                        error=str(e),
-                        code=e.code,
-                        request_id=request_id,
-                    )
-                else:
-                    msg = ServiceMessage.create_command_response(
-                        sender="orchestrator",
-                        status="error",
-                        error=str(e),
-                        request_id=request_id,
-                    )
 
             # Send response back through the command channel
             assert self.command_channel, "Command channel not initialized"

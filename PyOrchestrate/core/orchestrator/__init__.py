@@ -1,5 +1,13 @@
-__all__ = ["Orchestrator", "AgentEntry", "RunMode", "EventStore", "EventRecord"]
+__all__ = [
+    "Orchestrator",
+    "AgentEntry",
+    "RunMode",
+    "EventStore",
+    "EventRecord",
+    "CommandPermissions",
+]
 
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.orchestrator.memory import AgentEntry
 from PyOrchestrate.core.orchestrator.event_store import EventStore, EventRecord
+from PyOrchestrate.core.utilities.command_handler import CommandPermissions
