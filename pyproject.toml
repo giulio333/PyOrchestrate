@@ -17,3 +17,8 @@ dependencies = [
 [project.scripts]
 pyorchestrate = "PyOrchestrate.cli:main"
 pyorchestrate-web = "PyOrchestrate.web_interface.server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["PyOrchestrate*"]
+exclude = ["tests*", "docs*", "examples*", "scripts*", "logs*", "junit*", "build*", "dist*", "*.egg-info*"]
