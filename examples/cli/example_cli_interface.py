@@ -1,4 +1,4 @@
-from PyOrchestrate.core.orchestrator import Orchestrator, RunMode
+from PyOrchestrate.core.orchestrator import Orchestrator, RunMode, CommandPermissions
 from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
 
 
@@ -30,11 +30,12 @@ class FileWriter(PeriodicProcessAgent):
 
 
 if __name__ == "__main__":
-    # Configure orchestrator with command interface enabled
+    # Configure orchestrator
     config = Orchestrator.Config(
         enable_command_interface=True,
         command_socket_path="/tmp/pyorchestrate.sock",
         run_mode=RunMode.DAEMON,
+        allowed_commands={"ps", "shutdown"},
     )
     orchestrator = Orchestrator(config=config)
 

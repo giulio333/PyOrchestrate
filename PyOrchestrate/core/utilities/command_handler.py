@@ -30,7 +30,6 @@ class CommandPermissions:
     # All available commands
     ALL_COMMANDS = {
         "ps",
-        "list",
         "start",
         "stop",
         "status",
@@ -45,7 +44,6 @@ class CommandPermissions:
     # Predefined permission sets
     PRODUCTION = {
         "ps",
-        "list",
         "status",
         "dependencies",
         "stats",
@@ -58,7 +56,6 @@ class CommandPermissions:
 
     READ_ONLY = {
         "ps",
-        "list",
         "status",
         "dependencies",
         "stats",
@@ -69,7 +66,6 @@ class CommandPermissions:
 
     MONITORING = {
         "ps",
-        "list",
         "status",
         "stats",
         "history",
@@ -175,43 +171,55 @@ class CommandHandler:
         )
 
     def execute_command(
-        self, command: str, args: list, request_id: Optional[str] = None
+        self,
+        command: str,
+        args: list,
     ) -> dict:
         """Execute external commands and return structured responses."""
 
         # Check if command is allowed
         if command not in self.allowed_commands:
             raise CommandException(
-                f"Command '{command}' is not allowed. Allowed commands: {', '.join(sorted(self.allowed_commands))}",
+                message=f"Command '{command}' is not allowed. Allowed commands: {', '.join(sorted(self.allowed_commands))}",
                 code=403,
             )
 
-        if command in ["ps", "list"]:
-            return self._cmd_list_agents(request_id)
+        if command in ["ps"]:
+            return self._cmd_list_agents()
         elif command == "start" and args:
-            return self._cmd_start_agent(args[0], request_id)
+            return self._cmd_start_agent(
+                args[0],
+            )
         elif command == "stop" and args:
-            return self._cmd_stop_agent(args[0], request_id)
+            return self._cmd_stop_agent(
+                args[0],
+            )
         elif command == "status" and args:
-            return self._cmd_agent_status(args[0], request_id)
+            return self._cmd_agent_status(
+                args[0],
+            )
         elif command == "status":
-            return self._cmd_orchestrator_status(request_id)
+            return self._cmd_orchestrator_status()
         elif command == "dependencies":
-            return self._cmd_show_dependencies(request_id)
+            return self._cmd_show_dependencies()
         elif command == "stats":
-            return self._cmd_stats(request_id)
+            return self._cmd_stats()
         elif command == "history":
-            return self._cmd_history(args, request_id)
+            return self._cmd_history(
+                args,
+            )
         elif command == "history-stats":
-            return self._cmd_history_stats(args, request_id)
+            return self._cmd_history_stats(
+                args,
+            )
         elif command == "commands":
-            return self._cmd_allowed_commands(request_id)
+            return self._cmd_allowed_commands()
         elif command == "shutdown":
-            return self._cmd_shutdown(request_id)
+            return self._cmd_shutdown()
         else:
             raise CommandException(f"Unknown command: {command}", code=400)
 
-    def _cmd_list_agents(self, request_id: Optional[str] = None) -> dict:
+    def _cmd_list_agents(self) -> dict:
         """List all registered agents with their status."""
         try:
             agents_info = []
@@ -245,9 +253,7 @@ class CommandHandler:
         except Exception as e:
             raise CommandException(f"Failed to list agents: {str(e)}", code=500)
 
-    def _cmd_start_agent(
-        self, agent_name: str, request_id: Optional[str] = None
-    ) -> dict:
+    def _cmd_start_agent(self, agent_name: str) -> dict:
         """Start a specific agent."""
         try:
             if agent_name in self.orchestrator._started_agents:
@@ -255,7 +261,6 @@ class CommandHandler:
                     status="error",
                     message=f"Agent {agent_name} is already started",
                     code=409,
-                    request_id=request_id,
                 )
 
             if agent_name not in [
@@ -265,7 +270,6 @@ class CommandHandler:
                     status="error",
                     message=f"Agent {agent_name} is not registered",
                     code=404,
-                    request_id=request_id,
                 )
 
             # Start the agent using existing logic
@@ -280,7 +284,8 @@ class CommandHandler:
             )
 
     def _cmd_stop_agent(
-        self, agent_name: str, request_id: Optional[str] = None
+        self,
+        agent_name: str,
     ) -> dict:
         """Stop a specific agent."""
         try:
@@ -290,7 +295,6 @@ class CommandHandler:
                     status="error",
                     message=f"Agent {agent_name} not found",
                     code=404,
-                    request_id=request_id,
                 )
 
             agent.stop()
@@ -308,7 +312,8 @@ class CommandHandler:
             )
 
     def _cmd_agent_status(
-        self, agent_name: str, request_id: Optional[str] = None
+        self,
+        agent_name: str,
     ) -> dict:
         """Get detailed status of a specific agent."""
         try:
@@ -333,7 +338,9 @@ class CommandHandler:
                 f"Failed to get status for {agent_name}: {str(e)}", code=500
             )
 
-    def _cmd_orchestrator_status(self, request_id: Optional[str] = None) -> dict:
+    def _cmd_orchestrator_status(
+        self,
+    ) -> dict:
         """Get overall orchestrator status."""
         try:
             return {
@@ -354,7 +361,9 @@ class CommandHandler:
                 f"Failed to get orchestrator status: {str(e)}", code=500
             )
 
-    def _cmd_show_dependencies(self, request_id: Optional[str] = None) -> dict:
+    def _cmd_show_dependencies(
+        self,
+    ) -> dict:
         """Show agent dependencies."""
         try:
             return {
@@ -363,7 +372,9 @@ class CommandHandler:
         except Exception as e:
             raise CommandException(f"Failed to show dependencies: {str(e)}", code=500)
 
-    def _cmd_stats(self, request_id: Optional[str] = None) -> dict:
+    def _cmd_stats(
+        self,
+    ) -> dict:
         """Get real-time statistics of all agents."""
         try:
             agents_stats = []
@@ -472,7 +483,9 @@ class CommandHandler:
         except (ImportError, Exception):
             return "N/A"
 
-    def _cmd_shutdown(self, request_id: Optional[str] = None) -> dict:
+    def _cmd_shutdown(
+        self,
+    ) -> dict:
         """Shutdown the orchestrator gracefully."""
         try:
             self.logger.info("Shutdown command received via CLI")
@@ -488,7 +501,10 @@ class CommandHandler:
                 f"Failed to shutdown orchestrator: {str(e)}", code=500
             )
 
-    def _cmd_history(self, args: list, request_id: Optional[str] = None) -> dict:
+    def _cmd_history(
+        self,
+        args: list,
+    ) -> dict:
         """Get event history with optional filtering."""
         try:
             # Parse arguments (expecting a dict-like structure or individual params)
@@ -538,7 +554,10 @@ class CommandHandler:
         except Exception as e:
             raise CommandException(f"Failed to get event history: {str(e)}", code=500)
 
-    def _cmd_history_stats(self, args: list, request_id: Optional[str] = None) -> dict:
+    def _cmd_history_stats(
+        self,
+        args: list,
+    ) -> dict:
         """Get aggregated event statistics."""
         try:
             # Parse arguments
@@ -570,7 +589,9 @@ class CommandHandler:
                 f"Failed to get event statistics: {str(e)}", code=500
             )
 
-    def _cmd_allowed_commands(self, request_id: Optional[str] = None) -> dict:
+    def _cmd_allowed_commands(
+        self,
+    ) -> dict:
         """List allowed commands for this orchestrator instance."""
         try:
             return {

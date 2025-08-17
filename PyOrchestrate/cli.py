@@ -302,7 +302,6 @@ class ArgumentParser:
         """Add orchestrator management command parsers."""
         orchestrator_commands = [
             ("ps", "List all agents and their status"),
-            ("list", "List all agents and their status"),
             ("status", "Get orchestrator or agent status"),
             ("dependencies", "Show agent dependencies"),
             ("start", "Start a specific agent"),
@@ -439,11 +438,11 @@ class OutputFormatter:
     def _format_table_output(command: str, response_data: Dict[str, Any]) -> str:
         """Format response as human-readable table output."""
         if response_data.get("status") != "success":
-            return f"Error: {response_data.get('message', 'Unknown error')}"
+            return f"Error: {response_data.get('error', 'Unknown error')}"
 
         data = response_data.get("data", {})
 
-        if command in ["ps", "list"]:
+        if command in ["ps"]:
             return OutputFormatter._format_agent_list(data)
         elif command == "status":
             return OutputFormatter._format_status(data)
