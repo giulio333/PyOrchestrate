@@ -8,7 +8,7 @@ editLink: true
 The **Orchestrator** is a central component responsible for coordinating multiple **Agents** and managing their lifecycle. It ensures seamless communication among **Agents** and serves as a single point for controlling the entire flow.
 
 ::: tip
-For **more information**, see this [link](../core/orchestrator/index.md).
+For **more information**, see this [link](../introduction/orchestrator/index.md).
 :::
 
 ### Why use Orchestrator?
