@@ -393,6 +393,8 @@ class Orchestrator(BaseClass):
 
     def handle_external_command(self, msg: ServiceMessage) -> None:
         """Process external commands from CLI."""
+        request_id = None
+
         try:
             cmd_data = msg.payload  # Now already a dict
             command = cmd_data.get("command")
