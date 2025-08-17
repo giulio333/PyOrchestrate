@@ -1,9 +1,9 @@
 ---
-title: Agents
+title: How Agents Works
 editLink: true
 ---
 
-# Agents
+# How Agents Works
 
 **Agents** are the core execution units managed by the Orchestrator. 
 

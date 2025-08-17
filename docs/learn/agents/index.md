@@ -15,7 +15,11 @@ All you need to do is choose the agent that best fits your requirements and inhe
 For **more information**, see this [link](../core/agents/index.md).
 :::
 
-## Usage
+### Why Use Agents?
+
+Agents save you from reinventing the wheel by offering ready-made solutions for common architectural challenges, such as managing threads/processes, synchronizing events, and handling errors.
+
+## Example
 
 Here’s an example of a custom agent that inherits from `PeriodicProcessAgent`.
 
@@ -42,8 +46,8 @@ class MyAgent(PeriodicProcessAgent):
 
 ## Overview
 
-![alt text](assets/structure_l.svg){.light-only}
-![alt text](assets/structure_d.svg){.dark-only}
+![alt text](assets/overview_l.svg){.light-only}
+![alt text](assets/overview_d.svg){.dark-only}
 
 ### Configuration
 
@@ -51,30 +55,14 @@ Every agent has a set of **parameters** that define its own data. These paramete
 
 The `Config` class is used by the agent to **create a configuration object for itself**. 
 
-It serves three main purposes:
 
-| Purpose       | Description |
-| ------------- |  :---- |
-| built-in attributes | can be customized by users to control the agent’s behavior. |
-| user-defined attributes | provides a flexible space for users to add custom attributes. |
-| attributes validation | provides a validate method that can be overridden to implement custom validation logic. |
 
 ::: tip 
 In every agent, the `Config` class inherits from the respective parent agent's `Config` class. This allows you to customize the agent's configuration while retaining the built-in ones.
 :::
 
 ::: info Example
-For example `MyAgent` class define its own configuration class via parent agent's `Config` class.
-
-```python
-class MyAgent(PeriodicProcessAgent):
-
-    class Config(PeriodicProcessAgent.Config): # [!code focus]
-        limit = 5 # [!code focus]
-        output_directory = "output" # [!code focus]
-
-    config: Config
-```
+See the [Config and Validation](../config_and_validation.md) section for more details on how to define and use configuration classes.
 :::
 
 ### **StateEvents**
@@ -87,6 +75,7 @@ Some of the **built-in** state events are:
 
 | State       | Description |
 | ------------- |  :---- |
+| `start_event` | Event to signal that the agent has been started. |
 | `ready_event` | Event to signal that the agent is ready to start the execution. |
 | `close_event` | Event to signal that the agent has completed the execution. |
 
@@ -148,10 +137,6 @@ class MyAgent(PeriodicProcessAgent): #
         self.plugin.zmq.send("hello world".encode()) # [!code focus]
 ```
 :::
-
-### Why Use Agents?
-
-Agents save you from reinventing the wheel by offering ready-made solutions for common architectural challenges, such as managing threads/processes, synchronizing events, and handling errors.
 
 ## Extend and Customize
 
@@ -288,57 +273,6 @@ class MyAgent(PeriodicProcessAgent): # [!code focus]
         output_directory = "output"
 ```
 :::
-
-## Validation
-
-The `Config` class provides a `validate` method that can be overridden to implement custom validation logic.
-
-```python
-class Config(BaseClassConfig):
-    """Configuration with a single custom field and simple validation."""
-
-    threshold: int = 10
-
-    def validate(self):
-        results = super().validate()
-
-        # raise validation ERROR if threshold is not between 0 and 30
-        if self.threshold < 0 or self.threshold > 30:
-            results.append(
-                ValidationResult(
-                    field="threshold",
-                    message="Threshold must be between 0 and 30.",
-                    severity=ValidationSeverity.ERROR,
-                )
-            )
-        return results
-```
-
-### Validation Policy
-
-You can also override the `validation_policy` attribute to define a custom validation policy for your agent.
-
-```python
-from PyOrchestrate.core.utilities.validation import ValidationPolicy # [!code focus]
-
-class Config(BaseClassConfig):
-    """Configuration with a single custom field and simple validation."""
-
-    threshold: int = 10
-    validation_policy = ValidationPolicy(ignore_warnings=False, ignore_errors=False) # [!code focus]
-```
-
-### Validation Severity
-
-The `ValidationResult` class provides a `severity` attribute that can be used to define the severity of the validation error.
-
-The severity can be one of the following:
-
-| Severity       | Description |
-| ------------- |  :---- |
-| `ValidationSeverity.WARNING` | The Agent will still start, but you’ll get a log message letting you know something might need attention. |
-| `ValidationSeverity.ERROR` | The Agent won’t start, and an error will be logged.|
-| `ValidationSeverity.CRITICAL` | Essential checks that must **never** be ignored. |
 
 ## BaseAgent
 

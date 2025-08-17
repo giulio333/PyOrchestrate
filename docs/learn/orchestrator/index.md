@@ -11,7 +11,11 @@ The **Orchestrator** is a central component responsible for coordinating multipl
 For **more information**, see this [link](../core/orchestrator/index.md).
 :::
 
-## Usage
+### Why use Orchestrator?
+
+It is not mandatory to use the Orchestrator, but it provides several advantages. Using the Orchestrator can help you automate the management of multiple agents (threads or processes), making it easier to coordinate their activities and ensuring that they work together effectively.
+
+## Example
 
 Here's an example of how to use the Orchestrator in your application.
 
@@ -39,31 +43,35 @@ As shown in the example, the Orchestrator is initialized with a name and can reg
 
 ### Configuration
 
-The `Config` class is used by the Orchestrator to **create a configuration object for itself**. 
+Every Orchestrator has a set of **parameters** that define its own data. These parameters are stored in a `Config` object.
 
-Available attributes are
-
-| Attribute       | Type         | Description                                                                 |
-|-----------------|--------------|-----------------------------------------------------------------------------|
-| `check_interval`| int          | The interval (in seconds) at which the Orchestrator checks the status of agents. |
-| `max_workers`   | int          | The maximum number of worker threads to use for executing tasks.            |
-| `logger`        | LoggerConfig | The logger configuration object.                                            |
-| `run_mode`      | RunMode      | Lifecycle policy: `STOP_ON_EMPTY` or `DAEMON`. |
+The `Config` class is used by the agent to **create a configuration object for itself**. 
 
 ::: info Example
-For example to create an Orchestrator with a maximum of 2 workers, you can do the following:
-
-```python
-o_config = Orchestrator.Config(max_workers=2)
-orchestrator = Orchestrator(config=o_config)
-```
-
-If you don't provide custom values, the Orchestrator will use the default values defined in the `Config` class.
+See the [Config and Validation](../config_and_validation.md) section for more details on how to define and use configuration classes.
 :::
+
+### Run Mode
+
+The Orchestrator can operate in different **run modes**, which control how long it stays alive after agents have completed.  
+
+- **`STOP_ON_EMPTY`**  
+  Works like a batch job.  
+  The Orchestrator will **shut down automatically** once all agents have terminated and the queue is empty.  
+  This is useful for pipelines or scripts where the orchestration has a clear start and end.
+
+- **`DAEMON`**  
+  Keeps the Orchestrator **alive indefinitely**, even when no agents are running.  
+  This mode is designed for interactive or long-running systems where you want to control agents **manually or on-demand** — for example, through the **CLI or API commands**.  
+  Agents can be started, stopped, or replaced at runtime without restarting the Orchestrator itself.
+
 
 ### Event Manager
 
-The Event Manager facilitates a set of events (`OrchestratorEvent`) that notify when something happens during the orchestration process (e.g., an agent completes). These events can be used as **signals** to perform specific actions (e.g., sending a message on Telegram).
+![alt text](event_manager_l.svg){.light-only}
+![alt text](event_manager_d.svg){.dark-only}
+
+The **Event Manager** facilitates a set of **events** (`OrchestratorEvent`) that notify when something happens during the orchestration process (e.g., an agent completes). These events can be used as **signals** to perform specific actions (e.g., sending a message on Telegram).
 
 **Event Flow:**
 ```
@@ -72,95 +80,48 @@ Agent → MessageChannel → Orchestrator → EventManager → Callbacks
 
 Available events are stored in the `OrchestratorEvent` class:
 
-| Event Name                     | Arguments                                        | Description                               |
-|--------------------------------|--------------------------------------------------|-------------------------------------------|
-| `AGENT_STARTED`                |  `event_date`, `event_time`, `agent_name`        | Emitted when an agent starts.             |
-| `AGENT_TERMINATED`             |    `event_date`, `event_time`, `agent_name`      | Emitted when an agent terminates.         |
-| `ALL_AGENTS_TERMINATED`        |    `event_date`, `event_time`                    | Emitted when all agents have terminated.  |
+| Event Name              | Arguments                     | Description                               |
+|-------------------------|-------------------------------|-------------------------------------------|
+| `AGENT_STARTED`         | `event_date`, `event_time`, `agent_name` | Emitted when an agent starts.             |
+| `AGENT_READY`           | `event_date`, `event_time`, `agent_name` | Emitted when an agent is ready.           |
+| `AGENT_TERMINATED`      | `event_date`, `event_time`, `agent_name` | Emitted when an agent terminates.         |
+| `AGENT_ERROR`           | `event_date`, `event_time`, `agent_name` | Emitted when an agent encounters an error.  |
 
-::: info Event Registration
-To register callbacks for these events, use the Orchestrator's EventManager:
+### Message Channels
 
-```python
-def send_telegram_message(event_date, event_time, agent_name):
-    # Your logic to send a message on Telegram
-    print(f"Agent {agent_name} started at {event_time}")
+![alt text](message_channel_l.svg){.light-only}
+![alt text](message_channel_d.svg){.dark-only}
 
-orchestrator.register_event(
-    OrchestratorEvent.AGENT_STARTED,
-    send_telegram_message,
-)
-```
-:::
+The Orchestrator communicates through two `MessageChannel` objects:
 
-### Runtime Control and Monitoring
+- **`message_channel`**: an in-memory queue where agents push their status updates (*started*, *ready*, *terminated*). The Orchestrator consumes these messages to track agent activity.  
+- **`command_channel`**: a Unix domain socket used by external clients (like the CLI) to send commands or request data. It can be turned off in the config via `enable_command_interface` (enabled by default).  
 
-PyOrchestrate provides a powerful CLI interface for real-time control and monitoring of running orchestrators. The CLI is fully decoupled from lifecycle policy: enabling it does not change `RunMode`. This enables:
+Both channels are watched by a dedicated thread inside the Orchestrator.  
+This thread continuously checks for new messages and routes them to the **Event Manager** or the proper handler, ensuring that every agent event or external command triggers the right callback.
 
-- **Dynamic agent management**: Start, stop, and monitor agents without restarting the orchestrator
-- **System inspection**: Get detailed statistics and performance metrics
-- **DevOps integration**: Integrate with monitoring systems and automation tools
-- **Remote debugging**: Troubleshoot running applications via command interface
 
-::: tip Learn More
-See the [CLI Documentation](/cli/) for complete command reference and examples.
-:::
+## Create Orchestrator with custom Config
 
-## Why PyOrchestrate?
+Sometimes you may want to customize how the Orchestrator runs (for example, changing the **check interval**, **enabling the command interface**, or switching the **run mode** between `DAEMON` and `STOP_ON_EMPTY`).
 
-Is not mandatory to use the Orchestrator, but it provides several advantages. Using the Orchestrator can help you automate the management of multiple agents (threads or processes), making it easier to coordinate their activities and ensuring that they work together effectively.
+### Example
 
-## Validation
-
-The `Config` class provides a `validate` method that can be overridden to implement custom validation logic.
+You can do this by creating a custom `Config` object and passing it to the **Orchestrator**. This gives you fine-grained control over its behavior while **still keeping the defaults** for any parameters you don’t specify.
 
 ```python
-class Config(BaseClassConfig):
-    """Configuration with a single custom field and simple validation."""
+from PyOrchestrate.core.orchestrator import Orchestrator, RunMode
 
-    threshold: int = 10
-
-    def validate(self):
-        results = super().validate()
-
-        # raise validation ERROR if threshold is not between 0 and 30
-        if self.threshold < 0 or self.threshold > 30:
-            results.append(
-                ValidationResult(
-                    field="threshold",
-                    is_valid=False,
-                    message="Threshold must be between 0 and 30.",
-                    severity=ValidationSeverity.ERROR,
-                )
-            )
-        return results
+if __name__ == "__main__":
+    # Configure orchestrator
+    config = Orchestrator.Config(
+        enable_command_interface=True,
+        command_socket_path="/tmp/pyorchestrate.sock",
+        run_mode=RunMode.DAEMON,
+        check_interval=.25
+    )
+    orchestrator = Orchestrator("Orchestrator", config=config)
 ```
-
-### Validation Policy
-
-You can also override the `validation_policy` attribute to define a custom validation policy for your agent.
-
-```python
-from PyOrchestrate.core.utilities.validation import ValidationPolicy # [!code focus]
-
-class Config(BaseClassConfig):
-    """Configuration with a single custom field and simple validation."""
-
-    threshold: int = 10
-    validation_policy = ValidationPolicy(ignore_warnings=False, ignore_errors=False) # [!code focus]
-```
-
-### Validation Severity
-
-The `ValidationResult` class provides a `severity` attribute that can be used to define the severity of the validation error.
-
-The severity can be one of the following:
-
-| Severity       | Description |
-| ------------- |  :---- |
-| `ValidationSeverity.WARNING` | The Agent will still start, but you’ll get a log message letting you know something might need attention. |
-| `ValidationSeverity.ERROR` | The Agent won’t start, and an error will be logged.|
-| `ValidationSeverity.CRITICAL` | Essential checks that must **never** be ignored. |
 
 ## Registering Agents
 
@@ -170,18 +131,18 @@ The Orchestrator allows you to **register agents** using the `register_agent` me
 orchestrator.register_agent(Publisher, "Publisher")
 ```
 
-All available parameters are
+The available parameters are:
 
-| Parameter        | Type         | Description                                                                 |
-|------------------|--------------|-----------------------------------------------------------------------------|
-| `agent_class`    | Agent Class  | The agent class to be registered.                                           |
-| `name`           | str          | The name of the agent. If not provided, the class name will be used.        |
-| `custom_config`  | Config       | A custom configuration object for the agent. If not provided, the default config will be used. |
-| `custom_plugin`  | Plugin       | A custom plugin object for the agent. If not provided, the default plugin will be used. |
-| `control_events` | list         | A list of control events to be used by the agent. If not provided, the default events will be used. |
-| `state_events`  | list         | A list of state events to be used by the agent. If not provided, the default events will be used. |
-| `msg_channel`  | MessageChannel | The message channel to be used by the agent. If not provided, the Orchestrator's default message channel will be used. |
-| `kwargs`        | dict         | Additional keyword arguments to be passed to the agent constructor.         |
+| Parameter        | Type            | Description                                                                 |
+|------------------|-----------------|-----------------------------------------------------------------------------|
+| `agent_class`    | Agent Class     | The agent class to be registered.                                           |
+| `name`           | str             | The name of the agent. If not provided, the class name will be used.        |
+| `custom_config`  | Config          | A custom configuration object for the agent. If not provided, the default config will be used. |
+| `custom_plugin`  | Plugin          | A custom plugin object for the agent. If not provided, the default plugin will be used. |
+| `control_events` | list            | A list of control events to be used by the agent. If not provided, the default events will be used. |
+| `state_events`   | list            | A list of state events to be used by the agent. If not provided, the default events will be used. |
+| `msg_channel`    | MessageChannel  | The message channel to be used by the agent. If not provided, the Orchestrator's default message channel will be used. |
+| `kwargs`         | dict            | Additional keyword arguments to be passed to the agent constructor.         |
 
 If you don't provide optional parameters, the Orchestrator will use the default values defined in the `Agent` class.
 
@@ -202,3 +163,36 @@ In this example, we create three `Publisher` agents. The first two use default s
 ::: tip
 For more details on Agent's **Configuration**, **StateEvents** etc. check out the [Agent Overview](../agents/index.md#overview).
 :::
+
+## Registering Events
+
+The Orchestrator can notify you when something important happens by **emitting events**.  
+You can attach your own function to an event, making it act as a **callback**.  
+This way, whenever the event is triggered, your function will run automatically.
+
+```python
+orchestrator.register_event(event_type, callback)
+```
+
+All available events are defined in the `OrchestratorEvent`, see [EventManager](#event-manager)
+
+::: tip
+Callbacks registered with `register_event` are invoked each time the event occurs for any agent that triggers it. Agent-related events include an `agent_name` argument so your callback can identify which agent fired the event.
+:::
+
+### Example
+
+Here’s how you can register a callback for the `AGENT_STARTED` event:
+
+```python
+from PyOrchestrate.core.utilities.event import OrchestratorEvent
+
+def send_telegram_message(event_date, event_time, agent_name):
+    # Your logic to send a message on Telegram
+    print(f"Agent {agent_name} started at {event_time}")
+
+orchestrator.register_event(
+    OrchestratorEvent.AGENT_STARTED,
+    send_telegram_message,
+)
+```

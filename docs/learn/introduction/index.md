@@ -21,18 +21,6 @@ While agents handle specific tasks, the **Orchestrator** serves as the central c
 
 The Orchestrator oversees operations such as starting and stopping agents, monitoring their status, and ensuring that they can work together effectively. It acts as the primary control point, enabling the collection of individual agents to function as a unified and coherent application, working towards a common objective.
 
-### Runtime Control and Monitoring
-
-PyOrchestrate provides a powerful **Command Line Interface (CLI)** that enables real-time control and monitoring of running orchestrators. This external command interface allows developers and operators to:
-
-- **Monitor agent status** and system health in real-time
-- **Dynamically start and stop agents** without interrupting the entire system
-- **Inspect detailed performance metrics** and orchestrator statistics
-- **Integrate with DevOps tools** and monitoring systems
-- **Debug and troubleshoot** running applications remotely
-
-The CLI communicates with the orchestrator via secure UNIX sockets, making it ideal for both development debugging and production operations.
-
 ## Configuring Your System
 
 Effective **Configuration** is a key aspect of working with PyOrchestrate. The library provides clear and robust mechanisms for defining the parameters and behaviors for both individual **Agents** and the **Orchestrator** itself.

@@ -69,11 +69,10 @@ PyOrchestrate version 0.2.0
 
 ## Available Commands
 
-### `ps` / `list`
+### `ps`
 
 ```bash
 pyorchestrate ps [--socket SOCKET_PATH] [--format FORMAT]
-pyorchestrate list [--socket SOCKET_PATH] [--format FORMAT]
 ```
 
 **Options:**

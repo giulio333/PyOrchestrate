@@ -1,14 +1,14 @@
 ---
-title: Orchestrator
+title: How Orchestration Works
 editLink: true
 ---
 
-# Orchestrator
+# How Orchestration Works
 
 The **Orchestrator** is the component in charge of supervising and coordinating your **Agents**. It takes care of starting them, managing their lifecycle, and making sure everything runs smoothly — whether you're using threads, processes, or a mix of both.
 
 
-## Getting Started
+## Managing Agents
 
 ### Registering Agents
 
@@ -45,7 +45,7 @@ For example, imagine you have a `FileWriterAgent` that writes data to a file. By
 
 ## Execution Lifecycle
 
-### Lifecycle policy (RunMode)
+### Run Mode
 
 The Orchestrator’s liveness is governed by an explicit lifecycle policy called `RunMode` and it’s required in the orchestrator configuration.
 
@@ -79,7 +79,7 @@ This section describes how execution proceeds; final liveness depends solely on 
 You can subclass the `Orchestrator` class to change its behavior and plug in your own logic.
 :::
 
-### Managing Parallel Execution
+### Parallel Execution & Concurrency Limits
 
 The Orchestrator supports **concurrency limits** to avoid overloading your system. You can define a `max_workers` value to cap how many Agents can run at the same time.
 
@@ -87,8 +87,15 @@ If the limit is reached, additional Agents are treated as **queued Agents**: the
 
 ### A Simpler Way to Wait
 
-If you don’t need advanced lifecycle control or event tracking, the Orchestrator also offers a `simple_join()` method. It blocks until the orchestrator terminates according to its `RunMode` (in `DAEMON`, you’ll need to explicitly shut it down for it to return).
+Sometimes you don’t need fine-grained lifecycle control or detailed event tracking.  
+If all you want is to **start the Orchestrator and wait until it finishes**, there’s a shortcut: `simple_join()`.
 
+Think of it as a **“just run it” button**.  
+
+- In `STOP_ON_EMPTY` mode: the Orchestrator will exit once all Agents have completed.  
+- In `DAEMON` mode: the Orchestrator will keep running until you explicitly shut it down.  
+
+This is ideal for **quick tests, prototypes, or simple automation tasks**, where you don’t need advanced orchestration logic.  
 
 ## Events and Monitoring
 
@@ -96,35 +103,51 @@ If you don’t need advanced lifecycle control or event tracking, the Orchestrat
 
 As Agents run, the Orchestrator emits events at key moments — when they start, stop, or when everything is done. These events flow through an **Event Manager**, and you can hook into them to trigger alerts, logs, dashboards, or custom reactions.
 
-This makes your system not only coordinated, but also observable and responsive to change.
+This is useful when you need to **execute specific logic in response to Agent lifecycle events**, such as notifying users or updating system status.
 
-### Seeing What’s Happening
+### CLI
 
-At any moment, you can ask the Orchestrator to report the status of all Agents: whether they’re running, what their process/thread ID is, and more.
+PyOrchestrate provides a runtime **command interface** (`CLI`) that communicates with the Orchestrator over a dedicated communication channel — a `UNIX socket` — much like how **Docker** talks to its daemon.  
 
-It also logs each Agent’s lifecycle, including events like `start`, `stop`, and `join`, along with timestamps. This makes debugging and monitoring much easier, especially in long-running or production systems.
+This channel lets external tools interact with the Orchestrator in real time:  
 
-## Advanced Control
+- **Start or stop agents**  
+- **Inspect running agents**  
+- **Collect statistics and performance metrics**  
+- **Query event history for auditing and debugging**  
 
-### Advanced Features and Observability
+The same command and data surface exposed by the CLI can also be used by a **web-based interface**, so dashboards and remote-control UIs can access the same functionality. 
 
-You can optionally organize your Agents into **Groups**, allowing you to logically separate them by function, priority, or execution phase. A Group is simply a named collection of Agent names. You can add or remove Agents from groups and later retrieve all instances in a group. This is useful for batch operations or context-based orchestration.
+::: tip Learn More
+See the [CLI Documentation](/cli/) for the full command reference, security notes, and examples of both CLI and web interfaces.
+:::
 
-The Orchestrator also maintains an internal history of all events for each Agent — including `start`, `stop`, and `join` — complete with timestamps. This history can be retrieved at any time using the `get_agent_stats(name)` method and is particularly useful for auditing, debugging, or tracking execution timelines.
+## Customizing the Behavior
 
-You can even use one Orchestrator as an Agent inside another, allowing you to build **hierarchical orchestration layers**, where a top-level Orchestrator supervises others that manage their own subprocesses or threads.
+Every system has different needs:  
+- Some run like **services** that never stop.  
+- Others behave more like **batch jobs**, doing their work and then exiting.  
+- In some cases, you may want strict concurrency limits, detailed monitoring, or custom startup logic.  
 
-If an Agent crashes or encounters an unhandled exception, the Orchestrator will still detect its termination. You can inspect its status or decide to manually restart it using the `restart()` method. This allows for basic fault tolerance and recovery strategies in more resilient systems.
-
-### Customizing the Behavior
-
-You can adjust how the Orchestrator behaves using its configuration `Orchestrator.Config`:
-
-- `check_interval`: how often it checks the status of running Agents
-- `max_workers`: how many Agents can run in parallel
-- `run_mode` (required): lifecycle policy (`STOP_ON_EMPTY` or `DAEMON`). The CLI, if enabled, does not affect this policy.
+To adapt to these scenarios, the Orchestrator provides a dedicated configuration object: `Orchestrator.Config`.  
+Through this object, you can **fine-tune how the Orchestrator behaves**, without changing your code.  
 
 ::: tip
-
-For more details on the Orchestrator's configuration, check out the [Orchestrator Configuration](../../orchestrator/index.md#configuration).
+For the complete technical details and available options, see:  
+[Orchestrator Configuration](../../orchestrator/index.md#configuration).
 :::
+
+
+## Why Use the Orchestrator?
+
+The Orchestrator is not just a “manager of agents” — it’s the **central brain of your system**.  
+It ensures that your agents cooperate, remain observable, and can be controlled at runtime.  
+
+Here are some **typical use cases** where the Orchestrator shines:
+
+- **Data Pipelines**: start data collectors, processors, and writers in sequence or parallel, ensuring each stage runs only when ready.  
+- **Monitoring Systems**: keep multiple agents alive as background services, with events feeding into dashboards or alerts.  
+- **Automation Workflows**: coordinate different tasks (file watchers, API pollers, message processors) in a single, unified process.  
+- **Resilient Applications**: recover gracefully when an agent crashes, restart it, and keep the system stable without manual intervention.  
+
+By abstracting away threads, processes, and low-level synchronization, the Orchestrator lets you focus on **what your agents do**, not on **how they’re coordinated**.  

@@ -22,7 +22,7 @@ export const enConfig = {
     },
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Learn', link: '/learn/' },
+      { text: 'Learn', link: '/learn/introduction/' },
       { text: 'CLI', link: '/cli/' },
       { text: 'Examples', link: '/examples/' },
       { text: 'Advanced', link: '/advanced/' },
@@ -32,13 +32,12 @@ export const enConfig = {
         {
           text: 'Learn',
           items: [
-            { text: 'Introduction', link: '/learn/introduction' },
             {
-              text: 'Core Concepts',
-              items: [
-                { text: 'Orchestrator', link: '/learn/core/orchestrator/' },
-                { text: 'Agent', link: '/learn/core/agents/' },
-
+              text: 'Introduction', items: [
+                { text: 'General', link: '/learn/introduction/index.md' },
+                { text: 'How Orchestration Works', link: '/learn/introduction/orchestrator/' },
+                { text: 'How Agents Works', link: '/learn/introduction/agents/' },
+                { text: 'Orchestrator API', link: '/learn/introduction/orchestrator_api/' },
               ]
             },
             {
@@ -46,6 +45,7 @@ export const enConfig = {
               items: [
                 { text: 'Agent', link: '/learn/agents/' },
                 { text: 'Orchestrator', link: '/learn/orchestrator/' },
+                { text: 'Config and Validation', link: '/learn/config_and_validation' },
               ]
             },
             {
@@ -61,6 +61,13 @@ export const enConfig = {
                 { text: 'BaseAgent', link: '/learn/agents/built-in-agents/baseagent' },
                 { text: 'LoopingAgent', link: '/learn/agents/built-in-agents/loopingagent' },
                 { text: 'PeriodicAgent', link: '/learn/agents/built-in-agents/periodicagent' },
+              ]
+            },
+            {
+              text: 'Built-in Orchestrator',
+              collapsed: true,
+              items: [
+                { text: 'BaseOrchestrator', link: '/learn/orchestrator/built-in-orchestrator/baseorchestrator' },
               ]
             },
             {

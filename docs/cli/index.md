@@ -20,7 +20,7 @@ Basic commands for project initialization and setup:
 
 Advanced commands for real-time control of running orchestrators:
 
-- **Agent monitoring**: `ps`/`list` - View status and statistics of running agents
+- **Agent monitoring**: `ps` - View status and statistics of running agents
 - **Dynamic control**: `start`/`stop` - Start, stop, and manage agents on-demand
 - **System inspection**: `status` - Get detailed reports for orchestrator or specific agents
 - **Dependencies**: `dependencies` - Show agent dependency graph
