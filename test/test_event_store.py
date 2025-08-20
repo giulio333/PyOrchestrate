@@ -37,7 +37,7 @@ class TestEventStore:
 
         store.record(
             category="test",
-            type="TEST_EVENT",
+            event_name="TEST_EVENT",
             agent="test-agent",
             severity="INFO",
             data={"key": "value"},
@@ -59,7 +59,7 @@ class TestEventStore:
         store = EventStore(payload_max_bytes=10)
 
         long_text = "a" * 20
-        store.record(category="test", type="TEST_EVENT", data={"long": long_text})
+        store.record(category="test", event_name="TEST_EVENT", data={"long": long_text})
 
         event = store._events[0]
         assert len(event.data["long"]) == 10
@@ -70,7 +70,7 @@ class TestEventStore:
         store = EventStore()
         store.record(
             category="test",
-            type="TYPE_X",
+            event_name="TYPE_X",
             agent="agent-1",
             severity="WARN",
             data={"k": "v"},
@@ -101,7 +101,7 @@ class TestEventStore:
 
         # Add 5 events
         for i in range(5):
-            store.record(category="test", type=f"EVENT_{i}")
+            store.record(category="test", event_name=f"EVENT_{i}")
 
         # Should only keep last 3
         assert len(store._events) == 3
@@ -119,7 +119,7 @@ class TestEventStore:
         for i in range(10):
             store.record(
                 category="test",
-                type="TEST_EVENT",
+                event_name="TEST_EVENT",
                 agent=f"agent-{i % 3}",
                 data={"index": str(i)},
             )
@@ -135,7 +135,9 @@ class TestEventStore:
 
         # Add events for different agents
         for i in range(10):
-            store.record(category="test", type="TEST_EVENT", agent=f"agent-{i % 3}")
+            store.record(
+                category="test", event_name="TEST_EVENT", agent=f"agent-{i % 3}"
+            )
 
         # Filter by specific agent
         agent_events = store.last(agent="agent-1")
@@ -148,12 +150,12 @@ class TestEventStore:
 
         # Add events of different types
         for i in range(10):
-            store.record(category="test", type=f"TYPE_{i % 3}")
+            store.record(category="test", event_name=f"TYPE_{i % 3}")
 
         # Filter by specific type
-        type_events = store.last(type="TYPE_1")
+        type_events = store.last(event_name="TYPE_1")
         assert len(type_events) > 0
-        assert all(e.type == "TYPE_1" for e in type_events)
+        assert all(e.event_name == "TYPE_1" for e in type_events)
 
     def test_query_after_sequence(self):
         """Test filtering events after sequence number."""
@@ -161,7 +163,7 @@ class TestEventStore:
 
         # Add 10 events
         for i in range(10):
-            store.record(category="test", type="TEST_EVENT")
+            store.record(category="test", event_name="TEST_EVENT")
 
         # Get events after sequence 5
         events = store.last(after_seq=5)
@@ -174,9 +176,9 @@ class TestEventStore:
 
         # Add events of different types
         for i in range(5):
-            store.record(category="test", type="TYPE_A")
+            store.record(category="test", event_name="TYPE_A")
         for i in range(3):
-            store.record(category="test", type="TYPE_B")
+            store.record(category="test", event_name="TYPE_B")
 
         stats = store.stats()
         assert stats["by_type"]["TYPE_A"] == 5
@@ -188,11 +190,11 @@ class TestEventStore:
 
         # Add events for different agents and types
         for i in range(3):
-            store.record(category="test", type="TYPE_A", agent="agent-1")
+            store.record(category="test", event_name="TYPE_A", agent="agent-1")
         for i in range(2):
-            store.record(category="test", type="TYPE_B", agent="agent-1")
+            store.record(category="test", event_name="TYPE_B", agent="agent-1")
         for i in range(4):
-            store.record(category="test", type="TYPE_A", agent="agent-2")
+            store.record(category="test", event_name="TYPE_A", agent="agent-2")
 
         # Check agent-1 stats
         agent1_stats = store.stats(agent="agent-1")
@@ -210,7 +212,7 @@ class TestEventStore:
 
         # Add some events
         for i in range(10):
-            store.record(category="test", type="TEST_EVENT")
+            store.record(category="test", event_name="TEST_EVENT")
 
         info = store.get_capacity_info()
         assert info["capacity"] == 100
@@ -229,7 +231,7 @@ class TestEventStore:
                 for i in range(100):
                     store.record(
                         category="test",
-                        type="CONCURRENT_EVENT",
+                        event_name="CONCURRENT_EVENT",
                         agent=f"worker-{worker_id}",
                         data={"iteration": str(i)},
                     )
@@ -282,7 +284,7 @@ class TestOrchestratorEventIntegration:
 
         # Check that INIT event was recorded
         events = orchestrator.event_store.last()
-        init_events = [e for e in events if e.type == "INIT"]
+        init_events = [e for e in events if e.event_name == "INIT"]
         assert len(init_events) == 1
         assert init_events[0].category == "orchestrator"
         assert init_events[0].data is not None

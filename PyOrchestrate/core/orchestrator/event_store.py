@@ -10,7 +10,9 @@ import threading
 from datetime import datetime
 import json
 from collections import deque, defaultdict
-from typing import NamedTuple, Optional, List, Dict
+from typing import NamedTuple, Optional, List, Dict, Protocol, Iterable
+
+from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
 
 class EventRecord(NamedTuple):
@@ -22,7 +24,7 @@ class EventRecord(NamedTuple):
         t_wall: Wall clock time (time.time())
         t_mono_ns: Monotonic time in nanoseconds for robust ordering
         category: Event category ("orchestrator" | "agent" | "cli")
-        type: Event type (e.g., "AGENT_STARTED", "QUEUED", "CLI_COMMAND")
+        event_name: Event type (e.g., "AGENT_STARTED", "QUEUED", "CLI_COMMAND")
         agent: Agent name if applicable
         severity: Event severity ("INFO" | "WARN" | "ERROR")
         data: Optional payload data (truncated for efficiency)
@@ -32,7 +34,7 @@ class EventRecord(NamedTuple):
     t_wall: float
     t_mono_ns: int
     category: str
-    type: str
+    event_name: str
     agent: Optional[str]
     severity: str
     data: Optional[dict[str, str]]
@@ -50,7 +52,7 @@ class EventRecord(NamedTuple):
             "timestamp": datetime.fromtimestamp(self.t_wall).isoformat(),
             "t_mono_ns": self.t_mono_ns,
             "category": self.category,
-            "type": self.type,
+            "event_name": self.event_name,
             "agent": self.agent,
             "severity": self.severity,
             "data": data,
@@ -64,6 +66,250 @@ class EventRecord(NamedTuple):
         return json.dumps(self.to_dict(), **json_kwargs)
 
 
+class StorePolicy(Protocol):
+    """
+    Protocol that defines the interface for event storage policies.
+
+    Implementations can optimize storage strategies based on specific event types
+    (e.g., keep only latest heartbeat per agent vs. full history for errors).
+    """
+
+    def append(self, e: "EventRecord") -> None:
+        """Add a new event record to the store."""
+        ...
+
+    def last(
+        self,
+        n: int = 100,
+        *,
+        agent: Optional[str] = None,
+        event_name: Optional[str] = None,
+        after_seq: Optional[int] = None,
+    ) -> List["EventRecord"]:
+        """Retrieve the last N events with optional filtering."""
+        ...
+
+    def stats(self, *, agent: Optional[str] = None) -> Dict[str, int]:
+        """Get event count statistics, optionally for a specific agent."""
+        ...
+
+    def capacity_info(self) -> Dict[str, int]:
+        """Get capacity and usage information for this store."""
+        ...
+
+
+class RingBufferStore(StorePolicy):
+    """
+    Fixed-capacity ring buffer store for event history.
+
+    Features:
+    - FIFO behavior: oldest events are automatically evicted when capacity is reached
+    - O(1) append operations with constant memory usage
+    - Maintains real-time event count statistics
+    - Suitable for general event storage (errors, status changes, etc.)
+    """
+
+    def __init__(self, capacity: int):
+        """
+        Initialize the ring buffer store with a fixed capacity.
+
+        Args:
+            capacity (int): Maximum number of events to store.
+        """
+        self._buf: deque[EventRecord] = deque(maxlen=capacity)
+        self._count_by_type: Dict[str, int] = defaultdict(int)
+        self._count_by_agent_type: Dict[str, Dict[str, int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
+
+    def append(self, e: "EventRecord") -> None:
+        """
+        Add a new event to the ring buffer.
+
+        If the buffer is at capacity, the oldest event is automatically removed.
+        Updates internal statistics counters for fast stats() queries.
+
+        Args:
+            e: Event record to store
+        """
+        self._buf.append(e)
+        self._count_by_type[e.event_name] += 1
+        if e.agent:
+            self._count_by_agent_type[e.agent][e.event_name] += 1
+
+    def last(
+        self,
+        n: int = 100,
+        *,
+        agent: Optional[str] = None,
+        event_name: Optional[str] = None,
+        after_seq: Optional[int] = None,
+    ) -> List["EventRecord"]:
+        """
+        Retrieve the most recent events from the ring buffer.
+
+        Args:
+            n: Maximum number of events to return
+            agent: Filter by specific agent name
+            event_name: Filter by specific event type
+            after_seq: Only return events with sequence number > after_seq
+
+        Returns:
+            List of EventRecord objects, most recent last
+        """
+        items = list(self._buf)
+        if after_seq is not None:
+            items = [x for x in items if x.seq > after_seq]
+        if agent is not None:
+            items = [x for x in items if x.agent == agent]
+        if event_name is not None:
+            items = [x for x in items if x.event_name == event_name]
+        return items[-n:]
+
+    def stats(self, *, agent: Optional[str] = None) -> Dict[str, int]:
+        """
+        Get event count statistics with O(1) complexity.
+
+        Args:
+            agent: If provided, return stats only for this agent
+
+        Returns:
+            Dictionary with event_name -> count mappings
+        """
+        if agent is None:
+            return dict(self._count_by_type)
+        return dict(self._count_by_agent_type.get(agent, {}))
+
+    def capacity_info(self) -> Dict[str, int]:
+        """
+        Get current capacity and usage information for the ring buffer.
+
+        Returns:
+            Dictionary with capacity, current_size, oldest_seq, newest_seq
+        """
+        return {
+            "capacity": self._buf.maxlen or 0,
+            "current_size": len(self._buf),
+            "oldest_seq": self._buf[0].seq if self._buf else 0,
+            "newest_seq": self._buf[-1].seq if self._buf else 0,
+        }
+
+
+class BucketRingStore(StorePolicy):
+    """
+    Per-agent ring buffer store optimized for tracking latest events per agent.
+
+    Features:
+    - Separate ring buffer for each agent (bounded per-agent history)
+    - Perfect for heartbeat monitoring: keeps only last N heartbeats per agent
+    - O(1) append, efficient agent-specific queries
+    - Events without agent are stored in a shared "_none" bucket
+    - Memory usage scales with number of active agents
+    """
+
+    def __init__(self, per_agent_capacity: int):
+        """
+        Initialize the bucket ring store with a per-agent capacity.
+
+        Args:
+            per_agent_capacity: Maximum number of events to store per agent.
+                               For heartbeat monitoring, typically use 1-3.
+        """
+        self._per_agent_capacity = per_agent_capacity
+        self._buckets: Dict[str, deque[EventRecord]] = defaultdict(
+            lambda: deque(maxlen=self._per_agent_capacity)
+        )
+
+    def _bucket_key(self, agent: Optional[str]) -> str:
+        """Convert agent name to bucket key, using '_none' for None agents."""
+        return agent if agent is not None else "_none"
+
+    def append(self, e: "EventRecord") -> None:
+        """
+        Add event to the appropriate agent bucket.
+
+        Creates new buckets automatically for new agents.
+        Oldest events are evicted when per-agent capacity is reached.
+
+        Args:
+            e: Event record to store
+        """
+        self._buckets[self._bucket_key(e.agent)].append(e)
+
+    def last(
+        self,
+        n: int = 100,
+        *,
+        agent: Optional[str] = None,
+        event_name: Optional[str] = None,
+        after_seq: Optional[int] = None,
+    ) -> List["EventRecord"]:
+        """
+        Retrieve recent events from per-agent buckets.
+
+        Args:
+            n: Maximum number of events to return
+            agent: If specified, only return events from this agent's bucket
+            event_name: Filter by specific event type
+            after_seq: Only return events with sequence number > after_seq
+
+        Returns:
+            List of EventRecord objects, sorted by sequence number (most recent last)
+        """
+        if agent is not None:
+            items = list(self._buckets[self._bucket_key(agent)])
+        else:
+            # merge across all agents and take the most recent globally
+            merged: List[EventRecord] = []
+            for dq in self._buckets.values():
+                merged.extend(dq)
+            # sort by seq to keep global temporal order
+            merged.sort(key=lambda e: e.seq)
+            items = merged
+        if after_seq is not None:
+            items = [x for x in items if x.seq > after_seq]
+        if event_name is not None:
+            items = [x for x in items if x.event_name == event_name]
+        return items[-n:]
+
+    def stats(self, *, agent: Optional[str] = None) -> Dict[str, int]:
+        """
+        Get event count statistics.
+
+        Note: Currently not implemented for BucketRingStore.
+        Use capacity_info() for basic usage statistics instead.
+
+        Args:
+            agent: Agent to get stats for (ignored)
+
+        Raises:
+            NotImplementedError: Always raised
+        """
+        raise NotImplementedError("BucketRingStore stats are not implemented.")
+
+    def capacity_info(self) -> Dict[str, int]:
+        """
+        Get capacity and usage information for all agent buckets.
+
+        Returns:
+            Dictionary with per_agent_capacity, agents_known, approx_total_capacity,
+            current_size, oldest_seq, newest_seq
+        """
+        total_current = sum(len(dq) for dq in self._buckets.values())
+        # Report an approximate capacity based on known agents
+        approx_capacity = len(self._buckets) * self._per_agent_capacity
+        newest = max((dq[-1].seq for dq in self._buckets.values() if dq), default=0)
+        oldest = min((dq[0].seq for dq in self._buckets.values() if dq), default=0)
+        return {
+            "per_agent_capacity": self._per_agent_capacity,
+            "agents_known": len(self._buckets),
+            "approx_total_capacity": approx_capacity,
+            "current_size": total_current,
+            "oldest_seq": oldest,
+            "newest_seq": newest,
+        }
+
+
 class EventStore:
     """
     High-performance event storage with constant memory usage.
@@ -74,27 +320,51 @@ class EventStore:
     - Truncated payload to prevent memory bloat
     - Real-time aggregated counters for instant reports
     - Robust temporal ordering with monotonic timestamps
+    - Pluggable storage policies per category (e.g., ring buffer vs. per-agent last-N)
     """
 
-    def __init__(self, capacity: int = 5000, payload_max_bytes: int = 256):
+    def __init__(
+        self,
+        capacity: int = 5000,
+        payload_max_bytes: int = 256,
+        *,
+        event_policies: Optional[Dict[str, StorePolicy]] = None,
+    ):
         """
-        Initialize the event store.
+        Initialize the event store with default and custom storage policies.
 
         Args:
-            capacity: Maximum number of events to store (ring buffer size)
-            payload_max_bytes: Maximum size for payload data strings
+            capacity: Maximum number of events in the default ring buffer store
+            payload_max_bytes: Maximum size for payload data strings (longer strings are truncated)
+            event_policies: Optional mapping of event_name -> StorePolicy for event-specific storage.
+                          Example: {"agent_heartbeat": BucketRingStore(1)} for heartbeat monitoring
+
+        Example:
+            # Basic setup with default ring buffer
+            store = EventStore()
+
+            # Setup with heartbeat-optimized storage
+            heartbeat_store = BucketRingStore(per_agent_capacity=1)
+            store = EventStore(event_policies={"agent_heartbeat": heartbeat_store})
         """
-        self._events = deque(maxlen=capacity)
         self._lock = threading.Lock()
         self._seq = 0
         self._payload_max = payload_max_bytes
 
-        # Aggregated counters for instant statistics
-        self._count_by_type = defaultdict(int)
-        self._count_by_agent_type = defaultdict(lambda: defaultdict(int))
+        # Category-specific stores
+        self._stores: Dict[str, StorePolicy] = {}
+        """mapping {event_name -> StorePolicy}"""
+
+        self._stores["__default__"] = RingBufferStore(capacity)
+        if event_policies:
+            self._stores.update(event_policies)
 
     def _truncate(self, s: str) -> str:
-        """Truncate string to prevent memory bloat."""
+        """
+        Truncate string to prevent memory bloat.
+
+        Strings longer than payload_max_bytes are truncated with "..." suffix.
+        """
         if s is None:
             return ""
         if len(s) <= self._payload_max:
@@ -105,7 +375,7 @@ class EventStore:
         self,
         *,
         category: str,
-        type: str,
+        event_name: str,
         agent: str | None = None,
         severity: str = "INFO",
         data: dict[str, str] | None = None,
@@ -113,12 +383,23 @@ class EventStore:
         """
         Record a new event with O(1) complexity.
 
+        Events are routed to appropriate storage policies based on event_name.
+        If no specific policy exists for the event_name, uses the default ring buffer.
+
         Args:
             category: Event category ("orchestrator", "agent", "cli")
-            type: Event type identifier
-            agent: Agent name (optional)
-            severity: Event severity level
-            data: Optional payload data (will be truncated)
+            event_name: Event type (e.g., "agent_heartbeat", "agent_error")
+            agent: Agent name (optional, for agent-specific events)
+            severity: Event severity level ("INFO", "WARN", "ERROR")
+            data: Optional payload data (will be truncated if too long)
+
+        Example:
+            store.record(
+                category="agent",
+                event_name="agent_heartbeat",
+                agent="worker1",
+                data={"timestamp": "2023-08-19T10:30:00"}
+            )
         """
         tw = time.time()
         tm = time.monotonic_ns()
@@ -129,75 +410,195 @@ class EventStore:
 
         with self._lock:
             self._seq += 1
-            rec = EventRecord(self._seq, tw, tm, category, type, agent, severity, data)
-            self._events.append(rec)
+            rec = EventRecord(
+                self._seq, tw, tm, category, event_name, agent, severity, data
+            )
 
-            # Update aggregated counters
-            self._count_by_type[type] += 1
-            if agent:
-                self._count_by_agent_type[agent][type] += 1
+            # Route to category-specific policy store
+            store = self._stores.get(event_name, self._stores["__default__"])
+            store.append(rec)
 
     def last(
         self,
         n: int = 100,
         agent: str | None = None,
-        type: str | None = None,
+        event_name: str | None = None,
         after_seq: int | None = None,
     ) -> List[EventRecord]:
         """
         Retrieve recent events with optional filtering.
 
+        Storage behavior:
+        - If event_name is None: Uses the default ring buffer (contains ALL event types)
+        - If event_name is specified: Uses the event-specific store if configured,
+          otherwise falls back to the default ring buffer
+
+        This design allows optimized storage per event type while maintaining
+        backward compatibility for general queries.
+
         Args:
             n: Maximum number of events to return
-            agent: Filter by agent name
-            type: Filter by event type
+            agent: Filter by agent name (only events from this agent)
+            event_name: Filter by event type (single event name only).
+                       If None, searches in the default store containing all events.
             after_seq: Return only events after this sequence number
 
         Returns:
-            List of EventRecord objects matching the criteria
+            List of EventRecord objects, ordered by sequence number (most recent last)
+
+        Examples:
+            # Get last 50 events of any type (uses default ring buffer)
+            all_events = store.last(50)
+
+            # Get last 10 heartbeats (uses heartbeat-specific store if configured)
+            heartbeats = store.last(10, event_name="agent_heartbeat")
+
+            # Get last 20 events from specific agent (any event type)
+            agent_events = store.last(20, agent="worker1")
+
+            # Get heartbeats from specific agent
+            agent_heartbeats = store.last(5, agent="worker1", event_name="agent_heartbeat")
         """
         with self._lock:
-            # Create a snapshot of current events
-            events_snapshot = list(self._events)
+            # If no event_name specified, use default store
+            if event_name is None:
+                return self._stores["__default__"].last(
+                    n=n, agent=agent, event_name=None, after_seq=after_seq
+                )
 
-        # Apply filters
-        if after_seq is not None:
-            events_snapshot = [e for e in events_snapshot if e.seq > after_seq]
-        if agent is not None:
-            events_snapshot = [e for e in events_snapshot if e.agent == agent]
-        if type is not None:
-            events_snapshot = [e for e in events_snapshot if e.type == type]
+            # Use event-specific store
+            store = self._stores.get(event_name, self._stores["__default__"])
+            return store.last(
+                n=n, agent=agent, event_name=event_name, after_seq=after_seq
+            )
 
-        # Return last n events
-        return events_snapshot[-n:]
+    def latest(
+        self, event_name: str, agent: Optional[str] = None
+    ) -> Optional[EventRecord]:
+        """
+        Get the latest event of a specific type, optimized for O(1) access.
+
+        Perfect for heartbeat monitoring and status checks.
+        Uses the event-specific store if configured, providing efficient access
+        to the most recent event without scanning through history.
+
+        Args:
+            event_name: Event type to look for (e.g., "agent_heartbeat")
+            agent: Agent name. If None, gets latest across all agents
+
+        Returns:
+            Latest EventRecord or None if not found
+
+        Example:
+            # Check if agent is alive (latest heartbeat)
+            latest_hb = store.latest("agent_heartbeat", "worker1")
+            if latest_hb and time.time() - latest_hb.t_wall < 30:
+                print("Agent is alive")
+        """
+        with self._lock:
+            store = self._stores.get(event_name, self._stores["__default__"])
+            events = store.last(n=1, agent=agent, event_name=event_name)
+            return events[0] if events else None
+
+    def latest_all_agents(self, event_name: str) -> Dict[str, EventRecord]:
+        """
+        Get the latest event of a specific type for all agents.
+
+        Extremely useful for heartbeat monitoring: get the last heartbeat
+        from every agent in a single O(agents) operation.
+
+        Optimized implementations:
+        - BucketRingStore: Iterates through per-agent buckets efficiently
+        - RingBufferStore: Scans events and groups by agent
+
+        Args:
+            event_name: Event type to look for (e.g., "agent_heartbeat")
+
+        Returns:
+            Dictionary mapping agent_name -> latest EventRecord
+            (excludes agents with no events of this type)
+
+        Example:
+            # Monitor all agent heartbeats
+            heartbeats = store.latest_all_agents("agent_heartbeat")
+            for agent, hb in heartbeats.items():
+                age = time.time() - hb.t_wall
+                if age > 30:
+                    print(f"Agent {agent} missed heartbeat ({age:.1f}s ago)")
+        """
+        result: Dict[str, EventRecord] = {}
+        with self._lock:
+            store = self._stores.get(event_name, self._stores["__default__"])
+
+            # For BucketRingStore, we can iterate through buckets efficiently
+            if isinstance(store, BucketRingStore):
+                for agent_key, bucket in store._buckets.items():
+                    if agent_key == "_none":
+                        continue
+                    # Find latest event of this type in this agent's bucket
+                    for event in reversed(bucket):
+                        if event.event_name == event_name:
+                            result[agent_key] = event
+                            break
+            else:
+                # For RingBufferStore, get all events and group by agent
+                events = store.last(n=10**9, event_name=event_name)
+                agent_latest: Dict[str, EventRecord] = {}
+                for event in events:
+                    if event.agent:
+                        agent_latest[event.agent] = event
+                result = agent_latest
+
+        return result
 
     def stats(self, agent: str | None = None) -> Dict[str, Dict[str, int]]:
         """
-        Get aggregated statistics with O(1) complexity.
+        Get aggregated event count statistics with O(1) complexity.
+
+        Note: Currently only provides statistics from the default ring buffer store.
+        Event-specific stores may not implement stats collection.
 
         Args:
-            agent: Get stats for specific agent, or global if None
+            agent: Get stats for specific agent, or global stats if None
 
         Returns:
-            Dictionary with event type counts
+            Dictionary with "by_type" key containing event_name -> count mappings
+
+        Example:
+            stats = store.stats()
+            print(f"Total heartbeats: {stats['by_type'].get('agent_heartbeat', 0)}")
         """
         with self._lock:
             if agent is None:
-                return {"by_type": dict(self._count_by_type)}
-            return {"by_type": dict(self._count_by_agent_type.get(agent, {}))}
+                return {"by_type": dict(self._stores["__default__"].stats())}
+            return {"by_type": dict(self._stores["__default__"].stats(agent=agent))}
 
-    def get_capacity_info(self) -> Dict[str, int]:
+    def get_capacity_info(self) -> Dict[str, int | Dict[str, Dict[str, int]]]:
         """
-        Get current capacity and usage information.
+        Get current capacity and usage information for all storage policies.
 
         Returns:
-            Dictionary with capacity stats
+            Dictionary with:
+            - "global": Default ring buffer capacity and usage info
+            - "categories": Per-event-type store capacity info
+
+        Useful for monitoring memory usage and detecting storage issues.
+
+        Example:
+            info = store.get_capacity_info()
+            default_usage = info['global']['capacity']['current_size']
+            hb_info = info['categories'].get('agent_heartbeat', {})
         """
         with self._lock:
-            return {
-                "capacity": self._events.maxlen or 0,
-                "current_size": len(self._events),
-                "total_events": self._seq,
-                "oldest_seq": self._events[0].seq if self._events else 0,
-                "newest_seq": self._events[-1].seq if self._events else 0,
+            info = {
+                "global": {
+                    "capacity": self._stores["__default__"].capacity_info(),
+                    "current_size": len(self._stores),
+                },
+                "categories": {
+                    k: v.capacity_info()
+                    for k, v in self._stores.items()
+                    if k != "__default__"
+                },
             }
+        return info

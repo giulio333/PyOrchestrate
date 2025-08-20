@@ -158,11 +158,11 @@ class AgentEntry:
         Returns:
             None
         """
-        if self.config is None:
-            self.config = self.agent_class.Config()
+        # if self.config is None:
+        #     self.config = self.agent_class.Config()
 
-        if self.plugin is None:
-            self.plugin = self.agent_class.Plugin()
+        # if self.plugin is None:
+        #     self.plugin = self.agent_class.Plugin()
 
         params: dict[str, Any] = dict()
         params["name"] = self.name
@@ -279,7 +279,7 @@ class OMemory:
         Notes:
             Every agent has a set of events that can be used to control its lifecycle. By default, all `ControlEvents` are
             set to ready. If no custom events are provided, the default events will be created.
-            
+
             Events from agents are handled centrally by the orchestrator's event manager.
             Agents communicate with the orchestrator via message channel.
 
