@@ -126,7 +126,6 @@ class BaseAgent(BaseClass, ABC):
         plugin (PluginProtocol): Plugin interface for agent extension.
         state_events (StateEvents): Events for internal state management.
         control_events (ControlEvents): Events for external command handling.
-        plugins (Dict[str, Plugin]): Registered plugins.
 
     Methods:
         run: Main entry point for agent execution.
@@ -279,7 +278,13 @@ class BaseAgent(BaseClass, ABC):
 
             self.validate_config()
 
+            # Pass agent reference to plugins before initialization
+            self.plugin_manager.set_agent(self)
+
             self.plugin_manager.initialize_plugins()
+
+            # Auto-inject heartbeat plugin if configured
+            self._check_heartbeat_auto_injection()
 
             self.setup()
 
@@ -503,6 +508,39 @@ class BaseAgent(BaseClass, ABC):
         """
         pass
 
+    def _check_heartbeat_auto_injection(self) -> None:
+        """
+        Check if this agent should auto-inject heartbeat plugin.
+        This is called after plugins are initialized.
+        """
+        # Check if we have heartbeat configuration in kwargs
+        heartbeat_config = getattr(self, "_heartbeat_config", None)
+
+        if heartbeat_config and heartbeat_config.get("enabled", False):
+            try:
+                # Import and create heartbeat plugin
+                from PyOrchestrate.core.plugins.heartbeat import (
+                    AgentHeartbeatTimerPlugin,
+                )
+
+                heartbeat_plugin = AgentHeartbeatTimerPlugin(
+                    enabled=heartbeat_config["enabled"],
+                    send_every=heartbeat_config["send_every"],
+                    jitter=heartbeat_config["jitter"],
+                )
+
+                # Add to plugin manager by setting it on the plugin object
+                setattr(self.plugin, "heartbeat", heartbeat_plugin)
+                heartbeat_plugin.set_agent(self)
+                heartbeat_plugin.initialize()
+
+                if hasattr(self, "logger"):
+                    self.logger.debug("Auto-injected heartbeat plugin")
+
+            except Exception as e:
+                if hasattr(self, "logger"):
+                    self.logger.warning(f"Failed to auto-inject heartbeat plugin: {e}")
+
 
 class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):
     """
@@ -572,7 +610,7 @@ class AgentProtocol(Protocol):
     state_events: BaseAgent.StateEvents
     control_events: BaseAgent.ControlEvents
     start_time: float
-    plugins: dict[str, BaseClass.Plugin]
+    # plugins: dict[str, BaseClass.Plugin]
 
     def run(self) -> None: ...
 

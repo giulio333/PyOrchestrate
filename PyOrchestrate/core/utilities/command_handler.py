@@ -532,7 +532,7 @@ class CommandHandler:
             events: List[EventRecord] = self.orchestrator.event_store.last(
                 n=last,
                 agent=agent,
-                type=event_type,
+                event_name=event_type,
                 after_seq=after_seq,
             )
 
