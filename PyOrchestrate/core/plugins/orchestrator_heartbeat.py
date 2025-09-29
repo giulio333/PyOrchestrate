@@ -7,11 +7,14 @@ automatically inject heartbeat functionality into agents and monitor their healt
 
 import time
 import threading
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, TYPE_CHECKING
 from dataclasses import dataclass, field
 
 from PyOrchestrate.core.plugins.heartbeat import AgentHeartbeatTimerPlugin
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
+
+if TYPE_CHECKING:
+    from PyOrchestrate.core.orchestrator import Orchestrator
 
 
 @dataclass
@@ -80,9 +83,9 @@ class OrchestratorHeartbeatPlugin:
         self._initialized = False
 
         # Reference to orchestrator (set when plugin is attached)
-        self._orchestrator = None
+        self._orchestrator: Optional["Orchestrator"] = None
 
-    def set_orchestrator(self, orchestrator):
+    def set_owner(self, orchestrator: "Orchestrator"):
         """
         Set the orchestrator reference.
 
@@ -139,33 +142,6 @@ class OrchestratorHeartbeatPlugin:
 
         if self._orchestrator and hasattr(self._orchestrator, "logger"):
             self._orchestrator.logger.info("Heartbeat monitoring finalized")
-
-    def inject_agent_heartbeat_plugin(self, agent_kwargs):
-        """
-        Add heartbeat configuration to agent kwargs for auto-injection.
-
-        Args:
-            agent_kwargs: Dictionary of kwargs that will be passed to the agent
-
-        Returns:
-            Modified agent_kwargs with heartbeat configuration
-        """
-        if not self.config.enabled or not self.config.auto_inject:
-            return agent_kwargs
-
-        # Add heartbeat configuration to agent kwargs
-        agent_kwargs["_heartbeat_config"] = {
-            "enabled": True,
-            "send_every": self.config.agent_send_interval,
-            "jitter": self.config.agent_jitter,
-        }
-
-        if self._orchestrator and hasattr(self._orchestrator, "logger"):
-            self._orchestrator.logger.debug(
-                f"Added heartbeat configuration to agent kwargs"
-            )
-
-        return agent_kwargs
 
     def _start_monitoring_thread(self):
         """Start the heartbeat monitoring thread."""
@@ -319,3 +295,49 @@ class OrchestratorHeartbeatPlugin:
     def get_timeout_agents(self) -> Set[str]:
         """Get set of agents that have timed out."""
         return self._timeout_detected.copy()
+
+    def inject_agent_heartbeat_plugin(self, custom_plugin):
+        """
+        Inject heartbeat plugin configuration into agent custom_plugin if auto_inject is enabled.
+
+        Args:
+            custom_plugin: The custom_plugin object to modify or None
+
+        Returns:
+            Modified custom_plugin with heartbeat plugin injected if auto_inject is enabled
+        """
+        if not self.config.enabled or not self.config.auto_inject:
+            return custom_plugin
+
+        # Create a heartbeat plugin instance for the agent
+        heartbeat_plugin = AgentHeartbeatTimerPlugin(
+            enabled=True,
+            send_every=self.config.agent_send_interval,
+            jitter=self.config.agent_jitter,
+        )
+
+        # Check if agent already has a custom_plugin
+        if custom_plugin is None:
+            # Create a new plugin with the heartbeat
+            from PyOrchestrate.core.base.base import BaseClassPlugin
+
+            custom_plugin = BaseClassPlugin(heartbeat=heartbeat_plugin)
+        else:
+            # Add heartbeat to existing plugin
+            # Check if the plugin already has a heartbeat attribute
+            if (
+                not hasattr(custom_plugin, "heartbeat")
+                and not hasattr(custom_plugin, "_custom_attr")
+                or "heartbeat" not in getattr(custom_plugin, "_custom_attr", {})
+            ):
+                # Add heartbeat to the existing plugin's _custom_attr
+                if not hasattr(custom_plugin, "_custom_attr"):
+                    custom_plugin._custom_attr = {}
+                custom_plugin._custom_attr["heartbeat"] = heartbeat_plugin
+
+        if self._orchestrator and hasattr(self._orchestrator, "logger"):
+            self._orchestrator.logger.debug(
+                f"Auto-injected heartbeat plugin into agent with interval={self.config.agent_send_interval}s"
+            )
+
+        return custom_plugin

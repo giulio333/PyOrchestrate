@@ -59,24 +59,35 @@ class AgentHeartbeatTimerPlugin(PluginProtocol):
         self.jitter = max(0.0, min(1.0, jitter))  # Clamp between 0 and 1
 
         self._agent: Optional[BaseAgent] = None  # Reference to the owning agent
+        # Don't create threading objects here - they can't be pickled for multiprocessing
+        # These will be created in initialize() after the process is started
         self._timer_thread: Optional[threading.Thread] = None
-        self._stop_event = threading.Event()
+        self._stop_event: Optional[threading.Event] = None
         self._initialized = False
         self._running = False
 
+    def set_owner(self, owner):
+        """
+        Set the owner (agent/orchestrator) reference.
+
+        Called by the plugin manager to provide access to the owner instance.
+
+        Args:
+            owner: The agent or orchestrator instance that owns this plugin
+        """
+        self._agent = owner
+        # Debug log to verify the connection
+        if hasattr(owner, "logger"):
+            owner.logger.debug(f"Heartbeat plugin connected to owner: {owner.name}")
+
     def set_agent(self, agent):
         """
-        Set the agent reference.
-
-        Called by the plugin manager to provide access to the agent instance.
+        Legacy method for backward compatibility. Calls set_owner internally.
 
         Args:
             agent: The agent instance that owns this plugin
         """
-        self._agent = agent
-        # Debug log to verify the connection
-        if hasattr(agent, "logger"):
-            agent.logger.debug(f"Heartbeat plugin connected to agent: {agent.name}")
+        return self.set_owner(agent)
 
     def initialize(self):
         """Initialize the plugin. Called by the plugin manager."""
@@ -84,6 +95,9 @@ class AgentHeartbeatTimerPlugin(PluginProtocol):
             return
 
         self._initialized = True
+
+        # Create threading objects here (after process creation, safe for multiprocessing)
+        self._stop_event = threading.Event()
 
         # Start the heartbeat timer thread
         if self._timer_thread is None:
@@ -102,7 +116,8 @@ class AgentHeartbeatTimerPlugin(PluginProtocol):
             return
 
         # Stop the timer thread
-        self._stop_event.set()
+        if self._stop_event is not None:
+            self._stop_event.set()
         if self._timer_thread and self._timer_thread.is_alive():
             self._timer_thread.join(timeout=1.0)
 
@@ -115,6 +130,9 @@ class AgentHeartbeatTimerPlugin(PluginProtocol):
 
         Sends heartbeat messages at regular intervals with jitter.
         """
+        if self._stop_event is None:
+            return
+
         while not self._stop_event.is_set():
             # Calculate next interval with jitter
             base_interval = self.send_every

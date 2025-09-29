@@ -18,12 +18,25 @@ class PluginProtocol(ABC):
     Base protocol for all plugins.
 
     This protocol defines the essential methods required for managing a plugin's lifecycle:
+    - set_owner: Sets the owner (agent/orchestrator) reference for the plugin.
     - initialize: Prepares the plugin by allocating resources or setting up the initial state.
-    - execute: Executes the main logic of the plugin.
     - finalize: Handles cleanup and resource release.
 
     Developers must implement these methods to ensure proper integration with the system.
     """
+
+    @abstractmethod
+    def set_owner(self, owner):
+        """
+        Set the owner (agent/orchestrator) reference for the plugin.
+
+        This method is called by the agent or orchestrator during initialization to provide
+        the plugin with access to the owner instance.
+
+        Args:
+            owner: The agent or orchestrator instance that owns this plugin
+        """
+        pass
 
     @abstractmethod
     def initialize(self):

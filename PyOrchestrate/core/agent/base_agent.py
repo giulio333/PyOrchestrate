@@ -63,38 +63,7 @@ class BaseAgentConfig(BaseClass.Config):
         ... )
     """
 
-    def validate(self) -> List[ValidationResult]:
-        """
-        BaseAgent-specific validation implementation.
-
-        Returns:
-            List[ValidationResult]: List of validation results.
-        """
-        results = super().validate()
-
-        # Add common validations for all agents here
-
-        return results
-
-    def to_dict(self) -> dict:
-        """
-        Convert the agent configuration to a dictionary.
-
-        Returns:
-            dict: Dictionary representation of the agent configuration.
-        """
-        instance_attrs = {}
-        for key, value in self.__dict__.items():
-            if not key.startswith("_"):
-                instance_attrs[key] = value
-
-        class_attrs = {}
-        for key, value in self.__class__.__dict__.items():
-            if not key.startswith("_"):
-                class_attrs[key] = value
-
-        # instance attributes take precedence over class attributes
-        return {**class_attrs, **instance_attrs}
+    pass
 
 
 class BaseAgent(BaseClass, ABC):
@@ -279,12 +248,9 @@ class BaseAgent(BaseClass, ABC):
             self.validate_config()
 
             # Pass agent reference to plugins before initialization
-            self.plugin_manager.set_agent(self)
+            self.plugin_manager.set_owner(self)
 
             self.plugin_manager.initialize_plugins()
-
-            # Auto-inject heartbeat plugin if configured
-            self._check_heartbeat_auto_injection()
 
             self.setup()
 
@@ -507,39 +473,6 @@ class BaseAgent(BaseClass, ABC):
             msg (ServiceMessage): The received message.
         """
         pass
-
-    def _check_heartbeat_auto_injection(self) -> None:
-        """
-        Check if this agent should auto-inject heartbeat plugin.
-        This is called after plugins are initialized.
-        """
-        # Check if we have heartbeat configuration in kwargs
-        heartbeat_config = getattr(self, "_heartbeat_config", None)
-
-        if heartbeat_config and heartbeat_config.get("enabled", False):
-            try:
-                # Import and create heartbeat plugin
-                from PyOrchestrate.core.plugins.heartbeat import (
-                    AgentHeartbeatTimerPlugin,
-                )
-
-                heartbeat_plugin = AgentHeartbeatTimerPlugin(
-                    enabled=heartbeat_config["enabled"],
-                    send_every=heartbeat_config["send_every"],
-                    jitter=heartbeat_config["jitter"],
-                )
-
-                # Add to plugin manager by setting it on the plugin object
-                setattr(self.plugin, "heartbeat", heartbeat_plugin)
-                heartbeat_plugin.set_agent(self)
-                heartbeat_plugin.initialize()
-
-                if hasattr(self, "logger"):
-                    self.logger.debug("Auto-injected heartbeat plugin")
-
-            except Exception as e:
-                if hasattr(self, "logger"):
-                    self.logger.warning(f"Failed to auto-inject heartbeat plugin: {e}")
 
 
 class BaseProcessAgent(BaseAgent, multiprocessing.Process, ABC):
