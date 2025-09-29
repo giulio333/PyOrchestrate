@@ -8,11 +8,14 @@ messages to the orchestrator for monitoring purposes.
 import random
 import threading
 import time
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from PyOrchestrate.core.plugins.plugin_protocols import PluginProtocol
 from PyOrchestrate.core.utilities.event import AgentEvent
 from PyOrchestrate.core.utilities.messaging import ServiceMessage
+
+if TYPE_CHECKING:
+    from PyOrchestrate.core.agent.base_agent import BaseAgent
 
 
 class AgentHeartbeatTimerPlugin(PluginProtocol):
@@ -55,7 +58,7 @@ class AgentHeartbeatTimerPlugin(PluginProtocol):
         self.send_every = send_every
         self.jitter = max(0.0, min(1.0, jitter))  # Clamp between 0 and 1
 
-        self._agent: Optional[object] = None  # Reference to the owning agent
+        self._agent: Optional[BaseAgent] = None  # Reference to the owning agent
         self._timer_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._initialized = False
@@ -128,6 +131,8 @@ class AgentHeartbeatTimerPlugin(PluginProtocol):
 
     def _send_heartbeat(self):
         """Send a heartbeat message to the orchestrator."""
+        assert self._agent is not None
+
         try:
             # Create heartbeat service message
             heartbeat_message = ServiceMessage.create_status(
