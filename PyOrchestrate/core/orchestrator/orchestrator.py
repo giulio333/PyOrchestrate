@@ -20,6 +20,9 @@ from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.validation import ValidationResult
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 from PyOrchestrate.core.plugins.plugin_manager import PluginManager
+from PyOrchestrate.core.plugins.orchestrator_heartbeat import (
+    OrchestratorHeartbeatPlugin,
+)
 
 
 class RunMode(Enum):
@@ -526,12 +529,9 @@ class Orchestrator(BaseClass):
         """
 
         # Auto-inject heartbeat plugin if enabled
-        heartbeat_plugin = getattr(self.plugin_manager, "heartbeat", None)
-        if (
-            heartbeat_plugin is not None
-            and hasattr(heartbeat_plugin, "config")
-            and heartbeat_plugin.config.auto_inject
-        ):
+        heartbeat_plugin = self.plugin_manager.get_plugin("heartbeat")
+        assert isinstance(heartbeat_plugin, OrchestratorHeartbeatPlugin)
+        if heartbeat_plugin is not None and heartbeat_plugin.config.auto_inject:
             custom_plugin = heartbeat_plugin.inject_agent_heartbeat_plugin(
                 custom_plugin
             )
