@@ -17,28 +17,6 @@ if TYPE_CHECKING:
     from PyOrchestrate.core.orchestrator import Orchestrator
 
 
-@dataclass
-class HeartbeatConfig:
-    """
-    Configuration for heartbeat monitoring.
-
-    Attributes:
-        enabled: Whether heartbeat monitoring is enabled
-        agent_send_interval: Interval in seconds for agents to send heartbeats
-        agent_jitter: Jitter factor for agent heartbeat intervals (0.0 to 1.0)
-        timeout_multiplier: Multiplier for timeout detection (timeout = interval * multiplier)
-        check_interval: How often to check for timeouts (seconds)
-        auto_inject: Whether to automatically inject heartbeat plugins into agents
-    """
-
-    enabled: bool = True
-    agent_send_interval: float = 30.0
-    agent_jitter: float = 0.1
-    timeout_multiplier: float = 3.0
-    check_interval: float = 5.0
-    auto_inject: bool = True
-
-
 class OrchestratorHeartbeatPlugin:
     """
     Orchestrator plugin that manages heartbeat monitoring for all agents.
@@ -63,14 +41,23 @@ class OrchestratorHeartbeatPlugin:
         )
     """
 
-    def __init__(self, config: Optional[HeartbeatConfig] = None):
+    def __init__(
+        self,
+        agent_send_interval: float = 30.0,
+        agent_jitter: float = 0.1,
+        timeout_multiplier: float = 3.0,
+        check_interval: float = 5.0,
+    ):
         """
         Initialize the orchestrator heartbeat plugin.
 
         Args:
             config: Heartbeat configuration. If None, uses default configuration.
         """
-        self.config = config or HeartbeatConfig()
+        self.agent_send_interval = agent_send_interval
+        self.agent_jitter = agent_jitter
+        self.timeout_multiplier = timeout_multiplier
+        self.check_interval = check_interval
 
         # Tracking data
         self._agent_last_heartbeat: Dict[str, float] = {}
@@ -85,6 +72,13 @@ class OrchestratorHeartbeatPlugin:
         # Reference to orchestrator (set when plugin is attached)
         self._orchestrator: Optional["Orchestrator"] = None
 
+    @property
+    def orchestrator(self) -> "Orchestrator":
+        """Get the orchestrator instance."""
+        if self._orchestrator is None:
+            raise ValueError("Orchestrator reference not set. Plugin not attached?")
+        return self._orchestrator
+
     def set_owner(self, orchestrator: "Orchestrator"):
         """
         Set the orchestrator reference.
@@ -98,7 +92,7 @@ class OrchestratorHeartbeatPlugin:
 
     def initialize(self):
         """Initialize the heartbeat monitoring plugin."""
-        if not self.config.enabled or self._initialized:
+        if self._initialized:
             return
 
         self._initialized = True
@@ -114,19 +108,18 @@ class OrchestratorHeartbeatPlugin:
                 OrchestratorEvent.AGENT_STARTED, self._on_agent_started
             )
 
-            # self._orchestrator.register_event(
-            #     OrchestratorEvent.AGENT_TERMINATED, self._on_agent_terminated
-            # )
+            self._orchestrator.register_event(
+                OrchestratorEvent.AGENT_TERMINATED, self._on_agent_terminated
+            )
 
             # Start monitoring thread
             self._start_monitoring_thread()
 
-            if hasattr(self._orchestrator, "logger"):
-                self._orchestrator.logger.info(
-                    f"Heartbeat monitoring initialized: "
-                    f"interval={self.config.agent_send_interval}s, "
-                    f"timeout={self.config.agent_send_interval * self.config.timeout_multiplier}s"
-                )
+            self._orchestrator.logger.info(
+                f"Heartbeat monitoring initialized: "
+                f"interval={self.agent_send_interval}s, "
+                f"timeout={self.agent_send_interval * self.timeout_multiplier}s"
+            )
 
     def finalize(self):
         """Finalize the heartbeat monitoring plugin."""
@@ -166,15 +159,13 @@ class OrchestratorHeartbeatPlugin:
                     )
 
             # Wait for next check
-            if self._stop_event.wait(timeout=self.config.check_interval):
+            if self._stop_event.wait(timeout=self.check_interval):
                 break
 
     def _check_heartbeat_timeouts(self):
         """Check for agents that have exceeded the heartbeat timeout."""
         current_time = time.time()
-        timeout_threshold = (
-            self.config.agent_send_interval * self.config.timeout_multiplier
-        )
+        timeout_threshold = self.agent_send_interval * self.timeout_multiplier
 
         newly_timeout_agents = set()
 
@@ -198,27 +189,25 @@ class OrchestratorHeartbeatPlugin:
 
     def _report_agent_timeout(self, agent_name: str):
         """Report that an agent has timed out."""
-        if self._orchestrator and hasattr(self._orchestrator, "logger"):
-            last_heartbeat = self._agent_last_heartbeat.get(agent_name, 0)
-            time_since = time.time() - last_heartbeat
+        last_heartbeat = self._agent_last_heartbeat.get(agent_name, 0)
+        time_since = time.time() - last_heartbeat
 
-            self._orchestrator.logger.warning(
-                f"Agent '{agent_name}' heartbeat timeout detected! "
-                f"Last heartbeat: {time_since:.1f}s ago"
-            )
+        self.orchestrator.logger.warning(
+            f"Agent '{agent_name}' heartbeat timeout detected! "
+            f"Last heartbeat: {time_since:.1f}s ago"
+        )
 
-            # Record event in event store if available
-            if hasattr(self._orchestrator, "event_store"):
-                self._orchestrator.event_store.record(
-                    category="heartbeat",
-                    event_name="AGENT_TIMEOUT",
-                    agent=agent_name,
-                    severity="ERROR",
-                    data={
-                        "time_since_last": f"{time_since:.1f}s",
-                        "timeout_threshold": f"{self.config.agent_send_interval * self.config.timeout_multiplier:.1f}s",
-                    },
-                )
+        # Record event in event store if available
+        self.orchestrator.event_store.record(
+            category="heartbeat",
+            event_name="AGENT_TIMEOUT",
+            agent=agent_name,
+            severity="ERROR",
+            data={
+                "time_since_last": f"{time_since:.1f}s",
+                "timeout_threshold": f"{self.agent_send_interval * self.timeout_multiplier:.1f}s",
+            },
+        )
 
     def _on_agent_heartbeat(self, agent_name: str, **kwargs):
         """Handle incoming agent heartbeat events."""
@@ -228,20 +217,16 @@ class OrchestratorHeartbeatPlugin:
         # Remove from timeout list if it was there
         self._timeout_detected.discard(agent_name)
 
-        if self._orchestrator and hasattr(self._orchestrator, "logger"):
-            self._orchestrator.logger.trace(
-                f"Heartbeat received from agent '{agent_name}'"
-            )
+        self.orchestrator.logger.trace(f"Heartbeat received from agent '{agent_name}'")
 
     def _on_agent_started(self, agent_name: str, **kwargs):
         """Handle agent started events."""
         self._monitored_agents.add(agent_name)
         self._agent_last_heartbeat[agent_name] = time.time()  # Initialize timestamp
 
-        if self._orchestrator and hasattr(self._orchestrator, "logger"):
-            self._orchestrator.logger.debug(
-                f"Started monitoring heartbeat for agent '{agent_name}'"
-            )
+        self.orchestrator.logger.debug(
+            f"Started monitoring heartbeat for agent '{agent_name}'"
+        )
 
     def _on_agent_terminated(self, agent_name: str, **kwargs):
         """Handle agent terminated events."""
@@ -249,10 +234,9 @@ class OrchestratorHeartbeatPlugin:
         self._agent_last_heartbeat.pop(agent_name, None)
         self._timeout_detected.discard(agent_name)
 
-        if self._orchestrator and hasattr(self._orchestrator, "logger"):
-            self._orchestrator.logger.debug(
-                f"Stopped monitoring heartbeat for agent '{agent_name}'"
-            )
+        self.orchestrator.logger.debug(
+            f"Stopped monitoring heartbeat for agent '{agent_name}'"
+        )
 
     def get_status(self) -> dict:
         """
@@ -278,11 +262,8 @@ class OrchestratorHeartbeatPlugin:
                 }
 
         return {
-            "enabled": self.config.enabled,
-            "auto_inject": self.config.auto_inject,
-            "agent_send_interval": self.config.agent_send_interval,
-            "timeout_threshold": self.config.agent_send_interval
-            * self.config.timeout_multiplier,
+            "agent_send_interval": self.agent_send_interval,
+            "timeout_threshold": self.agent_send_interval * self.timeout_multiplier,
             "monitored_agents": len(self._monitored_agents),
             "timeout_agents": len(self._timeout_detected),
             "agents": agent_status,
@@ -306,38 +287,25 @@ class OrchestratorHeartbeatPlugin:
         Returns:
             Modified custom_plugin with heartbeat plugin injected if auto_inject is enabled
         """
-        if not self.config.enabled or not self.config.auto_inject:
-            return custom_plugin
-
         # Create a heartbeat plugin instance for the agent
         heartbeat_plugin = AgentHeartbeatTimerPlugin(
             enabled=True,
-            send_every=self.config.agent_send_interval,
-            jitter=self.config.agent_jitter,
+            send_every=self.agent_send_interval,
+            jitter=self.agent_jitter,
         )
 
-        # Check if agent already has a custom_plugin
-        if custom_plugin is None:
-            # Create a new plugin with the heartbeat
-            from PyOrchestrate.core.base.base import BaseClassPlugin
-
-            custom_plugin = BaseClassPlugin(heartbeat=heartbeat_plugin)
-        else:
-            # Add heartbeat to existing plugin
-            # Check if the plugin already has a heartbeat attribute
-            if (
-                not hasattr(custom_plugin, "heartbeat")
-                and not hasattr(custom_plugin, "_custom_attr")
-                or "heartbeat" not in getattr(custom_plugin, "_custom_attr", {})
-            ):
-                # Add heartbeat to the existing plugin's _custom_attr
-                if not hasattr(custom_plugin, "_custom_attr"):
-                    custom_plugin._custom_attr = {}
-                custom_plugin._custom_attr["heartbeat"] = heartbeat_plugin
-
-        if self._orchestrator and hasattr(self._orchestrator, "logger"):
-            self._orchestrator.logger.debug(
-                f"Auto-injected heartbeat plugin into agent with interval={self.config.agent_send_interval}s"
+        # TODO: don't override custom_plugin if already exists
+        if custom_plugin is not None:
+            self.orchestrator.logger.warning(
+                "Overriding existing custom_plugin when auto-injecting heartbeat plugin"
             )
+
+        from PyOrchestrate.core.base.base import BaseClassPlugin
+
+        custom_plugin = BaseClassPlugin(heartbeat=heartbeat_plugin)
+
+        self.orchestrator.logger.debug(
+            f"Auto-injected heartbeat plugin into agent with interval={self.agent_send_interval}s"
+        )
 
         return custom_plugin

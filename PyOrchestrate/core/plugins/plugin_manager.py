@@ -1,5 +1,8 @@
 """Module for managing plugin initialization and finalization."""
 
+from collections import OrderedDict
+import inspect
+
 from PyOrchestrate.core.plugins.plugin_protocols import PluginProtocol
 from PyOrchestrate.core.base.base import BaseClassPlugin
 
@@ -25,47 +28,40 @@ class PluginManager:
         )
 
     def _extract_plugin_instances(self):
-        """
-        Extract all plugin instances from the plugins object and create an efficient data structure.
+        plugins = self.plugins
+        merged: OrderedDict[str, PluginProtocol] = OrderedDict()
 
-        Returns:
-            List of tuples (name, plugin_instance) for all valid plugins.
-        """
-        plugin_instances = []
+        def is_plugin_instance(val) -> bool:
+            if val is None:
+                return False
+            if inspect.isfunction(val) or inspect.ismethod(val) or inspect.isclass(val):
+                return False
+            return True
 
-        # Check class attributes (legacy support for agents with Plugin inner classes)
-        for key, value in self.plugins.__class__.__dict__.items():
-            if (
-                not key.startswith("_")
-                and value is not None
-                and hasattr(value, "__class__")
-            ):
-                plugin_instances.append((key, value))
+        # 1) Class attributes (default/legacy) — base layer
+        for key, value in plugins.__class__.__dict__.items():
+            if key.startswith("_"):
+                continue
+            if is_plugin_instance(value):
+                merged[key] = value
 
-        # Collect all possible plugin names from both instance vars and custom attributes
-        all_possible_keys = set()
+        # 2) Instance attributes — override class
+        for key, value in vars(plugins).items():
+            if key.startswith("_"):
+                continue
+            if is_plugin_instance(value):
+                merged[key] = value  # override
 
-        # Add instance attribute keys
-        for key in vars(self.plugins).keys():
-            if not key.startswith("_"):
-                all_possible_keys.add(key)
+        # 3) _custom_attr (iniezioni dinamiche) — override
+        if hasattr(plugins, "_custom_attr"):
+            for key, value in plugins._custom_attr.items():
+                if key.startswith("_"):
+                    continue
+                if is_plugin_instance(value):
+                    merged[key] = value  # override
 
-        # Add custom attribute keys (from kwargs)
-        if hasattr(self.plugins, "_custom_attr"):
-            for key in self.plugins._custom_attr.keys():
-                if not key.startswith("_"):
-                    all_possible_keys.add(key)
-
-        for key in all_possible_keys:
-            try:
-                value = getattr(self.plugins, key)
-                if value is not None and hasattr(value, "__class__"):
-                    plugin_instances.append((key, value))
-            except AttributeError:
-                # Skip keys that don't resolve to actual attributes
-                pass
-
-        return plugin_instances
+        # Converte in lista di tuple
+        return list(merged.items())
 
     def set_owner(self, owner):
         """
@@ -161,29 +157,3 @@ class PluginManager:
             if name == plugin_name:
                 return plugin_instance
         return None
-
-    # def __getattribute__(self, name):
-    #     """
-    #     Provide transparent access to plugin instances.
-
-    #     This method allows accessing plugins directly as attributes of the PluginManager,
-    #     e.g., plugin_manager.heartbeat will return the heartbeat plugin instance.
-    #     """
-    #     # First try to get standard PluginManager attributes
-    #     try:
-    #         return object.__getattribute__(self, name)
-    #     except AttributeError:
-    #         pass
-
-    #     # Then try to get plugin attributes from the underlying BaseClassPlugin
-    #     plugins = object.__getattribute__(self, "plugins")
-    #     if plugins is not None:
-    #         try:
-    #             return getattr(plugins, name)
-    #         except AttributeError:
-    #             pass
-
-    #     # If not found, raise AttributeError
-    #     raise AttributeError(
-    #         f"'{self.__class__.__name__}' object has no attribute '{name}'"
-    #     )
