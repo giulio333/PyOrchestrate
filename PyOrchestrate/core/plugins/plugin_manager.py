@@ -17,58 +17,158 @@ class PluginManager:
             plugins: An object containing plugin instances defined as attributes.
         """
         self.plugins: BaseClassPlugin = plugins
-        self._agent = None  # Reference to the agent (set when agent initializes)
+        self._owner = None  # Reference to the owner (agent/orchestrator)
 
-    def set_agent(self, agent):
+        # Extract and cache plugin instances during initialization for efficiency
+        self._plugin_instances: list[tuple[str, PluginProtocol]] = (
+            self._extract_plugin_instances()
+        )
+
+    def _extract_plugin_instances(self):
         """
-        Set the agent reference for plugins that need it.
+        Extract all plugin instances from the plugins object and create an efficient data structure.
 
-        This is called by the agent during initialization to provide
-        plugins with access to the agent instance.
+        Returns:
+            List of tuples (name, plugin_instance) for all valid plugins.
+        """
+        plugin_instances = []
+
+        # Check class attributes (legacy support for agents with Plugin inner classes)
+        for key, value in self.plugins.__class__.__dict__.items():
+            if (
+                not key.startswith("_")
+                and value is not None
+                and hasattr(value, "__class__")
+            ):
+                plugin_instances.append((key, value))
+
+        # Collect all possible plugin names from both instance vars and custom attributes
+        all_possible_keys = set()
+
+        # Add instance attribute keys
+        for key in vars(self.plugins).keys():
+            if not key.startswith("_"):
+                all_possible_keys.add(key)
+
+        # Add custom attribute keys (from kwargs)
+        if hasattr(self.plugins, "_custom_attr"):
+            for key in self.plugins._custom_attr.keys():
+                if not key.startswith("_"):
+                    all_possible_keys.add(key)
+
+        for key in all_possible_keys:
+            try:
+                value = getattr(self.plugins, key)
+                if value is not None and hasattr(value, "__class__"):
+                    plugin_instances.append((key, value))
+            except AttributeError:
+                # Skip keys that don't resolve to actual attributes
+                pass
+
+        return plugin_instances
+
+    def set_owner(self, owner):
+        """
+        Set the owner (agent/orchestrator) reference for plugins that need it.
+
+        This is called by the agent or orchestrator during initialization to provide
+        plugins with access to the owner instance.
 
         Args:
-            agent: The agent instance that owns these plugins
+            owner: The agent or orchestrator instance that owns these plugins
         """
-        self._agent = agent
+        self._owner = owner
 
-        # Pass agent reference to plugins that need it
-        # Check both class attributes (common pattern) and instance attributes
-        for key, value in self.plugins.__class__.__dict__.items():
-            if isinstance(value, PluginProtocol) and hasattr(value, "set_agent"):
-                value.set_agent(agent)
+        # Pass owner reference to plugins using the cached plugin instances
+        for name, plugin_instance in self._plugin_instances:
+            try:
+                plugin_instance.set_owner(owner)
+            except Exception as e:
+                self._log_error(
+                    f"Failed to set owner reference for plugin '{name}': {e}"
+                )
 
-        for key, value in vars(self.plugins).items():
-            if isinstance(value, PluginProtocol) and hasattr(value, "set_agent"):
-                value.set_agent(agent)
+    def plugin_info(self):
+        """
+        Log information about all managed plugins.
+
+        This method iterates through all cached plugin instances and logs their names and types.
+        """
+        if self._owner:
+            self._owner.logger.info(
+                f"PluginManager: Managing {len(self._plugin_instances)} plugins:"
+            )
+            for name, plugin_instance in self._plugin_instances:
+                self._owner.logger.info(
+                    f" - Plugin '{name}': {type(plugin_instance).__name__}"
+                )
+
+    def _log_error(self, message):
+        """Helper method to log errors using owner's logger or print as fallback."""
+        if self._owner:
+            self._owner.logger.error(message)
+        else:
+            print(f"PluginManager ERROR: {message}")
 
     def initialize_plugins(self):
         """
-        Initialize all plugins that implement the `PluginProtocol`.
+        Initialize all plugins using the cached plugin instances.
 
-        Iterates over the `plugin` attributes and calls the initialize method on each plugin.
+        Calls the initialize method on each plugin that has it.
         """
-        # First check class attributes (legacy support)
-        for key, value in self.plugins.__class__.__dict__.items():
-            if isinstance(value, PluginProtocol):
-                value.initialize()
+        if self._owner:
+            self._owner.logger.debug(
+                f"PluginManager: Initializing {len(self._plugin_instances)} plugins"
+            )
 
-        # Then check instance attributes (modern approach)
-        for key, value in vars(self.plugins).items():
-            if isinstance(value, PluginProtocol):
-                value.initialize()
+        for name, plugin_instance in self._plugin_instances:
+            try:
+                if self._owner:
+                    self._owner.logger.debug(
+                        f"PluginManager: Initializing plugin '{name}' ({type(plugin_instance).__name__})"
+                    )
+                plugin_instance.initialize()
+                if self._owner:
+                    self._owner.logger.debug(
+                        f"PluginManager: Plugin '{name}' initialized successfully"
+                    )
+            except Exception as e:
+                self._log_error(f"Failed to initialize plugin '{name}': {e}")
 
     def finalize_plugins(self):
         """
-        Finalize all plugins that implement the `PluginProtocol`.
+        Finalize all plugins using the cached plugin instances.
 
-        Iterates over the `plugin` attributes and calls the finalize method on each plugin.
+        Calls the finalize method on each plugin that has it.
         """
-        # First check class attributes (legacy support)
-        for key, value in self.plugins.__class__.__dict__.items():
-            if isinstance(value, PluginProtocol):
-                value.finalize()
+        for name, plugin_instance in self._plugin_instances:
+            try:
+                plugin_instance.finalize()
+            except Exception as e:
+                self._log_error(f"Failed to finalize plugin '{name}': {e}")
 
-        # Then check instance attributes (modern approach)
-        for key, value in vars(self.plugins).items():
-            if isinstance(value, PluginProtocol):
-                value.finalize()
+    def __getattribute__(self, name):
+        """
+        Provide transparent access to plugin instances.
+
+        This method allows accessing plugins directly as attributes of the PluginManager,
+        e.g., plugin_manager.heartbeat will return the heartbeat plugin instance.
+        """
+        # First try to get standard PluginManager attributes
+        try:
+            return object.__getattribute__(self, name)
+        except AttributeError:
+            pass
+
+        # Then try to get plugin attributes from the underlying BaseClassPlugin
+        plugins = object.__getattribute__(self, "plugins")
+        if plugins is not None:
+            try:
+                return getattr(plugins, name)
+            except AttributeError:
+                pass
+
+        # If not found, raise AttributeError
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )

@@ -19,6 +19,7 @@ from PyOrchestrate.core.utilities.validation import (
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.validation import ValidationResult
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
+from PyOrchestrate.core.plugins.plugin_manager import PluginManager
 
 
 class RunMode(Enum):
@@ -202,18 +203,7 @@ class OrchestratorPlugin(BaseClass.Plugin):
         orchestrator = Orchestrator(plugin=plugin)
     """
 
-    def __init__(self, heartbeat=None, **kwargs):
-        """
-        Initialize the orchestrator plugin.
-
-        Args:
-            heartbeat: Heartbeat monitoring plugin instance
-            **kwargs: Additional plugin attributes
-        """
-        super().__init__(**kwargs)
-
-        if heartbeat is not None:
-            self.heartbeat = heartbeat
+    pass
 
 
 class Orchestrator(BaseClass):
@@ -279,8 +269,13 @@ class Orchestrator(BaseClass):
             },
         )
 
+        # Initialize plugin manager for centralized plugin management
+        self.plugin_manager = PluginManager(self.plugin)
+        self.plugin_manager.set_owner(self)
+        self.plugin_manager.plugin_info()
+
         # Initialize orchestrator plugins
-        self._initialize_plugins()
+        self.plugin_manager.initialize_plugins()
 
         # Command interface for external CLI commands
         self.command_channel = None
@@ -531,8 +526,15 @@ class Orchestrator(BaseClass):
         """
 
         # Auto-inject heartbeat plugin if enabled
-        # if hasattr(self.plugin, "heartbeat") and self.plugin.heartbeat is not None:
-        #     kwargs = self.plugin.heartbeat.inject_agent_heartbeat_plugin(kwargs)
+        heartbeat_plugin = getattr(self.plugin_manager, "heartbeat", None)
+        if (
+            heartbeat_plugin is not None
+            and hasattr(heartbeat_plugin, "config")
+            and heartbeat_plugin.config.auto_inject
+        ):
+            custom_plugin = heartbeat_plugin.inject_agent_heartbeat_plugin(
+                custom_plugin
+            )
 
         agent_entry: AgentEntry = self.memory.add_agent(
             agent_class=agent_class,
@@ -757,7 +759,7 @@ class Orchestrator(BaseClass):
         self._stop_message_thread()
 
         # Finalize plugins
-        self._finalize_plugins()
+        self.plugin_manager.finalize_plugins()
 
         # Close command channel if enabled
         if self.command_channel:
@@ -887,29 +889,3 @@ class Orchestrator(BaseClass):
             self.logger.debug(f"Config: run_mode={rm.value}")
         else:
             self.logger.debug(f"Config: run_mode={rm}")
-
-    def _initialize_plugins(self):
-        """Initialize orchestrator plugins."""
-        # Check for heartbeat plugin and initialize it
-        if hasattr(self.plugin, "heartbeat") and self.plugin.heartbeat is not None:
-            self.plugin.heartbeat.set_orchestrator(self)
-            self.plugin.heartbeat.initialize()
-            self.logger.debug("Heartbeat plugin initialized")
-
-        # Initialize other plugins if any exist
-        for key, value in vars(self.plugin).items():
-            if key != "heartbeat" and hasattr(value, "set_orchestrator"):
-                value.set_orchestrator(self)
-            if hasattr(value, "initialize"):
-                value.initialize()
-
-    def _finalize_plugins(self):
-        """Finalize orchestrator plugins."""
-        # Finalize heartbeat plugin
-        if hasattr(self.plugin, "heartbeat") and self.plugin.heartbeat is not None:
-            self.plugin.heartbeat.finalize()
-
-        # Finalize other plugins
-        for key, value in vars(self.plugin).items():
-            if hasattr(value, "finalize"):
-                value.finalize()
