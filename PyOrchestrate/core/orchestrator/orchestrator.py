@@ -190,23 +190,15 @@ class OrchestratorPlugin(BaseClass.Plugin):
     Plugin class for the Orchestrator.
 
     This class can contain various plugins that extend orchestrator functionality.
-
-    Example:
-        from PyOrchestrate.core.plugins.orchestrator_heartbeat import OrchestratorHeartbeatPlugin, HeartbeatConfig
-
-        plugin = OrchestratorPlugin(
-            heartbeat=OrchestratorHeartbeatPlugin(
-                config=HeartbeatConfig(
-                    agent_send_interval=10.0,
-                    timeout_multiplier=3.0
-                )
-            )
-        )
-
-        orchestrator = Orchestrator(plugin=plugin)
     """
 
-    pass
+    heartbeat: OrchestratorHeartbeatPlugin | None = None
+
+    def __init__(self, heartbeat: OrchestratorHeartbeatPlugin | None = None, **kwargs):
+        super().__init__(**kwargs)
+
+        if heartbeat is not None:
+            self.heartbeat = heartbeat
 
 
 class Orchestrator(BaseClass):
@@ -250,8 +242,8 @@ class Orchestrator(BaseClass):
     ):
         super().__init__(
             name=name or self.__class__.__name__,
-            config=config,  # or Orchestrator.Config(),
-            plugin=plugin,  # or Orchestrator.Plugin(),
+            config=config,
+            plugin=plugin,
         )
 
         self.setup_logger()
@@ -528,10 +520,10 @@ class Orchestrator(BaseClass):
             AgentEntry: The agent entry object stored in the memory.
         """
 
-        # Auto-inject heartbeat plugin if enabled
+        # Auto-inject heartbeat plugin if exists
         heartbeat_plugin = self.plugin_manager.get_plugin("heartbeat")
-        assert isinstance(heartbeat_plugin, OrchestratorHeartbeatPlugin)
-        if heartbeat_plugin is not None and heartbeat_plugin.config.auto_inject:
+        if heartbeat_plugin:
+            assert isinstance(heartbeat_plugin, OrchestratorHeartbeatPlugin)
             custom_plugin = heartbeat_plugin.inject_agent_heartbeat_plugin(
                 custom_plugin
             )

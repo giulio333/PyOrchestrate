@@ -14,5 +14,4 @@ from PyOrchestrate.core.plugins.heartbeat import (
 
 from PyOrchestrate.core.plugins.orchestrator_heartbeat import (
     OrchestratorHeartbeatPlugin,
-    HeartbeatConfig,
 )

@@ -12,7 +12,6 @@ from PyOrchestrate.core.orchestrator.orchestrator import OrchestratorPlugin
 from PyOrchestrate.core.agent import PeriodicProcessAgent
 from PyOrchestrate.core.plugins.orchestrator_heartbeat import (
     OrchestratorHeartbeatPlugin,
-    HeartbeatConfig,
 )
 from PyOrchestrate.core.plugins.heartbeat import AgentHeartbeatTimerPlugin
 
@@ -41,24 +40,22 @@ class CriticalAgent(PeriodicProcessAgent):
         self.logger.info("CriticalAgent setup complete")
 
 
+class MyOrchestrator(Orchestrator):
+    class Plugin(OrchestratorPlugin):
+        """Plugins for the orchestrator."""
+
+        heartbeat = OrchestratorHeartbeatPlugin(agent_send_interval=2)
+
+    class Config(Orchestrator.Config):
+        """Configuration for the MyOrchestrator."""
+
+        run_mode = RunMode.DAEMON
+
+
 if __name__ == "__main__":
-    # Create orchestrator plugin with heartbeat
-    orchestrator_plugin = OrchestratorPlugin(
-        heartbeat=OrchestratorHeartbeatPlugin(
-            config=HeartbeatConfig(
-                enabled=True,
-                agent_send_interval=2.0,  # Agents send heartbeat every 2 seconds
-                agent_jitter=0.1,  # ±10% jitter to desynchronize
-                timeout_multiplier=3.0,  # Timeout after 6 seconds (2.0 * 3.0)
-                auto_inject=True,  # Auto-inject heartbeat plugin into all agents
-            )
-        )
-    )
 
     # Create orchestrator with heartbeat plugin
-    orchestrator = Orchestrator(
-        plugin=orchestrator_plugin, config=Orchestrator.Config(run_mode=RunMode.DAEMON)
-    )
+    orchestrator = MyOrchestrator()
 
     # Register heartbeat agent
     orchestrator.register_agent(CriticalAgent, "CriticalAgent")
