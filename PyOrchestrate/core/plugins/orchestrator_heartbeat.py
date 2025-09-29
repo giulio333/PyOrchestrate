@@ -114,9 +114,9 @@ class OrchestratorHeartbeatPlugin:
                 OrchestratorEvent.AGENT_STARTED, self._on_agent_started
             )
 
-            self._orchestrator.register_event(
-                OrchestratorEvent.AGENT_TERMINATED, self._on_agent_terminated
-            )
+            # self._orchestrator.register_event(
+            #     OrchestratorEvent.AGENT_TERMINATED, self._on_agent_terminated
+            # )
 
             # Start monitoring thread
             self._start_monitoring_thread()

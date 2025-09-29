@@ -147,28 +147,43 @@ class PluginManager:
             except Exception as e:
                 self._log_error(f"Failed to finalize plugin '{name}': {e}")
 
-    def __getattribute__(self, name):
+    def get_plugin(self, plugin_name: str) -> PluginProtocol | None:
         """
-        Provide transparent access to plugin instances.
+        Get a specific plugin instance by name.
 
-        This method allows accessing plugins directly as attributes of the PluginManager,
-        e.g., plugin_manager.heartbeat will return the heartbeat plugin instance.
+        Args:
+            plugin_name: The name of the plugin to retrieve.
+
+        Returns:
+            The plugin instance if found, otherwise None.
         """
-        # First try to get standard PluginManager attributes
-        try:
-            return object.__getattribute__(self, name)
-        except AttributeError:
-            pass
+        for name, plugin_instance in self._plugin_instances:
+            if name == plugin_name:
+                return plugin_instance
+        return None
 
-        # Then try to get plugin attributes from the underlying BaseClassPlugin
-        plugins = object.__getattribute__(self, "plugins")
-        if plugins is not None:
-            try:
-                return getattr(plugins, name)
-            except AttributeError:
-                pass
+    # def __getattribute__(self, name):
+    #     """
+    #     Provide transparent access to plugin instances.
 
-        # If not found, raise AttributeError
-        raise AttributeError(
-            f"'{self.__class__.__name__}' object has no attribute '{name}'"
-        )
+    #     This method allows accessing plugins directly as attributes of the PluginManager,
+    #     e.g., plugin_manager.heartbeat will return the heartbeat plugin instance.
+    #     """
+    #     # First try to get standard PluginManager attributes
+    #     try:
+    #         return object.__getattribute__(self, name)
+    #     except AttributeError:
+    #         pass
+
+    #     # Then try to get plugin attributes from the underlying BaseClassPlugin
+    #     plugins = object.__getattribute__(self, "plugins")
+    #     if plugins is not None:
+    #         try:
+    #             return getattr(plugins, name)
+    #         except AttributeError:
+    #             pass
+
+    #     # If not found, raise AttributeError
+    #     raise AttributeError(
+    #         f"'{self.__class__.__name__}' object has no attribute '{name}'"
+    #     )
