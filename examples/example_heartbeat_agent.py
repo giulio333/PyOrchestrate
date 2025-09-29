@@ -20,7 +20,6 @@ class HeartbeatAgent(PeriodicProcessAgent):
 
         limit = 10
         execution_interval = 3.0  # Execute every 3 seconds
-        counter: int = 1  # Counter for iterations
 
     class Plugin(PeriodicProcessAgent.Plugin):
         """Plugin configuration for the HeartbeatAgent."""
@@ -40,16 +39,13 @@ class HeartbeatAgent(PeriodicProcessAgent):
         super().runner()
 
         # Simulate some work
-        self.logger.info(f"HeartbeatAgent working... (iteration {self.config.counter})")
+        self.logger.info("HeartbeatAgent working...")
 
         # Check heartbeat plugin status
         heartbeat_status = self.plugin.heartbeat.get_status()
         self.logger.info(
             f"Heartbeat status: running={heartbeat_status['running']}, agent_name={heartbeat_status['agent_name']}"
         )
-
-        # Increment counter
-        self.config.counter += 1
 
     def setup(self):
         """Setup method called when agent starts."""
@@ -67,13 +63,5 @@ if __name__ == "__main__":
     # Register heartbeat agent
     orchestrator.register_agent(HeartbeatAgent, "HeartbeatAgent")
 
-    try:
-        # Start the orchestrator
-        orchestrator.start()
-
-        # Let it run for a bit to see heartbeats
-        time.sleep(15)
-
-    finally:
-        # Stop the orchestrator
-        orchestrator.stop()
+    orchestrator.start()
+    orchestrator.join()
