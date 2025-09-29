@@ -337,15 +337,16 @@ class EventStore:
             capacity: Maximum number of events in the default ring buffer store
             payload_max_bytes: Maximum size for payload data strings (longer strings are truncated)
             event_policies: Optional mapping of event_name -> StorePolicy for event-specific storage.
-                          Example: {"agent_heartbeat": BucketRingStore(1)} for heartbeat monitoring
 
         Example:
+            ```python
             # Basic setup with default ring buffer
             store = EventStore()
 
             # Setup with heartbeat-optimized storage
             heartbeat_store = BucketRingStore(per_agent_capacity=1)
             store = EventStore(event_policies={"agent_heartbeat": heartbeat_store})
+            ```
         """
         self._lock = threading.Lock()
         self._seq = 0
@@ -394,12 +395,14 @@ class EventStore:
             data: Optional payload data (will be truncated if too long)
 
         Example:
+            ```python
             store.record(
                 category="agent",
                 event_name="agent_heartbeat",
                 agent="worker1",
                 data={"timestamp": "2023-08-19T10:30:00"}
             )
+            ```
         """
         tw = time.time()
         tm = time.monotonic_ns()
@@ -447,6 +450,7 @@ class EventStore:
             List of EventRecord objects, ordered by sequence number (most recent last)
 
         Examples:
+            ```python
             # Get last 50 events of any type (uses default ring buffer)
             all_events = store.last(50)
 
@@ -458,6 +462,7 @@ class EventStore:
 
             # Get heartbeats from specific agent
             agent_heartbeats = store.last(5, agent="worker1", event_name="agent_heartbeat")
+            ```
         """
         with self._lock:
             # If no event_name specified, use default store
@@ -490,10 +495,12 @@ class EventStore:
             Latest EventRecord or None if not found
 
         Example:
+            ```python
             # Check if agent is alive (latest heartbeat)
             latest_hb = store.latest("agent_heartbeat", "worker1")
             if latest_hb and time.time() - latest_hb.t_wall < 30:
                 print("Agent is alive")
+            ```
         """
         with self._lock:
             store = self._stores.get(event_name, self._stores["__default__"])
@@ -519,12 +526,14 @@ class EventStore:
             (excludes agents with no events of this type)
 
         Example:
+            ```python
             # Monitor all agent heartbeats
             heartbeats = store.latest_all_agents("agent_heartbeat")
             for agent, hb in heartbeats.items():
                 age = time.time() - hb.t_wall
                 if age > 30:
                     print(f"Agent {agent} missed heartbeat ({age:.1f}s ago)")
+            ```
         """
         result: Dict[str, EventRecord] = {}
         with self._lock:
@@ -565,8 +574,10 @@ class EventStore:
             Dictionary with "by_type" key containing event_name -> count mappings
 
         Example:
+            ```python
             stats = store.stats()
             print(f"Total heartbeats: {stats['by_type'].get('agent_heartbeat', 0)}")
+            ```
         """
         with self._lock:
             if agent is None:
@@ -585,9 +596,11 @@ class EventStore:
         Useful for monitoring memory usage and detecting storage issues.
 
         Example:
+            ```python
             info = store.get_capacity_info()
             default_usage = info['global']['capacity']['current_size']
             hb_info = info['categories'].get('agent_heartbeat', {})
+            ```
         """
         with self._lock:
             info = {
