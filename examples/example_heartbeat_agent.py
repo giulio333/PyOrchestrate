@@ -21,8 +21,15 @@ class CriticalAgent(PeriodicProcessAgent):
 
         limit = 10
         execution_interval = 3.0  # Execute every 3 seconds
+        res = 10
 
     config: Config
+
+    def setup(self):
+        """Setup method called when agent starts."""
+        super().setup()
+        self.logger.info("CriticalAgent setup complete")
+        print(self.config.res)
 
     def runner(self):
         """Main agent logic."""
@@ -31,10 +38,12 @@ class CriticalAgent(PeriodicProcessAgent):
         # Simulate some work
         self.logger.info("CriticalAgent working...")
 
-    def setup(self):
-        """Setup method called when agent starts."""
-        super().setup()
-        self.logger.info("CriticalAgent setup complete")
+    def on_close(self):
+        super().on_close()
+
+        if self.plugin.heartbeat:
+            stats = self.plugin.heartbeat.get_status()
+            self.logger.info(f"Final Heartbeat Stats: {stats}")
 
 
 class MyOrchestrator(Orchestrator):
@@ -46,7 +55,7 @@ class MyOrchestrator(Orchestrator):
     class Config(Orchestrator.Config):
         """Configuration for the MyOrchestrator."""
 
-        run_mode = RunMode.DAEMON
+        run_mode = RunMode.STOP_ON_EMPTY
 
 
 if __name__ == "__main__":
