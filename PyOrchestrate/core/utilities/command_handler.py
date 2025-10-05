@@ -521,7 +521,7 @@ class CommandHandler:
             # Extract parameters with defaults
             last = int(params.get("last", 100))
             agent = params.get("agent")
-            event_type = params.get("type")
+            event_name = params.get("event_name")
             after_seq = (
                 int(params.get("after_seq", 0)) if params.get("after_seq") else None
             )
@@ -530,7 +530,7 @@ class CommandHandler:
             events: List[EventRecord] = self.orchestrator.event_store.last(
                 n=last,
                 agent=agent,
-                event_name=event_type,
+                event_name=event_name,
                 after_seq=after_seq,
             )
 
@@ -543,7 +543,7 @@ class CommandHandler:
                 "filters": {
                     "last": last,
                     "agent": agent,
-                    "type": event_type,
+                    "event_name": event_name,
                     "after_seq": after_seq,
                 },
                 "capacity_info": self.orchestrator.event_store.get_capacity_info(),

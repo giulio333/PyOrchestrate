@@ -1043,7 +1043,7 @@ class PyOrchestrateWebServer:
             if agent is not None:
                 params["agent"] = agent
             if event_type is not None:
-                params["type"] = event_type
+                params["event_name"] = event_type
             if after_seq is not None:
                 params["after_seq"] = after_seq
 

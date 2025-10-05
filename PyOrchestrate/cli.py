@@ -160,7 +160,7 @@ class OrchestratorCommand(BaseCommand):
         # Handle history commands with parameters
         if command in ["history", "history-stats"]:
             params = {}
-            for param in ["last", "agent", "type", "after_seq"]:
+            for param in ["last", "agent", "event_name", "after_seq"]:
                 if hasattr(args, param) and getattr(args, param) is not None:
                     params[param] = getattr(args, param)
 
@@ -371,7 +371,7 @@ class ArgumentParser:
             elif command_name in ["history", "history-stats"]:
                 # Prepare parameters for history commands
                 params = {}
-                for param in ["last", "agent", "type"]:
+                for param in ["last", "agent", "event_name"]:
                     if hasattr(args, param) and getattr(args, param) is not None:
                         params[param] = getattr(args, param)
                 if hasattr(args, "after_seq") and args.after_seq is not None:
@@ -573,7 +573,7 @@ class OutputFormatter:
             filter_parts = []
             if filters.get("agent"):
                 filter_parts.append(f"agent={filters['agent']}")
-            if filters.get("type"):
+            if filters.get("event_name"):
                 filter_parts.append(f"type={filters['type']}")
             if filters.get("last"):
                 filter_parts.append(f"last={filters['last']}")
@@ -590,7 +590,7 @@ class OutputFormatter:
 
         if events:
             output.append(
-                f"{'SEQ':<6} {'TIME':<19} {'CATEGORY':<12} {'TYPE':<20} {'AGENT':<15} {'SEV':<5}"
+                f"{'SEQ':<6} {'TIME':<19} {'CATEGORY':<12} {'EVENT NAME':<20} {'AGENT':<15} {'SEV':<5}"
             )
             output.append("-" * 80)
             for event in events:

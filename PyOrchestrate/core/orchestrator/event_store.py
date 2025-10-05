@@ -432,7 +432,7 @@ class EventStore:
         Retrieve recent events with optional filtering.
 
         Storage behavior:
-        - If event_name is None: Uses the default ring buffer (contains ALL event types)
+        - If event_name is None: Merges results from all configured stores (default + any event-specific stores)
         - If event_name is specified: Uses the event-specific store if configured,
           otherwise falls back to the default ring buffer
 
@@ -465,11 +465,37 @@ class EventStore:
             ```
         """
         with self._lock:
-            # If no event_name specified, use default store
             if event_name is None:
-                return self._stores["__default__"].last(
-                    n=n, agent=agent, event_name=None, after_seq=after_seq
-                )
+                merged: List[EventRecord] = []
+
+                # Query default store (contains events that were routed to default)
+                default_store = self._stores.get("__default__")
+                if default_store is not None:
+                    merged.extend(
+                        default_store.last(
+                            n=n, agent=agent, event_name=None, after_seq=after_seq
+                        )
+                    )
+
+                # Query event-specific stores
+                for name, store in self._stores.items():
+                    if name == "__default__":
+                        continue
+
+                    try:
+                        # Request up to `n` from each category store, filtering by agent/after_seq
+                        merged.extend(
+                            store.last(
+                                n=n, agent=agent, event_name=name, after_seq=after_seq
+                            )
+                        )
+                    except Exception:
+                        # Be resilient: if a custom store behaves unexpectedly, skip it
+                        continue
+
+                # Merge by sequence number and return the last `n` events
+                merged.sort(key=lambda e: e.seq)
+                return merged[-n:]
 
             # Use event-specific store
             store = self._stores.get(event_name, self._stores["__default__"])
