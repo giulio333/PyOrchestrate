@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, List, Optional, Set
 from enum import Enum
 
 from PyOrchestrate.core.orchestrator.event_store import EventRecord
+from PyOrchestrate.core.utilities.messaging import ServiceMessage
 
 if TYPE_CHECKING:
     from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
@@ -217,6 +218,54 @@ class CommandHandler:
             return self._cmd_shutdown()
         else:
             raise CommandException(f"Unknown command: {command}", code=400)
+
+    def execute_command_msg(self, request_msg: ServiceMessage) -> ServiceMessage:
+        """Execute a command from a ServiceMessage and return a ServiceMessage response.
+
+        This is a non-breaking wrapper that allows callers to pass the full
+        request `ServiceMessage` and receive a fully-formed `ServiceMessage`
+        response (success or error). It uses the existing `execute_command`
+        implementation internally.
+        """
+        # Expecting payload to be a dict with 'command', 'args', and optional 'request_id'
+        payload = request_msg.payload or {}
+        command = payload.get("command")
+        args = payload.get("args", [])
+        request_id = payload.get("request_id")
+
+        if not command:
+            return ServiceMessage.create_command_response(
+                sender="command_handler",
+                status="error",
+                error="Command is required",
+                code=400,
+                request_id=request_id,
+            )
+
+        try:
+            result = self.execute_command(command, args)
+            return ServiceMessage.create_command_response(
+                sender="command_handler",
+                status="success",
+                data=result,
+                request_id=request_id,
+            )
+        except CommandException as ce:
+            return ServiceMessage.create_command_response(
+                sender="command_handler",
+                status="error",
+                error=str(ce),
+                code=getattr(ce, "code", 500),
+                request_id=request_id,
+            )
+        except Exception as e:
+            return ServiceMessage.create_command_response(
+                sender="command_handler",
+                status="error",
+                error=str(e),
+                code=500,
+                request_id=request_id,
+            )
 
     def _cmd_list_agents(self) -> dict:
         """List all registered agents with their status."""
