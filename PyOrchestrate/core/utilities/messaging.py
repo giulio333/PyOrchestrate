@@ -14,8 +14,9 @@ from typing import Union, Optional, Literal, Dict, Any
 DEFAULT_SOCKET_PATH = "/tmp/pyorchestrate.sock"
 SOCKET_LISTEN_BACKLOG = 5
 SOCKET_TIMEOUT = 1.0
-CLIENT_RECEIVE_TIMEOUT = 0.5  # Increased from 0.1 to 0.5 for better reliability
-BUFFER_SIZE = 65536  # Increased from 4096 to 64KB for larger messages
+CLIENT_RECEIVE_TIMEOUT = 2
+CHUNK_SIZE = 8192  # Read in 8KB chunks
+MAX_MESSAGE_SIZE = 10 * 1024 * 1024  # 10MB maximum message size
 PROTOCOL_VERSION = "1.0"
 
 
@@ -492,6 +493,47 @@ class MessageChannel:
                 self._socket = None
             return False
 
+    def _receive_complete_message(
+        self, sock: socket.socket, timeout: float
+    ) -> Optional[bytes]:
+        """Receive a complete message from socket, reading until newline delimiter.
+
+        Args:
+            sock: Socket to read from
+            timeout: Timeout in seconds
+
+        Returns:
+            Complete message bytes or None if timeout/error
+        """
+        sock.settimeout(timeout)
+        buffer = b""
+
+        try:
+            while True:
+                chunk = sock.recv(CHUNK_SIZE)
+                if not chunk:
+                    return None  # Connection closed
+
+                buffer += chunk
+
+                # Check if we have a complete message (ends with newline)
+                if b"\n" in buffer:
+                    # Return only the first complete message
+                    message, remainder = buffer.split(b"\n", 1)
+                    # Store remainder for next read if needed (currently not implemented)
+                    return message + b"\n"
+
+                # Safety check: prevent unbounded memory growth
+                if len(buffer) > MAX_MESSAGE_SIZE:
+                    raise ValueError(
+                        f"Message exceeds maximum size of {MAX_MESSAGE_SIZE} bytes"
+                    )
+
+        except socket.timeout:
+            return None
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            return None
+
     def _receive_from_unix_socket_server(
         self, timeout: Optional[float] = None
     ) -> Optional[ServiceMessage]:
@@ -518,12 +560,12 @@ class MessageChannel:
             # Check for messages from existing clients
             for client in self._clients[:]:
                 try:
-                    client.settimeout(client_timeout)
-                    data = client.recv(BUFFER_SIZE)
+                    data = self._receive_complete_message(client, client_timeout)
                     if data:
                         return ServiceMessage.from_bytes(data)
-                except (socket.timeout, json.JSONDecodeError, KeyError):
-                    pass  # No data or invalid data
+                except (json.JSONDecodeError, KeyError, ValueError) as e:
+                    # Log error but continue with other clients
+                    pass
                 except (BrokenPipeError, ConnectionResetError, OSError):
                     # Remove disconnected clients
                     self._clients.remove(client)
@@ -541,11 +583,10 @@ class MessageChannel:
             return None
 
         try:
-            self._socket.settimeout(timeout)
-            data = self._socket.recv(BUFFER_SIZE)
+            data = self._receive_complete_message(self._socket, timeout)
             if data:
                 return ServiceMessage.from_bytes(data)
-        except (socket.timeout, json.JSONDecodeError, KeyError, OSError):
+        except (json.JSONDecodeError, KeyError, ValueError, OSError):
             pass
         return None
 
