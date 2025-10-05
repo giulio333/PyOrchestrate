@@ -89,7 +89,7 @@ def make_response_payload(
     if status == "error" and error:
         response["error"] = error
     elif status == "error" and isinstance(data, Exception):
-        response["error"] = {"type": type(data).__name__, "message": str(data)}
+        response["error"] = {"event_name": type(data).__name__, "message": str(data)}
         response["data"] = {}
 
     return response
@@ -110,7 +110,7 @@ class ServiceMessage:
         )
         return {
             "sender": self.sender,
-            "type": self.type,
+            "event_name": self.type,
             "payload": self.payload,
             "timestamp": timestamp,
         }
@@ -133,7 +133,7 @@ class ServiceMessage:
         """
         envelope = {
             "sender": self.sender,
-            "type": self.type,
+            "event_name": self.type,
             "payload": self.payload,
             "timestamp": (
                 self.timestamp.isoformat()
@@ -167,7 +167,7 @@ class ServiceMessage:
 
         return cls(
             sender=envelope["sender"],
-            type=envelope["type"],
+            type=envelope["event_name"],
             payload=envelope["payload"],
             timestamp=timestamp,
         )
