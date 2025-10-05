@@ -20,7 +20,7 @@ from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.validation import ValidationResult
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 from PyOrchestrate.core.plugins.plugin_manager import PluginManager
-from PyOrchestrate.core.plugins.orchestrator_heartbeat import (
+from PyOrchestrate.core.plugins.heartbeat import (
     OrchestratorHeartbeatPlugin,
 )
 

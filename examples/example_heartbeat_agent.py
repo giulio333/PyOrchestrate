@@ -1,19 +1,16 @@
 """
-Example demonstrating the AgentHeartbeatTimerPlugin.
+Example demonstrating the OrchestratorHeartbeatPlugin.
 
 This example shows how to use the heartbeat plugin to send periodic
 heartbeat messages to the orchestrator for monitoring purposes.
 """
 
-import time
-
 from PyOrchestrate.core.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.orchestrator.orchestrator import OrchestratorPlugin
 from PyOrchestrate.core.agent import PeriodicProcessAgent
-from PyOrchestrate.core.plugins.orchestrator_heartbeat import (
+from PyOrchestrate.core.plugins.heartbeat import (
     OrchestratorHeartbeatPlugin,
 )
-from PyOrchestrate.core.plugins.heartbeat import AgentHeartbeatTimerPlugin
 
 
 class CriticalAgent(PeriodicProcessAgent):
