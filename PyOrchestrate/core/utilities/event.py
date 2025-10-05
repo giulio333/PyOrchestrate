@@ -14,6 +14,8 @@ class OrchestratorEvent(Enum):
     """Event emitted when an agent is terminated. Take the agent name as argument (`agent_name`)."""
     AGENT_ERROR = "agent_error"
     """Event emitted when an agent reports an error. Take the agent name and error message as arguments (`agent_name`, `error_message`)."""
+    AGENT_HEARTBEAT = "agent_heartbeat"
+    """Event emitted when an agent sends a heartbeat signal. Take no arguments."""
 
 
 class AgentEvent(Enum):
@@ -57,3 +59,5 @@ class AgentEvent(Enum):
     """Event emitted when the agent starts a command. Take the command as argument (`command`)."""
     AGENT_COMMAND_STOP = "agent_command_stop"
     """Event emitted when the agent stops a command. Take the command as argument (`command`)."""
+    AGENT_HEARTBEAT = "agent_heartbeat"
+    """Event emitted when the agent sends a heartbeat signal. Take no arguments."""

@@ -1,13 +1,13 @@
 import time
 import threading
 from collections import defaultdict, deque
-from typing import List, final
+from typing import List, final, Optional
 from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
 from PyOrchestrate.core.utilities.command_handler import CommandException
-from PyOrchestrate.core.orchestrator.event_store import EventStore
+from PyOrchestrate.core.orchestrator.event_store import EventStore, BucketRingStore
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import OrchestratorEvent, AgentEvent
 from PyOrchestrate.core.utilities.validation import (
@@ -19,6 +19,10 @@ from PyOrchestrate.core.utilities.validation import (
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.validation import ValidationResult
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
+from PyOrchestrate.core.plugins.plugin_manager import PluginManager
+from PyOrchestrate.core.plugins.heartbeat import (
+    OrchestratorHeartbeatPlugin,
+)
 
 
 class RunMode(Enum):
@@ -182,7 +186,19 @@ class OrchestratorConfig(BaseClass.Config):
 
 
 class OrchestratorPlugin(BaseClass.Plugin):
-    pass
+    """
+    Plugin class for the Orchestrator.
+
+    This class can contain various plugins that extend orchestrator functionality.
+    """
+
+    heartbeat: OrchestratorHeartbeatPlugin | None = None
+
+    def __init__(self, heartbeat: OrchestratorHeartbeatPlugin | None = None, **kwargs):
+        super().__init__(**kwargs)
+
+        if heartbeat is not None:
+            self.heartbeat = heartbeat
 
 
 class Orchestrator(BaseClass):
@@ -220,15 +236,16 @@ class Orchestrator(BaseClass):
 
     def __init__(
         self,
-        config: OrchestratorConfig | None = None,
-        plugin: OrchestratorPlugin | None = None,
-        name: str | None = None,
+        config: Optional[OrchestratorConfig] = None,
+        plugin: Optional[OrchestratorPlugin] = None,
+        name: Optional[str] = None,
+        **kwargs,
     ):
-        super().__init__(
-            name=name or self.__class__.__name__,
-            config=config or Orchestrator.Config(),
-            plugin=plugin or Orchestrator.Plugin(),
-        )
+        super().__init__(**kwargs)
+
+        self.config = config if config else self.Config()
+        self.plugin = plugin if plugin else self.Plugin()
+        self.name = name if name else self.__class__.__name__
 
         self.setup_logger()
         self._info()
@@ -243,7 +260,18 @@ class Orchestrator(BaseClass):
         self.event_store = EventStore(
             capacity=self.config.history_max_events,
             payload_max_bytes=self.config.history_payload_bytes,
+            event_policies={
+                OrchestratorEvent.AGENT_HEARTBEAT.value: BucketRingStore(2)
+            },
         )
+
+        # Initialize plugin manager for centralized plugin management
+        self.plugin_manager = PluginManager(self.plugin)
+        self.plugin_manager.set_owner(self)
+        self.plugin_manager.plugin_info()
+
+        # Initialize orchestrator plugins
+        self.plugin_manager.initialize_plugins()
 
         # Command interface for external CLI commands
         self.command_channel = None
@@ -283,7 +311,7 @@ class Orchestrator(BaseClass):
                 sev = "ERROR" if ev == OrchestratorEvent.AGENT_ERROR else "INFO"
                 self.event_store.record(
                     category="orchestrator",
-                    type=ev.name,
+                    event_name=ev.name,
                     agent=kw.get("agent_name"),
                     severity=sev,
                     data={k: str(v) for k, v in kw.items() if k != "agent_name"},
@@ -293,7 +321,7 @@ class Orchestrator(BaseClass):
 
         self.event_store.record(
             category="orchestrator",
-            type="INIT",
+            event_name="INIT",
             severity="INFO",
             data={"run_mode": self.config.run_mode.value},
         )
@@ -382,6 +410,10 @@ class Orchestrator(BaseClass):
                 self.event_manager.emit(
                     OrchestratorEvent.AGENT_READY, agent_name=msg.sender
                 )
+            elif event == AgentEvent.AGENT_HEARTBEAT.value:
+                self.event_manager.emit(
+                    OrchestratorEvent.AGENT_HEARTBEAT, agent_name=msg.sender
+                )
             elif event == "ERROR":
                 error_msg = msg.payload.get("message", "Unknown error")
                 self.logger.error(f"Agent {msg.sender} reported error: {error_msg}")
@@ -436,7 +468,7 @@ class Orchestrator(BaseClass):
             # Track error
             self.event_store.record(
                 category="cli",
-                type="CLI_ERROR",
+                event_name="CLI_ERROR",
                 severity="ERROR",
                 data={"error": str(e)},
             )
@@ -489,6 +521,14 @@ class Orchestrator(BaseClass):
             AgentEntry: The agent entry object stored in the memory.
         """
 
+        # Auto-inject heartbeat plugin if exists
+        heartbeat_plugin = self.plugin_manager.get_plugin("heartbeat")
+        if heartbeat_plugin:
+            assert isinstance(heartbeat_plugin, OrchestratorHeartbeatPlugin)
+            custom_plugin = heartbeat_plugin.inject_agent_heartbeat_plugin(
+                custom_plugin
+            )
+
         agent_entry: AgentEntry = self.memory.add_agent(
             agent_class=agent_class,
             name=name,
@@ -499,6 +539,7 @@ class Orchestrator(BaseClass):
             msg_channel=msg_channel or self.msg_channel,
             **kwargs,
         )
+
         self.logger.debug(f"Agent '{name}' registered.")
         return agent_entry
 
@@ -638,7 +679,7 @@ class Orchestrator(BaseClass):
             # Track agent queued event
             self.event_store.record(
                 category="orchestrator",
-                type="QUEUED",
+                event_name="QUEUED",
                 agent=agent_name,
                 severity="WARN",
                 data={
@@ -702,13 +743,16 @@ class Orchestrator(BaseClass):
         # Track orchestrator shutdown
         self.event_store.record(
             category="orchestrator",
-            type="SHUTDOWN",
+            event_name="SHUTDOWN",
             severity="INFO",
             data={"total_agents": str(len(self.memory.agents))},
         )
 
         # Stop the message handling thread
         self._stop_message_thread()
+
+        # Finalize plugins
+        self.plugin_manager.finalize_plugins()
 
         # Close command channel if enabled
         if self.command_channel:
@@ -755,7 +799,7 @@ class Orchestrator(BaseClass):
         # Track agent started from queue
         self.event_store.record(
             category="orchestrator",
-            type="STARTED_FROM_QUEUE",
+            event_name="STARTED_FROM_QUEUE",
             agent=agent_name,
             severity="INFO",
             data={
