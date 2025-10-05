@@ -4,7 +4,7 @@ Test cases for Event History functionality
 Tests the EventStore class and integration with Orchestrator.
 """
 
-import pytest
+import unittest
 import time
 import threading
 from unittest.mock import Mock, patch
@@ -14,22 +14,30 @@ from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.agent import PeriodicProcessAgent
 
 
-class TestEventStore:
+class TestEventStore(unittest.TestCase):
     """Test the EventStore class functionality."""
 
     def test_event_store_initialization(self):
         """Test EventStore initializes with correct defaults."""
         store = EventStore()
-        assert store._events.maxlen == 5000
-        assert store._payload_max == 256
-        assert store._seq == 0
-        assert len(store._events) == 0
+        # Test using public interface
+        info = store.get_capacity_info()
+        global_info = info["global"]
+        self.assertIsInstance(global_info, dict)
+        capacity_data = global_info["capacity"]
+        self.assertIsInstance(capacity_data, dict)
+        self.assertEqual(capacity_data["capacity"], 5000)
+        self.assertEqual(len(store.last(1)), 0)  # No events recorded yet
 
     def test_event_store_custom_capacity(self):
         """Test EventStore with custom capacity."""
         store = EventStore(capacity=100, payload_max_bytes=64)
-        assert store._events.maxlen == 100
-        assert store._payload_max == 64
+        info = store.get_capacity_info()
+        global_info = info["global"]
+        self.assertIsInstance(global_info, dict)
+        capacity_data = global_info["capacity"]
+        self.assertIsInstance(capacity_data, dict)
+        self.assertEqual(capacity_data["capacity"], 100)
 
     def test_record_basic_event(self):
         """Test recording a basic event."""
@@ -43,16 +51,16 @@ class TestEventStore:
             data={"key": "value"},
         )
 
-        assert len(store._events) == 1
-        assert store._seq == 1
+        events = store.last(1)
+        self.assertEqual(len(events), 1)
 
-        event = store._events[0]
-        assert event.seq == 1
-        assert event.category == "test"
-        assert event.type == "TEST_EVENT"
-        assert event.agent == "test-agent"
-        assert event.severity == "INFO"
-        assert event.data == {"key": "value"}
+        event = events[0]
+        self.assertEqual(event.seq, 1)
+        self.assertEqual(event.category, "test")
+        self.assertEqual(event.event_name, "TEST_EVENT")
+        self.assertEqual(event.agent, "test-agent")
+        self.assertEqual(event.severity, "INFO")
+        self.assertEqual(event.data, {"key": "value"})
 
     def test_record_truncation(self):
         """Test payload truncation."""
@@ -61,9 +69,11 @@ class TestEventStore:
         long_text = "a" * 20
         store.record(category="test", event_name="TEST_EVENT", data={"long": long_text})
 
-        event = store._events[0]
-        assert len(event.data["long"]) == 10
-        assert event.data["long"].endswith("...")
+        events = store.last(1)
+        event = events[0]
+        self.assertIsNotNone(event.data)
+        self.assertEqual(len(event.data["long"]), 10)
+        self.assertTrue(event.data["long"].endswith("..."))
 
     def test_eventrecord_to_dict_and_json(self):
         """Verify EventRecord.to_dict() and to_json() shapes and values."""
@@ -76,24 +86,28 @@ class TestEventStore:
             data={"k": "v"},
         )
 
-        event = store._events[0]
+        events = store.last(1)
+        event = events[0]
         d = event.to_dict()
 
         # Basic keys
-        assert d["seq"] == event.seq
-        assert "timestamp" in d and isinstance(d["timestamp"], str)
-        assert d["category"] == "test"
-        assert d["type"] == "TYPE_X"
-        assert d["agent"] == "agent-1"
-        assert d["data"]["k"] == "v"
+        self.assertEqual(d["seq"], event.seq)
+        self.assertIn("timestamp", d)
+        self.assertIsInstance(d["timestamp"], str)
+        self.assertEqual(d["category"], "test")
+        self.assertEqual(d["event_name"], "TYPE_X")
+        self.assertEqual(d["agent"], "agent-1")
+        data_dict = d["data"]
+        self.assertIsInstance(data_dict, dict)
+        self.assertEqual(data_dict["k"], "v")
 
         # JSON serialization returns a valid JSON string
         j = event.to_json()
-        assert isinstance(j, str)
+        self.assertIsInstance(j, str)
         import json as _json
 
         parsed = _json.loads(j)
-        assert parsed["seq"] == event.seq
+        self.assertEqual(parsed["seq"], event.seq)
 
     def test_ring_buffer_behavior(self):
         """Test ring buffer capacity limits."""
@@ -104,12 +118,20 @@ class TestEventStore:
             store.record(category="test", event_name=f"EVENT_{i}")
 
         # Should only keep last 3
-        assert len(store._events) == 3
-        assert store._seq == 5  # Sequence continues counting
+        info = store.get_capacity_info()
+        global_info = info["global"]
+        self.assertIsInstance(global_info, dict)
+        capacity_data = global_info["capacity"]
+        self.assertIsInstance(capacity_data, dict)
+        self.assertEqual(capacity_data["current_size"], 3)
 
-        # Check we have events 2, 3, 4
-        seqs = [e.seq for e in store._events]
-        assert seqs == [3, 4, 5]
+        # Get all events in buffer
+        events = store.last(100)  # Request more than exists
+        self.assertEqual(len(events), 3)
+
+        # Check we have events 3, 4, 5 (sequences continue counting)
+        seqs = [e.seq for e in events]
+        self.assertEqual(seqs, [3, 4, 5])
 
     def test_query_last_events(self):
         """Test querying last N events."""
@@ -126,8 +148,8 @@ class TestEventStore:
 
         # Test basic last query
         events = store.last(5)
-        assert len(events) == 5
-        assert [e.seq for e in events] == [6, 7, 8, 9, 10]
+        self.assertEqual(len(events), 5)
+        self.assertEqual([e.seq for e in events], [6, 7, 8, 9, 10])
 
     def test_query_filtered_by_agent(self):
         """Test filtering events by agent."""
@@ -141,8 +163,8 @@ class TestEventStore:
 
         # Filter by specific agent
         agent_events = store.last(agent="agent-1")
-        assert len(agent_events) > 0
-        assert all(e.agent == "agent-1" for e in agent_events)
+        self.assertGreater(len(agent_events), 0)
+        self.assertTrue(all(e.agent == "agent-1" for e in agent_events))
 
     def test_query_filtered_by_type(self):
         """Test filtering events by type."""
@@ -154,8 +176,8 @@ class TestEventStore:
 
         # Filter by specific type
         type_events = store.last(event_name="TYPE_1")
-        assert len(type_events) > 0
-        assert all(e.event_name == "TYPE_1" for e in type_events)
+        self.assertGreater(len(type_events), 0)
+        self.assertTrue(all(e.event_name == "TYPE_1" for e in type_events))
 
     def test_query_after_sequence(self):
         """Test filtering events after sequence number."""
@@ -167,8 +189,8 @@ class TestEventStore:
 
         # Get events after sequence 5
         events = store.last(after_seq=5)
-        assert len(events) == 5
-        assert all(e.seq > 5 for e in events)
+        self.assertEqual(len(events), 5)
+        self.assertTrue(all(e.seq > 5 for e in events))
 
     def test_stats_global(self):
         """Test global statistics."""
@@ -181,8 +203,8 @@ class TestEventStore:
             store.record(category="test", event_name="TYPE_B")
 
         stats = store.stats()
-        assert stats["by_type"]["TYPE_A"] == 5
-        assert stats["by_type"]["TYPE_B"] == 3
+        self.assertEqual(stats["by_type"]["TYPE_A"], 5)
+        self.assertEqual(stats["by_type"]["TYPE_B"], 3)
 
     def test_stats_by_agent(self):
         """Test statistics filtered by agent."""
@@ -198,13 +220,13 @@ class TestEventStore:
 
         # Check agent-1 stats
         agent1_stats = store.stats(agent="agent-1")
-        assert agent1_stats["by_type"]["TYPE_A"] == 3
-        assert agent1_stats["by_type"]["TYPE_B"] == 2
+        self.assertEqual(agent1_stats["by_type"]["TYPE_A"], 3)
+        self.assertEqual(agent1_stats["by_type"]["TYPE_B"], 2)
 
         # Check agent-2 stats
         agent2_stats = store.stats(agent="agent-2")
-        assert agent2_stats["by_type"]["TYPE_A"] == 4
-        assert "TYPE_B" not in agent2_stats["by_type"]
+        self.assertEqual(agent2_stats["by_type"]["TYPE_A"], 4)
+        self.assertNotIn("TYPE_B", agent2_stats["by_type"])
 
     def test_capacity_info(self):
         """Test capacity information."""
@@ -215,11 +237,14 @@ class TestEventStore:
             store.record(category="test", event_name="TEST_EVENT")
 
         info = store.get_capacity_info()
-        assert info["capacity"] == 100
-        assert info["current_size"] == 10
-        assert info["total_events"] == 10
-        assert info["oldest_seq"] == 1
-        assert info["newest_seq"] == 10
+        global_info = info["global"]
+        self.assertIsInstance(global_info, dict)
+        capacity_data = global_info["capacity"]
+        self.assertIsInstance(capacity_data, dict)
+        self.assertEqual(capacity_data["capacity"], 100)
+        self.assertEqual(capacity_data["current_size"], 10)
+        self.assertEqual(capacity_data["oldest_seq"], 1)
+        self.assertEqual(capacity_data["newest_seq"], 10)
 
     def test_thread_safety(self):
         """Test thread safety of EventStore."""
@@ -250,15 +275,24 @@ class TestEventStore:
             t.join()
 
         # Check no errors occurred
-        assert len(errors) == 0
-        assert store._seq == 500  # 5 workers * 100 events each
+        self.assertEqual(len(errors), 0)
 
-        # Check all events are properly recorded
+        # Check capacity info shows 500 total events were recorded
+        info = store.get_capacity_info()
+        global_info = info["global"]
+        self.assertIsInstance(global_info, dict)
+        capacity_data = global_info["capacity"]
+        self.assertIsInstance(capacity_data, dict)
+        self.assertEqual(
+            capacity_data["newest_seq"], 500
+        )  # 5 workers * 100 events each
+
+        # Check all events are properly recorded (default capacity is 5000, so all should be there)
         events = store.last(500)
-        assert len(events) == 500
+        self.assertEqual(len(events), 500)
 
 
-class TestOrchestratorEventIntegration:
+class TestOrchestratorEventIntegration(unittest.TestCase):
     """Test EventStore integration with Orchestrator."""
 
     def test_orchestrator_has_event_store(self):
@@ -271,10 +305,16 @@ class TestOrchestratorEventIntegration:
             )
         )
 
-        assert hasattr(orchestrator, "event_store")
-        assert isinstance(orchestrator.event_store, EventStore)
-        assert orchestrator.event_store._events.maxlen == 1000
-        assert orchestrator.event_store._payload_max == 512
+        self.assertTrue(hasattr(orchestrator, "event_store"))
+        self.assertIsInstance(orchestrator.event_store, EventStore)
+
+        # Verify capacity through public interface
+        info = orchestrator.event_store.get_capacity_info()
+        global_info = info["global"]
+        self.assertIsInstance(global_info, dict)
+        capacity_data = global_info["capacity"]
+        self.assertIsInstance(capacity_data, dict)
+        self.assertEqual(capacity_data["capacity"], 1000)
 
     def test_orchestrator_records_init_event(self):
         """Test that Orchestrator records initialization event."""
@@ -285,22 +325,22 @@ class TestOrchestratorEventIntegration:
         # Check that INIT event was recorded
         events = orchestrator.event_store.last()
         init_events = [e for e in events if e.event_name == "INIT"]
-        assert len(init_events) == 1
-        assert init_events[0].category == "orchestrator"
-        assert init_events[0].data is not None
-        assert init_events[0].data["run_mode"] == "stop_on_empty"
+        self.assertEqual(len(init_events), 1)
+        self.assertEqual(init_events[0].category, "orchestrator")
+        self.assertIsNotNone(init_events[0].data)
+        self.assertEqual(init_events[0].data["run_mode"], "stop_on_empty")
 
     def test_event_store_config_validation(self):
         """Test EventStore configuration validation."""
         # Test invalid history_max_events
-        with pytest.raises(Exception):  # Should raise validation error
+        with self.assertRaises(Exception):  # Should raise validation error
             config = Orchestrator.Config(
                 run_mode=RunMode.STOP_ON_EMPTY, history_max_events=0  # Invalid
             )
             config._validate()
 
         # Test invalid history_payload_bytes
-        with pytest.raises(Exception):  # Should raise validation error
+        with self.assertRaises(Exception):  # Should raise validation error
             config = Orchestrator.Config(
                 run_mode=RunMode.STOP_ON_EMPTY, history_payload_bytes=-1  # Invalid
             )
@@ -308,4 +348,4 @@ class TestOrchestratorEventIntegration:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    unittest.main()
