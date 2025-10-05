@@ -369,6 +369,7 @@ class MessageChannel:
         Note:
             The timeout parameter controls the maximum wait time for all channel types.
         """
+        msg = None
         if self.a_type in ["thread", "process"]:
             try:
                 msg = self._queue.get(timeout=timeout)  # Get only the message
