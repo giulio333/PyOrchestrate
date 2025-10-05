@@ -68,7 +68,7 @@ class CommandClient:
                 args=args or [],
             )
 
-            response_msg = client.send_and_receive(msg, timeout=5.0)
+            response_msg = client.send_and_receive(msg, timeout=10.0)
 
             if response_msg:
                 return response_msg.payload
