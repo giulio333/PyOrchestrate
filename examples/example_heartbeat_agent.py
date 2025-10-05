@@ -21,7 +21,6 @@ class CriticalAgent(PeriodicProcessAgent):
 
         limit = 10
         execution_interval = 3.0  # Execute every 3 seconds
-        res = 10
 
     config: Config
 
@@ -55,7 +54,7 @@ class MyOrchestrator(Orchestrator):
     class Config(Orchestrator.Config):
         """Configuration for the MyOrchestrator."""
 
-        run_mode = RunMode.STOP_ON_EMPTY
+        run_mode = RunMode.DAEMON
 
 
 if __name__ == "__main__":
