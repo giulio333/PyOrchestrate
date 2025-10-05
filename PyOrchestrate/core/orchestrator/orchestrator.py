@@ -291,6 +291,9 @@ class Orchestrator(BaseClass):
         self._running_agents = 0
         self._waiting_agents_queue = deque()  # Queue for waiting agents
         self._started_agents = set()  # Set for agents that have been started
+        self._terminated_agents = (
+            set()
+        )  # Set for agents that have terminated (to filter stale heartbeats)
         self._shutdown_requested = False  # Flag for graceful shutdown via CLI
 
         # Flag to control the execution of the message thread
@@ -330,27 +333,41 @@ class Orchestrator(BaseClass):
         """
         Function executed in a separate thread to continuously check
         for incoming messages in the queue.
+
+        Optimized for high-throughput message processing:
+        - Uses short timeouts to avoid blocking when queue is full
+        - Processes messages in tight loop without unnecessary delays
+        - Batches multiple messages per iteration when available
         """
         self.logger.trace("Message handling thread started")
 
         while self._message_thread_running:
             try:
-                # Check if there are messages in the queue from agents
-                msg = self.msg_channel.receive(timeout=0.5)
-                if msg:
-                    self.handle_agent_message(msg)
+                messages_processed = 0
 
-                # Check if there are external commands (if command interface is enabled)
+                # Process agent messages in batch (up to 10 per iteration)
+                # Use short timeout to avoid blocking when many messages are queued
+                for _ in range(10):
+                    msg = self.msg_channel.receive(timeout=0.01)
+                    if msg:
+                        self.handle_agent_message(msg)
+                        messages_processed += 1
+                    else:
+                        break  # No more messages available
+
+                # Check for external commands (less frequently, lower priority)
                 if self.command_channel:
-                    cmd_msg = self.command_channel.receive(timeout=0.5)
+                    cmd_msg = self.command_channel.receive(timeout=0.01)
                     if cmd_msg:
                         self.handle_external_command(cmd_msg)
+                        messages_processed += 1
+
+                # Only sleep if no messages were processed to avoid busy-waiting
+                if messages_processed == 0:
+                    time.sleep(0.05)  # 50ms sleep when idle
 
             except Exception as e:
                 self.logger.error(f"Error in message handling thread: {e}")
-
-            # Short pause to avoid excessive CPU usage
-            time.sleep(0.01)
 
         self.logger.trace("Message handling thread terminated")
 
@@ -399,6 +416,8 @@ class Orchestrator(BaseClass):
             event = msg.payload.get("event")
 
             if event == AgentEvent.AGENT_CLOSE.value:
+                # Mark agent as terminated to filter out stale heartbeat messages
+                self._terminated_agents.add(msg.sender)
                 self.event_manager.emit(
                     OrchestratorEvent.AGENT_TERMINATED, agent_name=msg.sender
                 )
@@ -411,9 +430,15 @@ class Orchestrator(BaseClass):
                     OrchestratorEvent.AGENT_READY, agent_name=msg.sender
                 )
             elif event == AgentEvent.AGENT_HEARTBEAT.value:
-                self.event_manager.emit(
-                    OrchestratorEvent.AGENT_HEARTBEAT, agent_name=msg.sender
-                )
+                # Ignore heartbeats from terminated agents (stale messages in queue)
+                if msg.sender not in self._terminated_agents:
+                    self.event_manager.emit(
+                        OrchestratorEvent.AGENT_HEARTBEAT, agent_name=msg.sender
+                    )
+                else:
+                    self.logger.debug(
+                        f"Ignoring stale heartbeat from terminated agent '{msg.sender}'"
+                    )
             elif event == "ERROR":
                 error_msg = msg.payload.get("message", "Unknown error")
                 self.logger.error(f"Agent {msg.sender} reported error: {error_msg}")
