@@ -10,6 +10,9 @@ from datetime import datetime
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 
 
+@unittest.skip(
+    "Unix socket tests deprecated - ZMQ tests in test_communication_plugin.py"
+)
 class TestMessageChannelClient(unittest.TestCase):
     """Test MessageChannel client communication with MessageChannel server."""
 

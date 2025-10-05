@@ -19,7 +19,7 @@ class CLIConstants:
     """Constants used throughout the CLI application."""
 
     VERSION = "0.2.0"
-    DEFAULT_SOCKET_PATH = "/tmp/pyorchestrate.sock"
+    DEFAULT_ZMQ_ADDRESS = "tcp://127.0.0.1:5555"
     DEFAULT_STATS_INTERVAL = 2.0
 
     STARTER_TEMPLATE = """import os, sys
@@ -52,15 +52,15 @@ if __name__ == "__main__":
 class CommandClient:
     """Handles communication with the orchestrator via MessageChannel."""
 
-    def __init__(self, socket_path: str = CLIConstants.DEFAULT_SOCKET_PATH):
-        self.socket_path = socket_path
+    def __init__(self, zmq_address: str = CLIConstants.DEFAULT_ZMQ_ADDRESS):
+        self.zmq_address = zmq_address
 
     def send_command(
         self, command: str, args: Optional[List[str]] = None
     ) -> Optional[Dict[str, Any]]:
         """Send a command to the orchestrator and return the response."""
         try:
-            client = MessageChannel("unix_socket_client", self.socket_path)
+            client = MessageChannel("zmq_dealer", self.zmq_address)
 
             msg = ServiceMessage.create_command(
                 sender="cli",
@@ -139,7 +139,7 @@ class OrchestratorCommand(BaseCommand):
                 print(output)
             else:
                 print(
-                    f"Error: Cannot connect to socket {self.client.socket_path}. "
+                    f"Error: Cannot connect to ZMQ address {self.client.zmq_address}. "
                     "Is the orchestrator running with command interface enabled?"
                 )
 
@@ -224,7 +224,7 @@ class StatsCommand(BaseCommand):
                 else:
                     print(f"Error: {response.get('message', 'Unknown error')}")
             else:
-                print(f"Error: Cannot connect to socket {self.client.socket_path}")
+                print(f"Error: Cannot connect to ZMQ address {self.client.zmq_address}")
                 print("Is the orchestrator running with command interface enabled?")
 
         except Exception as e:
@@ -316,8 +316,8 @@ class ArgumentParser:
             cmd_parser = subparsers.add_parser(cmd_name, help=cmd_help)
             cmd_parser.add_argument(
                 "--socket",
-                default=CLIConstants.DEFAULT_SOCKET_PATH,
-                help=f"Path to orchestrator socket (default: {CLIConstants.DEFAULT_SOCKET_PATH})",
+                default=CLIConstants.DEFAULT_ZMQ_ADDRESS,
+                help=f"ZeroMQ address (default: {CLIConstants.DEFAULT_ZMQ_ADDRESS})",
             )
 
             if cmd_name in ["status", "stop", "start"]:
@@ -349,8 +349,8 @@ class ArgumentParser:
         )
         stats_parser.add_argument(
             "--socket",
-            default=CLIConstants.DEFAULT_SOCKET_PATH,
-            help=f"Path to orchestrator socket (default: {CLIConstants.DEFAULT_SOCKET_PATH})",
+            default=CLIConstants.DEFAULT_ZMQ_ADDRESS,
+            help=f"ZeroMQ address (default: {CLIConstants.DEFAULT_ZMQ_ADDRESS})",
         )
         stats_parser.add_argument(
             "--interval",
@@ -404,7 +404,7 @@ class CLIApplication:
             ArgumentParser.prepare_command_from_args(args)
 
             # Create client with appropriate socket path
-            socket_path = getattr(args, "socket", CLIConstants.DEFAULT_SOCKET_PATH)
+            socket_path = getattr(args, "socket", CLIConstants.DEFAULT_ZMQ_ADDRESS)
             client = CommandClient(socket_path)
 
             # Route and execute command
