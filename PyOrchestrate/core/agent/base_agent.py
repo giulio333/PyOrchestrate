@@ -13,8 +13,8 @@ from datetime import datetime
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.event import AgentEvent
 from PyOrchestrate.core.plugins.plugin_manager import PluginManager
+from PyOrchestrate.core.plugins.heartbeat import AgentHeartbeatTimerPlugin
 from PyOrchestrate.core.utilities.validation import (
-    ValidationResult,
     ConfigValidationError,
     ConfigValidationWarning,
 )
@@ -30,7 +30,7 @@ class AgentTerminationStatus(Enum):
     CRITICAL = "critical"  # Terminated with critical errors
 
 
-class BaseAgentConfig(BaseClass.Config):
+class AgentConfig(BaseClass.Config):
     """
     Base agent configuration class.
 
@@ -64,6 +64,22 @@ class BaseAgentConfig(BaseClass.Config):
     """
 
     pass
+
+
+class AgentPlugin(BaseClass.Plugin):
+    """
+    Plugin class for agents.
+
+    This class can contain various plugins that extend agent functionality.
+    """
+
+    heartbeat: AgentHeartbeatTimerPlugin | None = None
+
+    def __init__(self, heartbeat: AgentHeartbeatTimerPlugin | None = None, **kwargs):
+        super().__init__(**kwargs)
+
+        if heartbeat is not None:
+            self.heartbeat = heartbeat
 
 
 class BaseAgent(BaseClass, ABC):
@@ -107,7 +123,8 @@ class BaseAgent(BaseClass, ABC):
 
     a_type: str = ""
 
-    Config = BaseAgentConfig
+    Config = AgentConfig
+    Plugin = AgentPlugin
 
     class StateEvents:
         """
@@ -141,9 +158,9 @@ class BaseAgent(BaseClass, ABC):
 
     def __init__(
         self,
-        name: str | None = None,
-        config: Optional[BaseClass.Config] = None,
-        plugin: Optional[BaseClass.Plugin] = None,
+        name: Optional[str] = None,
+        config: Optional[AgentConfig] = None,
+        plugin: Optional[AgentPlugin] = None,
         a_type: Literal["process", "thread"] = "process",
         control_events: Optional[ControlEvents] = None,
         state_events: Optional[StateEvents] = None,
@@ -170,14 +187,18 @@ class BaseAgent(BaseClass, ABC):
         Args:
             name (str | None): The agent name.
             config (BaseAgentConfig): The agent configuration.
-            plugin (PluginProtocol): The plugin interface for agent extension.
+            plugin (BaseAgentPlugin): The plugin interface for agent extension.
             a_type (Literal["process", "thread"]): The agent type.
             control_events (ControlEvents, optional): Events for external command handling.
             state_events (StateEvents, optional): Events for internal state management.
             msg_channel (MessageChannel, optional): Message channel for service communication.
             **kwargs: Additional keyword arguments for agent configuration.
         """
-        super().__init__(name=name, config=config, plugin=plugin, **kwargs)
+        super().__init__(**kwargs)
+
+        self.config = config if config else self.Config()
+        self.plugin = plugin if plugin else self.Plugin()
+        self.name = name if name else self.__class__.__name__
 
         self.start_time = 0
         """Timestamp when the agent started running."""
@@ -537,7 +558,7 @@ class AgentProtocol(Protocol):
     ident: int | None
     pid: int | None
     termination_status: AgentTerminationStatus
-    config: BaseAgentConfig
+    config: AgentConfig
     plugin: BaseClass.Plugin
     plugin_manager: PluginManager
     state_events: BaseAgent.StateEvents

@@ -100,7 +100,7 @@ class ZeroMQPubSub(PluginProtocol):
         Initializes the ZeroMQ plugin.
         """
         if self._initialized:
-            return self
+            return
 
         if self.socket_type == SocketType.PUB:
             self._socket = self.context.socket(SocketType.PUB)
@@ -115,8 +115,6 @@ class ZeroMQPubSub(PluginProtocol):
             raise ValueError("Unsupported socket type for ZeroMQPubSub plugin.")
 
         self._initialized = True
-
-        return self
 
     def finalize(self):
         """
@@ -174,6 +172,9 @@ class ZeroMQPubSub(PluginProtocol):
             return self.socket.send_multipart([topic, message])
         else:
             return self.socket.send_multipart([topic, message], zmq.NOBLOCK)
+
+    def set_owner(self, owner):
+        return super().set_owner(owner)
 
 
 class ZeroMQReqRep(PluginProtocol):
@@ -234,7 +235,7 @@ class ZeroMQReqRep(PluginProtocol):
         For zmq.REP, binds to the address.
         """
         if self._initialized:
-            return self
+            return
 
         if self.socket_type == SocketType.REQ:
             self._socket = self.context.socket(SocketType.REQ)
@@ -246,8 +247,6 @@ class ZeroMQReqRep(PluginProtocol):
             raise ValueError("Unsupported socket type for ZeroMQReqRep plugin.")
 
         self._initialized = True
-
-        return self
 
     def send(self, message: bytes, blocking: bool = True) -> None:
         """
@@ -301,6 +300,9 @@ class ZeroMQReqRep(PluginProtocol):
         self.socket.close()
         self.context.term()
         self._initialized = False
+
+    def set_owner(self, owner):
+        return super().set_owner(owner)
 
 
 class ZeroMQPushPull(PluginProtocol):
@@ -373,7 +375,7 @@ class ZeroMQPushPull(PluginProtocol):
         For SocketType.PULL, the socket connects to the address.
         """
         if self._initialized:
-            return self
+            return
 
         if self.socket_type == SocketType.PUSH:
             self._socket = self.context.socket(SocketType.PUSH)
@@ -389,8 +391,6 @@ class ZeroMQPushPull(PluginProtocol):
             raise ValueError("Unsupported socket type for ZeroMQPushPull plugin.")
 
         self._initialized = True
-
-        return self
 
     def send(self, message: bytes, blocking: bool = True) -> None:
         """
@@ -451,6 +451,9 @@ class ZeroMQPushPull(PluginProtocol):
         self.socket.close()
         self.context.term()
         self._initialized = False
+
+    def set_owner(self, owner):
+        return super().set_owner(owner)
 
 
 class ZeroMQRouterDealer(PluginProtocol):
@@ -532,7 +535,7 @@ class ZeroMQRouterDealer(PluginProtocol):
         For SocketType.DEALER, the socket connects to the address.
         """
         if self._initialized:
-            return self
+            return
 
         if self.socket_type == SocketType.ROUTER:
             self._socket = self.context.socket(SocketType.ROUTER)
@@ -552,8 +555,6 @@ class ZeroMQRouterDealer(PluginProtocol):
             raise ValueError("Unsupported socket type for ZeroMQRouterDealer plugin.")
 
         self._initialized = True
-
-        return self
 
     def send(self, message: bytes, blocking: bool = True) -> None:
         """
@@ -654,6 +655,9 @@ class ZeroMQRouterDealer(PluginProtocol):
         self.context.term()
         self._initialized = False
 
+    def set_owner(self, owner):
+        return super().set_owner(owner)
+
 
 class ZeroMQPair(PluginProtocol):
     """
@@ -727,7 +731,7 @@ class ZeroMQPair(PluginProtocol):
         Creates a PAIR socket and either binds or connects based on configuration.
         """
         if self._initialized:
-            return self
+            return
 
         self._socket = self.context.socket(SocketType.PAIR)
 
@@ -741,8 +745,6 @@ class ZeroMQPair(PluginProtocol):
             self._socket.connect(self.address)
 
         self._initialized = True
-
-        return self
 
     def send(self, message: bytes, blocking: bool = True) -> None:
         """
@@ -790,6 +792,9 @@ class ZeroMQPair(PluginProtocol):
         """
         Finalizes the ZeroMQ plugin.
         """
+
+    def set_owner(self, owner):
+        return super().set_owner(owner)
 
 
 class ZeroMQPoller(PluginProtocol):
@@ -857,12 +862,10 @@ class ZeroMQPoller(PluginProtocol):
         Initializes the ZeroMQ poller.
         """
         if self._initialized:
-            return self
+            return
 
         self._poller = zmq.Poller()
         self._initialized = True
-
-        return self
 
     def register(self, socket: zmq.Socket, flags: int = zmq.POLLIN) -> None:
         """
@@ -908,3 +911,6 @@ class ZeroMQPoller(PluginProtocol):
             self._poller = None
         self._initialized = False
         self._initialized = False
+
+    def set_owner(self, owner):
+        return super().set_owner(owner)

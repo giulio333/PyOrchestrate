@@ -1,7 +1,7 @@
 import time
 import threading
 from collections import defaultdict, deque
-from typing import List, final
+from typing import List, final, Optional
 from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
@@ -236,15 +236,16 @@ class Orchestrator(BaseClass):
 
     def __init__(
         self,
-        config: OrchestratorConfig | None = None,
-        plugin: OrchestratorPlugin | None = None,
-        name: str | None = None,
+        config: Optional[OrchestratorConfig] = None,
+        plugin: Optional[OrchestratorPlugin] = None,
+        name: Optional[str] = None,
+        **kwargs,
     ):
-        super().__init__(
-            name=name or self.__class__.__name__,
-            config=config,
-            plugin=plugin,
-        )
+        super().__init__(**kwargs)
+
+        self.config = config if config else self.Config()
+        self.plugin = plugin if plugin else self.Plugin()
+        self.name = name if name else self.__class__.__name__
 
         self.setup_logger()
         self._info()
