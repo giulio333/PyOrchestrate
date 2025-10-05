@@ -13,8 +13,8 @@ from datetime import datetime
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.event import AgentEvent
 from PyOrchestrate.core.plugins.plugin_manager import PluginManager
+from PyOrchestrate.core.plugins.heartbeat import AgentHeartbeatTimerPlugin
 from PyOrchestrate.core.utilities.validation import (
-    ValidationResult,
     ConfigValidationError,
     ConfigValidationWarning,
 )
@@ -30,7 +30,7 @@ class AgentTerminationStatus(Enum):
     CRITICAL = "critical"  # Terminated with critical errors
 
 
-class BaseAgentConfig(BaseClass.Config):
+class AgentConfig(BaseClass.Config):
     """
     Base agent configuration class.
 
@@ -63,38 +63,23 @@ class BaseAgentConfig(BaseClass.Config):
         ... )
     """
 
-    def validate(self) -> List[ValidationResult]:
-        """
-        BaseAgent-specific validation implementation.
+    pass
 
-        Returns:
-            List[ValidationResult]: List of validation results.
-        """
-        results = super().validate()
 
-        # Add common validations for all agents here
+class AgentPlugin(BaseClass.Plugin):
+    """
+    Plugin class for agents.
 
-        return results
+    This class can contain various plugins that extend agent functionality.
+    """
 
-    def to_dict(self) -> dict:
-        """
-        Convert the agent configuration to a dictionary.
+    heartbeat: AgentHeartbeatTimerPlugin | None = None
 
-        Returns:
-            dict: Dictionary representation of the agent configuration.
-        """
-        instance_attrs = {}
-        for key, value in self.__dict__.items():
-            if not key.startswith("_"):
-                instance_attrs[key] = value
+    def __init__(self, heartbeat: AgentHeartbeatTimerPlugin | None = None, **kwargs):
+        super().__init__(**kwargs)
 
-        class_attrs = {}
-        for key, value in self.__class__.__dict__.items():
-            if not key.startswith("_"):
-                class_attrs[key] = value
-
-        # instance attributes take precedence over class attributes
-        return {**class_attrs, **instance_attrs}
+        if heartbeat is not None:
+            self.heartbeat = heartbeat
 
 
 class BaseAgent(BaseClass, ABC):
@@ -126,7 +111,6 @@ class BaseAgent(BaseClass, ABC):
         plugin (PluginProtocol): Plugin interface for agent extension.
         state_events (StateEvents): Events for internal state management.
         control_events (ControlEvents): Events for external command handling.
-        plugins (Dict[str, Plugin]): Registered plugins.
 
     Methods:
         run: Main entry point for agent execution.
@@ -139,7 +123,8 @@ class BaseAgent(BaseClass, ABC):
 
     a_type: str = ""
 
-    Config = BaseAgentConfig
+    Config = AgentConfig
+    Plugin = AgentPlugin
 
     class StateEvents:
         """
@@ -173,9 +158,9 @@ class BaseAgent(BaseClass, ABC):
 
     def __init__(
         self,
-        name: str | None = None,
-        config: Optional[BaseClass.Config] = None,
-        plugin: Optional[BaseClass.Plugin] = None,
+        name: Optional[str] = None,
+        config: Optional[AgentConfig] = None,
+        plugin: Optional[AgentPlugin] = None,
         a_type: Literal["process", "thread"] = "process",
         control_events: Optional[ControlEvents] = None,
         state_events: Optional[StateEvents] = None,
@@ -202,14 +187,18 @@ class BaseAgent(BaseClass, ABC):
         Args:
             name (str | None): The agent name.
             config (BaseAgentConfig): The agent configuration.
-            plugin (PluginProtocol): The plugin interface for agent extension.
+            plugin (BaseAgentPlugin): The plugin interface for agent extension.
             a_type (Literal["process", "thread"]): The agent type.
             control_events (ControlEvents, optional): Events for external command handling.
             state_events (StateEvents, optional): Events for internal state management.
             msg_channel (MessageChannel, optional): Message channel for service communication.
             **kwargs: Additional keyword arguments for agent configuration.
         """
-        super().__init__(name=name, config=config, plugin=plugin, **kwargs)
+        super().__init__(**kwargs)
+
+        self.config = config if config else self.Config()
+        self.plugin = plugin if plugin else self.Plugin()
+        self.name = name if name else self.__class__.__name__
 
         self.start_time = 0
         """Timestamp when the agent started running."""
@@ -278,6 +267,9 @@ class BaseAgent(BaseClass, ABC):
             self._info()
 
             self.validate_config()
+
+            # Pass agent reference to plugins before initialization
+            self.plugin_manager.set_owner(self)
 
             self.plugin_manager.initialize_plugins()
 
@@ -566,13 +558,13 @@ class AgentProtocol(Protocol):
     ident: int | None
     pid: int | None
     termination_status: AgentTerminationStatus
-    config: BaseAgentConfig
+    config: AgentConfig
     plugin: BaseClass.Plugin
     plugin_manager: PluginManager
     state_events: BaseAgent.StateEvents
     control_events: BaseAgent.ControlEvents
     start_time: float
-    plugins: dict[str, BaseClass.Plugin]
+    # plugins: dict[str, BaseClass.Plugin]
 
     def run(self) -> None: ...
 

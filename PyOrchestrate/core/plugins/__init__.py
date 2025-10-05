@@ -7,3 +7,11 @@ from PyOrchestrate.core.plugins.com import (
     ZeroMQPoller,
     SocketType,
 )
+
+from PyOrchestrate.core.plugins.heartbeat import (
+    AgentHeartbeatTimerPlugin,
+)
+
+from PyOrchestrate.core.plugins.heartbeat import (
+    OrchestratorHeartbeatPlugin,
+)
