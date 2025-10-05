@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, List, Optional, Set
 from enum import Enum
 
 from PyOrchestrate.core.orchestrator.event_store import EventRecord
-from PyOrchestrate.core.utilities.messaging import make_response_payload
 
 if TYPE_CHECKING:
     from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
@@ -255,8 +254,7 @@ class CommandHandler:
         """Start a specific agent."""
         try:
             if agent_name in self.orchestrator._started_agents:
-                return make_response_payload(
-                    status="error",
+                raise CommandException(
                     message=f"Agent {agent_name} is already started",
                     code=409,
                 )
@@ -264,8 +262,7 @@ class CommandHandler:
             if agent_name not in [
                 agent.name for agent in self.orchestrator.memory.agents
             ]:
-                return make_response_payload(
-                    status="error",
+                raise CommandException(
                     message=f"Agent {agent_name} is not registered",
                     code=404,
                 )
@@ -289,8 +286,7 @@ class CommandHandler:
         try:
             agent = self.orchestrator.memory.get_agent(agent_name)
             if not agent:
-                return make_response_payload(
-                    status="error",
+                raise CommandException(
                     message=f"Agent {agent_name} not found",
                     code=404,
                 )
