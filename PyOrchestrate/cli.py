@@ -596,7 +596,7 @@ class OutputFormatter:
             for event in events:
                 timestamp = event.get("timestamp", "")[:19]
                 category = event.get("category", "")[:11]
-                event_type = event.get("type", "")[:19]
+                event_type = event.get("event_name", "")[:19]
                 agent = (event.get("agent") or "")[:14]
                 severity = event.get("severity", "")[:4]
                 seq = event.get("seq", 0)

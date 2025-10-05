@@ -28,7 +28,6 @@ class CriticalAgent(PeriodicProcessAgent):
         """Setup method called when agent starts."""
         super().setup()
         self.logger.info("CriticalAgent setup complete")
-        print(self.config.res)
 
     def runner(self):
         """Main agent logic."""
