@@ -136,8 +136,7 @@ class OrchestratorHeartbeatPlugin:
 
         self._initialized = False
 
-        if self._orchestrator and hasattr(self._orchestrator, "logger"):
-            self._orchestrator.logger.info("Heartbeat monitoring finalized")
+        self.orchestrator.logger.info("Heartbeat monitoring finalized")
 
     def _start_monitoring_thread(self):
         """Start the heartbeat monitoring thread."""
@@ -156,10 +155,7 @@ class OrchestratorHeartbeatPlugin:
             try:
                 self._check_heartbeat_timeouts()
             except Exception as e:
-                if self._orchestrator and hasattr(self._orchestrator, "logger"):
-                    self._orchestrator.logger.error(
-                        f"Error in heartbeat monitoring: {e}"
-                    )
+                self.orchestrator.logger.error(f"Error in heartbeat monitoring: {e}")
 
             # Wait for next check
             if self._stop_event.wait(timeout=self.check_interval):
@@ -200,7 +196,7 @@ class OrchestratorHeartbeatPlugin:
             f"Last heartbeat: {time_since:.1f}s ago"
         )
 
-        # Record event in event store if available
+        # Record event in event store
         self.orchestrator.event_store.record(
             category="heartbeat",
             event_name="AGENT_TIMEOUT",
@@ -220,7 +216,7 @@ class OrchestratorHeartbeatPlugin:
         # Remove from timeout list if it was there
         self._timeout_detected.discard(agent_name)
 
-        self.orchestrator.logger.trace(f"Heartbeat received from agent '{agent_name}'")
+        self.orchestrator.logger.debug(f"Heartbeat received from agent '{agent_name}'")
 
     def _on_agent_started(self, agent_name: str, **kwargs):
         """Handle agent started events."""
@@ -303,9 +299,9 @@ class OrchestratorHeartbeatPlugin:
                 "Overriding existing custom_plugin when auto-injecting heartbeat plugin"
             )
 
-        from PyOrchestrate.core.base.base import BaseClassPlugin
+        from PyOrchestrate.core.agent.base_agent import AgentPlugin
 
-        custom_plugin = BaseClassPlugin(heartbeat=heartbeat_plugin)
+        custom_plugin = AgentPlugin(heartbeat=heartbeat_plugin)
 
         self.orchestrator.logger.debug(
             f"Auto-injected heartbeat plugin into agent with interval={self.agent_send_interval}s"
