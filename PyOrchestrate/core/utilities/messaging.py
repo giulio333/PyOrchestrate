@@ -1,21 +1,15 @@
 import queue
 import multiprocessing
-import socket
-import os
 import json
-import time
 import uuid
 from datetime import datetime
-from dataclasses import dataclass, asdict
-from typing import Union, Optional, Literal, Dict, Any
+from dataclasses import dataclass
+from typing import Optional, Literal, Dict, Any
+import zmq
 
 
 # Constants
-DEFAULT_SOCKET_PATH = "/tmp/pyorchestrate.sock"
-SOCKET_LISTEN_BACKLOG = 5
-SOCKET_TIMEOUT = 1.0
-CHUNK_SIZE = 8192  # Read in 8KB chunks
-MAX_MESSAGE_SIZE = 100 * 1024 * 1024  # 100MB maximum message size
+DEFAULT_ZMQ_ADDRESS = "tcp://127.0.0.1:5555"
 PROTOCOL_VERSION = "1.0"
 
 
@@ -223,47 +217,48 @@ class MessageChannel:
     """A message channel for communication between agents and orchestrators.
 
     Provides a unified interface for sending and receiving messages across different
-    communication protocols including thread queues, process queues, and UNIX domain sockets.
+    communication protocols including thread queues, process queues, and ZeroMQ sockets.
     The channel automatically handles the underlying communication mechanism based on the
     specified type, allowing seamless communication between system components.
 
     Attributes:
-        a_type: The type of communication channel ('thread', 'process', 'unix_socket', or 'unix_socket_client').
-        socket_path: Path to the UNIX domain socket file (only used for 'unix_socket' types).
+        a_type: The type of communication channel ('thread', 'process', 'zmq_router', or 'zmq_dealer').
+        zmq_address: ZeroMQ address (only used for ZMQ types, e.g., 'tcp://127.0.0.1:5555').
 
     Example:
-        >>> # Server mode
-        >>> server = MessageChannel('unix_socket')
+        >>> # Server mode (orchestrator)
+        >>> server = MessageChannel('zmq_router', 'tcp://*:5555')
         >>> msg = ServiceMessage('agent1', 'STATUS', 'running', datetime.now())
         >>> server.send('target', msg)
         >>> received = server.receive(timeout=1.0)
 
-        >>> # Client mode
-        >>> client = MessageChannel('unix_socket_client', '/tmp/pyorchestrate.sock')
+        >>> # Client mode (CLI/web service)
+        >>> client = MessageChannel('zmq_dealer', 'tcp://127.0.0.1:5555')
         >>> response = client.send_and_receive(msg, timeout=5.0)
         >>> client.close()
     """
 
     def __init__(
         self,
-        a_type: Literal["thread", "process", "unix_socket", "unix_socket_client"],
-        socket_path: str = DEFAULT_SOCKET_PATH,
+        a_type: Literal["thread", "process", "zmq_router", "zmq_dealer"],
+        zmq_address: str = DEFAULT_ZMQ_ADDRESS,
     ):
         self.a_type = a_type
-        self.socket_path = socket_path
+        self.zmq_address = zmq_address
+        self._zmq_context: Optional[zmq.Context] = None
+        self._zmq_socket: Optional[zmq.Socket] = None
 
         if a_type == "thread":
             self._queue = queue.Queue()
         elif a_type == "process":
             self._queue = multiprocessing.Queue()
-        elif a_type == "unix_socket":
-            self._setup_unix_socket_server()
-            self._clients: list[socket.socket] = []  # Store client connections
-        elif a_type == "unix_socket_client":
-            self._socket: Optional[socket.socket] = None
+        elif a_type == "zmq_router":
+            self._setup_zmq_router()
+        elif a_type == "zmq_dealer":
+            self._setup_zmq_dealer()
         else:
             raise ValueError(
-                "Invalid a_type. Must be 'thread', 'process', 'unix_socket', or 'unix_socket_client'."
+                "Invalid a_type. Must be 'thread', 'process', 'zmq_router', or 'zmq_dealer'."
             )
 
     def send(self, target: str, msg: ServiceMessage) -> None:
@@ -271,26 +266,18 @@ class MessageChannel:
 
         Sends a ServiceMessage through the appropriate communication mechanism based on
         the channel type. For thread/process queues, the message is queued directly.
-        For UNIX sockets, the message is broadcast to all connected clients (server mode)
-        or sent to the server (client mode).
+        For ZMQ sockets, the message is sent as JSON frames.
 
         Args:
-            target: The intended recipient identifier. NOTE: currently ignored
-                    and treated as deprecated — kept for backward compatibility
-                    and potential future routing features.
+            target: The intended recipient identifier. For ZMQ ROUTER, this is used
+                   for routing. For queues, it's ignored.
             msg: The ServiceMessage instance to send containing sender, type, payload,
                 and timestamp information.
-
-        Note:
-            The target parameter is currently ignored in the implementation but maintained
-            for API compatibility and potential future message routing functionality.
         """
         if self.a_type in ["thread", "process"]:
-            self._queue.put(msg)  # Store only the message
-        elif self.a_type == "unix_socket":
-            self._send_to_unix_socket_server(msg)
-        elif self.a_type == "unix_socket_client":
-            self._send_to_unix_socket_client(msg)
+            self._queue.put(msg)
+        elif self.a_type in ["zmq_router", "zmq_dealer"]:
+            self._send_zmq(target, msg)
 
     def receive(self, timeout: Optional[float]) -> Optional[ServiceMessage]:
         """Receive a message from the communication channel.
@@ -298,65 +285,39 @@ class MessageChannel:
         Args:
             timeout: Maximum time in seconds to wait for a message. If None, the
                      call may block indefinitely for queue-based channels or use the
-                     socket default blocking behaviour for UNIX sockets.
-
-        Attempts to receive a ServiceMessage from the appropriate communication mechanism.
-        For thread/process queues, it retrieves from the queue with optional timeout.
-        For UNIX sockets, it checks for new connections and reads from existing clients
-        (server mode) or reads from the server connection (client mode).
-
-        Args:
-            timeout: Maximum time in seconds to wait for a message. If None, the method
-                    will block indefinitely for thread/process queues, or use the default
-                    CLIENT_RECEIVE_TIMEOUT for UNIX sockets.
+                     default blocking behaviour for ZMQ sockets.
 
         Returns:
             A ServiceMessage if one was received, None if no message is available or
             timeout was reached.
-
-        Note:
-            The timeout parameter controls the maximum wait time for all channel types.
         """
-        msg = None
         if self.a_type in ["thread", "process"]:
             try:
-                msg = self._queue.get(timeout=timeout)  # Get only the message
+                msg = self._queue.get(timeout=timeout)
+                return msg
             except queue.Empty:
                 return None
-        elif self.a_type == "unix_socket":
-            msg = self._receive_from_unix_socket_server(timeout)
-        elif self.a_type == "unix_socket_client":
-            msg = self._receive_from_unix_socket_client(timeout)
-
-        return msg
+        elif self.a_type in ["zmq_router", "zmq_dealer"]:
+            return self._receive_zmq(timeout)
 
     def send_and_receive(
         self, msg: ServiceMessage, timeout: float = 5.0, auto_close: bool = False
     ) -> Optional[ServiceMessage]:
-        """Send a message and wait for response (client mode only).
+        """Send a message and wait for response (dealer mode only).
 
         Args:
             msg: ServiceMessage to send.
             timeout: Maximum time to wait for response in seconds.
-            auto_close: Whether to close the connection automatically after receiving a response.
+            auto_close: Whether to close the connection after receiving response.
 
         Returns:
             ServiceMessage response if successful, None otherwise.
         """
-        if self.a_type != "unix_socket_client":
-            raise ValueError(
-                "send_and_receive is only available for unix_socket_client mode"
-            )
+        if self.a_type != "zmq_dealer":
+            raise ValueError("send_and_receive is only available for zmq_dealer mode")
 
-        if not self._socket:
-            if not self._connect_to_server():
-                return None
-
-        if not self._send_to_unix_socket_client(msg):
-            self.close()
-            return None
-
-        response = self._receive_from_unix_socket_client(timeout)
+        self.send("", msg)  # Empty target for dealer
+        response = self.receive(timeout)
 
         if auto_close:
             self.close()
@@ -366,222 +327,125 @@ class MessageChannel:
     def close(self):
         """Close the message channel and cleanup resources.
 
-        Performs cleanup operations specific to the communication channel type.
-        For UNIX socket channels, this includes:
-        - Closing all active client connections (server mode)
-        - Closing the client connection (client mode)
-        - Shutting down the server socket (server mode)
-        - Removing the socket file from the filesystem (server mode)
-
-        For thread and process queues, no cleanup is necessary as the queue
-        objects are automatically garbage collected.
-
-        Note:
-            It's important to call this method when done with UNIX socket channels
-            to prevent resource leaks and ensure the socket file is properly removed.
+        For ZMQ channels, closes the socket and terminates the context.
+        For thread/process queues, no cleanup is necessary.
         """
-        if self.a_type == "unix_socket":
-            # Close all client connections
-            if hasattr(self, "_clients"):
-                for client in self._clients:
-                    client.close()
-                self._clients.clear()
+        if self.a_type in ["zmq_router", "zmq_dealer"]:
+            if self._zmq_socket:
+                self._zmq_socket.close()
+                self._zmq_socket = None
+            if self._zmq_context:
+                self._zmq_context.term()
+                self._zmq_context = None
 
-            # Close server socket
-            if hasattr(self, "_socket") and self._socket:
-                self._socket.close()
+    def _setup_zmq_router(self):
+        """Setup ZMQ ROUTER socket (server mode for orchestrator)."""
+        self._zmq_context = zmq.Context()
+        self._zmq_socket = self._zmq_context.socket(zmq.ROUTER)
+        assert self._zmq_socket is not None
+        self._zmq_socket.setsockopt(zmq.LINGER, 0)  # Don't wait on close
+        self._zmq_socket.bind(self.zmq_address)
 
-            # Remove socket file
-            if os.path.exists(self.socket_path):
-                os.unlink(self.socket_path)
-        elif self.a_type == "unix_socket_client":
-            if hasattr(self, "_socket") and self._socket:
-                self._socket.close()
-                self._socket = None
+    def _setup_zmq_dealer(self):
+        """Setup ZMQ DEALER socket (client mode for CLI/web)."""
+        self._zmq_context = zmq.Context()
+        self._zmq_socket = self._zmq_context.socket(zmq.DEALER)
+        assert self._zmq_socket is not None
+        self._zmq_socket.setsockopt(zmq.LINGER, 0)
+        self._zmq_socket.connect(self.zmq_address)
 
-    def _send_to_unix_socket_server(self, msg: ServiceMessage) -> None:
-        """Send message to all connected UNIX socket clients (server mode)."""
-        msg_data = msg.to_bytes()
+    def _send_zmq(self, target: str, msg: ServiceMessage) -> None:
+        """Send message via ZMQ socket.
 
-        # Use slice copy to avoid modification during iteration
-        for client in self._clients[:]:
-            try:
-                # Use sendall() to ensure complete message delivery
-                client.sendall(msg_data)
-            except BlockingIOError:
-                # Buffer is full but client is still connected - skip for now
-                # The message will be lost but the client remains connected
-                print(f"Warning: Send buffer full for client, message dropped")
-            except (BrokenPipeError, ConnectionResetError, OSError) as e:
-                # Remove disconnected clients
-                print(f"Removing disconnected client: {e}")
-                self._clients.remove(client)
-                client.close()
-
-    def _send_to_unix_socket_client(self, msg: ServiceMessage) -> bool:
-        """Send message to server (client mode). Returns True if successful."""
-        if not self._socket:
-            if not self._connect_to_server():
-                return False
-
-        try:
-            assert self._socket is not None, "Socket must be connected before sending"
-            envelope = msg.to_bytes()
-            # Use sendall() to ensure complete message delivery
-            self._socket.sendall(envelope)
-            return True
-        except BlockingIOError:
-            # Buffer is full but connection is still alive
-            print("Warning: Send buffer full, message dropped")
-            return False
-        except (BrokenPipeError, ConnectionResetError, OSError):
-            return False
-
-    def _connect_to_server(self) -> bool:
-        """Connect to server (client mode). Returns True if successful."""
-        try:
-            self._socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            self._socket.connect(self.socket_path)
-            return True
-        except (FileNotFoundError, ConnectionRefusedError, OSError):
-            if self._socket:
-                self._socket.close()
-                self._socket = None
-            return False
-
-    def _receive_complete_message(
-        self, sock: socket.socket, timeout: Optional[float]
-    ) -> Optional[bytes]:
-        """Receive a complete message from socket, reading until newline delimiter.
-
-        Args:
-            sock: Socket to read from
-            timeout: Timeout in seconds
-
-        Returns:
-            Complete message bytes or None if timeout/error
+        For ROUTER: sends with client identity (must be set by _receive_zmq).
+        For DEALER: sends without identity frame.
         """
-        # sock.settimeout accepts None for blocking mode
-        sock.settimeout(timeout)
+        if not self._zmq_socket:
+            return
 
-        buffer = b""
+        msg_json = msg.to_json()
 
         try:
-            while True:
-                chunk = sock.recv(CHUNK_SIZE)
-                if not chunk:
-                    return None  # Connection closed
-
-                buffer += chunk
-
-                # Check if we have a complete message (ends with newline)
-                if b"\n" in buffer:
-                    # Return only the first complete message
-                    message, remainder = buffer.split(b"\n", 1)
-                    # Store remainder for next read if needed (currently not implemented)
-                    return message + b"\n"
-
-                # Safety check: prevent unbounded memory growth
-                if len(buffer) > MAX_MESSAGE_SIZE:
-                    raise ValueError(
-                        f"Message exceeds maximum size of {MAX_MESSAGE_SIZE} bytes"
+            if self.a_type == "zmq_router":
+                # ROUTER: Reply to last client (identity set by _receive_zmq)
+                if not hasattr(self, "_last_identity") or not self._last_identity:
+                    raise RuntimeError(
+                        "ROUTER: no client identity for reply. Must receive before send."
                     )
 
-        except socket.timeout:
-            return None
-        except (BrokenPipeError, ConnectionResetError, OSError):
-            return None
-
-    def _receive_from_unix_socket_server(
-        self, timeout: Optional[float]
-    ) -> Optional[ServiceMessage]:
-        """Receive message from UNIX socket clients (server mode).
-
-        Uses select() to efficiently handle both new connections and existing client messages.
-
-        Args:
-            timeout: Maximum time in seconds to wait for a message.
-        """
-        import select
-
-        try:
-            assert self._socket is not None, "Socket must be connected before accepting"
-
-            # Use select to wait for either new connections or client data
-            # Build list of sockets to monitor: server socket + all client sockets
-            readable_sockets = [self._socket] + self._clients
-
-            # Wait for any socket to become readable (with timeout)
-            ready_to_read, _, _ = select.select(readable_sockets, [], [], timeout)
-
-            if not ready_to_read:
-                return None  # Timeout, no activity
-
-            # Check if server socket is ready (new connection)
-            if self._socket in ready_to_read:
-                try:
-                    client_socket, _ = self._socket.accept()
-                    client_socket.setblocking(
-                        False
-                    )  # Set non-blocking for future reads
-                    self._clients.append(client_socket)
-                except (socket.timeout, BlockingIOError):
-                    pass  # Should not happen with select, but handle anyway
-
-            # Check for messages from existing clients
-            for client in self._clients[:]:
-                if client in ready_to_read:
-                    try:
-                        # Use a minimal timeout since select() already confirmed data is ready
-                        data = self._receive_complete_message(client, timeout=0.1)
-                        if data:
-                            return ServiceMessage.from_bytes(data)
-                        else:
-                            # Connection closed gracefully
-                            self._clients.remove(client)
-                            client.close()
-                    except (json.JSONDecodeError, KeyError, ValueError) as e:
-                        # Log error but continue with other clients
-                        pass
-                    except (BrokenPipeError, ConnectionResetError, OSError):
-                        # Remove disconnected clients
-                        self._clients.remove(client)
-                        client.close()
-
-            return None
-        except Exception as e:
-            print(f"Error in _receive_from_unix_socket_server: {e}")
-            return None
-
-    def _receive_from_unix_socket_client(
-        self, timeout: Optional[float] = 5.0
-    ) -> Optional[ServiceMessage]:
-        """Receive a message from server (client mode)."""
-        if not self._socket:
-            return None
-
-        try:
-            data = self._receive_complete_message(self._socket, timeout)
-            if data:
-                return ServiceMessage.from_bytes(data)
-        except (json.JSONDecodeError, KeyError, ValueError, OSError):
+                self._zmq_socket.send_multipart(
+                    [self._last_identity, b"", msg_json.encode()]
+                )
+            else:  # zmq_dealer
+                self._zmq_socket.send_string(msg_json)
+        except zmq.Again:
+            # Would block, skip this message
             pass
+
+    def _receive_zmq(self, timeout: Optional[float]) -> Optional[ServiceMessage]:
+        """Receive message via ZMQ socket.
+
+        For ROUTER: receives with client identity as first frame, stores it.
+        For DEALER: receives without identity frame.
+
+        Returns the ServiceMessage or None if timeout.
+        """
+        if not self._zmq_socket:
+            return None
+
+        # Convert timeout to milliseconds for ZMQ
+        timeout_ms = int(timeout * 1000) if timeout is not None else -1
+
+        try:
+            if self._zmq_socket.poll(timeout_ms, zmq.POLLIN):
+                if self.a_type == "zmq_router":
+                    # ROUTER receives: [identity, message] from DEALER
+                    # Note: DEALER doesn't send empty delimiter frame
+                    frames = self._zmq_socket.recv_multipart()
+                    if len(frames) >= 2:
+                        self._last_identity = frames[0]  # Store for reply
+                        msg_json = frames[1].decode()
+                        msg_dict = json.loads(msg_json)
+
+                        # Reconstruct ServiceMessage
+                        timestamp = msg_dict.get("timestamp")
+                        if isinstance(timestamp, str):
+                            timestamp = datetime.fromisoformat(timestamp)
+
+                        return ServiceMessage(
+                            sender=msg_dict["sender"],
+                            type=msg_dict["event_name"],
+                            payload=msg_dict["payload"],
+                            timestamp=timestamp,
+                        )
+                else:  # zmq_dealer
+                    # DEALER receives: [empty_delimiter, message] from ROUTER
+                    # (ZMQ removes the identity frame automatically)
+                    frames = self._zmq_socket.recv_multipart()
+
+                    # Skip empty delimiter if present
+                    if len(frames) == 2 and frames[0] == b"":
+                        msg_json = frames[1].decode()
+                    elif len(frames) == 1:
+                        msg_json = frames[0].decode()
+                    else:
+                        return None
+
+                    msg_dict = json.loads(msg_json)
+
+                    timestamp = msg_dict.get("timestamp")
+                    if isinstance(timestamp, str):
+                        timestamp = datetime.fromisoformat(timestamp)
+
+                    return ServiceMessage(
+                        sender=msg_dict["sender"],
+                        type=msg_dict["event_name"],
+                        payload=msg_dict["payload"],
+                        timestamp=timestamp,
+                    )
+        except zmq.Again:
+            pass
+        except (json.JSONDecodeError, KeyError, ValueError):
+            pass
+
         return None
-
-    def _setup_unix_socket_server(self):
-        """
-        Setup UNIX domain socket for external communication (server mode).
-
-        Creates a UNIX domain socket, binds it to the specified path,
-        and configures it to listen for incoming connections with a timeout.
-        """
-        self._socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-
-        # Remove socket file if it exists
-        if os.path.exists(self.socket_path):
-            os.unlink(self.socket_path)
-
-        # Bind and listen
-        self._socket.bind(self.socket_path)
-        self._socket.listen(SOCKET_LISTEN_BACKLOG)
-        self._socket.settimeout(SOCKET_TIMEOUT)  # Non-blocking with timeout
