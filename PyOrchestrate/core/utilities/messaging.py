@@ -150,18 +150,26 @@ class ServiceMessage:
         request_id: Optional[str] = None,
         error: Optional[str] = None,
     ) -> "ServiceMessage":
-        """Create a COMMAND type ServiceMessage.
+        """Create a COMMAND type ServiceMessage representing a response.
+
+        The payload follows a standard shape used by the CLI command interface:
+        - status: "success" or "error"
+        - code: numeric status/code (0 for generic success, or HTTP-like error codes)
+        - data: dict with response data when status is "success"
+        - error: human-readable error string when status is "error"
+        - request_id: correlates this response to the original request
+        - protocol_version: the protocol version used by the framework
 
         Args:
-            sender: Message sender identifier
-            status: Command status (e.g., "success", "error")
-            code: Command response code (e.g., 200, 404)
-            data: Optional command data
-            request_id: Optional request identifier
-            error: Optional error information
+            sender: Message sender identifier (e.g. "orchestrator" or "command_handler").
+            status: Command status ("success" or "error").
+            code: Numeric response code (default 0).
+            data: Optional payload data for successful responses.
+            request_id: Optional request identifier to correlate request/response.
+            error: Optional error information (string) for error responses.
 
         Returns:
-            ServiceMessage instance with type="COMMAND"
+            ServiceMessage instance with type="COMMAND" and a standardized payload.
         """
         return cls(
             sender=sender,
@@ -267,8 +275,9 @@ class MessageChannel:
         or sent to the server (client mode).
 
         Args:
-            target: The intended recipient identifier (currently unused but kept for
-                   compatibility and potential future routing features).
+            target: The intended recipient identifier. NOTE: currently ignored
+                    and treated as deprecated — kept for backward compatibility
+                    and potential future routing features.
             msg: The ServiceMessage instance to send containing sender, type, payload,
                 and timestamp information.
 
@@ -283,8 +292,13 @@ class MessageChannel:
         elif self.a_type == "unix_socket_client":
             self._send_to_unix_socket_client(msg)
 
-    def receive(self, timeout: float) -> Optional[ServiceMessage]:
+    def receive(self, timeout: Optional[float]) -> Optional[ServiceMessage]:
         """Receive a message from the communication channel.
+
+        Args:
+            timeout: Maximum time in seconds to wait for a message. If None, the
+                     call may block indefinitely for queue-based channels or use the
+                     socket default blocking behaviour for UNIX sockets.
 
         Attempts to receive a ServiceMessage from the appropriate communication mechanism.
         For thread/process queues, it retrieves from the queue with optional timeout.
@@ -436,7 +450,7 @@ class MessageChannel:
             return False
 
     def _receive_complete_message(
-        self, sock: socket.socket, timeout: float
+        self, sock: socket.socket, timeout: Optional[float]
     ) -> Optional[bytes]:
         """Receive a complete message from socket, reading until newline delimiter.
 
@@ -447,7 +461,9 @@ class MessageChannel:
         Returns:
             Complete message bytes or None if timeout/error
         """
+        # sock.settimeout accepts None for blocking mode
         sock.settimeout(timeout)
+
         buffer = b""
 
         try:
@@ -476,7 +492,9 @@ class MessageChannel:
         except (BrokenPipeError, ConnectionResetError, OSError):
             return None
 
-    def _receive_from_unix_socket_server(self, timeout) -> Optional[ServiceMessage]:
+    def _receive_from_unix_socket_server(
+        self, timeout: Optional[float]
+    ) -> Optional[ServiceMessage]:
         """Receive message from UNIX socket clients (server mode).
 
         Uses select() to efficiently handle both new connections and existing client messages.
@@ -531,11 +549,12 @@ class MessageChannel:
                         client.close()
 
             return None
-        except Exception:
+        except Exception as e:
+            print(f"Error in _receive_from_unix_socket_server: {e}")
             return None
 
     def _receive_from_unix_socket_client(
-        self, timeout: float = 5.0
+        self, timeout: Optional[float] = 5.0
     ) -> Optional[ServiceMessage]:
         """Receive a message from server (client mode)."""
         if not self._socket:

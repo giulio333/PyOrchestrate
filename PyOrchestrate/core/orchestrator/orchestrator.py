@@ -348,7 +348,7 @@ class Orchestrator(BaseClass):
         while self._agent_message_thread_running:
             try:
                 # Check for agent messages
-                msg = self.msg_channel.receive(timeout=0.1)
+                msg = self.msg_channel.receive(timeout=5)
                 if msg:
                     self.handle_agent_message(msg)
 
@@ -373,7 +373,7 @@ class Orchestrator(BaseClass):
             try:
                 # Check for external commands
                 if self.command_channel:
-                    cmd_msg = self.command_channel.receive(timeout=0.1)
+                    cmd_msg = self.command_channel.receive(timeout=5)
                     if cmd_msg:
                         self.handle_external_command(cmd_msg)
 
@@ -510,23 +510,10 @@ class Orchestrator(BaseClass):
             assert self.command_handler, "Command handler not initialized"
 
             try:
-                # Delegate command execution to the command handler
-                response = self.command_handler.execute_command(command, args)
-                msg = ServiceMessage.create_command_response(
-                    sender="orchestrator",
-                    status="success",
-                    data=response,
-                    request_id=request_id,
-                )
-            except CommandException as e:
-                self.logger.warning(f"Command '{command}' failed: {e}")
-                msg = ServiceMessage.create_command_response(
-                    sender="orchestrator",
-                    status="error",
-                    error=str(e),
-                    code=e.code,
-                    request_id=request_id,
-                )
+                msg = self.command_handler.execute_command_msg(msg)
+            except Exception as e:
+                # Fallback: convert unexpected exceptions to an error response
+                self.logger.warning(f"Command handling failed: {e}")
 
             # Send response back through the command channel
             assert self.command_channel, "Command channel not initialized"
