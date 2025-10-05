@@ -225,13 +225,11 @@ class CommandHandler:
             agents_info = []
             for agent in self.orchestrator.memory.agents:
 
-                assert agent.config, "Agent config must be defined"
-
                 agents_info.append(
                     {
                         "agent_name": agent.name,
                         "class_name": agent.agent_class.__name__,
-                        "config": agent.config.to_dict(),
+                        "config": agent.instance.config.to_dict(),
                         "alive": (
                             agent.instance.is_alive()
                             if hasattr(agent, "instance") and agent.instance
@@ -419,7 +417,7 @@ class CommandHandler:
                                 "threads": process.num_threads(),
                             }
                         )
-                    except (ImportError, psutil.NoSuchProcess, psutil.AccessDenied):
+                    except Exception:
                         # If psutil is not available or process not accessible
                         agent_stat.update(
                             {
