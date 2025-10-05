@@ -1,6 +1,6 @@
 """Tests for MessageChannel client functionality."""
 
-import pytest
+import unittest
 import tempfile
 import os
 import json
@@ -10,7 +10,7 @@ from datetime import datetime
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 
 
-class TestMessageChannelClient:
+class TestMessageChannelClient(unittest.TestCase):
     """Test MessageChannel client communication with MessageChannel server."""
 
     def test_basic_communication(self):
@@ -54,13 +54,13 @@ class TestMessageChannelClient:
             response = client.send_and_receive(request, timeout=2.0)
 
             # Verify response
-            assert response is not None
-            assert response.sender == "server"
-            assert response.type == "STATUS"
+            self.assertIsNotNone(response)
+            self.assertEqual(response.sender, "server")
+            self.assertEqual(response.type, "STATUS")
 
             response_data = json.loads(response.payload)
-            assert response_data["status"] == "success"
-            assert response_data["data"]["echo"] == "response"
+            self.assertEqual(response_data["status"], "success")
+            self.assertEqual(response_data["data"]["echo"], "response")
 
             # Cleanup
             server_thread.join(timeout=1.0)
@@ -77,7 +77,7 @@ class TestMessageChannelClient:
         )
 
         response = client.send_and_receive(request, timeout=1.0)
-        assert response is None
+        self.assertIsNone(response)
 
     def test_timeout_handling(self):
         """Test timeout behavior when server doesn't respond."""
@@ -109,9 +109,9 @@ class TestMessageChannelClient:
             response = client.send_and_receive(request, timeout=0.5)
             elapsed = time.time() - start_time
 
-            assert response is None
-            assert elapsed >= 0.5  # Should respect timeout
-            assert elapsed < 1.0  # Should not take much longer
+            self.assertIsNone(response)
+            self.assertGreaterEqual(elapsed, 0.5)  # Should respect timeout
+            self.assertLess(elapsed, 1.0)  # Should not take much longer
 
             # Cleanup
             server_thread.join(timeout=1.0)
@@ -150,16 +150,16 @@ class TestMessageChannelClient:
             server_thread.join(timeout=1.0)
 
             # Verify message format
-            assert received_message is not None
-            assert received_message.sender == "cli"
-            assert received_message.type == "COMMAND"
+            self.assertIsNotNone(received_message)
+            self.assertEqual(received_message.sender, "cli")
+            self.assertEqual(received_message.type, "COMMAND")
 
             payload_data = json.loads(received_message.payload)
-            assert payload_data["command"] == "status"
-            assert payload_data["args"] == []
+            self.assertEqual(payload_data["command"], "status")
+            self.assertEqual(payload_data["args"], [])
 
             server.close()
 
 
 if __name__ == "__main__":
-    pytest.main([__file__])
+    unittest.main()
