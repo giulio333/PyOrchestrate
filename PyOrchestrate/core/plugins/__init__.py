@@ -12,6 +12,6 @@ from PyOrchestrate.core.plugins.heartbeat import (
     AgentHeartbeatTimerPlugin,
 )
 
-from PyOrchestrate.core.plugins.orchestrator_heartbeat import (
+from PyOrchestrate.core.plugins.heartbeat import (
     OrchestratorHeartbeatPlugin,
 )
