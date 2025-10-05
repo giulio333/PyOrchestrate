@@ -14,9 +14,8 @@ from typing import Union, Optional, Literal, Dict, Any
 DEFAULT_SOCKET_PATH = "/tmp/pyorchestrate.sock"
 SOCKET_LISTEN_BACKLOG = 5
 SOCKET_TIMEOUT = 1.0
-CLIENT_RECEIVE_TIMEOUT = 2
 CHUNK_SIZE = 8192  # Read in 8KB chunks
-MAX_MESSAGE_SIZE = 10 * 1024 * 1024  # 10MB maximum message size
+MAX_MESSAGE_SIZE = 100 * 1024 * 1024  # 100MB maximum message size
 PROTOCOL_VERSION = "1.0"
 
 
@@ -350,7 +349,7 @@ class MessageChannel:
         elif self.a_type == "unix_socket_client":
             self._send_to_unix_socket_client(msg)
 
-    def receive(self, timeout: Optional[float] = None) -> Optional[ServiceMessage]:
+    def receive(self, timeout: float) -> Optional[ServiceMessage]:
         """Receive a message from the communication channel.
 
         Attempts to receive a ServiceMessage from the appropriate communication mechanism.
@@ -379,9 +378,7 @@ class MessageChannel:
         elif self.a_type == "unix_socket":
             msg = self._receive_from_unix_socket_server(timeout)
         elif self.a_type == "unix_socket_client":
-            msg = self._receive_from_unix_socket_client(
-                timeout or CLIENT_RECEIVE_TIMEOUT
-            )
+            msg = self._receive_from_unix_socket_client(timeout)
 
         return msg
 
@@ -461,9 +458,15 @@ class MessageChannel:
         # Use slice copy to avoid modification during iteration
         for client in self._clients[:]:
             try:
-                client.send(msg_data)
+                # Use sendall() to ensure complete message delivery
+                client.sendall(msg_data)
+            except BlockingIOError:
+                # Buffer is full but client is still connected - skip for now
+                # The message will be lost but the client remains connected
+                print(f"Warning: Send buffer full for client, message dropped")
             except (BrokenPipeError, ConnectionResetError, OSError) as e:
                 # Remove disconnected clients
+                print(f"Removing disconnected client: {e}")
                 self._clients.remove(client)
                 client.close()
 
@@ -476,8 +479,13 @@ class MessageChannel:
         try:
             assert self._socket is not None, "Socket must be connected before sending"
             envelope = msg.to_bytes()
-            self._socket.send(envelope)
+            # Use sendall() to ensure complete message delivery
+            self._socket.sendall(envelope)
             return True
+        except BlockingIOError:
+            # Buffer is full but connection is still alive
+            print("Warning: Send buffer full, message dropped")
+            return False
         except (BrokenPipeError, ConnectionResetError, OSError):
             return False
 
@@ -534,42 +542,59 @@ class MessageChannel:
         except (BrokenPipeError, ConnectionResetError, OSError):
             return None
 
-    def _receive_from_unix_socket_server(
-        self, timeout: Optional[float] = None
-    ) -> Optional[ServiceMessage]:
+    def _receive_from_unix_socket_server(self, timeout) -> Optional[ServiceMessage]:
         """Receive message from UNIX socket clients (server mode).
 
+        Uses select() to efficiently handle both new connections and existing client messages.
+
         Args:
-            timeout: Maximum time in seconds to wait for a message. If None, uses
-                    the default CLIENT_RECEIVE_TIMEOUT.
+            timeout: Maximum time in seconds to wait for a message.
         """
-        # Use provided timeout or default
-        client_timeout = timeout if timeout is not None else CLIENT_RECEIVE_TIMEOUT
+        import select
 
         try:
-            # Accept new connections
-            try:
-                assert (
-                    self._socket is not None
-                ), "Socket must be connected before accepting"
-                client_socket, _ = self._socket.accept()
-                self._clients.append(client_socket)
-            except socket.timeout:
-                pass  # No new connections
+            assert self._socket is not None, "Socket must be connected before accepting"
+
+            # Use select to wait for either new connections or client data
+            # Build list of sockets to monitor: server socket + all client sockets
+            readable_sockets = [self._socket] + self._clients
+
+            # Wait for any socket to become readable (with timeout)
+            ready_to_read, _, _ = select.select(readable_sockets, [], [], timeout)
+
+            if not ready_to_read:
+                return None  # Timeout, no activity
+
+            # Check if server socket is ready (new connection)
+            if self._socket in ready_to_read:
+                try:
+                    client_socket, _ = self._socket.accept()
+                    client_socket.setblocking(
+                        False
+                    )  # Set non-blocking for future reads
+                    self._clients.append(client_socket)
+                except (socket.timeout, BlockingIOError):
+                    pass  # Should not happen with select, but handle anyway
 
             # Check for messages from existing clients
             for client in self._clients[:]:
-                try:
-                    data = self._receive_complete_message(client, client_timeout)
-                    if data:
-                        return ServiceMessage.from_bytes(data)
-                except (json.JSONDecodeError, KeyError, ValueError) as e:
-                    # Log error but continue with other clients
-                    pass
-                except (BrokenPipeError, ConnectionResetError, OSError):
-                    # Remove disconnected clients
-                    self._clients.remove(client)
-                    client.close()
+                if client in ready_to_read:
+                    try:
+                        # Use a minimal timeout since select() already confirmed data is ready
+                        data = self._receive_complete_message(client, timeout=0.1)
+                        if data:
+                            return ServiceMessage.from_bytes(data)
+                        else:
+                            # Connection closed gracefully
+                            self._clients.remove(client)
+                            client.close()
+                    except (json.JSONDecodeError, KeyError, ValueError) as e:
+                        # Log error but continue with other clients
+                        pass
+                    except (BrokenPipeError, ConnectionResetError, OSError):
+                        # Remove disconnected clients
+                        self._clients.remove(client)
+                        client.close()
 
             return None
         except Exception:
