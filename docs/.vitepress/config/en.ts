@@ -113,6 +113,7 @@ export const enConfig = {
         {
           text: 'Advanced Examples',
           items: [
+            { text: 'Heartbeat Plugin', link: '/examples/advanced/heartbeat-plugin.md' },
             { text: 'Multiple Standalone Agents', link: '/examples/advanced/multiple-agents.md' },
             { text: 'Validation Policy', link: '/examples/advanced/validation.md' },
           ]
