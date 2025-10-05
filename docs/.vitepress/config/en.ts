@@ -52,6 +52,8 @@ export const enConfig = {
               text: 'Utilities',
               items: [
                 { text: 'Event Manager', link: '/learn/utilities/event-manager' },
+                { text: 'Plugin Manager', link: '/learn/utilities/plugin-manager' },
+                { text: 'Message Channel', link: '/learn/utilities/message-channel' },
               ]
             },
             {
