@@ -2,9 +2,9 @@ name: PyOrchestrate Test
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 permissions:
   contents: read
@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
-    
+
     steps:
       - uses: actions/checkout@v4
 
@@ -33,7 +33,7 @@ jobs:
       - name: Install repository
         run: |
           pip install -e .
-      
+
       - name: Lint with flake8
         run: |
           # Stoppa la build in caso di errori di sintassi o nomi non definiti
