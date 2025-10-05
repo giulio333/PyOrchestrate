@@ -311,7 +311,7 @@ class Orchestrator(BaseClass):
                 sev = "ERROR" if ev == OrchestratorEvent.AGENT_ERROR else "INFO"
                 self.event_store.record(
                     category="orchestrator",
-                    event_name=ev.name,
+                    event_name=ev.value,
                     agent=kw.get("agent_name"),
                     severity=sev,
                     data={k: str(v) for k, v in kw.items() if k != "agent_name"},
