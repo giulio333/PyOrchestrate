@@ -291,6 +291,7 @@ class TestOrchestratorEventIntegration(unittest.TestCase):
         orchestrator = Orchestrator(
             config=Orchestrator.Config(
                 run_mode=RunMode.STOP_ON_EMPTY,
+                enable_command_interface=False,
                 history_max_events=1000,
                 history_payload_bytes=512,
             )
@@ -308,7 +309,9 @@ class TestOrchestratorEventIntegration(unittest.TestCase):
     def test_orchestrator_records_init_event(self):
         """Test that Orchestrator records initialization event."""
         orchestrator = Orchestrator(
-            config=Orchestrator.Config(run_mode=RunMode.STOP_ON_EMPTY)
+            config=Orchestrator.Config(
+                run_mode=RunMode.STOP_ON_EMPTY, enable_command_interface=False
+            )
         )
 
         # Check that INIT event was recorded

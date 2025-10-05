@@ -48,7 +48,7 @@ class OrchestratorConfig(BaseClass.Config):
         check_interval (float): The interval to check the agents. Defaults to 1.
         max_workers (int): The maximum number of workers that can run concurrently. Defaults to 5.
         enable_command_interface (bool): Enable external command interface via UNIX socket. Defaults to True.
-        command_socket_path (str): Path to the UNIX socket for external commands. Defaults to "/tmp/pyorchestrate.sock".
+        command_zmq_address (str): ZeroMQ address for external commands. Defaults to "tcp://*:5555".
         logger (LoggerConfig): Logger configuration.
         run_mode (RunMode): Required lifecycle policy. Defaults to RunMode.STOP_ON_EMPTY.
         history_max_events (int): Maximum number of events to store in history (ring buffer size). Defaults to 5000.
@@ -60,9 +60,9 @@ class OrchestratorConfig(BaseClass.Config):
     max_workers: int = 5
     """The maximum number of workers that can run concurrently."""
     enable_command_interface: bool = True
-    """Enable external command interface via UNIX socket."""
-    command_socket_path: str = "/tmp/pyorchestrate.sock"
-    """Path to the UNIX socket for external commands."""
+    """Enable external command interface via ZeroMQ."""
+    command_zmq_address: str = "tcp://*:5555"
+    """ZeroMQ address for external commands."""
     allowed_commands: set[str] | str | None = None
     """Allowed commands for CLI interface. Can be a set of commands, a preset name, or None for all commands."""
     run_mode: RunMode = RunMode.STOP_ON_EMPTY
@@ -77,7 +77,7 @@ class OrchestratorConfig(BaseClass.Config):
         check_interval: float | None = None,
         max_workers: int | None = None,
         enable_command_interface: bool | None = None,
-        command_socket_path: str | None = None,
+        command_zmq_address: str | None = None,
         allowed_commands: set[str] | str | None = None,
         run_mode: RunMode | None = None,
         history_max_events: int | None = None,
@@ -90,8 +90,8 @@ class OrchestratorConfig(BaseClass.Config):
         Args:
             check_interval (float | None, optional): The interval to check the agents. Defaults to None.
             max_workers (int | None, optional): The maximum number of workers that can run concurrently. Defaults to None.
-            enable_command_interface (bool | None, optional): Enable external command interface via UNIX socket. Defaults to None.
-            command_socket_path (str | None, optional): Path to the UNIX socket for external commands. Defaults to None.
+            enable_command_interface (bool | None, optional): Enable external command interface via ZeroMQ. Defaults to None.
+            command_zmq_address (str | None, optional): ZeroMQ address for external commands. Defaults to None.
             allowed_commands (set[str] | str | None, optional): Allowed commands for CLI interface. Can be a set of commands, a preset name, or None for all commands. Defaults to None.
             run_mode (RunMode | None, optional): Required lifecycle policy. Must be set to RunMode.STOP_ON_EMPTY or RunMode.DAEMON. Defaults to None.
             history_max_events (int | None, optional): Maximum number of events to store in history (ring buffer size). Defaults to None.
@@ -108,8 +108,8 @@ class OrchestratorConfig(BaseClass.Config):
         if enable_command_interface is not None:
             self.enable_command_interface = enable_command_interface
 
-        if command_socket_path is not None:
-            self.command_socket_path = command_socket_path
+        if command_zmq_address is not None:
+            self.command_zmq_address = command_zmq_address
 
         if allowed_commands is not None:
             self.allowed_commands = allowed_commands
@@ -144,11 +144,11 @@ class OrchestratorConfig(BaseClass.Config):
                 )
             )
 
-        if self.enable_command_interface and not self.command_socket_path:
+        if self.enable_command_interface and not self.command_zmq_address:
             results.append(
                 ValidationResult(
-                    field="command_socket_path",
-                    message="command_socket_path must be specified when enable_command_interface is True.",
+                    field="command_zmq_address",
+                    message="command_zmq_address must be specified when enable_command_interface is True.",
                     severity=ValidationSeverity.ERROR,
                 )
             )
@@ -280,11 +280,11 @@ class Orchestrator(BaseClass):
             from PyOrchestrate.core.utilities.command_handler import CommandHandler
 
             self.command_channel = MessageChannel(
-                "unix_socket", self.config.command_socket_path
+                "zmq_router", self.config.command_zmq_address
             )
             self.command_handler = CommandHandler(self, self.config.allowed_commands)
             self.logger.debug(
-                f"Command interface enabled on socket: {self.config.command_socket_path}"
+                f"Command interface enabled on ZMQ: {self.config.command_zmq_address}"
             )
 
         self.dependencies: dict[str, list[str]] = defaultdict(list)
@@ -922,7 +922,7 @@ class Orchestrator(BaseClass):
         )
         if self.config.enable_command_interface:
             self.logger.debug(
-                f"Config: command_socket_path={self.config.command_socket_path}"
+                f"Config: command_zmq_address={self.config.command_zmq_address}"
             )
             # Log allowed commands information
             if self.config.allowed_commands is None:
