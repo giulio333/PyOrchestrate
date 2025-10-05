@@ -25,7 +25,7 @@ class WebServerConfig(BaseModel):
 
     host: str = "127.0.0.1"
     port: int = 8000
-    socket_path: str = CLIConstants.DEFAULT_SOCKET_PATH
+    socket_path: str = CLIConstants.DEFAULT_ZMQ_ADDRESS
     enable_auth: bool = False
     auth_token: Optional[str] = None
     cors_origins: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
@@ -35,14 +35,14 @@ class OrchestratorClient:
     """Client for communicating with the orchestrator via Unix socket."""
 
     def __init__(self, socket_path: str):
-        self.socket_path = socket_path
+        self.zmq_address = socket_path
 
     def send_command(
         self, command: str, args: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """Send a command to the orchestrator and return the response."""
         try:
-            client = MessageChannel("unix_socket_client", self.socket_path)
+            client = MessageChannel("zmq_dealer", self.zmq_address)
 
             msg = ServiceMessage.create_command(
                 sender="web_interface",
@@ -57,7 +57,7 @@ class OrchestratorClient:
             else:
                 raise HTTPException(
                     status_code=503,
-                    detail=f"Cannot connect to orchestrator at {self.socket_path}",
+                    detail=f"Cannot connect to orchestrator at {self.zmq_address}",
                 )
 
         except Exception as e:
@@ -1121,8 +1121,8 @@ def main():
     parser.add_argument("--port", type=int, default=8000, help="Port to bind to")
     parser.add_argument(
         "--socket",
-        default=CLIConstants.DEFAULT_SOCKET_PATH,
-        help="Path to orchestrator Unix socket",
+        default=CLIConstants.DEFAULT_ZMQ_ADDRESS,
+        help="ZeroMQ address of orchestrator",
     )
     parser.add_argument(
         "--enable-auth", action="store_true", help="Enable token-based authentication"

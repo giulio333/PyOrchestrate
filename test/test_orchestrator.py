@@ -28,7 +28,10 @@ class DummyAgent(BaseProcessAgent):
 class TestOrchestrator(unittest.TestCase):
     def setUp(self):
         self.orch = Orchestrator(
-            config=Orchestrator.Config(run_mode=RunMode.STOP_ON_EMPTY),
+            config=Orchestrator.Config(
+                run_mode=RunMode.STOP_ON_EMPTY,
+                enable_command_interface=False,  # Disable ZMQ in tests
+            ),
             name="test_orchestrator",
         )
         self.orch.event_manager.emit = MagicMock(
