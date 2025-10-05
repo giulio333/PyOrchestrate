@@ -14,8 +14,8 @@ from typing import Union, Optional, Literal, Dict, Any
 DEFAULT_SOCKET_PATH = "/tmp/pyorchestrate.sock"
 SOCKET_LISTEN_BACKLOG = 5
 SOCKET_TIMEOUT = 1.0
-CLIENT_RECEIVE_TIMEOUT = 0.1
-BUFFER_SIZE = 4096
+CLIENT_RECEIVE_TIMEOUT = 0.5  # Increased from 0.1 to 0.5 for better reliability
+BUFFER_SIZE = 65536  # Increased from 4096 to 64KB for larger messages
 PROTOCOL_VERSION = "1.0"
 
 
