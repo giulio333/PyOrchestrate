@@ -610,34 +610,47 @@ class EventStore:
                 return {"by_type": dict(self._stores["__default__"].stats())}
             return {"by_type": dict(self._stores["__default__"].stats(agent=agent))}
 
-    def get_capacity_info(self) -> Dict[str, int | Dict[str, Dict[str, int]]]:
+    def get_capacity_info(self) -> Dict[str, Dict[str, Dict[str, int]]]:
         """
         Get current capacity and usage information for all storage policies.
 
         Returns:
             Dictionary with:
-            - "global": Default ring buffer capacity and usage info
-            - "categories": Per-event-type store capacity info
+            - "stores": Dictionary mapping store_name -> capacity_info for ALL stores
+              - "__default__": The default RingBufferStore capacity info
+              - event-specific stores (e.g., "agent_heartbeat"): Custom store capacity info
+            - "summary": High-level aggregated information
+              - "total_stores": Total number of configured stores
+              - "total_events": Approximate total events across all stores
 
         Useful for monitoring memory usage and detecting storage issues.
 
         Example:
             ```python
             info = store.get_capacity_info()
-            default_usage = info['global']['capacity']['current_size']
-            hb_info = info['categories'].get('agent_heartbeat', {})
+            default_info = info['stores']['__default__']
+            hb_info = info['stores'].get('agent_heartbeat', {})
+            total_stores = info['summary']['total_stores']
             ```
         """
         with self._lock:
+            stores_info = {}
+            total_events = 0
+
+            # Collect capacity info from all stores (including default)
+            for store_name, store in self._stores.items():
+                capacity_info = store.capacity_info()
+                stores_info[store_name] = capacity_info
+
+                # Accumulate total events (current_size if available)
+                if "current_size" in capacity_info:
+                    total_events += capacity_info["current_size"]
+
             info = {
-                "global": {
-                    "capacity": self._stores["__default__"].capacity_info(),
-                    "current_size": len(self._stores),
-                },
-                "categories": {
-                    k: v.capacity_info()
-                    for k, v in self._stores.items()
-                    if k != "__default__"
+                "stores": stores_info,
+                "summary": {
+                    "total_stores": len(self._stores),
+                    "total_events_approx": total_events,
                 },
             }
         return info

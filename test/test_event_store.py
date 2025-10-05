@@ -22,22 +22,19 @@ class TestEventStore(unittest.TestCase):
         store = EventStore()
         # Test using public interface
         info = store.get_capacity_info()
-        global_info = info["global"]
-        self.assertIsInstance(global_info, dict)
-        capacity_data = global_info["capacity"]
-        self.assertIsInstance(capacity_data, dict)
-        self.assertEqual(capacity_data["capacity"], 5000)
+        default_store_info = info["stores"]["__default__"]
+        self.assertIsInstance(default_store_info, dict)
+        self.assertEqual(default_store_info["capacity"], 5000)
+        self.assertEqual(info["summary"]["total_stores"], 1)
         self.assertEqual(len(store.last(1)), 0)  # No events recorded yet
 
     def test_event_store_custom_capacity(self):
         """Test EventStore with custom capacity."""
         store = EventStore(capacity=100, payload_max_bytes=64)
         info = store.get_capacity_info()
-        global_info = info["global"]
-        self.assertIsInstance(global_info, dict)
-        capacity_data = global_info["capacity"]
-        self.assertIsInstance(capacity_data, dict)
-        self.assertEqual(capacity_data["capacity"], 100)
+        default_store_info = info["stores"]["__default__"]
+        self.assertIsInstance(default_store_info, dict)
+        self.assertEqual(default_store_info["capacity"], 100)
 
     def test_record_basic_event(self):
         """Test recording a basic event."""
@@ -119,11 +116,9 @@ class TestEventStore(unittest.TestCase):
 
         # Should only keep last 3
         info = store.get_capacity_info()
-        global_info = info["global"]
-        self.assertIsInstance(global_info, dict)
-        capacity_data = global_info["capacity"]
-        self.assertIsInstance(capacity_data, dict)
-        self.assertEqual(capacity_data["current_size"], 3)
+        default_store_info = info["stores"]["__default__"]
+        self.assertIsInstance(default_store_info, dict)
+        self.assertEqual(default_store_info["current_size"], 3)
 
         # Get all events in buffer
         events = store.last(100)  # Request more than exists
@@ -237,14 +232,12 @@ class TestEventStore(unittest.TestCase):
             store.record(category="test", event_name="TEST_EVENT")
 
         info = store.get_capacity_info()
-        global_info = info["global"]
-        self.assertIsInstance(global_info, dict)
-        capacity_data = global_info["capacity"]
-        self.assertIsInstance(capacity_data, dict)
-        self.assertEqual(capacity_data["capacity"], 100)
-        self.assertEqual(capacity_data["current_size"], 10)
-        self.assertEqual(capacity_data["oldest_seq"], 1)
-        self.assertEqual(capacity_data["newest_seq"], 10)
+        default_store_info = info["stores"]["__default__"]
+        self.assertIsInstance(default_store_info, dict)
+        self.assertEqual(default_store_info["capacity"], 100)
+        self.assertEqual(default_store_info["current_size"], 10)
+        self.assertEqual(default_store_info["oldest_seq"], 1)
+        self.assertEqual(default_store_info["newest_seq"], 10)
 
     def test_thread_safety(self):
         """Test thread safety of EventStore."""
@@ -279,12 +272,10 @@ class TestEventStore(unittest.TestCase):
 
         # Check capacity info shows 500 total events were recorded
         info = store.get_capacity_info()
-        global_info = info["global"]
-        self.assertIsInstance(global_info, dict)
-        capacity_data = global_info["capacity"]
-        self.assertIsInstance(capacity_data, dict)
+        default_store_info = info["stores"]["__default__"]
+        self.assertIsInstance(default_store_info, dict)
         self.assertEqual(
-            capacity_data["newest_seq"], 500
+            default_store_info["newest_seq"], 500
         )  # 5 workers * 100 events each
 
         # Check all events are properly recorded (default capacity is 5000, so all should be there)
@@ -310,11 +301,9 @@ class TestOrchestratorEventIntegration(unittest.TestCase):
 
         # Verify capacity through public interface
         info = orchestrator.event_store.get_capacity_info()
-        global_info = info["global"]
-        self.assertIsInstance(global_info, dict)
-        capacity_data = global_info["capacity"]
-        self.assertIsInstance(capacity_data, dict)
-        self.assertEqual(capacity_data["capacity"], 1000)
+        default_store_info = info["stores"]["__default__"]
+        self.assertIsInstance(default_store_info, dict)
+        self.assertEqual(default_store_info["capacity"], 1000)
 
     def test_orchestrator_records_init_event(self):
         """Test that Orchestrator records initialization event."""
