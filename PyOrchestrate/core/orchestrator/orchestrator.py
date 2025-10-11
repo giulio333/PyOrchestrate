@@ -499,7 +499,6 @@ class Orchestrator(BaseClass):
         try:
             cmd_data = request_msg.payload  # Now already a dict
             command = cmd_data.get("command")
-            args = cmd_data.get("args", [])
             request_id = cmd_data.get("request_id")
 
             # Ensure command is not None
