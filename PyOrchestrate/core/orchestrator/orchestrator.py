@@ -17,7 +17,6 @@ from PyOrchestrate.core.utilities.validation import (
 )
 
 from PyOrchestrate.core.base.base import BaseClass
-from PyOrchestrate.core.utilities.validation import ValidationResult
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 from PyOrchestrate.core.plugins.plugin_manager import PluginManager
 from PyOrchestrate.core.plugins.heartbeat import (
@@ -47,7 +46,7 @@ class OrchestratorConfig(BaseClass.Config):
     Attributes:
         check_interval (float): The interval to check the agents. Defaults to 1.
         max_workers (int): The maximum number of workers that can run concurrently. Defaults to 5.
-        enable_command_interface (bool): Enable external command interface via UNIX socket. Defaults to True.
+        enable_command_interface (bool): Enable external command interface via ZeroMQ over TCP. Defaults to True.
         command_zmq_address (str): ZeroMQ address for external commands. Defaults to "tcp://*:5555".
         logger (LoggerConfig): Logger configuration.
         run_mode (RunMode): Required lifecycle policy. Defaults to RunMode.STOP_ON_EMPTY.
@@ -493,12 +492,12 @@ class Orchestrator(BaseClass):
                     error_message=error_msg,
                 )
 
-    def handle_external_command(self, msg: ServiceMessage) -> None:
+    def handle_external_command(self, request_msg: ServiceMessage) -> None:
         """Process external commands from CLI."""
         request_id = None
 
         try:
-            cmd_data = msg.payload  # Now already a dict
+            cmd_data = request_msg.payload  # Now already a dict
             command = cmd_data.get("command")
             args = cmd_data.get("args", [])
             request_id = cmd_data.get("request_id")
@@ -510,14 +509,30 @@ class Orchestrator(BaseClass):
             assert self.command_handler, "Command handler not initialized"
 
             try:
-                msg = self.command_handler.execute_command_msg(msg)
+                response_msg = self.command_handler.execute_command_msg(request_msg)
             except Exception as e:
                 # Fallback: convert unexpected exceptions to an error response
                 self.logger.warning(f"Command handling failed: {e}")
 
+                # Track error in event store
+                self.event_store.record(
+                    category="cli",
+                    event_name="CLI_ERROR",
+                    severity="ERROR",
+                    data={"error": str(e)},
+                )
+
+                # Create structured error response
+                response_msg = ServiceMessage.create_command_response(
+                    sender="orchestrator",
+                    status="error",
+                    error=str(e),
+                    request_id=request_id,
+                )
+
             # Send response back through the command channel
             assert self.command_channel, "Command channel not initialized"
-            self.command_channel.send("cli", msg)
+            self.command_channel.send("cli", response_msg)
 
         except Exception as e:
             self.logger.error(f"Error processing external command: {e}")
