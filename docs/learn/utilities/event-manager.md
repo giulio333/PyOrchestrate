@@ -22,16 +22,16 @@ All events managed by the Orchestrator's EventManager are of type **Orchestrator
 |--------------------------------|--------------------------------------------------|-------------------------------------------|
 | `AGENT_STARTED`                |  `event_date`, `event_time`, `agent_name`        | Emitted when an agent starts.             |
 | `AGENT_TERMINATED`             |  `event_date`, `event_time`, `agent_name`        | Emitted when an agent terminates.         |
-| `ALL_AGENTS_TERMINATED`        |  `event_date`, `event_time`                      | Emitted when all agents have terminated.  |
 | `AGENT_READY`                  |  `event_date`, `event_time`, `agent_name`        | Emitted when an agent signals readiness.  |
 | `AGENT_ERROR`                  |  `event_date`, `event_time`, `agent_name`, `error_message` | Emitted when an agent reports an error.   |
+| `AGENT_HEARTBEAT`              |  Take no arguments                               | Emitted when an agent sends a heartbeat.  |
 
 ## Registering Event Callbacks
 
 To react to orchestration events, register your callback using the Orchestrator:
 
 ```python
-from PyOrchestrate.core.orchestrator.events import OrchestratorEvent
+from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
 def on_agent_started(agent_name, event_time, **kwargs):
     print(f"Agent {agent_name} started at {event_time}")
