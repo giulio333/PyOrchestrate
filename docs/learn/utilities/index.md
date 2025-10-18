@@ -44,15 +44,6 @@ The Message Channel provides a unified communication interface that abstracts un
 - Performance optimization (batching, compression, connection pooling)
 - Reliability features (acknowledgments, retries, dead letter handling)
 
-### [Configuration Manager](./configuration-manager.md)
-The Configuration Manager offers centralized configuration management with enterprise-grade features:
-- Multi-source configuration loading (files, environment variables, runtime)
-- Schema validation and type safety
-- Dynamic configuration updates and watching
-- Environment-specific configuration support
-- Configuration encryption and security
-- Template and profile management
-
 ## Utility Integration
 
 These utilities are designed to work seamlessly together and integrate deeply with PyOrchestrate's core components:
