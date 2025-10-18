@@ -86,22 +86,28 @@ python3 -m pytest test/ -v --tb=short
 # Run specific test file
 python3 -m pytest test/test_base_agent.py -v
 
+# Run with coverage
+coverage run -m pytest test/ && coverage report
+
 # Use MagicMock for testing agents (see test/test_base_agent.py)
 ```
 
 ### Code Quality
 ```bash
-# Format code (before commits)
-black .
-
-# Lint code
+# Lint code (flake8 available in requirements-dev.txt)
 flake8 .
+
+# Additional linting with pylint
+pylint PyOrchestrate/
 ```
 
-### Project Creation
+### Project Creation & CLI
 ```bash
+# Install PyOrchestrate with CLI commands
+pip install .
+
 # Scaffold new project
-pyorchestrate create MyApp
+pyorchestrate start MyApp
 # Creates: MyApp/models/, MyApp/configurations/, MyApp/starter.py
 
 # Run orchestrator with CLI enabled
@@ -112,6 +118,11 @@ pyorchestrate ps                    # List agents
 pyorchestrate status [agent_name]   # Agent status
 pyorchestrate stats                 # Live monitoring (like docker stats)
 pyorchestrate shutdown              # Graceful shutdown
+pyorchestrate --version             # Show version
+pyorchestrate --help                # Show available commands
+
+# Web interface (separate entry point)
+pyorchestrate-web                   # Start web management interface
 ```
 
 ## Communication & Event Patterns
@@ -232,11 +243,14 @@ agent = MyAgent(
 )
 ```
 
-## Version Management
+## Version Management & Requirements
 
 - **CRITICAL**: Update version in BOTH `pyproject.toml` AND `cli.py` (CLIConstants.VERSION)
-- CLI entry points: `pyorchestrate` (main CLI), `pyorchestrate-web` (web interface)
-- Dependencies: loguru, pyzmq, requests, fastapi, uvicorn, psutil, pydantic (keep minimal)
+- **Python**: Requires Python >=3.11 (as specified in pyproject.toml)
+- **CLI entry points**: `pyorchestrate` (main CLI), `pyorchestrate-web` (web interface)
+- **Core dependencies**: loguru, pyzmq, requests, fastapi, uvicorn, psutil, pydantic (keep minimal)
+- **Dev dependencies**: Available in requirements-dev.txt (pytest, flake8, pylint, mkdocs)
+- **Installation**: Use `pip install .` to install CLI commands globally
 
 ## Common Patterns (Study examples/)
 
