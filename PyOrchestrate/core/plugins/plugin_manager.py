@@ -22,10 +22,9 @@ class PluginManager:
         self.plugins: BaseClassPlugin = plugins
         self._owner = None  # Reference to the owner (agent/orchestrator)
 
-        # Extract and cache plugin instances during initialization for efficiency
-        self._plugin_instances: list[tuple[str, PluginProtocol]] = (
-            self._extract_plugin_instances()
-        )
+        # Plugin instances will be extracted lazily to avoid serialization issues
+        # with multiprocessing (ZMQ contexts are not picklable)
+        self._plugin_instances: list[tuple[str, PluginProtocol]] | None = None
 
     def _extract_plugin_instances(self):
         plugins = self.plugins
@@ -75,6 +74,10 @@ class PluginManager:
         """
         self._owner = owner
 
+        # Extract plugins lazily when setting owner (ensures we're in the correct process)
+        if self._plugin_instances is None:
+            self._plugin_instances = self._extract_plugin_instances()
+
         # Pass owner reference to plugins using the cached plugin instances
         for name, plugin_instance in self._plugin_instances:
             try:
@@ -90,6 +93,10 @@ class PluginManager:
 
         This method iterates through all cached plugin instances and logs their names and types.
         """
+        # Ensure plugins are extracted before logging info
+        if self._plugin_instances is None:
+            self._plugin_instances = self._extract_plugin_instances()
+
         if self._owner:
             self._owner.logger.info(
                 f"PluginManager: Managing {len(self._plugin_instances)} plugins:"
@@ -112,6 +119,10 @@ class PluginManager:
 
         Calls the initialize method on each plugin that has it.
         """
+        # Extract plugins lazily to avoid serialization issues with multiprocessing
+        if self._plugin_instances is None:
+            self._plugin_instances = self._extract_plugin_instances()
+
         if self._owner:
             self._owner.logger.debug(
                 f"PluginManager: Initializing {len(self._plugin_instances)} plugins"
@@ -137,6 +148,10 @@ class PluginManager:
 
         Calls the finalize method on each plugin that has it.
         """
+        # If plugins were never initialized, nothing to finalize
+        if self._plugin_instances is None:
+            return
+
         for name, plugin_instance in self._plugin_instances:
             try:
                 plugin_instance.finalize()
@@ -153,6 +168,10 @@ class PluginManager:
         Returns:
             The plugin instance if found, otherwise None.
         """
+        # Extract plugins lazily if not done yet
+        if self._plugin_instances is None:
+            self._plugin_instances = self._extract_plugin_instances()
+
         for name, plugin_instance in self._plugin_instances:
             if name == plugin_name:
                 return plugin_instance

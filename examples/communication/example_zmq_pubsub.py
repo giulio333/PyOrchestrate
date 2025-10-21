@@ -12,7 +12,7 @@ class Publisher(PeriodicProcessAgent):
         counter: int = 1
 
     class Plugin(PeriodicProcessAgent.Plugin):
-        zmq = ZeroMQPubSub("tcp://*:5555", SocketType.PUB)
+        zmq = ZeroMQPubSub("tcp://*:5556", SocketType.PUB)
 
     config: Config
     plugin: Plugin
@@ -34,7 +34,7 @@ class Subscriber(LoopingProcessAgent):
 
     class Plugin(LoopingProcessAgent.Plugin):
 
-        zmq = ZeroMQPubSub("tcp://localhost:5555", SocketType.SUB)
+        zmq = ZeroMQPubSub("tcp://localhost:5556", SocketType.SUB)
 
     plugin: Plugin
 
