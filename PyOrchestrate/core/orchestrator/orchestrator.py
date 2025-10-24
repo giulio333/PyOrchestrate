@@ -347,7 +347,7 @@ class Orchestrator(BaseClass):
         while self._agent_message_thread_running:
             try:
                 # Check for agent messages
-                msg = self.msg_channel.receive(timeout=5)
+                msg = self.msg_channel.receive(timeout=1)
                 if msg:
                     self.handle_agent_message(msg)
 
@@ -372,7 +372,7 @@ class Orchestrator(BaseClass):
             try:
                 # Check for external commands
                 if self.command_channel:
-                    cmd_msg = self.command_channel.receive(timeout=5)
+                    cmd_msg = self.command_channel.receive(timeout=1)
                     if cmd_msg:
                         self.handle_external_command(cmd_msg)
 

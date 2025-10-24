@@ -192,9 +192,9 @@ class BaseClass:
         Note:
             All kwargs are set as instance attributes directly.
         """
-        self.config = config if config else self.Config()
-        self.plugin = plugin if plugin else self.Plugin()
-        self.name = name if name else self.__class__.__name__
+        # self.config = config if config else self.Config()
+        # self.plugin = plugin if plugin else self.Plugin()
+        # self.name = name if name else self.__class__.__name__
 
         # store user-defined attributes
         self._custom_attr: dict[str, Any] = kwargs

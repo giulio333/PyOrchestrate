@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from PyOrchestrate.core.orchestrator import Orchestrator
 
 
-class OrchestratorHeartbeatPlugin:
+class OrchestratorHeartbeatPlugin(PluginProtocol):
     """
     Orchestrator plugin that manages heartbeat monitoring for all agents.
 
@@ -82,7 +82,7 @@ class OrchestratorHeartbeatPlugin:
             raise ValueError("Orchestrator reference not set. Plugin not attached?")
         return self._orchestrator
 
-    def set_owner(self, orchestrator: "Orchestrator"):
+    def set_owner(self, owner: "Orchestrator"):
         """
         Set the orchestrator reference.
 
@@ -91,7 +91,7 @@ class OrchestratorHeartbeatPlugin:
         Args:
             orchestrator: The orchestrator instance
         """
-        self._orchestrator = orchestrator
+        self._orchestrator = owner
 
     def initialize(self):
         """Initialize the heartbeat monitoring plugin."""
