@@ -1,11 +1,11 @@
 import time
-import threading
 from collections import defaultdict, deque
 from typing import List, final, Optional
 from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
+from PyOrchestrate.core.orchestrator.channel_handler import ChannelHandler
 from PyOrchestrate.core.utilities.command_handler import CommandException
 from PyOrchestrate.core.orchestrator.event_store import EventStore, BucketRingStore
 from PyOrchestrate.core.utilities.event_manager import EventManager
@@ -295,19 +295,15 @@ class Orchestrator(BaseClass):
         )  # Set for agents that have terminated (to filter stale heartbeats)
         self._shutdown_requested = False  # Flag for graceful shutdown via CLI
 
-        # Separate threads for message and command handling
-        self._agent_message_thread_running = False
-        self._agent_message_thread = None
-        self._command_thread_running = False
-        self._command_thread = None
+        # Channel handlers for message processing
+        self._agent_message_handler: Optional[ChannelHandler] = None
+        self._command_handler: Optional[ChannelHandler] = None
 
         # Register event history hooks
         self._register_history_hooks()
 
-        # Start separate threads for agent messages and external commands
-        self._start_agent_message_thread()
-        if self.config.enable_command_interface:
-            self._start_command_thread()
+        # Start channel handlers for agent messages and external commands
+        self._setup_channel_handlers()
 
     def _register_history_hooks(self):
         """Register automatic event history hooks for all orchestrator events."""
@@ -332,120 +328,49 @@ class Orchestrator(BaseClass):
             data={"run_mode": self.config.run_mode.value},
         )
 
-    def _message_channel_thread_function(self):
+    def _setup_channel_handlers(self):
         """
-        Function executed in a separate thread to continuously check
-        for incoming agent messages.
+        Initialize and start message channel handlers.
 
-        Optimized for high-throughput message processing:
-        - Dedicated thread for agent messages (high priority)
-        - Uses short timeouts to avoid blocking
-        - Processes messages in tight loop without unnecessary delays
+        Creates ChannelHandler instances for agent messages and external commands,
+        encapsulating all thread management logic in dedicated handler objects.
+
+        The agent message handler is always created and started, while the command
+        handler is only initialized if the command interface is enabled in the configuration.
         """
-        self.logger.trace("Agent message handling thread started")
-
-        while self._agent_message_thread_running:
-            try:
-                # Check for agent messages
-                msg = self.msg_channel.receive(timeout=1)
-                if msg:
-                    self.handle_agent_message(msg)
-
-            except Exception as e:
-                self.logger.error(f"Error in agent message handling thread: {e}")
-
-        self.logger.trace("Agent message handling thread terminated")
-
-    def _command_channel_thread_function(self):
-        """
-        Function executed in a separate thread to continuously check
-        for incoming external commands.
-
-        Separate from agent messages to ensure CLI responsiveness:
-        - Dedicated thread for command interface
-        - Independent of agent message processing
-        - Allows concurrent handling of commands and agent events
-        """
-        self.logger.trace("Command handling thread started")
-
-        while self._command_thread_running:
-            try:
-                # Check for external commands
-                if self.command_channel:
-                    cmd_msg = self.command_channel.receive(timeout=1)
-                    if cmd_msg:
-                        self.handle_external_command(cmd_msg)
-
-            except Exception as e:
-                self.logger.error(f"Error in command handling thread: {e}")
-
-        self.logger.trace("Command handling thread terminated")
-
-    def _start_agent_message_thread(self):
-        """
-        Start a separate thread to handle incoming agent messages.
-        """
-        if self._agent_message_thread_running:
-            return
-
-        self._agent_message_thread_running = True
-        self._agent_message_thread = threading.Thread(
-            target=self._message_channel_thread_function,
-            daemon=True,
-            name="OrchestratorAgentMessageThread",
+        # Agent message handler (always enabled)
+        self._agent_message_handler = ChannelHandler(
+            channel=self.msg_channel,
+            message_handler=self.handle_agent_message,
+            name="OrchestratorAgentMessageHandler",
+            logger=self.logger,
+            poll_timeout=1.0,
         )
-        self._agent_message_thread.start()
-        self.logger.debug("Agent message handling thread started successfully")
+        self._agent_message_handler.start()
 
-    def _start_command_thread(self):
-        """
-        Start a separate thread to handle incoming external commands.
-        """
-        if self._command_thread_running:
-            return
+        # Command handler (conditionally enabled)
+        if self.config.enable_command_interface and self.command_channel:
+            self._command_handler = ChannelHandler(
+                channel=self.command_channel,
+                message_handler=self.handle_external_command,
+                name="OrchestratorCommandHandler",
+                logger=self.logger,
+                poll_timeout=1.0,
+            )
+            self._command_handler.start()
 
-        self._command_thread_running = True
-        self._command_thread = threading.Thread(
-            target=self._command_channel_thread_function,
-            daemon=True,
-            name="OrchestratorCommandThread",
-        )
-        self._command_thread.start()
-        self.logger.debug("Command handling thread started successfully")
-
-    def _stop_agent_message_thread(self):
+    def _shutdown_channel_handlers(self):
         """
-        Stop the agent message handling thread.
-        """
-        if not self._agent_message_thread_running:
-            return
+        Stop all channel handlers gracefully.
 
-        self._agent_message_thread_running = False
-        if self._agent_message_thread:
-            self._agent_message_thread.join(timeout=2.0)
-            if self._agent_message_thread.is_alive():
-                self.logger.warning(
-                    "The agent message handling thread did not stop properly"
-                )
-            else:
-                self.logger.trace("Agent message handling thread stopped successfully")
-            self._agent_message_thread = None
-
-    def _stop_command_thread(self):
+        Stops the agent message handler and command handler (if enabled),
+        waiting for their threads to terminate properly.
         """
-        Stop the command handling thread.
-        """
-        if not self._command_thread_running:
-            return
+        if self._agent_message_handler:
+            self._agent_message_handler.stop(timeout=2.0)
 
-        self._command_thread_running = False
-        if self._command_thread:
-            self._command_thread.join(timeout=2.0)
-            if self._command_thread.is_alive():
-                self.logger.warning("The command handling thread did not stop properly")
-            else:
-                self.logger.trace("Command handling thread stopped successfully")
-            self._command_thread = None
+        if self._command_handler:
+            self._command_handler.stop(timeout=2.0)
 
     def handle_agent_message(self, msg: ServiceMessage) -> None:
         """
@@ -819,10 +744,8 @@ class Orchestrator(BaseClass):
             data={"total_agents": str(len(self.memory.agents))},
         )
 
-        # Stop both message handling threads
-        self._stop_agent_message_thread()
-        if self.config.enable_command_interface:
-            self._stop_command_thread()
+        # Stop all channel handlers
+        self._shutdown_channel_handlers()
 
         # Finalize plugins
         self.plugin_manager.finalize_plugins()
