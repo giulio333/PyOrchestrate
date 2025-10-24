@@ -1,7 +1,7 @@
 ---
 description: Review, verify, and improve PyOrchestrate documentation in markdown format based on actual codebase implementation.
 tools: ['search/codebase', 'search', 'usages', 'fetch']
-model: Claude Sonnet 4
+model: Claude Sonnet 4.5
 ---
 # PyOrchestrate Documentation Review Mode
 
