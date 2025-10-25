@@ -1,5 +1,4 @@
 import time
-import threading
 from collections import defaultdict, deque
 from typing import List, final, Optional
 from enum import Enum
@@ -10,6 +9,7 @@ from PyOrchestrate.core.orchestrator.channel_handler import ChannelHandler
 from PyOrchestrate.core.orchestrator.dependency_graph import DependencyGraph
 from PyOrchestrate.core.orchestrator.lifecycle_manager import AgentLifecycleManager
 from PyOrchestrate.core.orchestrator.worker_pool import WorkerPoolScheduler
+from PyOrchestrate.core.orchestrator.message_router import MessageRouter
 from PyOrchestrate.core.utilities.command_handler import CommandException
 from PyOrchestrate.core.orchestrator.event_store import EventStore, BucketRingStore
 from PyOrchestrate.core.utilities.event_manager import EventManager
@@ -298,6 +298,9 @@ class Orchestrator(BaseClass):
             self.config.max_workers, self.lifecycle_manager, self.logger
         )
 
+        # Message router for agent message handling
+        self.message_router = MessageRouter(self.event_manager, self.logger)
+
         # Event store for history tracking
         self.event_store = EventStore(
             capacity=self.config.history_max_events,
@@ -329,10 +332,6 @@ class Orchestrator(BaseClass):
                 f"Command interface enabled on ZMQ: {self.config.command_zmq_address}"
             )
 
-        self._terminated_agents = set()
-        """Set for agents that have terminated (to filter stale heartbeats)"""
-        self._terminated_agents_lock = threading.Lock()
-        """Lock for thread-safe access to _terminated_agents set"""
         self._shutdown_requested = False
         """Flag for graceful shutdown via CLI"""
 
@@ -379,10 +378,10 @@ class Orchestrator(BaseClass):
         The agent message handler is always created and started, while the command
         handler is only initialized if the command interface is enabled in the configuration.
         """
-        # Agent message handler (always enabled)
+        # Agent message handler (always enabled) - delegates to message_router
         self._agent_message_handler = ChannelHandler(
             channel=self.msg_channel,
-            message_handler=self.handle_agent_message,
+            message_handler=self.message_router.route_agent_message,
             name="OrchestratorAgentMessageHandler",
             logger=self.logger,
             poll_timeout=1.0,
@@ -412,65 +411,6 @@ class Orchestrator(BaseClass):
 
         if self._command_handler:
             self._command_handler.stop(timeout=2.0)
-
-    def handle_agent_message(self, msg: ServiceMessage) -> None:
-        """
-        Process a single message coming from an agent.
-
-        Notes:
-            Only messages of type 'STATUS' are processed and relayed to the
-            orchestrator's `EventManager`.
-
-            Heartbeat messages from terminated agents are filtered to prevent
-            processing of stale messages remaining in the channel queue.
-
-        Args:
-            msg (ServiceMessage): The message received from an agent.
-
-        Raises:
-            No exceptions are raised; errors are logged internally.
-        """
-        self.logger.debug(f"Received {msg}: {msg.payload.get('event')}")
-
-        if msg.type == "STATUS":
-            event = msg.payload.get("event")
-
-            if event == AgentEvent.AGENT_CLOSE.value:
-                # Mark agent as terminated to filter out stale heartbeat messages
-                with self._terminated_agents_lock:
-                    self._terminated_agents.add(msg.sender)
-                self.event_manager.emit(
-                    OrchestratorEvent.AGENT_TERMINATED, agent_name=msg.sender
-                )
-            elif event == AgentEvent.AGENT_START.value:
-                self.event_manager.emit(
-                    OrchestratorEvent.AGENT_STARTED, agent_name=msg.sender
-                )
-            elif event == AgentEvent.AGENT_READY.value:
-                self.event_manager.emit(
-                    OrchestratorEvent.AGENT_READY, agent_name=msg.sender
-                )
-            elif event == AgentEvent.AGENT_HEARTBEAT.value:
-                # Ignore heartbeats from terminated agents (stale messages in queue)
-                with self._terminated_agents_lock:
-                    is_terminated = msg.sender in self._terminated_agents
-
-                if not is_terminated:
-                    self.event_manager.emit(
-                        OrchestratorEvent.AGENT_HEARTBEAT, agent_name=msg.sender
-                    )
-                else:
-                    self.logger.debug(
-                        f"Ignoring stale heartbeat from terminated agent '{msg.sender}'"
-                    )
-            elif event == "ERROR":
-                error_msg = msg.payload.get("message", "Unknown error")
-                self.logger.error(f"Agent {msg.sender} reported error: {error_msg}")
-                self.event_manager.emit(
-                    OrchestratorEvent.AGENT_ERROR,
-                    agent_name=msg.sender,
-                    error_message=error_msg,
-                )
 
     def handle_external_command(self, request_msg: ServiceMessage) -> None:
         """Process external commands from CLI."""
@@ -720,8 +660,7 @@ class Orchestrator(BaseClass):
                         # Notify worker pool of termination (automatically starts next queued)
                         self.worker_pool.on_agent_terminated(agent.name)
                         # Mark agent as terminated for message filtering
-                        with self._terminated_agents_lock:
-                            self._terminated_agents.add(agent.name)
+                        self.message_router.mark_agent_terminated(agent.name)
                 else:
                     alive_count += 1
 

@@ -95,7 +95,7 @@ class TestOrchestrator(unittest.TestCase):
             )
 
     def test_handle_agent_message_events(self):
-        """Verify that handle_agent_message emits the correct events."""
+        """Verify that message_router.route_agent_message emits the correct events."""
         event_map = {
             AgentEvent.AGENT_CLOSE.value: OrchestratorEvent.AGENT_TERMINATED,
             AgentEvent.AGENT_START.value: OrchestratorEvent.AGENT_STARTED,
@@ -110,7 +110,7 @@ class TestOrchestrator(unittest.TestCase):
                 event_name=payload,
             )
 
-            self.orch.handle_agent_message(msg)
+            self.orch.message_router.route_agent_message(msg)
             self.orch.event_manager.emit.assert_called_with(  # type: ignore
                 expected_event, agent_name="agent1"
             )
