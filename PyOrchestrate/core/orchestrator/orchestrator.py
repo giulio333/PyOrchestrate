@@ -10,9 +10,9 @@ from PyOrchestrate.core.orchestrator.dependency_graph import DependencyGraph
 from PyOrchestrate.core.orchestrator.lifecycle_manager import AgentLifecycleManager
 from PyOrchestrate.core.orchestrator.worker_pool import WorkerPoolScheduler
 from PyOrchestrate.core.orchestrator.message_router import MessageRouter
+from PyOrchestrate.core.orchestrator.event_bus import OrchestratorEventBus
 from PyOrchestrate.core.utilities.command_handler import CommandException
 from PyOrchestrate.core.orchestrator.event_store import EventStore, BucketRingStore
-from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import OrchestratorEvent, AgentEvent
 from PyOrchestrate.core.utilities.validation import (
     ValidationResult,
@@ -284,8 +284,19 @@ class Orchestrator(BaseClass):
         self.validate_config()
 
         self.memory = OMemory()
-        self.event_manager = EventManager()
         self.msg_channel = MessageChannel("process")
+
+        # Event store for history tracking
+        event_store = EventStore(
+            capacity=self.config.history_max_events,
+            payload_max_bytes=self.config.history_payload_bytes,
+            event_policies={
+                OrchestratorEvent.AGENT_HEARTBEAT.value: BucketRingStore(2)
+            },
+        )
+
+        # Event bus combines EventManager + EventStore with automatic history tracking
+        self.event_bus = OrchestratorEventBus(event_store)
 
         # Initialize specialized managers
         self.dependency_graph = DependencyGraph()
@@ -299,16 +310,7 @@ class Orchestrator(BaseClass):
         )
 
         # Message router for agent message handling
-        self.message_router = MessageRouter(self.event_manager, self.logger)
-
-        # Event store for history tracking
-        self.event_store = EventStore(
-            capacity=self.config.history_max_events,
-            payload_max_bytes=self.config.history_payload_bytes,
-            event_policies={
-                OrchestratorEvent.AGENT_HEARTBEAT.value: BucketRingStore(2)
-            },
-        )
+        self.message_router = MessageRouter(self.event_bus.event_manager, self.logger)
 
         # Initialize plugin manager for centralized plugin management
         self.plugin_manager = PluginManager(self.plugin)
@@ -339,34 +341,42 @@ class Orchestrator(BaseClass):
         self._agent_message_handler: Optional[ChannelHandler] = None
         self._command_handler: Optional[ChannelHandler] = None
 
-        # Register event history hooks
-        self._register_history_hooks()
-
-        # Start channel handlers for agent messages and external commands
-        self._setup_channel_handlers()
-
-    def _register_history_hooks(self):
-        """Register automatic event history hooks for all orchestrator events."""
-        for ev in OrchestratorEvent:
-
-            def _cb(ev=ev, **kw):
-                sev = "ERROR" if ev == OrchestratorEvent.AGENT_ERROR else "INFO"
-                self.event_store.record(
-                    category="orchestrator",
-                    event_name=ev.value,
-                    agent=kw.get("agent_name"),
-                    severity=sev,
-                    data={k: str(v) for k, v in kw.items() if k != "agent_name"},
-                )
-
-            self.register_event(ev, _cb)
-
-        self.event_store.record(
+        # Record orchestrator initialization event
+        self.event_bus.event_store.record(
             category="orchestrator",
             event_name="INIT",
             severity="INFO",
             data={"run_mode": self.config.run_mode.value},
         )
+
+        # Start channel handlers for agent messages and external commands
+        self._setup_channel_handlers()
+
+    @property
+    def event_manager(self):
+        """
+        Compatibility property to access EventManager via EventBus.
+
+        This property provides backward compatibility for code that directly
+        accesses self.event_manager instead of using the EventBus API.
+
+        Returns:
+            EventManager: The underlying EventManager instance
+        """
+        return self.event_bus.event_manager
+
+    @property
+    def event_store(self):
+        """
+        Compatibility property to access EventStore via EventBus.
+
+        This property provides backward compatibility for code that directly
+        accesses self.event_store instead of using the EventBus API.
+
+        Returns:
+            EventStore: The underlying EventStore instance
+        """
+        return self.event_bus.event_store
 
     def _setup_channel_handlers(self):
         """
@@ -432,7 +442,7 @@ class Orchestrator(BaseClass):
                 self.logger.warning(f"Command handling failed: {e}")
 
                 # Track error in event store
-                self.event_store.record(
+                self.event_bus.event_store.record(
                     category="cli",
                     event_name="CLI_ERROR",
                     severity="ERROR",
@@ -455,7 +465,7 @@ class Orchestrator(BaseClass):
             self.logger.error(f"Error processing external command: {e}")
 
             # Track error
-            self.event_store.record(
+            self.event_bus.event_store.record(
                 category="cli",
                 event_name="CLI_ERROR",
                 severity="ERROR",
@@ -538,7 +548,7 @@ class Orchestrator(BaseClass):
             )
 
             # Emit registration event
-            self.event_manager.emit(OrchestratorEvent.AGENT_REGISTERED, agent_name=name)
+            self.event_bus.emit(OrchestratorEvent.AGENT_REGISTERED, agent_name=name)
 
             return agent_entry
 
@@ -559,7 +569,7 @@ class Orchestrator(BaseClass):
             orchestrator.register_event(OrchestratorEvent.AGENT_STARTED, on_agent_start)
             orchestrator.register_event(OrchestratorEvent.AGENT_TERMINATED, on_agent_terminated)
         """
-        self.event_manager.register_event(event_type, callback)
+        self.event_bus.register_callback(event_type, callback)
         self.logger.debug(f"Event callback registered for event type: {event_type}")
 
     def add_dependency(self, agent_name: str, depends_on: list[str]):
@@ -672,7 +682,7 @@ class Orchestrator(BaseClass):
         self.logger.info("Orchestrator is shutting down...")
 
         # Track orchestrator shutdown
-        self.event_store.record(
+        self.event_bus.event_store.record(
             category="orchestrator",
             event_name="SHUTDOWN",
             severity="INFO",
