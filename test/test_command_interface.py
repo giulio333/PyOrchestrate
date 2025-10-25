@@ -36,8 +36,13 @@ class TestCommandInterface(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test fixtures."""
-        if self.cmd_interface._channel_handler:
-            self.cmd_interface.stop()
+        if hasattr(self, "cmd_interface"):
+            if self.cmd_interface._channel_handler:
+                self.cmd_interface.stop()
+            # Close the ZMQ socket properly
+            if hasattr(self.cmd_interface, "command_channel"):
+                self.cmd_interface.command_channel.close()
+            time.sleep(0.1)  # Give ZMQ time to release the port
 
     def test_initialization(self):
         """Test CommandInterface initialization."""
