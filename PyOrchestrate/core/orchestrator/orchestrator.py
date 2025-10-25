@@ -535,45 +535,27 @@ class Orchestrator(BaseClass):
         """
         Add dependencies: agent_name depends on depends_on.
 
-        Delegates to DependencyGraph after validation.
+        Validation is performed during validate_dependencies() call.
+        Delegates entirely to DependencyGraph.
+
+        Args:
+            agent_name: Name of the agent that has dependencies
+            depends_on: List of agent names that agent_name depends on
         """
-        if agent_name not in [agent.name for agent in self.memory.agents]:
-            raise ValueError(
-                f"Agent {agent_name} is not registered in the Orchestrator."
-            )
-        for dependency in depends_on:
-            if dependency not in [agent.name for agent in self.memory.agents]:
-                raise ValueError(
-                    f"Dependency {dependency} is not registered in the Orchestrator."
-                )
         self.dependency_graph.add_dependency(agent_name, depends_on)
         self.logger.info(f"Agent '{agent_name}' depends on {depends_on}.")
 
     def validate_dependencies(self):
         """
-        Check for dependency errors (e.g., circular dependencies like A -> B -> A).
+        Validate dependency graph for errors (cycles, missing agents).
 
-        Delegates to DependencyGraph.
+        Delegates entirely to DependencyGraph.
+
+        Raises:
+            ValueError: If validation fails (cycles or unregistered agents)
         """
         agent_names = {agent.name for agent in self.memory.agents}
         self.dependency_graph.validate(agent_names)
-
-    def _topological_sort_agents(self) -> list[str]:
-        """
-        Order agents topologically.
-
-        Notes:
-            This method uses a BFS algorithm to order the agents topologically.
-            Delegates to DependencyGraph.
-
-        Returns:
-            list[str]: Ordered agents.
-
-        Raises:
-            ValueError: If there is a cyclic dependency
-        """
-        agent_names = {agent.name for agent in self.memory.agents}
-        return self.dependency_graph.topological_sort(agent_names)
 
     def start(self):
         """
@@ -586,7 +568,9 @@ class Orchestrator(BaseClass):
 
         self.validate_dependencies()
 
-        ordered_agents = self._topological_sort_agents()
+        # Get topologically sorted agent order (dependencies first)
+        agent_names = {agent.name for agent in self.memory.agents}
+        ordered_agents = self.dependency_graph.topological_sort(agent_names)
 
         # Start agents via worker pool scheduler
         for agent_name in ordered_agents:
