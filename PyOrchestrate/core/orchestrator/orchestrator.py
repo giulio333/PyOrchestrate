@@ -28,9 +28,20 @@ class RunMode(Enum):
     """
     Execution mode for the Orchestrator main loop.
 
-    Available modes:
-    - STOP_ON_EMPTY: Stop when all agents finished
-    - DAEMON: Keep running until explicitly shutdown
+    **When to use STOP_ON_EMPTY:**
+    - Batch processing jobs with defined end
+    - ETL pipelines
+    - One-time data migrations
+    - Testing scenarios
+
+    **When to use DAEMON:**
+    - Web servers and APIs
+    - Continuous monitoring systems
+    - Event-driven architectures
+    - Long-running services requiring CLI control
+
+    **Important:** DAEMON mode requires explicit shutdown via CLI
+    command 'shutdown' or programmatic call to stop().
     """
 
     STOP_ON_EMPTY = "stop_on_empty"
@@ -379,7 +390,17 @@ class Orchestrator(BaseClass):
         Process a single message coming from an agent.
 
         Notes:
-            Only messages of type 'STATUS' are processed and relayed to the orchestrator's `EventManager`.
+            Only messages of type 'STATUS' are processed and relayed to the
+            orchestrator's `EventManager`.
+
+            Heartbeat messages from terminated agents are filtered to prevent
+            processing of stale messages remaining in the channel queue.
+
+        Args:
+            msg (ServiceMessage): The message received from an agent.
+
+        Raises:
+            No exceptions are raised; errors are logged internally.
         """
         self.logger.debug(f"Received {msg}: {msg.payload.get('event')}")
 
