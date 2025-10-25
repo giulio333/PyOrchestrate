@@ -1,4 +1,5 @@
 import time
+import threading
 from collections import defaultdict, deque
 from typing import List, final, Optional
 from enum import Enum
@@ -57,6 +58,7 @@ class OrchestratorConfig(BaseClass.Config):
     Attributes:
         check_interval (float): The interval to check the agents. Defaults to 1.
         max_workers (int): The maximum number of workers that can run concurrently. Defaults to 5.
+        agent_start_timeout (float): Maximum time in seconds to wait for an agent to start. Defaults to 30.0.
         enable_command_interface (bool): Enable external command interface via ZeroMQ over TCP. Defaults to True.
         command_zmq_address (str): ZeroMQ address for external commands. Defaults to "tcp://*:5555".
         logger (LoggerConfig): Logger configuration.
@@ -69,6 +71,8 @@ class OrchestratorConfig(BaseClass.Config):
     """The interval to check the agents."""
     max_workers: int = 5
     """The maximum number of workers that can run concurrently."""
+    agent_start_timeout: float = 30.0
+    """Maximum time in seconds to wait for an agent to start. Defaults to 30.0."""
     enable_command_interface: bool = True
     """Enable external command interface via ZeroMQ."""
     command_zmq_address: str = "tcp://*:5555"
@@ -86,6 +90,7 @@ class OrchestratorConfig(BaseClass.Config):
         self,
         check_interval: float | None = None,
         max_workers: int | None = None,
+        agent_start_timeout: float | None = None,
         enable_command_interface: bool | None = None,
         command_zmq_address: str | None = None,
         allowed_commands: set[str] | str | None = None,
@@ -100,6 +105,7 @@ class OrchestratorConfig(BaseClass.Config):
         Args:
             check_interval (float | None, optional): The interval to check the agents. Defaults to None.
             max_workers (int | None, optional): The maximum number of workers that can run concurrently. Defaults to None.
+            agent_start_timeout (float | None, optional): Maximum time in seconds to wait for an agent to start. Defaults to None.
             enable_command_interface (bool | None, optional): Enable external command interface via ZeroMQ. Defaults to None.
             command_zmq_address (str | None, optional): ZeroMQ address for external commands. Defaults to None.
             allowed_commands (set[str] | str | None, optional): Allowed commands for CLI interface. Can be a set of commands, a preset name, or None for all commands. Defaults to None.
@@ -114,6 +120,9 @@ class OrchestratorConfig(BaseClass.Config):
 
         if max_workers is not None:
             self.max_workers = max_workers
+
+        if agent_start_timeout is not None:
+            self.agent_start_timeout = agent_start_timeout
 
         if enable_command_interface is not None:
             self.enable_command_interface = enable_command_interface
@@ -150,6 +159,15 @@ class OrchestratorConfig(BaseClass.Config):
                 ValidationResult(
                     field="max_workers",
                     message="max_workers must be greater than 0.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+
+        if self.agent_start_timeout <= 0:
+            results.append(
+                ValidationResult(
+                    field="agent_start_timeout",
+                    message="agent_start_timeout must be greater than 0.",
                     severity=ValidationSeverity.ERROR,
                 )
             )
@@ -305,6 +323,8 @@ class Orchestrator(BaseClass):
         """Set for agents that have been started"""
         self._terminated_agents = set()
         """Set for agents that have terminated (to filter stale heartbeats)"""
+        self._terminated_agents_lock = threading.Lock()
+        """Lock for thread-safe access to _terminated_agents set"""
         self._shutdown_requested = False
         """Flag for graceful shutdown via CLI"""
 
@@ -409,7 +429,8 @@ class Orchestrator(BaseClass):
 
             if event == AgentEvent.AGENT_CLOSE.value:
                 # Mark agent as terminated to filter out stale heartbeat messages
-                self._terminated_agents.add(msg.sender)
+                with self._terminated_agents_lock:
+                    self._terminated_agents.add(msg.sender)
                 self.event_manager.emit(
                     OrchestratorEvent.AGENT_TERMINATED, agent_name=msg.sender
                 )
@@ -423,7 +444,10 @@ class Orchestrator(BaseClass):
                 )
             elif event == AgentEvent.AGENT_HEARTBEAT.value:
                 # Ignore heartbeats from terminated agents (stale messages in queue)
-                if msg.sender not in self._terminated_agents:
+                with self._terminated_agents_lock:
+                    is_terminated = msg.sender in self._terminated_agents
+
+                if not is_terminated:
                     self.event_manager.emit(
                         OrchestratorEvent.AGENT_HEARTBEAT, agent_name=msg.sender
                     )
@@ -458,6 +482,14 @@ class Orchestrator(BaseClass):
             except Exception as e:
                 # Fallback: convert unexpected exceptions to an error response
                 self.logger.warning(f"Command handling failed: {e}")
+
+                # Track error in event store
+                self.event_store.record(
+                    category="cli",
+                    event_name="CLI_ERROR",
+                    severity="ERROR",
+                    data={"error": str(e)},
+                )
 
                 # Create structured error response
                 response_msg = ServiceMessage.create_command_response(
@@ -528,29 +560,42 @@ class Orchestrator(BaseClass):
 
         Returns:
             AgentEntry: The agent entry object stored in the memory.
+
+        Raises:
+            ValueError: If an agent with the same name is already registered.
+            Exception: If agent registration fails for any reason.
         """
 
-        # Auto-inject heartbeat plugin if exists
-        heartbeat_plugin = self.plugin_manager.get_plugin("heartbeat")
-        if heartbeat_plugin:
-            assert isinstance(heartbeat_plugin, OrchestratorHeartbeatPlugin)
-            custom_plugin = heartbeat_plugin.inject_agent_heartbeat_plugin(
-                custom_plugin
+        try:
+            # Auto-inject heartbeat plugin if exists
+            heartbeat_plugin = self.plugin_manager.get_plugin("heartbeat")
+            if heartbeat_plugin:
+                assert isinstance(heartbeat_plugin, OrchestratorHeartbeatPlugin)
+                custom_plugin = heartbeat_plugin.inject_agent_heartbeat_plugin(
+                    custom_plugin
+                )
+
+            agent_entry: AgentEntry = self.memory.add_agent(
+                agent_class=agent_class,
+                name=name,
+                custom_config=custom_config,
+                custom_plugin=custom_plugin,
+                control_events=control_events,
+                state_events=state_events,
+                msg_channel=msg_channel or self.msg_channel,
+                **kwargs,
             )
 
-        agent_entry: AgentEntry = self.memory.add_agent(
-            agent_class=agent_class,
-            name=name,
-            custom_config=custom_config,
-            custom_plugin=custom_plugin,
-            control_events=control_events,
-            state_events=state_events,
-            msg_channel=msg_channel or self.msg_channel,
-            **kwargs,
-        )
+            self.logger.debug(f"Agent '{name}' registered.")
 
-        self.logger.debug(f"Agent '{name}' registered.")
-        return agent_entry
+            # Emit registration event
+            self.event_manager.emit(OrchestratorEvent.AGENT_REGISTERED, agent_name=name)
+
+            return agent_entry
+
+        except Exception as e:
+            self.logger.error(f"Failed to register agent '{name}': {e}")
+            raise
 
     def register_event(self, event_type, callback):
         """
@@ -669,15 +714,35 @@ class Orchestrator(BaseClass):
 
     def _start_agent_callback(self, agent_name: str):
         """
-        Callback to start the agent.
+        Callback to start the agent with timeout protection.
 
         Notes:
             The agent will emit an `OrchestratorEvent.AGENT_STARTED` event through the message channel when it's actually started.
             If the maximum number of workers is reached, the agent is added to the waiting queue.
+
+            If agent.start() takes longer than agent_start_timeout, an error is logged and the agent
+            is not marked as started, preventing the system from blocking indefinitely.
+
+        Args:
+            agent_name (str): Name of the agent to start.
+
+        Raises:
+            Exception: If agent initialization or startup fails critically.
         """
         agent: AgentEntry = self.memory.get_agent(agent_name)
 
-        agent.initialize_agent()
+        try:
+            agent.initialize_agent()
+        except Exception as e:
+            self.logger.error(f"Failed to initialize agent '{agent_name}': {e}")
+            self.event_store.record(
+                category="orchestrator",
+                event_name="AGENT_INIT_FAILED",
+                agent=agent_name,
+                severity="ERROR",
+                data={"error": str(e)},
+            )
+            raise
 
         if self._running_agents >= self.config.max_workers:
             self.logger.warning(
@@ -698,11 +763,56 @@ class Orchestrator(BaseClass):
             )
             return
 
-        agent.start()
-        self._running_agents += 1
-        self._started_agents.add(agent_name)
+        # Start agent with timeout protection
+        try:
+            start_time = time.time()
+            agent.start()
 
-        self.logger.info(f"Starting agent {agent_name}...")
+            # Wait for agent to actually start (with timeout)
+            # Check if state_events exist before waiting
+            if agent.state_events and agent.state_events.start_event:
+                if not agent.state_events.start_event.wait(
+                    timeout=self.config.agent_start_timeout
+                ):
+                    elapsed = time.time() - start_time
+                    self.logger.error(
+                        f"Agent '{agent_name}' failed to start within timeout ({elapsed:.1f}s > {self.config.agent_start_timeout}s)"
+                    )
+                    self.event_store.record(
+                        category="orchestrator",
+                        event_name="AGENT_START_TIMEOUT",
+                        agent=agent_name,
+                        severity="ERROR",
+                        data={
+                            "timeout": str(self.config.agent_start_timeout),
+                            "elapsed": f"{elapsed:.1f}",
+                        },
+                    )
+                    # Don't increment running_agents or add to started_agents
+                    # Try to stop the agent to clean up
+                    try:
+                        agent.stop()
+                    except Exception as stop_error:
+                        self.logger.error(
+                            f"Failed to stop timed-out agent '{agent_name}': {stop_error}"
+                        )
+                    return
+
+            self._running_agents += 1
+            self._started_agents.add(agent_name)
+            self.logger.info(f"Agent '{agent_name}' started successfully.")
+
+        except Exception as e:
+            self.logger.error(f"Failed to start agent '{agent_name}': {e}")
+            self.event_store.record(
+                category="orchestrator",
+                event_name="AGENT_START_FAILED",
+                agent=agent_name,
+                severity="ERROR",
+                data={"error": str(e)},
+            )
+            # Don't add to running/started sets on failure
+            raise
 
     def stop(self):
         """Terminates all registered agents."""
@@ -867,6 +977,9 @@ class Orchestrator(BaseClass):
     def _info(self):
         self.logger.debug(f"Config: check_interval={self.config.check_interval}")
         self.logger.debug(f"Config: max_workers={self.config.max_workers}")
+        self.logger.debug(
+            f"Config: agent_start_timeout={self.config.agent_start_timeout}"
+        )
         self.logger.debug(
             f"Config: enable_command_interface={self.config.enable_command_interface}"
         )
