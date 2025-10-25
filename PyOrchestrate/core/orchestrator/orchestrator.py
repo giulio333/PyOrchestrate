@@ -7,6 +7,9 @@ from enum import Enum
 from PyOrchestrate.core.agent.base_agent import BaseAgent
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
 from PyOrchestrate.core.orchestrator.channel_handler import ChannelHandler
+from PyOrchestrate.core.orchestrator.dependency_graph import DependencyGraph
+from PyOrchestrate.core.orchestrator.lifecycle_manager import AgentLifecycleManager
+from PyOrchestrate.core.orchestrator.worker_pool import WorkerPoolScheduler
 from PyOrchestrate.core.utilities.command_handler import CommandException
 from PyOrchestrate.core.orchestrator.event_store import EventStore, BucketRingStore
 from PyOrchestrate.core.utilities.event_manager import EventManager
@@ -283,6 +286,21 @@ class Orchestrator(BaseClass):
         self.memory = OMemory()
         self.event_manager = EventManager()
         self.msg_channel = MessageChannel("process")
+        
+        # Initialize specialized managers
+        self.dependency_graph = DependencyGraph()
+        
+        self.lifecycle_manager = AgentLifecycleManager(
+            self.memory,
+            self.config,
+            self.logger
+        )
+        
+        self.worker_pool = WorkerPoolScheduler(
+            self.config.max_workers,
+            self.lifecycle_manager,
+            self.logger
+        )
 
         # Event store for history tracking
         self.event_store = EventStore(
@@ -315,12 +333,6 @@ class Orchestrator(BaseClass):
                 f"Command interface enabled on ZMQ: {self.config.command_zmq_address}"
             )
 
-        self.dependencies: dict[str, list[str]] = defaultdict(list)
-        self._running_agents = 0
-        self._waiting_agents_queue = deque()
-        """Queue for waiting agents"""
-        self._started_agents = set()
-        """Set for agents that have been started"""
         self._terminated_agents = set()
         """Set for agents that have terminated (to filter stale heartbeats)"""
         self._terminated_agents_lock = threading.Lock()
@@ -544,6 +556,8 @@ class Orchestrator(BaseClass):
 
             Events from agents are handled centrally by the orchestrator's event manager.
             Agents communicate with the orchestrator via message channel.
+            
+            Delegates to AgentLifecycleManager.
 
         Warnings:
             agent_name must be unique.
@@ -575,7 +589,8 @@ class Orchestrator(BaseClass):
                     custom_plugin
                 )
 
-            agent_entry: AgentEntry = self.memory.add_agent(
+            # Register via lifecycle manager
+            agent_entry: AgentEntry = self.lifecycle_manager.register_agent(
                 agent_class=agent_class,
                 name=name,
                 custom_config=custom_config,
@@ -585,8 +600,6 @@ class Orchestrator(BaseClass):
                 msg_channel=msg_channel or self.msg_channel,
                 **kwargs,
             )
-
-            self.logger.debug(f"Agent '{name}' registered.")
 
             # Emit registration event
             self.event_manager.emit(OrchestratorEvent.AGENT_REGISTERED, agent_name=name)
@@ -616,6 +629,8 @@ class Orchestrator(BaseClass):
     def add_dependency(self, agent_name: str, depends_on: list[str]):
         """
         Add dependencies: agent_name depends on depends_on.
+        
+        Delegates to DependencyGraph after validation.
         """
         if agent_name not in [agent.name for agent in self.memory.agents]:
             raise ValueError(
@@ -626,33 +641,17 @@ class Orchestrator(BaseClass):
                 raise ValueError(
                     f"Dependency {dependency} is not registered in the Orchestrator."
                 )
-        self.dependencies[agent_name].extend(depends_on)
+        self.dependency_graph.add_dependency(agent_name, depends_on)
         self.logger.info(f"Agent '{agent_name}' depends on {depends_on}.")
 
     def validate_dependencies(self):
         """
         Check for dependency errors (e.g., circular dependencies like A -> B -> A).
+        
+        Delegates to DependencyGraph.
         """
-        visited = set()
-        stack = set()
-
-        agents = list(self.dependencies.keys())
-
-        def visit(node):
-            """Visit a node in the graph."""
-            if node in stack:
-                raise ValueError(
-                    f"Detected a dependency cycle: {node} is part of a cycle."
-                )
-            if node not in visited:
-                stack.add(node)
-                for neighbor in self.dependencies[node]:
-                    visit(neighbor)
-                stack.remove(node)
-                visited.add(node)
-
-        for agent in agents:
-            visit(agent)
+        agent_names = {agent.name for agent in self.memory.agents}
+        self.dependency_graph.validate(agent_names)
 
     def _topological_sort_agents(self) -> list[str]:
         """
@@ -660,6 +659,7 @@ class Orchestrator(BaseClass):
 
         Notes:
             This method uses a BFS algorithm to order the agents topologically.
+            Delegates to DependencyGraph.
 
         Returns:
             list[str]: Ordered agents.
@@ -667,40 +667,14 @@ class Orchestrator(BaseClass):
         Raises:
             ValueError: If there is a cyclic dependency
         """
-        all_agents: set[str] = {agent.name for agent in self.memory.agents}
-
-        for ag in all_agents:
-            if ag not in self.dependencies:
-                self.dependencies[ag] = []
-
-        in_degree: dict[str, int] = {ag: 0 for ag in all_agents}
-        for ag, deps in self.dependencies.items():
-            for dep in deps:
-                in_degree[ag] += 1
-
-        # BFS
-        queue = deque(ag for ag in all_agents if in_degree[ag] == 0)
-        topo_order = []
-
-        while queue:
-            node = queue.popleft()
-            topo_order.append(node)
-            for child, deps in self.dependencies.items():
-                if node in deps:
-                    in_degree[child] -= 1
-                    if in_degree[child] == 0:
-                        queue.append(child)
-
-        if len(topo_order) != len(all_agents):
-            raise ValueError(
-                "Cannot obtain a topological ordering: cyclic dependencies detected?"
-            )
-
-        return topo_order
+        agent_names = {agent.name for agent in self.memory.agents}
+        return self.dependency_graph.topological_sort(agent_names)
 
     def start(self):
         """
         Start all registered agents in the topological order of their dependencies.
+        
+        Delegates to WorkerPoolScheduler for agent startup.
         """
 
         self.start_time = time.time()
@@ -709,116 +683,17 @@ class Orchestrator(BaseClass):
 
         ordered_agents = self._topological_sort_agents()
 
-        for ag in ordered_agents:
-            self._start_agent_callback(ag)
-
-    def _start_agent_callback(self, agent_name: str):
-        """
-        Callback to start the agent with timeout protection.
-
-        Notes:
-            The agent will emit an `OrchestratorEvent.AGENT_STARTED` event through the message channel when it's actually started.
-            If the maximum number of workers is reached, the agent is added to the waiting queue.
-
-            If agent.start() takes longer than agent_start_timeout, an error is logged and the agent
-            is not marked as started, preventing the system from blocking indefinitely.
-
-        Args:
-            agent_name (str): Name of the agent to start.
-
-        Raises:
-            Exception: If agent initialization or startup fails critically.
-        """
-        agent: AgentEntry = self.memory.get_agent(agent_name)
-
-        try:
-            agent.initialize_agent()
-        except Exception as e:
-            self.logger.error(f"Failed to initialize agent '{agent_name}': {e}")
-            self.event_store.record(
-                category="orchestrator",
-                event_name="AGENT_INIT_FAILED",
-                agent=agent_name,
-                severity="ERROR",
-                data={"error": str(e)},
-            )
-            raise
-
-        if self._running_agents >= self.config.max_workers:
-            self.logger.warning(
-                f"Max workers limit reached. Adding {agent_name} to waiting queue."
-            )
-            self._waiting_agents_queue.append(agent_name)
-
-            # Track agent queued event
-            self.event_store.record(
-                category="orchestrator",
-                event_name="QUEUED",
-                agent=agent_name,
-                severity="WARN",
-                data={
-                    "running_agents": str(self._running_agents),
-                    "max_workers": str(self.config.max_workers),
-                },
-            )
-            return
-
-        # Start agent with timeout protection
-        try:
-            start_time = time.time()
-            agent.start()
-
-            # Wait for agent to actually start (with timeout)
-            # Check if state_events exist before waiting
-            if agent.state_events and agent.state_events.start_event:
-                if not agent.state_events.start_event.wait(
-                    timeout=self.config.agent_start_timeout
-                ):
-                    elapsed = time.time() - start_time
-                    self.logger.error(
-                        f"Agent '{agent_name}' failed to start within timeout ({elapsed:.1f}s > {self.config.agent_start_timeout}s)"
-                    )
-                    self.event_store.record(
-                        category="orchestrator",
-                        event_name="AGENT_START_TIMEOUT",
-                        agent=agent_name,
-                        severity="ERROR",
-                        data={
-                            "timeout": str(self.config.agent_start_timeout),
-                            "elapsed": f"{elapsed:.1f}",
-                        },
-                    )
-                    # Don't increment running_agents or add to started_agents
-                    # Try to stop the agent to clean up
-                    try:
-                        agent.stop()
-                    except Exception as stop_error:
-                        self.logger.error(
-                            f"Failed to stop timed-out agent '{agent_name}': {stop_error}"
-                        )
-                    return
-
-            self._running_agents += 1
-            self._started_agents.add(agent_name)
-            self.logger.info(f"Agent '{agent_name}' started successfully.")
-
-        except Exception as e:
-            self.logger.error(f"Failed to start agent '{agent_name}': {e}")
-            self.event_store.record(
-                category="orchestrator",
-                event_name="AGENT_START_FAILED",
-                agent=agent_name,
-                severity="ERROR",
-                data={"error": str(e)},
-            )
-            # Don't add to running/started sets on failure
-            raise
+        # Start agents via worker pool scheduler
+        for agent_name in ordered_agents:
+            self.worker_pool.start_agent(agent_name)
 
     def stop(self):
-        """Terminates all registered agents."""
-        for agent in self.memory.agents:
-            agent.stop()
-            self.logger.info(f"Stopping agent '{agent.name}'.")
+        """
+        Terminates all registered agents.
+        
+        Delegates to AgentLifecycleManager.
+        """
+        self.lifecycle_manager.stop_all()
 
     def join(self) -> None:
         """
@@ -832,6 +707,8 @@ class Orchestrator(BaseClass):
             Use the 'shutdown' command to terminate the orchestrator in this mode.
 
             - When agent is terminated, it emits an `OrchestratorEvent.AGENT_TERMINATED` event.
+            
+            Uses WorkerPoolScheduler to manage agent termination and queue.
         """
 
         all_finished: bool = False
@@ -841,19 +718,19 @@ class Orchestrator(BaseClass):
 
             for agent in self.memory.agents:
                 if not agent.instance.is_alive():
-                    # Check if the agent was started before decrementing
-                    if agent.name in self._started_agents:
+                    # Check if the agent was started before handling termination
+                    if agent.name in self.worker_pool._started_agents:
                         self.logger.info(f"Agent '{agent.name}' ended.")
-                        self._running_agents -= 1
-                        self._started_agents.remove(agent.name)
-
-                        # Start an agent from the waiting queue if available
-                        self._start_waiting_agent()
+                        # Notify worker pool of termination (automatically starts next queued)
+                        self.worker_pool.on_agent_terminated(agent.name)
+                        # Mark agent as terminated for message filtering
+                        with self._terminated_agents_lock:
+                            self._terminated_agents.add(agent.name)
                 else:
                     alive_count += 1
 
-            if alive_count == 0 and not self._waiting_agents_queue:
-                all_finished = True
+            # Check if all agents finished via worker pool
+            all_finished = self.worker_pool.all_finished
 
             time.sleep(self.config.check_interval)
 
@@ -892,45 +769,6 @@ class Orchestrator(BaseClass):
             return not self._shutdown_requested
         # Default enforced by validation: STOP_ON_EMPTY
         return not all_finished
-
-    def _start_waiting_agent(self):
-        """
-        Start an agent from the waiting queue if available.
-
-        Notes:
-            This method is called when an agent terminates, freeing up a slot
-            for another waiting agent.
-        """
-        if not self._waiting_agents_queue:
-            return
-
-        if self._running_agents >= self.config.max_workers:
-            self.logger.debug(
-                f"No slot available to start waiting agents. Running agents: {self._running_agents}, Limit: {self.config.max_workers}"
-            )
-            return
-
-        agent_name = self._waiting_agents_queue.popleft()
-        self.logger.info(
-            f"Starting waiting agent {agent_name} from queue... (Running agents: {self._running_agents}, Limit: {self.config.max_workers})"
-        )
-
-        # Track agent started from queue
-        self.event_store.record(
-            category="orchestrator",
-            event_name="STARTED_FROM_QUEUE",
-            agent=agent_name,
-            severity="INFO",
-            data={
-                "running_agents": str(self._running_agents),
-                "max_workers": str(self.config.max_workers),
-            },
-        )
-
-        agent = self.memory.get_agent(agent_name)
-        agent.start()
-        self._running_agents += 1
-        self._started_agents.add(agent_name)  # Track that the agent has been started
 
     def simple_join(self) -> None:
         """
