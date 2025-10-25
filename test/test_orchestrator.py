@@ -195,7 +195,7 @@ class TestOrchestrator(unittest.TestCase):
         self.orch.command_channel = MagicMock()
 
         # Mock event store
-        self.orch.event_store = MagicMock()
+        self.orch.event_bus.event_store = MagicMock()
 
         # Create a command request message
         request_msg = ServiceMessage.create_command(
@@ -209,7 +209,7 @@ class TestOrchestrator(unittest.TestCase):
         self.orch.handle_external_command(request_msg)
 
         # Verify event store recorded the error
-        self.orch.event_store.record.assert_called_once_with(
+        self.orch.event_bus.event_store.record.assert_called_once_with(
             category="cli",
             event_name="CLI_ERROR",
             severity="ERROR",
@@ -233,7 +233,7 @@ class TestOrchestrator(unittest.TestCase):
         self.orch.command_channel = MagicMock()
 
         # Mock event store
-        self.orch.event_store = MagicMock()
+        self.orch.event_bus.event_store = MagicMock()
 
         # Create a command request message without a command (to trigger ValueError)
         request_msg = ServiceMessage.create_command(
@@ -247,7 +247,7 @@ class TestOrchestrator(unittest.TestCase):
         self.orch.handle_external_command(request_msg)
 
         # Verify event store recorded the error
-        self.orch.event_store.record.assert_called_once_with(
+        self.orch.event_bus.event_store.record.assert_called_once_with(
             category="cli",
             event_name="CLI_ERROR",
             severity="ERROR",
