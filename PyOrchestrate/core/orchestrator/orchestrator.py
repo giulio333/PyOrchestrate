@@ -288,12 +288,14 @@ class Orchestrator(BaseClass):
 
         self.dependencies: dict[str, list[str]] = defaultdict(list)
         self._running_agents = 0
-        self._waiting_agents_queue = deque()  # Queue for waiting agents
-        self._started_agents = set()  # Set for agents that have been started
-        self._terminated_agents = (
-            set()
-        )  # Set for agents that have terminated (to filter stale heartbeats)
-        self._shutdown_requested = False  # Flag for graceful shutdown via CLI
+        self._waiting_agents_queue = deque()
+        """Queue for waiting agents"""
+        self._started_agents = set()
+        """Set for agents that have been started"""
+        self._terminated_agents = set()
+        """Set for agents that have terminated (to filter stale heartbeats)"""
+        self._shutdown_requested = False
+        """Flag for graceful shutdown via CLI"""
 
         # Channel handlers for message processing
         self._agent_message_handler: Optional[ChannelHandler] = None
@@ -430,21 +432,11 @@ class Orchestrator(BaseClass):
             if not command:
                 raise ValueError("Command is required")
 
-            assert self.command_handler, "Command handler not initialized"
-
             try:
                 response_msg = self.command_handler.execute_command_msg(request_msg)
             except Exception as e:
                 # Fallback: convert unexpected exceptions to an error response
                 self.logger.warning(f"Command handling failed: {e}")
-
-                # Track error in event store
-                self.event_store.record(
-                    category="cli",
-                    event_name="CLI_ERROR",
-                    severity="ERROR",
-                    data={"error": str(e)},
-                )
 
                 # Create structured error response
                 response_msg = ServiceMessage.create_command_response(
