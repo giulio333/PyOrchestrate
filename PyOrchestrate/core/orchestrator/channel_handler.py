@@ -157,11 +157,7 @@ class ChannelHandler:
             - All exceptions in message handling are caught and logged to prevent
               thread termination.
             - Uses the configured poll_timeout to balance responsiveness and CPU usage.
-            - Logs thread lifecycle events (start/stop) at TRACE level.
         """
-        if self.logger:
-            self.logger.trace(f"{self.name} thread started")
-
         while self._running:
             try:
                 msg = self.channel.receive(timeout=self.poll_timeout)
@@ -170,6 +166,3 @@ class ChannelHandler:
             except Exception as e:
                 if self.logger:
                     self.logger.error(f"Error in {self.name}: {e}")
-
-        if self.logger:
-            self.logger.trace(f"{self.name} thread terminated")
