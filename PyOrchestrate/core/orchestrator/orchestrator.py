@@ -286,20 +286,16 @@ class Orchestrator(BaseClass):
         self.memory = OMemory()
         self.event_manager = EventManager()
         self.msg_channel = MessageChannel("process")
-        
+
         # Initialize specialized managers
         self.dependency_graph = DependencyGraph()
-        
+
         self.lifecycle_manager = AgentLifecycleManager(
-            self.memory,
-            self.config,
-            self.logger
+            self.memory, self.config, self.logger
         )
-        
+
         self.worker_pool = WorkerPoolScheduler(
-            self.config.max_workers,
-            self.lifecycle_manager,
-            self.logger
+            self.config.max_workers, self.lifecycle_manager, self.logger
         )
 
         # Event store for history tracking
@@ -556,7 +552,7 @@ class Orchestrator(BaseClass):
 
             Events from agents are handled centrally by the orchestrator's event manager.
             Agents communicate with the orchestrator via message channel.
-            
+
             Delegates to AgentLifecycleManager.
 
         Warnings:
@@ -629,7 +625,7 @@ class Orchestrator(BaseClass):
     def add_dependency(self, agent_name: str, depends_on: list[str]):
         """
         Add dependencies: agent_name depends on depends_on.
-        
+
         Delegates to DependencyGraph after validation.
         """
         if agent_name not in [agent.name for agent in self.memory.agents]:
@@ -647,7 +643,7 @@ class Orchestrator(BaseClass):
     def validate_dependencies(self):
         """
         Check for dependency errors (e.g., circular dependencies like A -> B -> A).
-        
+
         Delegates to DependencyGraph.
         """
         agent_names = {agent.name for agent in self.memory.agents}
@@ -673,7 +669,7 @@ class Orchestrator(BaseClass):
     def start(self):
         """
         Start all registered agents in the topological order of their dependencies.
-        
+
         Delegates to WorkerPoolScheduler for agent startup.
         """
 
@@ -690,7 +686,7 @@ class Orchestrator(BaseClass):
     def stop(self):
         """
         Terminates all registered agents.
-        
+
         Delegates to AgentLifecycleManager.
         """
         self.lifecycle_manager.stop_all()
@@ -707,7 +703,7 @@ class Orchestrator(BaseClass):
             Use the 'shutdown' command to terminate the orchestrator in this mode.
 
             - When agent is terminated, it emits an `OrchestratorEvent.AGENT_TERMINATED` event.
-            
+
             Uses WorkerPoolScheduler to manage agent termination and queue.
         """
 
