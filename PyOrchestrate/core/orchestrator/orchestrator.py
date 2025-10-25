@@ -11,6 +11,7 @@ from PyOrchestrate.core.orchestrator.lifecycle_manager import AgentLifecycleMana
 from PyOrchestrate.core.orchestrator.worker_pool import WorkerPoolScheduler
 from PyOrchestrate.core.orchestrator.message_router import MessageRouter
 from PyOrchestrate.core.orchestrator.event_bus import OrchestratorEventBus
+from PyOrchestrate.core.orchestrator.command_interface import CommandInterface
 from PyOrchestrate.core.utilities.command_handler import CommandException
 from PyOrchestrate.core.orchestrator.event_store import EventStore, BucketRingStore
 from PyOrchestrate.core.utilities.event import OrchestratorEvent, AgentEvent
@@ -321,25 +322,21 @@ class Orchestrator(BaseClass):
         self.plugin_manager.initialize_plugins()
 
         # Command interface for external CLI commands
-        self.command_channel = None
+        self.command_interface: Optional[CommandInterface] = None
         if self.config.enable_command_interface:
-            # Import here to avoid circular imports
-            from PyOrchestrate.core.utilities.command_handler import CommandHandler
-
-            self.command_channel = MessageChannel(
-                "zmq_router", self.config.command_zmq_address
-            )
-            self.command_handler = CommandHandler(self, self.config.allowed_commands)
-            self.logger.debug(
-                f"Command interface enabled on ZMQ: {self.config.command_zmq_address}"
+            self.command_interface = CommandInterface(
+                orchestrator=self,
+                zmq_address=self.config.command_zmq_address,
+                allowed_commands=self.config.allowed_commands,
+                event_store=event_store,
+                logger=self.logger,
             )
 
         self._shutdown_requested = False
         """Flag for graceful shutdown via CLI"""
 
-        # Channel handlers for message processing
+        # Channel handler for agent message processing
         self._agent_message_handler: Optional[ChannelHandler] = None
-        self._command_handler: Optional[ChannelHandler] = None
 
         # Record orchestrator initialization event
         self.event_bus.event_store.record(
@@ -378,15 +375,45 @@ class Orchestrator(BaseClass):
         """
         return self.event_bus.event_store
 
+    @property
+    def command_channel(self):
+        """
+        Compatibility property to access command channel via CommandInterface.
+
+        This property provides backward compatibility for code that directly
+        accesses self.command_channel.
+
+        Returns:
+            MessageChannel | None: The command channel if interface is enabled, None otherwise
+        """
+        return (
+            self.command_interface.command_channel if self.command_interface else None
+        )
+
+    @property
+    def command_handler(self):
+        """
+        Compatibility property to access command handler via CommandInterface.
+
+        This property provides backward compatibility for code that directly
+        accesses self.command_handler.
+
+        Returns:
+            CommandHandler | None: The command handler if interface is enabled, None otherwise
+        """
+        return (
+            self.command_interface.command_handler if self.command_interface else None
+        )
+
     def _setup_channel_handlers(self):
         """
         Initialize and start message channel handlers.
 
-        Creates ChannelHandler instances for agent messages and external commands,
-        encapsulating all thread management logic in dedicated handler objects.
+        Creates ChannelHandler for agent messages and starts CommandInterface
+        for external commands (if enabled).
 
         The agent message handler is always created and started, while the command
-        handler is only initialized if the command interface is enabled in the configuration.
+        interface is only started if enabled in the configuration.
         """
         # Agent message handler (always enabled) - delegates to message_router
         self._agent_message_handler = ChannelHandler(
@@ -398,90 +425,22 @@ class Orchestrator(BaseClass):
         )
         self._agent_message_handler.start()
 
-        # Command handler (conditionally enabled)
-        if self.config.enable_command_interface and self.command_channel:
-            self._command_handler = ChannelHandler(
-                channel=self.command_channel,
-                message_handler=self.handle_external_command,
-                name="OrchestratorCommandHandler",
-                logger=self.logger,
-                poll_timeout=1.0,
-            )
-            self._command_handler.start()
+        # Command interface (conditionally enabled)
+        if self.command_interface:
+            self.command_interface.start()
 
     def _shutdown_channel_handlers(self):
         """
         Stop all channel handlers gracefully.
 
-        Stops the agent message handler and command handler (if enabled),
+        Stops the agent message handler and command interface (if enabled),
         waiting for their threads to terminate properly.
         """
         if self._agent_message_handler:
             self._agent_message_handler.stop(timeout=2.0)
 
-        if self._command_handler:
-            self._command_handler.stop(timeout=2.0)
-
-    def handle_external_command(self, request_msg: ServiceMessage) -> None:
-        """Process external commands from CLI."""
-        request_id = None
-
-        try:
-            cmd_data = request_msg.payload  # Now already a dict
-            command = cmd_data.get("command")
-            request_id = cmd_data.get("request_id")
-
-            # Ensure command is not None
-            if not command:
-                raise ValueError("Command is required")
-
-            try:
-                response_msg = self.command_handler.execute_command_msg(request_msg)
-            except Exception as e:
-                # Fallback: convert unexpected exceptions to an error response
-                self.logger.warning(f"Command handling failed: {e}")
-
-                # Track error in event store
-                self.event_bus.event_store.record(
-                    category="cli",
-                    event_name="CLI_ERROR",
-                    severity="ERROR",
-                    data={"error": str(e)},
-                )
-
-                # Create structured error response
-                response_msg = ServiceMessage.create_command_response(
-                    sender="orchestrator",
-                    status="error",
-                    error=str(e),
-                    request_id=request_id,
-                )
-
-            # Send response back through the command channel
-            assert self.command_channel, "Command channel not initialized"
-            self.command_channel.send("cli", response_msg)
-
-        except Exception as e:
-            self.logger.error(f"Error processing external command: {e}")
-
-            # Track error
-            self.event_bus.event_store.record(
-                category="cli",
-                event_name="CLI_ERROR",
-                severity="ERROR",
-                data={"error": str(e)},
-            )
-
-            if self.command_channel:
-                self.command_channel.send(
-                    "cli",
-                    ServiceMessage.create_command_response(
-                        sender="orchestrator",
-                        status="error",
-                        error=str(e),
-                        request_id=request_id,
-                    ),
-                )
+        if self.command_interface:
+            self.command_interface.stop(timeout=2.0)
 
     def register_agent(
         self,
@@ -694,11 +653,6 @@ class Orchestrator(BaseClass):
 
         # Finalize plugins
         self.plugin_manager.finalize_plugins()
-
-        # Close command channel if enabled
-        if self.command_channel:
-            self.command_channel.close()
-            self.logger.debug("Command interface closed")
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
