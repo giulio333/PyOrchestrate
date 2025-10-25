@@ -10,6 +10,8 @@ __all__ = [
     "AgentLifecycleManager",
     "WorkerPoolScheduler",
     "MessageRouter",
+    "OrchestratorEventBus",
+    "CommandInterface",
 ]
 
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
@@ -21,3 +23,5 @@ from PyOrchestrate.core.orchestrator.dependency_graph import DependencyGraph
 from PyOrchestrate.core.orchestrator.lifecycle_manager import AgentLifecycleManager
 from PyOrchestrate.core.orchestrator.worker_pool import WorkerPoolScheduler
 from PyOrchestrate.core.orchestrator.message_router import MessageRouter
+from PyOrchestrate.core.orchestrator.event_bus import OrchestratorEventBus
+from PyOrchestrate.core.orchestrator.command_interface import CommandInterface
