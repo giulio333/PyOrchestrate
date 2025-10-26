@@ -51,6 +51,7 @@ export const enConfig = {
             {
               text: 'Utilities',
               items: [
+                { text: 'Overview', link: '/learn/utilities/' },
                 { text: 'Event Manager', link: '/learn/utilities/event-manager' },
                 { text: 'Plugin Manager', link: '/learn/utilities/plugin-manager' },
                 { text: 'Message Channel', link: '/learn/utilities/message-channel' },
@@ -139,6 +140,19 @@ export const enConfig = {
         {
           text: 'Advanced',
           items: [
+            {
+              text: 'Orchestrator Internals',
+              collapsed: false,
+              items: [
+                { text: 'Overview', link: '/advanced/orchestrator-internals/' },
+                { text: 'DependencyGraph', link: '/advanced/orchestrator-internals/dependency-graph' },
+                { text: 'AgentLifecycleManager', link: '/advanced/orchestrator-internals/lifecycle-manager' },
+                { text: 'WorkerPoolScheduler', link: '/advanced/orchestrator-internals/worker-pool' },
+                { text: 'OrchestratorEventBus', link: '/advanced/orchestrator-internals/event-bus' },
+                { text: 'MessageRouter', link: '/advanced/orchestrator-internals/message-router' },
+                { text: 'CommandInterface', link: '/advanced/orchestrator-internals/command-interface' },
+              ]
+            },
             {
               text: 'Architecture',
               collapsed: false,

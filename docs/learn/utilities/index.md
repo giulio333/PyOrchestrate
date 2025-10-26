@@ -1,54 +1,125 @@
 ---
-title: Utilities
+title: Core Utilities
 editLink: true
 ---
 
-# Utilities
+# Core Utilities
 
-This section covers the comprehensive utility components of PyOrchestrate that provide essential infrastructure and support functionality for building robust, scalable applications. These utilities form the foundation that enables seamless communication, configuration management, and plugin coordination across the entire framework.
+This section documents the **low-level utility components** of PyOrchestrate that provide foundational infrastructure for the framework. These utilities are used internally by higher-level components like the orchestrator managers and agents.
 
-## Core Utilities Overview
+::: tip Understanding the Architecture
+These utilities are **building blocks** used by the framework's higher-level components. If you're learning about orchestrator internals, see the [Orchestrator Internals](../../advanced/orchestrator-internals/) section to understand how these utilities are composed into specialized managers.
+:::
 
-PyOrchestrate's utility layer provides four main categories of functionality:
+## Overview
 
-### Communication Infrastructure
-- **Message Channel** - Unified communication interface for inter-component messaging
-- **Event Manager** - Event-driven communication and notification system
+PyOrchestrate's utility layer provides three core low-level components:
 
-### System Management  
-- **Plugin Manager** - Centralized plugin lifecycle and dependency management
-- **Configuration Manager** - Comprehensive configuration loading, validation, and management
+| Utility | Purpose | Used By |
+|---------|---------|---------|
+| **[EventManager](./event-manager.md)** | Callback-based event system | OrchestratorEventBus |
+| **[PluginManager](./plugin-manager.md)** | Plugin lifecycle management | AgentLifecycleManager, Agents |
+| **[MessageChannel](./message-channel.md)** | Inter-process communication | MessageRouter, CommandInterface |
+
+## Architectural Context
+
+### How Utilities Fit Into the Framework
+
+```mermaid
+graph TD
+    subgraph "High-Level Components"
+        OEB[OrchestratorEventBus]
+        ALM[AgentLifecycleManager]
+        MR[MessageRouter]
+        CI[CommandInterface]
+    end
+    
+    subgraph "Low-Level Utilities"
+        EM[EventManager]
+        PM[PluginManager]
+        MC[MessageChannel]
+    end
+    
+    OEB -->|uses| EM
+    ALM -->|uses| PM
+    MR -->|uses| MC
+    CI -->|uses| MC
+    
+    style OEB fill:#e1f5ff
+    style ALM fill:#e1f5ff
+    style MR fill:#e1f5ff
+    style CI fill:#e1f5ff
+    style EM fill:#fff4e1
+    style PM fill:#fff4e1
+    style MC fill:#fff4e1
+```
+
+::: tip Key Principle
+You typically interact with **high-level managers** (blue), which internally use these **low-level utilities** (yellow).
+:::
 
 ## Available Utilities
 
 ### [Event Manager](./event-manager.md)
-The Event Manager facilitates event-based communication between components, enabling loose coupling and reactive programming patterns. It provides:
-- Event publishing and subscription mechanisms
-- Event filtering and transformation
-- Asynchronous event handling
-- Event persistence and replay capabilities
+The Event Manager provides a callback-based event notification system. It's used internally by `OrchestratorEventBus` to execute registered callbacks when events occur.
+
+**Key Features**:
+- Event callback registration and execution
+- Asynchronous callback execution via thread pool
+- Parameter filtering based on callback signatures
+- Error isolation between callbacks
+
+**Used By**: OrchestratorEventBus (combines EventManager + EventStore)
 
 ### [Plugin Manager](./plugin-manager.md)  
-The Plugin Manager handles the complete lifecycle of plugins within agents and orchestrators. It offers:
-- Automatic plugin discovery and extraction
+The Plugin Manager handles plugin lifecycle operations including initialization, finalization, and owner reference management.
+
+**Key Features**:
+- Plugin discovery and extraction
 - Plugin initialization and finalization
 - Owner reference management
 - Hierarchical plugin definition support
-- Error handling and logging integration
+
+**Used By**: AgentLifecycleManager (for agent plugin management), BaseAgent, BaseOrchestrator
 
 ### [Message Channel](./message-channel.md)
-The Message Channel provides a unified communication interface that abstracts underlying transport protocols. It features:
-- Multiple communication patterns (pub/sub, request/reply, point-to-point)
-- Message routing and filtering
-- Transport protocol abstraction (ZeroMQ, Redis, HTTP, etc.)
-- Performance optimization (batching, compression, connection pooling)
-- Reliability features (acknowledgments, retries, dead letter handling)
+The Message Channel provides process-safe message passing between framework components using structured message envelopes.
 
-## Utility Integration
+**Key Features**:
+- Process-safe communication (ZeroMQ-based)
+- Structured message format (COMMAND, STATUS)
+- Request/response correlation
+- Transport abstraction
 
-These utilities are designed to work seamlessly together and integrate deeply with PyOrchestrate's core components:
+**Used By**: MessageRouter (agent→orchestrator), CommandInterface (CLI→orchestrator)
 
-### Agent Integration
+## When to Use These Utilities Directly
+
+### Typical Use (Indirect)
+
+Most users interact with these utilities **indirectly** through higher-level APIs:
+
+```python
+# You use high-level APIs
+orchestrator.event_bus.register_callback(event, callback)  # Uses EventManager internally
+orchestrator.register_agent(MyAgent, "worker")             # Uses PluginManager internally
+
+# The framework handles the low-level utilities
+```
+
+### Advanced Use (Direct)
+
+You might use these utilities directly when:
+
+1. **Building Custom Components**: Extending the framework with custom managers or agents
+2. **Plugin Development**: Creating custom plugins that need lifecycle management
+3. **Testing**: Unit testing framework components with mocked utilities
+4. **Debugging**: Inspecting internal framework behavior
+
+## Integration Patterns
+
+### Agents Automatically Use Utilities
+
 ```python
 from PyOrchestrate.core.agents.base_agent import BaseAgent
 
@@ -57,98 +128,80 @@ class MyAgent(BaseAgent):
         super().__init__(config)
         
         # Utilities are automatically available
+        # (managed by the framework)
         self.plugin_manager   # Manages agent plugins
-        self.event_manager    # Handles agent events  
-        self.message_channel  # Agent communication
-        self.config_manager   # Agent configuration
+        self.message_channel  # Communication with orchestrator
 ```
 
-### Orchestrator Integration
+### Orchestrator Managers Compose Utilities
+
 ```python
-from PyOrchestrate.core.orchestrator.base_orchestrator import BaseOrchestrator
+from PyOrchestrate.core.orchestrator import Orchestrator
 
-class MyOrchestrator(BaseOrchestrator):
-    def __init__(self, config):
-        super().__init__(config)
-        
-        # Full utility suite available
-        self.plugin_manager.initialize_plugins()
-        self.event_manager.subscribe("agent.status", self.handle_agent_status)
-        self.message_channel.publish("orchestrator.ready", {"status": "active"})
-```
+orchestrator = Orchestrator()
 
-## Architectural Benefits
-
-The utility layer provides several key architectural benefits:
-
-### **Modularity**
-Each utility is independently developed and can be used standalone or in combination with others.
-
-### **Extensibility** 
-Well-defined interfaces allow for custom implementations and extensions of core functionality.
-
-### **Consistency**
-Standardized patterns across all utilities ensure predictable behavior and reduced learning curve.
-
-### **Performance**
-Optimized implementations with caching, connection pooling, and efficient data structures.
-
-### **Reliability**
-Comprehensive error handling, logging, and recovery mechanisms throughout all utilities.
-
-### **Testability**
-Each utility includes comprehensive testing support and mocking capabilities.
-
-## Common Usage Patterns
-
-### Event-Driven Architecture
-```python
-# Components communicate through events
-agent.event_manager.publish("task.completed", {"task_id": "123", "result": "success"})
-orchestrator.event_manager.subscribe("task.*", orchestrator.handle_task_events)
-```
-
-### Configuration-Driven Behavior
-```python
-# Dynamic behavior based on configuration
-if config_manager.get_bool("features.advanced_routing"):
-    message_channel.enable_advanced_routing()
-
-config_manager.add_change_listener("features.*", on_feature_toggle)
-```
-
-### Plugin-Based Extensions
-```python
-# Extend functionality through plugins
-plugin_manager.register_plugin("custom_communication", MyCustomPlugin())
-plugin_manager.initialize_plugins()
+# High-level managers use utilities internally
+orchestrator.event_bus          # Uses EventManager + EventStore
+orchestrator.lifecycle_manager  # Uses PluginManager
+orchestrator.message_router     # Uses MessageChannel
+orchestrator.command_interface  # Uses MessageChannel
 ```
 
 ## Best Practices
 
-When working with PyOrchestrate utilities, follow these best practices:
+### 1. Use High-Level APIs When Possible
 
-### **Initialization Order**
-1. Configuration Manager (load and validate configuration)
-2. Plugin Manager (initialize plugins with configuration)
-3. Event Manager (set up event handling)
-4. Message Channel (establish communication)
+```python
+# ✅ Good: Use high-level API
+orchestrator.event_bus.register_callback(event, callback)
 
-### **Error Handling**
-- Always handle utility initialization failures gracefully
-- Implement proper cleanup in finally blocks or context managers
-- Use utility-provided error handling mechanisms
+# ❌ Avoid: Direct low-level access (unless necessary)
+orchestrator.event_bus.event_manager.register_callback(...)
+```
 
-### **Performance Optimization**
-- Cache frequently accessed configuration values
-- Use batching for high-volume message operations
-- Implement appropriate connection pooling strategies
-- Monitor utility performance metrics
+### 2. Understand the Abstraction Layers
 
-### **Security Considerations**
-- Encrypt sensitive configuration data
-- Validate all message inputs
-- Implement proper authentication for communication channels
-- Use secure transport protocols in production
+```mermaid
+flowchart TD
+    A[User Code] --> B[Orchestrator Managers]
+    B --> C[Core Utilities]
+    C --> D[Framework Primitives]
+    
+    style A fill:#e8f5e9
+    style B fill:#e1f5ff
+    style C fill:#fff4e1
+    style D fill:#fce4ec
+```
 
-These utilities provide the robust foundation needed for building production-ready PyOrchestrate applications, handling the complexity of distributed systems while maintaining simplicity and ease of use.
+- **User Code**: Your application logic (agents, orchestrators)
+- **Orchestrator Managers**: High-level components (OrchestratorEventBus, MessageRouter, etc.)
+- **Core Utilities**: Low-level building blocks (EventManager, MessageChannel, PluginManager)
+- **Framework Primitives**: Python standard library and dependencies
+
+### 3. Consult Advanced Documentation
+
+For understanding how these utilities are composed into higher-level functionality, see:
+- [Orchestrator Internals](../../advanced/orchestrator-internals/) - How managers use utilities
+- [Agent Architecture](../agents/) - How agents use utilities
+
+## Learning Path
+
+### For Application Developers
+
+1. Start with **[Introduction](../introduction/)** - Understand orchestrators and agents
+2. Learn **[Orchestrator API](../introduction/orchestrator_api/)** - High-level usage
+3. Explore **Examples** - Practical patterns
+
+You typically won't need to interact with these utilities directly.
+
+### For Framework Contributors
+
+1. Read **[Orchestrator Internals](../../advanced/orchestrator-internals/)** - Understand manager architecture
+2. Study **Core Utilities** (this section) - Low-level building blocks
+3. Review source code - Implementation details
+
+## See Also
+
+- [Orchestrator Internals](../../advanced/orchestrator-internals/) - High-level manager architecture
+- [Configuration and Validation](../config_and_validation) - Configuration management
+- [Advanced Architecture](../../advanced/) - Deep architectural topics
