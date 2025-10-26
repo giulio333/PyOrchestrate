@@ -297,11 +297,11 @@ class TestOrchestratorEventIntegration(unittest.TestCase):
             )
         )
 
-        self.assertTrue(hasattr(orchestrator, "event_store"))
-        self.assertIsInstance(orchestrator.event_store, EventStore)
+        self.assertTrue(hasattr(orchestrator, "event_bus"))
+        self.assertIsInstance(orchestrator.event_bus.event_store, EventStore)
 
         # Verify capacity through public interface
-        info = orchestrator.event_store.get_capacity_info()
+        info = orchestrator.event_bus.event_store.get_capacity_info()
         default_store_info = info["stores"]["__default__"]
         self.assertIsInstance(default_store_info, dict)
         self.assertEqual(default_store_info["capacity"], 1000)
@@ -315,7 +315,7 @@ class TestOrchestratorEventIntegration(unittest.TestCase):
         )
 
         # Check that INIT event was recorded
-        events = orchestrator.event_store.last()
+        events = orchestrator.event_bus.event_store.last()
         init_events = [e for e in events if e.event_name == "INIT"]
         self.assertEqual(len(init_events), 1)
         self.assertEqual(init_events[0].category, "orchestrator")

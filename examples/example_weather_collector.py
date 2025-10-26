@@ -37,8 +37,8 @@ def on_agent_started(agent_name: str, event_date, event_time):
     send_telegram_message(message)
 
 
-def on_agent_stopped(agent_name: str):
-    message = f"Agent: {agent_name}\nmessage: Agent stopped."
+def on_agent_stopped(agent_name: str, event_date, event_time):
+    message = f"Agent: {agent_name} \nDate: {event_date}, \nTime: {event_time}\nmessage: Agent stopped."
     print(message)
     send_telegram_message(message)
 
