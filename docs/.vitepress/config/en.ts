@@ -48,15 +48,7 @@ export const enConfig = {
                 { text: 'Config and Validation', link: '/learn/config_and_validation' },
               ]
             },
-            {
-              text: 'Utilities',
-              items: [
-                { text: 'Overview', link: '/learn/utilities/' },
-                { text: 'Event Manager', link: '/learn/utilities/event-manager' },
-                { text: 'Plugin Manager', link: '/learn/utilities/plugin-manager' },
-                { text: 'Message Channel', link: '/learn/utilities/message-channel' },
-              ]
-            },
+
             {
               text: 'Built-in Agents',
               collapsed: true,
@@ -151,6 +143,16 @@ export const enConfig = {
                 { text: 'OrchestratorEventBus', link: '/advanced/orchestrator-internals/event-bus' },
                 { text: 'MessageRouter', link: '/advanced/orchestrator-internals/message-router' },
                 { text: 'CommandInterface', link: '/advanced/orchestrator-internals/command-interface' },
+              ]
+            },
+            {
+              text: 'Core Utilities',
+              collapsed: false,
+              items: [
+                { text: 'Overview', link: '/advanced/utilities/' },
+                { text: 'Event Manager', link: '/advanced/utilities/event-manager' },
+                { text: 'Plugin Manager', link: '/advanced/utilities/plugin-manager' },
+                { text: 'Message Channel', link: '/advanced/utilities/message-channel' },
               ]
             },
             {

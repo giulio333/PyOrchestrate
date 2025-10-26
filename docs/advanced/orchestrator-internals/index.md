@@ -95,6 +95,10 @@ Exposes a command-based API over ZeroMQ that allows you to query agent status, v
 
 The managers coordinate to handle complex workflows:
 
+::: tip Internal Memory
+The orchestrator uses `OMemory` internally to store `AgentEntry` objects for each registered agent. Managers access this shared memory to coordinate agent lifecycle and retrieve agent metadata.
+:::
+
 ### Agent Startup Flow
 
 When you start the orchestrator, the managers coordinate:
@@ -109,46 +113,78 @@ When you start the orchestrator, the managers coordinate:
 
 When an agent sends a message:
 
-```
-Agent Process
-    ↓ sends message via MessageChannel
-MessageRouter
-    ↓ translates to orchestrator event
-OrchestratorEventBus
-    ├─→ executes callbacks (your code)
-    └─→ records to history (automatic)
+```mermaid
+flowchart TD
+    subgraph "Agent Process"
+        A[Agent Code]
+        B[MessageChannel]
+    end
+    
+    subgraph "Orchestrator"
+        C[MessageRouter]
+        D[OrchestratorEventBus]
+        E[Your Callbacks]
+        F[Event History]
+    end
+    
+    A -->|sends message| B
+    B -->|IPC| C
+    C -->|translates to event| D
+    D -->|executes| E
+    D -->|records| F
+    
+    style A fill:#e8f5e9
+    style B fill:#e8f5e9
+    style C fill:#e1f5ff
+    style D fill:#e1f5ff
+    style E fill:#fff4e1
+    style F fill:#fce4ec
 ```
 
 ### CLI Command Flow
 
 When you run a CLI command:
 
+```mermaid
+flowchart TD
+    subgraph "External Tool"
+        A[CLI Tool<br/>pyorchestrate status]
+        F[Terminal Output]
+    end
+    
+    subgraph "Orchestrator"
+        B[CommandInterface]
+        C[Command Handler]
+        D[Data Collector]
+    end
+    
+    A -->|ZMQ connection| B
+    B -->|validates| C
+    C -->|gathers data| D
+    D -->|returns JSON| A
+    A -->|displays| F
+    
+    style A fill:#e8f5e9
+    style F fill:#fce4ec
+    style B fill:#e1f5ff
+    style C fill:#fff4e1
+    style D fill:#fff4e1
 ```
-CLI Tool (pyorchestrate status)
-    ↓ ZMQ connection
-CommandInterface
-    ↓ validates command
-    ↓ executes and gathers data
-    ↓ returns JSON response
-CLI Tool displays results
-```
-   - Shutdown channel handlers
-   - Finalize plugins
 
 ### Agent Lifecycle States
 
-```
-REGISTERED → QUEUED → RUNNING → TERMINATED
-     ↑          ↑         ↑          ↓
-     |          |         |    (recorded by MessageRouter)
-     |          |    (started by WorkerPoolScheduler)
-     |     (queued by WorkerPoolScheduler if pool full)
-(via lifecycle_manager.register_agent)
-```
-
-## Configuration Examples
-
-CLI Tool displays results
+```mermaid
+stateDiagram-v2
+    [*] --> REGISTERED: lifecycle_manager.register_agent
+    REGISTERED --> QUEUED: queued by WorkerPoolScheduler<br/>(if pool full)
+    QUEUED --> RUNNING: started by WorkerPoolScheduler
+    RUNNING --> TERMINATED: recorded by MessageRouter
+    TERMINATED --> [*]
+    
+    note right of REGISTERED: Agent configuration stored
+    note right of QUEUED: Waiting for worker slot
+    note right of RUNNING: Process/thread active
+    note right of TERMINATED: Cleanup complete
 ```
 
 ## Configuration Examples
@@ -167,10 +203,10 @@ orchestrator.join()  # Blocks until all agents complete
 ```
 
 **Default Configuration**:
-- `max_workers`: 10 concurrent agents
+- `max_workers`: 5 concurrent agents
 - `run_mode`: STOP_ON_EMPTY (stops when all agents done)
-- `enable_command_interface`: False (CLI disabled)
-- `history_max_events`: 1000 events
+- `enable_command_interface`: True (CLI enabled)
+- `history_max_events`: 5000 events
 
 ### Production Setup with Monitoring
 
@@ -222,8 +258,9 @@ from PyOrchestrate.core.orchestrator import EventStore, BucketRingStore
 # Keep only last 2 heartbeats per agent
 event_store = EventStore(
     capacity=1000,
+    payload_max_bytes=256,
     event_policies={
-        "AGENT_HEARTBEAT": BucketRingStore(capacity=2)
+        "AGENT_HEARTBEAT": BucketRingStore(per_agent_capacity=2)
     }
 )
 
@@ -255,7 +292,7 @@ def on_agent_error(agent_name, error_message, **kwargs):
     logger.error(f"Agent {agent_name} failed: {error_message}")
     # Take corrective action
 
-orchestrator.event_bus.register_callback(
+orchestrator.register_event(
     OrchestratorEvent.AGENT_ERROR,
     on_agent_error
 )

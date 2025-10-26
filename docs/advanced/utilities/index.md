@@ -8,7 +8,7 @@ editLink: true
 This section documents the **low-level utility components** of PyOrchestrate that provide foundational infrastructure for the framework. These utilities are used internally by higher-level components like the orchestrator managers and agents.
 
 ::: tip Understanding the Architecture
-These utilities are **building blocks** used by the framework's higher-level components. If you're learning about orchestrator internals, see the [Orchestrator Internals](../../advanced/orchestrator-internals/) section to understand how these utilities are composed into specialized managers.
+These utilities are **building blocks** used by the framework's higher-level components. If you're learning about orchestrator internals, see the [Orchestrator Internals](../orchestrator-internals/) section to understand how these utilities are composed into specialized managers.
 :::
 
 ## Overview
@@ -181,27 +181,27 @@ flowchart TD
 ### 3. Consult Advanced Documentation
 
 For understanding how these utilities are composed into higher-level functionality, see:
-- [Orchestrator Internals](../../advanced/orchestrator-internals/) - How managers use utilities
-- [Agent Architecture](../agents/) - How agents use utilities
+- [Orchestrator Internals](../orchestrator-internals/) - How managers use utilities
+- [Agent Architecture](../../learn/agents/) - How agents use utilities
 
 ## Learning Path
 
 ### For Application Developers
 
-1. Start with **[Introduction](../introduction/)** - Understand orchestrators and agents
-2. Learn **[Orchestrator API](../introduction/orchestrator_api/)** - High-level usage
+1. Start with **[Introduction](../../learn/introduction/)** - Understand orchestrators and agents
+2. Learn **[Orchestrator API](../../learn/introduction/orchestrator_api/)** - High-level usage
 3. Explore **Examples** - Practical patterns
 
 You typically won't need to interact with these utilities directly.
 
 ### For Framework Contributors
 
-1. Read **[Orchestrator Internals](../../advanced/orchestrator-internals/)** - Understand manager architecture
+1. Read **[Orchestrator Internals](../orchestrator-internals/)** - Understand manager architecture
 2. Study **Core Utilities** (this section) - Low-level building blocks
 3. Review source code - Implementation details
 
 ## See Also
 
-- [Orchestrator Internals](../../advanced/orchestrator-internals/) - High-level manager architecture
+- [Orchestrator Internals](../orchestrator-internals/) - High-level manager architecture
 - [Configuration and Validation](../config_and_validation) - Configuration management
 - [Advanced Architecture](../../advanced/) - Deep architectural topics
