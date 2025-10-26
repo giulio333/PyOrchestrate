@@ -5,7 +5,6 @@ from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
-from PyOrchestrate.core.orchestrator.channel_handler import ChannelHandler
 from PyOrchestrate.core.orchestrator.dependency_graph import DependencyGraph
 from PyOrchestrate.core.orchestrator.lifecycle_manager import AgentLifecycleManager
 from PyOrchestrate.core.orchestrator.worker_pool import WorkerPoolScheduler
@@ -310,8 +309,10 @@ class Orchestrator(BaseClass):
             self.config.max_workers, self.lifecycle_manager, self.logger
         )
 
-        # Message router for agent message handling
-        self.message_router = MessageRouter(self.event_bus.event_manager, self.logger)
+        # Message router for agent message handling (manages its own ChannelHandler)
+        self.message_router = MessageRouter(
+            self.event_bus.event_manager, self.msg_channel, self.logger
+        )
 
         # Initialize plugin manager for centralized plugin management
         self.plugin_manager = PluginManager(self.plugin)
@@ -335,9 +336,6 @@ class Orchestrator(BaseClass):
         self._shutdown_requested = False
         """Flag for graceful shutdown via CLI"""
 
-        # Channel handler for agent message processing
-        self._agent_message_handler: Optional[ChannelHandler] = None
-
         # Record orchestrator initialization event
         self.event_bus.event_store.record(
             category="orchestrator",
@@ -349,81 +347,15 @@ class Orchestrator(BaseClass):
         # Start channel handlers for agent messages and external commands
         self._setup_channel_handlers()
 
-    @property
-    def event_manager(self):
-        """
-        Compatibility property to access EventManager via EventBus.
-
-        This property provides backward compatibility for code that directly
-        accesses self.event_manager instead of using the EventBus API.
-
-        Returns:
-            EventManager: The underlying EventManager instance
-        """
-        return self.event_bus.event_manager
-
-    @property
-    def event_store(self):
-        """
-        Compatibility property to access EventStore via EventBus.
-
-        This property provides backward compatibility for code that directly
-        accesses self.event_store instead of using the EventBus API.
-
-        Returns:
-            EventStore: The underlying EventStore instance
-        """
-        return self.event_bus.event_store
-
-    @property
-    def command_channel(self):
-        """
-        Compatibility property to access command channel via CommandInterface.
-
-        This property provides backward compatibility for code that directly
-        accesses self.command_channel.
-
-        Returns:
-            MessageChannel | None: The command channel if interface is enabled, None otherwise
-        """
-        return (
-            self.command_interface.command_channel if self.command_interface else None
-        )
-
-    @property
-    def command_handler(self):
-        """
-        Compatibility property to access command handler via CommandInterface.
-
-        This property provides backward compatibility for code that directly
-        accesses self.command_handler.
-
-        Returns:
-            CommandHandler | None: The command handler if interface is enabled, None otherwise
-        """
-        return (
-            self.command_interface.command_handler if self.command_interface else None
-        )
-
     def _setup_channel_handlers(self):
         """
         Initialize and start message channel handlers.
 
-        Creates ChannelHandler for agent messages and starts CommandInterface
-        for external commands (if enabled).
-
-        The agent message handler is always created and started, while the command
-        interface is only started if enabled in the configuration.
+        Starts MessageRouter for agent messages and CommandInterface for
+        external commands (if enabled).
         """
-        # Agent message handler (always enabled) - delegates to message_router
-        self._agent_message_handler = ChannelHandler(
-            channel=self.msg_channel,
-            message_handler=self.message_router.route_agent_message,
-            name="OrchestratorAgentMessageHandler",
-            logger=self.logger,
-            poll_timeout=1.0,
-        )
-        self._agent_message_handler.start()
+        # Message router (always enabled) - manages its own ChannelHandler
+        self.message_router.start()
 
         # Command interface (conditionally enabled)
         if self.command_interface:
@@ -433,11 +365,10 @@ class Orchestrator(BaseClass):
         """
         Stop all channel handlers gracefully.
 
-        Stops the agent message handler and command interface (if enabled),
+        Stops the message router and command interface (if enabled),
         waiting for their threads to terminate properly.
         """
-        if self._agent_message_handler:
-            self._agent_message_handler.stop(timeout=2.0)
+        self.message_router.stop(timeout=2.0)
 
         if self.command_interface:
             self.command_interface.stop(timeout=2.0)
@@ -725,3 +656,14 @@ class Orchestrator(BaseClass):
             self.logger.debug(f"Config: run_mode={rm.value}")
         else:
             self.logger.debug(f"Config: run_mode={rm}")
+
+    # Compatibility properties for backward compatibility
+    @property
+    def event_store(self):
+        """Access EventStore via event_bus for backward compatibility."""
+        return self.event_bus.event_store
+
+    @property
+    def event_manager(self):
+        """Access EventManager via event_bus for backward compatibility."""
+        return self.event_bus.event_manager
