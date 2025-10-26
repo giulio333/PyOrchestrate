@@ -34,8 +34,8 @@ class TestOrchestrator(unittest.TestCase):
             ),
             name="test_orchestrator",
         )
-        self.orch.event_manager.emit = MagicMock(
-            side_effect=self.orch.event_manager.emit
+        self.orch.event_bus.event_manager.emit = MagicMock(
+            side_effect=self.orch.event_bus.event_manager.emit
         )
         self.orch.memory.add_agent = MagicMock(side_effect=self.orch.memory.add_agent)
 
@@ -106,7 +106,7 @@ class TestOrchestrator(unittest.TestCase):
         }
 
         for payload, expected_event in event_map.items():
-            self.orch.event_manager.emit.reset_mock()  # type: ignore
+            self.orch.event_bus.event_manager.emit.reset_mock()  # type: ignore
             msg = ServiceMessage.create_status(
                 sender="agent1",
                 status="success",
@@ -114,7 +114,7 @@ class TestOrchestrator(unittest.TestCase):
             )
 
             self.orch.message_router.route_agent_message(msg)
-            self.orch.event_manager.emit.assert_called_with(  # type: ignore
+            self.orch.event_bus.event_manager.emit.assert_called_with(  # type: ignore
                 expected_event, agent_name="agent1"
             )
 
