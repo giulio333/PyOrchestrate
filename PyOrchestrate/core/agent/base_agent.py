@@ -406,34 +406,6 @@ class BaseAgent(BaseClass, ABC):
         self.on_stop()
         self.control_events.stop_event.set()
 
-    @final
-    def validate_config(self):
-        """
-        @final
-
-        Validates the agent configuration.
-
-        Notes:
-            This method is called during the agent's initialization to validate the configuration.
-            If the configuration is invalid, a `ValidationError` is raised.
-
-        Warning:
-            Do not override this method. If you need to implement custom validation logic, override the `validate` method
-            in the `Config` class.
-
-        Raises:
-            ValidationError: If the configuration is invalid.
-        """
-
-        try:
-            self.config._validate()
-        except ConfigValidationError as e:
-            self.logger.error(e)
-            raise e
-        except ConfigValidationWarning as w:
-            self.logger.warning(w)
-        self.logger.debug(f"Self configuration validated.")
-
     def on_stop(self):
         """
         Handles cleanup when the agent is stopped.

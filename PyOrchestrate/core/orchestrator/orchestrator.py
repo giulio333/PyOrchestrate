@@ -598,32 +598,6 @@ class Orchestrator(BaseClass):
         for agent in self.memory.agents:
             self.logger.info(agent.status())
 
-    @final
-    def validate_config(self):
-        """
-        @final
-
-        Validates the agent configuration.
-
-        Notes:
-            This method is called during the agent's initialization to validate the configuration.
-            If the configuration is invalid, a `ValidationError` is raised.
-
-        Warning:
-            Do not override this method. If you need to implement custom validation logic, override the `validate` method
-            in the `Config` class.
-
-        Raises:
-            ValidationError: If the configuration is invalid.
-        """
-
-        try:
-            self.config._validate()
-        except ConfigValidationError as e:
-            self.logger.error(f"Configuration validation failed: {e}")
-            raise e
-        self.logger.debug(f"Self configuration validated.")
-
     def _info(self):
         self.logger.debug(f"Config: check_interval={self.config.check_interval}")
         self.logger.debug(f"Config: max_workers={self.config.max_workers}")
