@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List
+from typing import Any, List, final
 
 from PyOrchestrate.utilities.logguru import LoggerFactory
 from PyOrchestrate.core.base.utilities import LoggerConfig
@@ -217,6 +217,35 @@ class BaseClass:
         self.logger = LoggerFactory.create_logger(
             log_identifier=log_name, logger_name=log_name, level=logging_level
         )
+
+    @final
+    def validate_config(self):
+        """
+        @final
+
+        Validates the configuration.
+
+        Notes:
+            This method is called during initialization to validate the configuration.
+            If the configuration is invalid, a `ConfigValidationError` is raised.
+            If the configuration has warnings, a `ConfigValidationWarning` is raised.
+
+        Warning:
+            Do not override this method. If you need to implement custom validation logic,
+            override the `validate` method in the `Config` class.
+
+        Raises:
+            ConfigValidationError: If the configuration is invalid.
+            ConfigValidationWarning: If the configuration has warnings.
+        """
+        try:
+            self.config._validate()
+        except ConfigValidationError as e:
+            self.logger.error(e)
+            raise e
+        except ConfigValidationWarning as w:
+            self.logger.warning(w)
+        self.logger.debug(f"Self configuration validated.")
 
     def __getattr__(self, key: str) -> Any:
         try:

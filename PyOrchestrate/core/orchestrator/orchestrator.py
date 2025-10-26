@@ -1,16 +1,17 @@
 import time
-import threading
-from collections import defaultdict, deque
 from typing import List, final, Optional
 from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
-from PyOrchestrate.core.orchestrator.channel_handler import ChannelHandler
-from PyOrchestrate.core.utilities.command_handler import CommandException
+from PyOrchestrate.core.orchestrator.dependency_graph import DependencyGraph
+from PyOrchestrate.core.orchestrator.lifecycle_manager import AgentLifecycleManager
+from PyOrchestrate.core.orchestrator.worker_pool import WorkerPoolScheduler
+from PyOrchestrate.core.orchestrator.message_router import MessageRouter
+from PyOrchestrate.core.orchestrator.event_bus import OrchestratorEventBus
+from PyOrchestrate.core.orchestrator.command_interface import CommandInterface
 from PyOrchestrate.core.orchestrator.event_store import EventStore, BucketRingStore
-from PyOrchestrate.core.utilities.event_manager import EventManager
-from PyOrchestrate.core.utilities.event import OrchestratorEvent, AgentEvent
+from PyOrchestrate.core.utilities.event import OrchestratorEvent
 from PyOrchestrate.core.utilities.validation import (
     ValidationResult,
     ValidationSeverity,
@@ -281,16 +282,34 @@ class Orchestrator(BaseClass):
         self.validate_config()
 
         self.memory = OMemory()
-        self.event_manager = EventManager()
         self.msg_channel = MessageChannel("process")
 
         # Event store for history tracking
-        self.event_store = EventStore(
+        event_store = EventStore(
             capacity=self.config.history_max_events,
             payload_max_bytes=self.config.history_payload_bytes,
             event_policies={
                 OrchestratorEvent.AGENT_HEARTBEAT.value: BucketRingStore(2)
             },
+        )
+
+        # Event bus combines EventManager + EventStore with automatic history tracking
+        self.event_bus = OrchestratorEventBus(event_store)
+
+        # Initialize specialized managers
+        self.dependency_graph = DependencyGraph()
+
+        self.lifecycle_manager = AgentLifecycleManager(
+            self.memory, self.config, self.logger
+        )
+
+        self.worker_pool = WorkerPoolScheduler(
+            self.config.max_workers, self.lifecycle_manager, self.logger
+        )
+
+        # Message router for agent message handling (manages its own ChannelHandler)
+        self.message_router = MessageRouter(
+            self.event_bus.event_manager, self.msg_channel, self.logger
         )
 
         # Initialize plugin manager for centralized plugin management
@@ -302,228 +321,55 @@ class Orchestrator(BaseClass):
         self.plugin_manager.initialize_plugins()
 
         # Command interface for external CLI commands
-        self.command_channel = None
+        self.command_interface: Optional[CommandInterface] = None
         if self.config.enable_command_interface:
-            # Import here to avoid circular imports
-            from PyOrchestrate.core.utilities.command_handler import CommandHandler
-
-            self.command_channel = MessageChannel(
-                "zmq_router", self.config.command_zmq_address
-            )
-            self.command_handler = CommandHandler(self, self.config.allowed_commands)
-            self.logger.debug(
-                f"Command interface enabled on ZMQ: {self.config.command_zmq_address}"
+            self.command_interface = CommandInterface(
+                orchestrator=self,
+                zmq_address=self.config.command_zmq_address,
+                allowed_commands=self.config.allowed_commands,
+                event_store=event_store,
+                logger=self.logger,
             )
 
-        self.dependencies: dict[str, list[str]] = defaultdict(list)
-        self._running_agents = 0
-        self._waiting_agents_queue = deque()
-        """Queue for waiting agents"""
-        self._started_agents = set()
-        """Set for agents that have been started"""
-        self._terminated_agents = set()
-        """Set for agents that have terminated (to filter stale heartbeats)"""
-        self._terminated_agents_lock = threading.Lock()
-        """Lock for thread-safe access to _terminated_agents set"""
         self._shutdown_requested = False
         """Flag for graceful shutdown via CLI"""
 
-        # Channel handlers for message processing
-        self._agent_message_handler: Optional[ChannelHandler] = None
-        self._command_handler: Optional[ChannelHandler] = None
-
-        # Register event history hooks
-        self._register_history_hooks()
-
-        # Start channel handlers for agent messages and external commands
-        self._setup_channel_handlers()
-
-    def _register_history_hooks(self):
-        """Register automatic event history hooks for all orchestrator events."""
-        for ev in OrchestratorEvent:
-
-            def _cb(ev=ev, **kw):
-                sev = "ERROR" if ev == OrchestratorEvent.AGENT_ERROR else "INFO"
-                self.event_store.record(
-                    category="orchestrator",
-                    event_name=ev.value,
-                    agent=kw.get("agent_name"),
-                    severity=sev,
-                    data={k: str(v) for k, v in kw.items() if k != "agent_name"},
-                )
-
-            self.register_event(ev, _cb)
-
-        self.event_store.record(
+        # Record orchestrator initialization event
+        self.event_bus.event_store.record(
             category="orchestrator",
             event_name="INIT",
             severity="INFO",
             data={"run_mode": self.config.run_mode.value},
         )
 
+        # Start channel handlers for agent messages and external commands
+        self._setup_channel_handlers()
+
     def _setup_channel_handlers(self):
         """
         Initialize and start message channel handlers.
 
-        Creates ChannelHandler instances for agent messages and external commands,
-        encapsulating all thread management logic in dedicated handler objects.
-
-        The agent message handler is always created and started, while the command
-        handler is only initialized if the command interface is enabled in the configuration.
+        Starts MessageRouter for agent messages and CommandInterface for
+        external commands (if enabled).
         """
-        # Agent message handler (always enabled)
-        self._agent_message_handler = ChannelHandler(
-            channel=self.msg_channel,
-            message_handler=self.handle_agent_message,
-            name="OrchestratorAgentMessageHandler",
-            logger=self.logger,
-            poll_timeout=1.0,
-        )
-        self._agent_message_handler.start()
+        # Message router (always enabled) - manages its own ChannelHandler
+        self.message_router.start()
 
-        # Command handler (conditionally enabled)
-        if self.config.enable_command_interface and self.command_channel:
-            self._command_handler = ChannelHandler(
-                channel=self.command_channel,
-                message_handler=self.handle_external_command,
-                name="OrchestratorCommandHandler",
-                logger=self.logger,
-                poll_timeout=1.0,
-            )
-            self._command_handler.start()
+        # Command interface (conditionally enabled)
+        if self.command_interface:
+            self.command_interface.start()
 
     def _shutdown_channel_handlers(self):
         """
         Stop all channel handlers gracefully.
 
-        Stops the agent message handler and command handler (if enabled),
+        Stops the message router and command interface (if enabled),
         waiting for their threads to terminate properly.
         """
-        if self._agent_message_handler:
-            self._agent_message_handler.stop(timeout=2.0)
+        self.message_router.stop(timeout=2.0)
 
-        if self._command_handler:
-            self._command_handler.stop(timeout=2.0)
-
-    def handle_agent_message(self, msg: ServiceMessage) -> None:
-        """
-        Process a single message coming from an agent.
-
-        Notes:
-            Only messages of type 'STATUS' are processed and relayed to the
-            orchestrator's `EventManager`.
-
-            Heartbeat messages from terminated agents are filtered to prevent
-            processing of stale messages remaining in the channel queue.
-
-        Args:
-            msg (ServiceMessage): The message received from an agent.
-
-        Raises:
-            No exceptions are raised; errors are logged internally.
-        """
-        self.logger.debug(f"Received {msg}: {msg.payload.get('event')}")
-
-        if msg.type == "STATUS":
-            event = msg.payload.get("event")
-
-            if event == AgentEvent.AGENT_CLOSE.value:
-                # Mark agent as terminated to filter out stale heartbeat messages
-                with self._terminated_agents_lock:
-                    self._terminated_agents.add(msg.sender)
-                self.event_manager.emit(
-                    OrchestratorEvent.AGENT_TERMINATED, agent_name=msg.sender
-                )
-            elif event == AgentEvent.AGENT_START.value:
-                self.event_manager.emit(
-                    OrchestratorEvent.AGENT_STARTED, agent_name=msg.sender
-                )
-            elif event == AgentEvent.AGENT_READY.value:
-                self.event_manager.emit(
-                    OrchestratorEvent.AGENT_READY, agent_name=msg.sender
-                )
-            elif event == AgentEvent.AGENT_HEARTBEAT.value:
-                # Ignore heartbeats from terminated agents (stale messages in queue)
-                with self._terminated_agents_lock:
-                    is_terminated = msg.sender in self._terminated_agents
-
-                if not is_terminated:
-                    self.event_manager.emit(
-                        OrchestratorEvent.AGENT_HEARTBEAT, agent_name=msg.sender
-                    )
-                else:
-                    self.logger.debug(
-                        f"Ignoring stale heartbeat from terminated agent '{msg.sender}'"
-                    )
-            elif event == "ERROR":
-                error_msg = msg.payload.get("message", "Unknown error")
-                self.logger.error(f"Agent {msg.sender} reported error: {error_msg}")
-                self.event_manager.emit(
-                    OrchestratorEvent.AGENT_ERROR,
-                    agent_name=msg.sender,
-                    error_message=error_msg,
-                )
-
-    def handle_external_command(self, request_msg: ServiceMessage) -> None:
-        """Process external commands from CLI."""
-        request_id = None
-
-        try:
-            cmd_data = request_msg.payload  # Now already a dict
-            command = cmd_data.get("command")
-            request_id = cmd_data.get("request_id")
-
-            # Ensure command is not None
-            if not command:
-                raise ValueError("Command is required")
-
-            try:
-                response_msg = self.command_handler.execute_command_msg(request_msg)
-            except Exception as e:
-                # Fallback: convert unexpected exceptions to an error response
-                self.logger.warning(f"Command handling failed: {e}")
-
-                # Track error in event store
-                self.event_store.record(
-                    category="cli",
-                    event_name="CLI_ERROR",
-                    severity="ERROR",
-                    data={"error": str(e)},
-                )
-
-                # Create structured error response
-                response_msg = ServiceMessage.create_command_response(
-                    sender="orchestrator",
-                    status="error",
-                    error=str(e),
-                    request_id=request_id,
-                )
-
-            # Send response back through the command channel
-            assert self.command_channel, "Command channel not initialized"
-            self.command_channel.send("cli", response_msg)
-
-        except Exception as e:
-            self.logger.error(f"Error processing external command: {e}")
-
-            # Track error
-            self.event_store.record(
-                category="cli",
-                event_name="CLI_ERROR",
-                severity="ERROR",
-                data={"error": str(e)},
-            )
-
-            if self.command_channel:
-                self.command_channel.send(
-                    "cli",
-                    ServiceMessage.create_command_response(
-                        sender="orchestrator",
-                        status="error",
-                        error=str(e),
-                        request_id=request_id,
-                    ),
-                )
+        if self.command_interface:
+            self.command_interface.stop(timeout=2.0)
 
     def register_agent(
         self,
@@ -544,6 +390,8 @@ class Orchestrator(BaseClass):
 
             Events from agents are handled centrally by the orchestrator's event manager.
             Agents communicate with the orchestrator via message channel.
+
+            Delegates to AgentLifecycleManager.
 
         Warnings:
             agent_name must be unique.
@@ -575,7 +423,8 @@ class Orchestrator(BaseClass):
                     custom_plugin
                 )
 
-            agent_entry: AgentEntry = self.memory.add_agent(
+            # Register via lifecycle manager
+            agent_entry: AgentEntry = self.lifecycle_manager.register_agent(
                 agent_class=agent_class,
                 name=name,
                 custom_config=custom_config,
@@ -586,10 +435,8 @@ class Orchestrator(BaseClass):
                 **kwargs,
             )
 
-            self.logger.debug(f"Agent '{name}' registered.")
-
             # Emit registration event
-            self.event_manager.emit(OrchestratorEvent.AGENT_REGISTERED, agent_name=name)
+            self.event_bus.emit(OrchestratorEvent.AGENT_REGISTERED, agent_name=name)
 
             return agent_entry
 
@@ -610,215 +457,61 @@ class Orchestrator(BaseClass):
             orchestrator.register_event(OrchestratorEvent.AGENT_STARTED, on_agent_start)
             orchestrator.register_event(OrchestratorEvent.AGENT_TERMINATED, on_agent_terminated)
         """
-        self.event_manager.register_event(event_type, callback)
+        self.event_bus.register_callback(event_type, callback)
         self.logger.debug(f"Event callback registered for event type: {event_type}")
 
     def add_dependency(self, agent_name: str, depends_on: list[str]):
         """
         Add dependencies: agent_name depends on depends_on.
+
+        Validation is performed during validate_dependencies() call.
+        Delegates entirely to DependencyGraph.
+
+        Args:
+            agent_name: Name of the agent that has dependencies
+            depends_on: List of agent names that agent_name depends on
         """
-        if agent_name not in [agent.name for agent in self.memory.agents]:
-            raise ValueError(
-                f"Agent {agent_name} is not registered in the Orchestrator."
-            )
-        for dependency in depends_on:
-            if dependency not in [agent.name for agent in self.memory.agents]:
-                raise ValueError(
-                    f"Dependency {dependency} is not registered in the Orchestrator."
-                )
-        self.dependencies[agent_name].extend(depends_on)
+        self.dependency_graph.add_dependency(agent_name, depends_on)
         self.logger.info(f"Agent '{agent_name}' depends on {depends_on}.")
 
     def validate_dependencies(self):
         """
-        Check for dependency errors (e.g., circular dependencies like A -> B -> A).
-        """
-        visited = set()
-        stack = set()
+        Validate dependency graph for errors (cycles, missing agents).
 
-        agents = list(self.dependencies.keys())
-
-        def visit(node):
-            """Visit a node in the graph."""
-            if node in stack:
-                raise ValueError(
-                    f"Detected a dependency cycle: {node} is part of a cycle."
-                )
-            if node not in visited:
-                stack.add(node)
-                for neighbor in self.dependencies[node]:
-                    visit(neighbor)
-                stack.remove(node)
-                visited.add(node)
-
-        for agent in agents:
-            visit(agent)
-
-    def _topological_sort_agents(self) -> list[str]:
-        """
-        Order agents topologically.
-
-        Notes:
-            This method uses a BFS algorithm to order the agents topologically.
-
-        Returns:
-            list[str]: Ordered agents.
+        Delegates entirely to DependencyGraph.
 
         Raises:
-            ValueError: If there is a cyclic dependency
+            ValueError: If validation fails (cycles or unregistered agents)
         """
-        all_agents: set[str] = {agent.name for agent in self.memory.agents}
-
-        for ag in all_agents:
-            if ag not in self.dependencies:
-                self.dependencies[ag] = []
-
-        in_degree: dict[str, int] = {ag: 0 for ag in all_agents}
-        for ag, deps in self.dependencies.items():
-            for dep in deps:
-                in_degree[ag] += 1
-
-        # BFS
-        queue = deque(ag for ag in all_agents if in_degree[ag] == 0)
-        topo_order = []
-
-        while queue:
-            node = queue.popleft()
-            topo_order.append(node)
-            for child, deps in self.dependencies.items():
-                if node in deps:
-                    in_degree[child] -= 1
-                    if in_degree[child] == 0:
-                        queue.append(child)
-
-        if len(topo_order) != len(all_agents):
-            raise ValueError(
-                "Cannot obtain a topological ordering: cyclic dependencies detected?"
-            )
-
-        return topo_order
+        agent_names = {agent.name for agent in self.memory.agents}
+        self.dependency_graph.validate(agent_names)
 
     def start(self):
         """
         Start all registered agents in the topological order of their dependencies.
+
+        Delegates to WorkerPoolScheduler for agent startup.
         """
 
         self.start_time = time.time()
 
         self.validate_dependencies()
 
-        ordered_agents = self._topological_sort_agents()
+        # Get topologically sorted agent order (dependencies first)
+        agent_names = {agent.name for agent in self.memory.agents}
+        ordered_agents = self.dependency_graph.topological_sort(agent_names)
 
-        for ag in ordered_agents:
-            self._start_agent_callback(ag)
-
-    def _start_agent_callback(self, agent_name: str):
-        """
-        Callback to start the agent with timeout protection.
-
-        Notes:
-            The agent will emit an `OrchestratorEvent.AGENT_STARTED` event through the message channel when it's actually started.
-            If the maximum number of workers is reached, the agent is added to the waiting queue.
-
-            If agent.start() takes longer than agent_start_timeout, an error is logged and the agent
-            is not marked as started, preventing the system from blocking indefinitely.
-
-        Args:
-            agent_name (str): Name of the agent to start.
-
-        Raises:
-            Exception: If agent initialization or startup fails critically.
-        """
-        agent: AgentEntry = self.memory.get_agent(agent_name)
-
-        try:
-            agent.initialize_agent()
-        except Exception as e:
-            self.logger.error(f"Failed to initialize agent '{agent_name}': {e}")
-            self.event_store.record(
-                category="orchestrator",
-                event_name="AGENT_INIT_FAILED",
-                agent=agent_name,
-                severity="ERROR",
-                data={"error": str(e)},
-            )
-            raise
-
-        if self._running_agents >= self.config.max_workers:
-            self.logger.warning(
-                f"Max workers limit reached. Adding {agent_name} to waiting queue."
-            )
-            self._waiting_agents_queue.append(agent_name)
-
-            # Track agent queued event
-            self.event_store.record(
-                category="orchestrator",
-                event_name="QUEUED",
-                agent=agent_name,
-                severity="WARN",
-                data={
-                    "running_agents": str(self._running_agents),
-                    "max_workers": str(self.config.max_workers),
-                },
-            )
-            return
-
-        # Start agent with timeout protection
-        try:
-            start_time = time.time()
-            agent.start()
-
-            # Wait for agent to actually start (with timeout)
-            # Check if state_events exist before waiting
-            if agent.state_events and agent.state_events.start_event:
-                if not agent.state_events.start_event.wait(
-                    timeout=self.config.agent_start_timeout
-                ):
-                    elapsed = time.time() - start_time
-                    self.logger.error(
-                        f"Agent '{agent_name}' failed to start within timeout ({elapsed:.1f}s > {self.config.agent_start_timeout}s)"
-                    )
-                    self.event_store.record(
-                        category="orchestrator",
-                        event_name="AGENT_START_TIMEOUT",
-                        agent=agent_name,
-                        severity="ERROR",
-                        data={
-                            "timeout": str(self.config.agent_start_timeout),
-                            "elapsed": f"{elapsed:.1f}",
-                        },
-                    )
-                    # Don't increment running_agents or add to started_agents
-                    # Try to stop the agent to clean up
-                    try:
-                        agent.stop()
-                    except Exception as stop_error:
-                        self.logger.error(
-                            f"Failed to stop timed-out agent '{agent_name}': {stop_error}"
-                        )
-                    return
-
-            self._running_agents += 1
-            self._started_agents.add(agent_name)
-            self.logger.info(f"Agent '{agent_name}' started successfully.")
-
-        except Exception as e:
-            self.logger.error(f"Failed to start agent '{agent_name}': {e}")
-            self.event_store.record(
-                category="orchestrator",
-                event_name="AGENT_START_FAILED",
-                agent=agent_name,
-                severity="ERROR",
-                data={"error": str(e)},
-            )
-            # Don't add to running/started sets on failure
-            raise
+        # Start agents via worker pool scheduler
+        for agent_name in ordered_agents:
+            self.worker_pool.start_agent(agent_name)
 
     def stop(self):
-        """Terminates all registered agents."""
-        for agent in self.memory.agents:
-            agent.stop()
-            self.logger.info(f"Stopping agent '{agent.name}'.")
+        """
+        Terminates all registered agents.
+
+        Delegates to AgentLifecycleManager.
+        """
+        self.lifecycle_manager.stop_all()
 
     def join(self) -> None:
         """
@@ -832,6 +525,8 @@ class Orchestrator(BaseClass):
             Use the 'shutdown' command to terminate the orchestrator in this mode.
 
             - When agent is terminated, it emits an `OrchestratorEvent.AGENT_TERMINATED` event.
+
+            Uses WorkerPoolScheduler to manage agent termination and queue.
         """
 
         all_finished: bool = False
@@ -841,26 +536,25 @@ class Orchestrator(BaseClass):
 
             for agent in self.memory.agents:
                 if not agent.instance.is_alive():
-                    # Check if the agent was started before decrementing
-                    if agent.name in self._started_agents:
+                    # Check if the agent was started before handling termination
+                    if agent.name in self.worker_pool._started_agents:
                         self.logger.info(f"Agent '{agent.name}' ended.")
-                        self._running_agents -= 1
-                        self._started_agents.remove(agent.name)
-
-                        # Start an agent from the waiting queue if available
-                        self._start_waiting_agent()
+                        # Notify worker pool of termination (automatically starts next queued)
+                        self.worker_pool.on_agent_terminated(agent.name)
+                        # Mark agent as terminated for message filtering
+                        self.message_router.mark_agent_terminated(agent.name)
                 else:
                     alive_count += 1
 
-            if alive_count == 0 and not self._waiting_agents_queue:
-                all_finished = True
+            # Check if all agents finished via worker pool
+            all_finished = self.worker_pool.all_finished
 
             time.sleep(self.config.check_interval)
 
         self.logger.info("Orchestrator is shutting down...")
 
         # Track orchestrator shutdown
-        self.event_store.record(
+        self.event_bus.event_store.record(
             category="orchestrator",
             event_name="SHUTDOWN",
             severity="INFO",
@@ -872,11 +566,6 @@ class Orchestrator(BaseClass):
 
         # Finalize plugins
         self.plugin_manager.finalize_plugins()
-
-        # Close command channel if enabled
-        if self.command_channel:
-            self.command_channel.close()
-            self.logger.debug("Command interface closed")
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
 
@@ -893,45 +582,6 @@ class Orchestrator(BaseClass):
         # Default enforced by validation: STOP_ON_EMPTY
         return not all_finished
 
-    def _start_waiting_agent(self):
-        """
-        Start an agent from the waiting queue if available.
-
-        Notes:
-            This method is called when an agent terminates, freeing up a slot
-            for another waiting agent.
-        """
-        if not self._waiting_agents_queue:
-            return
-
-        if self._running_agents >= self.config.max_workers:
-            self.logger.debug(
-                f"No slot available to start waiting agents. Running agents: {self._running_agents}, Limit: {self.config.max_workers}"
-            )
-            return
-
-        agent_name = self._waiting_agents_queue.popleft()
-        self.logger.info(
-            f"Starting waiting agent {agent_name} from queue... (Running agents: {self._running_agents}, Limit: {self.config.max_workers})"
-        )
-
-        # Track agent started from queue
-        self.event_store.record(
-            category="orchestrator",
-            event_name="STARTED_FROM_QUEUE",
-            agent=agent_name,
-            severity="INFO",
-            data={
-                "running_agents": str(self._running_agents),
-                "max_workers": str(self.config.max_workers),
-            },
-        )
-
-        agent = self.memory.get_agent(agent_name)
-        agent.start()
-        self._running_agents += 1
-        self._started_agents.add(agent_name)  # Track that the agent has been started
-
     def simple_join(self) -> None:
         """
         Simple join method to wait for all processes or threads to complete their execution.
@@ -947,32 +597,6 @@ class Orchestrator(BaseClass):
         self.logger.info(f"Reporting {len(self.memory.agents)} agents status.")
         for agent in self.memory.agents:
             self.logger.info(agent.status())
-
-    @final
-    def validate_config(self):
-        """
-        @final
-
-        Validates the agent configuration.
-
-        Notes:
-            This method is called during the agent's initialization to validate the configuration.
-            If the configuration is invalid, a `ValidationError` is raised.
-
-        Warning:
-            Do not override this method. If you need to implement custom validation logic, override the `validate` method
-            in the `Config` class.
-
-        Raises:
-            ValidationError: If the configuration is invalid.
-        """
-
-        try:
-            self.config._validate()
-        except ConfigValidationError as e:
-            self.logger.error(f"Configuration validation failed: {e}")
-            raise e
-        self.logger.debug(f"Self configuration validated.")
 
     def _info(self):
         self.logger.debug(f"Config: check_interval={self.config.check_interval}")

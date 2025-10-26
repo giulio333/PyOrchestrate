@@ -2,8 +2,13 @@ import unittest
 import zmq
 import time
 from PyOrchestrate.core.plugins.com import (
-    ZeroMQPubSub, ZeroMQReqRep, ZeroMQPushPull, ZeroMQRouterDealer, 
-    ZeroMQPair, ZeroMQPoller, SocketType
+    ZeroMQPubSub,
+    ZeroMQReqRep,
+    ZeroMQPushPull,
+    ZeroMQRouterDealer,
+    ZeroMQPair,
+    ZeroMQPoller,
+    SocketType,
 )
 
 
@@ -83,18 +88,18 @@ class TestZeroMQRouterDealer(unittest.TestCase):
         # Initialize the ROUTER first (server)
         router = ZeroMQRouterDealer(address, SocketType.ROUTER)
         router.initialize()
-        
+
         # Initialize the DEALER (client)
         dealer = ZeroMQRouterDealer(address, SocketType.DEALER, identity=b"client1")
         dealer.initialize()
-        
+
         # Allow connection to establish
         time.sleep(0.1)
 
         # Send message from DEALER to ROUTER
         test_message = b"Hello from DEALER"
         dealer.send(test_message)
-        
+
         # Receive on ROUTER (should include client identity)
         time.sleep(0.1)
         message_parts = router.recv_multipart()
@@ -106,7 +111,7 @@ class TestZeroMQRouterDealer(unittest.TestCase):
         # Send reply from ROUTER to DEALER
         reply_message = b"Hello from ROUTER"
         router.send_multipart([client_identity, reply_message])
-        
+
         # Receive reply on DEALER
         time.sleep(0.1)
         received_reply = dealer.recv()
@@ -121,15 +126,15 @@ class TestZeroMQRouterDealer(unittest.TestCase):
 
         router = ZeroMQRouterDealer(address, SocketType.ROUTER)
         router.initialize()
-        
+
         dealer = ZeroMQRouterDealer(address, SocketType.DEALER)
         dealer.initialize()
-        
+
         time.sleep(0.1)
 
         # Test non-blocking send
         dealer.send(b"test", blocking=False)
-        
+
         # Test non-blocking receive with no message available
         with self.assertRaises(zmq.error.Again):
             dealer.recv(blocking=False)
@@ -146,11 +151,11 @@ class TestZeroMQPair(unittest.TestCase):
         # Initialize first PAIR socket (bind)
         pair_a = ZeroMQPair(address, bind=True)
         pair_a.initialize()
-        
+
         # Initialize second PAIR socket (connect)
         pair_b = ZeroMQPair(address, bind=False)
         pair_b.initialize()
-        
+
         # Allow connection to establish
         time.sleep(0.1)
 
@@ -176,15 +181,15 @@ class TestZeroMQPair(unittest.TestCase):
 
         pair_a = ZeroMQPair(address, bind=True)
         pair_a.initialize()
-        
+
         pair_b = ZeroMQPair(address, bind=False)
         pair_b.initialize()
-        
+
         time.sleep(0.1)
 
         # Test non-blocking send
         pair_a.send(b"test", blocking=False)
-        
+
         # Test non-blocking receive with no message available
         with self.assertRaises(zmq.error.Again):
             pair_a.recv(blocking=False)
@@ -201,17 +206,17 @@ class TestZeroMQPoller(unittest.TestCase):
         # Create PUB/SUB sockets
         pub = ZeroMQPubSub(address, SocketType.PUB)
         sub = ZeroMQPubSub(address, SocketType.SUB, subscribe_topic=b"")
-        
+
         pub.initialize()
         sub.initialize()
-        
+
         # Create poller
         poller = ZeroMQPoller()
         poller.initialize()
-        
+
         # Register SUB socket for reading
         poller.register(sub.socket, zmq.POLLIN)
-        
+
         # Allow connection to establish
         time.sleep(0.1)
 
@@ -244,23 +249,23 @@ class TestZeroMQPoller(unittest.TestCase):
 
         pub = ZeroMQPubSub(address, SocketType.PUB)
         sub = ZeroMQPubSub(address, SocketType.SUB, subscribe_topic=b"")
-        
+
         pub.initialize()
         sub.initialize()
-        
+
         poller = ZeroMQPoller()
         poller.initialize()
-        
+
         # Register and then unregister
         poller.register(sub.socket, zmq.POLLIN)
         poller.unregister(sub.socket)
-        
+
         time.sleep(0.1)
-        
+
         # Send message
         pub.send(b"test message")
         time.sleep(0.1)
-        
+
         # Poll should return empty since socket is unregistered
         events = poller.poll(timeout=100)
         self.assertEqual(len(events), 0)
@@ -277,15 +282,15 @@ class TestEnhancedNonBlockingOperations(unittest.TestCase):
 
         pub = ZeroMQPubSub(address, SocketType.PUB)
         sub = ZeroMQPubSub(address, SocketType.SUB, subscribe_topic=b"")
-        
+
         pub.initialize()
         sub.initialize()
-        
+
         time.sleep(0.1)
 
         # Test non-blocking send
         pub.send(b"test", blocking=False)
-        
+
         # Test non-blocking receive with no message available
         with self.assertRaises(zmq.error.Again):
             sub.recv(blocking=False)
@@ -298,15 +303,15 @@ class TestEnhancedNonBlockingOperations(unittest.TestCase):
 
         rep = ZeroMQReqRep(address, SocketType.REP)
         req = ZeroMQReqRep(address, SocketType.REQ)
-        
+
         rep.initialize()
         req.initialize()
-        
+
         time.sleep(0.1)
 
         # Test non-blocking send
         req.send(b"test", blocking=False)
-        
+
         # Test non-blocking receive with no message available
         with self.assertRaises(zmq.error.Again):
             req.recv(blocking=False)
@@ -319,15 +324,15 @@ class TestEnhancedNonBlockingOperations(unittest.TestCase):
 
         push = ZeroMQPushPull(address, SocketType.PUSH)
         pull = ZeroMQPushPull(address, SocketType.PULL)
-        
+
         push.initialize()
         pull.initialize()
-        
+
         time.sleep(0.1)
 
         # Test non-blocking send
         push.send(b"test", blocking=False)
-        
+
         # Test non-blocking receive with no message available
         with self.assertRaises(zmq.error.Again):
             pull.recv(blocking=False)
