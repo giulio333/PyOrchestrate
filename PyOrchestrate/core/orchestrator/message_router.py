@@ -7,11 +7,15 @@ to filter stale messages (e.g., heartbeats from agents that have already termina
 """
 
 import threading
-from typing import Set
+from typing import Set, Optional, TYPE_CHECKING
 
-from PyOrchestrate.core.utilities.messaging import ServiceMessage
+from PyOrchestrate.core.utilities.messaging import ServiceMessage, MessageChannel
 from PyOrchestrate.core.utilities.event import OrchestratorEvent, AgentEvent
 from PyOrchestrate.core.utilities.event_manager import EventManager
+
+if TYPE_CHECKING:
+    from loguru import Logger
+    from PyOrchestrate.core.orchestrator.channel_handler import ChannelHandler
 
 
 class MessageRouter:
@@ -44,18 +48,73 @@ class MessageRouter:
         called from multiple threads concurrently.
     """
 
-    def __init__(self, event_manager: EventManager, logger):
+    def __init__(
+        self,
+        event_manager: EventManager,
+        message_channel: MessageChannel,
+        logger: "Logger",
+    ):
         """
         Initialize the message router.
 
         Args:
             event_manager: EventManager instance for emitting orchestrator events
+            message_channel: MessageChannel for receiving agent messages
             logger: Logger instance (typically loguru logger)
         """
         self.event_manager = event_manager
+        self.message_channel = message_channel
         self.logger = logger
         self._terminated_agents: Set[str] = set()
         self._terminated_agents_lock = threading.Lock()
+        self._channel_handler: Optional["ChannelHandler"] = None
+
+    def start(self) -> None:
+        """
+        Start the message router and its channel handler.
+
+        Creates and starts a ChannelHandler to process incoming agent messages.
+        """
+        # Import here to avoid circular dependency at runtime
+        from PyOrchestrate.core.orchestrator.channel_handler import ChannelHandler
+
+        if self._channel_handler is not None:
+            self.logger.warning("MessageRouter already started")
+            return
+
+        self._channel_handler = ChannelHandler(
+            channel=self.message_channel,
+            message_handler=self.route_agent_message,
+            name="OrchestratorAgentMessageHandler",
+            logger=self.logger,
+            poll_timeout=1.0,
+        )
+        self._channel_handler.start()
+        self.logger.debug("MessageRouter started")
+
+    def stop(self, timeout: float = 2.0) -> None:
+        """
+        Stop the message router and its channel handler.
+
+        Args:
+            timeout: Maximum time to wait for handler thread to stop
+        """
+        if self._channel_handler is None:
+            self.logger.debug("MessageRouter not started, nothing to stop")
+            return
+
+        self._channel_handler.stop(timeout=timeout)
+        self._channel_handler = None
+        self.logger.debug("MessageRouter stopped")
+
+    def is_running(self) -> bool:
+        """
+        Check if the message router is currently running.
+
+        Returns:
+            bool: True if running, False otherwise
+        """
+        return self._channel_handler is not None
 
     def route_agent_message(self, msg: ServiceMessage) -> None:
         """

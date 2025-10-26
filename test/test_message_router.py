@@ -11,7 +11,7 @@ import threading
 import time
 
 from PyOrchestrate.core.orchestrator.message_router import MessageRouter
-from PyOrchestrate.core.utilities.messaging import ServiceMessage
+from PyOrchestrate.core.utilities.messaging import ServiceMessage, MessageChannel
 from PyOrchestrate.core.utilities.event import OrchestratorEvent, AgentEvent
 
 
@@ -21,14 +21,25 @@ class TestMessageRouter(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.event_manager = MagicMock()
+        self.message_channel = MessageChannel("process")
         self.logger = MagicMock()
-        self.router = MessageRouter(self.event_manager, self.logger)
+        self.router = MessageRouter(
+            self.event_manager, self.message_channel, self.logger
+        )
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        if self.router.is_running():
+            self.router.stop()
+        self.message_channel.close()
 
     def test_initialization(self):
         """Test MessageRouter initialization."""
         self.assertIsNotNone(self.router.event_manager)
+        self.assertIsNotNone(self.router.message_channel)
         self.assertIsNotNone(self.router.logger)
         self.assertEqual(len(self.router._terminated_agents), 0)
+        self.assertFalse(self.router.is_running())
 
     def test_route_agent_started_message(self):
         """Test routing AGENT_START message."""
@@ -278,6 +289,34 @@ class TestMessageRouter(unittest.TestCase):
         self.router.route_agent_message(msg3)
         # Still 2 calls (heartbeat was filtered)
         self.assertEqual(self.event_manager.emit.call_count, 2)
+
+    def test_start_and_stop(self):
+        """Test starting and stopping the message router."""
+        self.assertFalse(self.router.is_running())
+
+        self.router.start()
+        self.assertTrue(self.router.is_running())
+
+        self.router.stop()
+        self.assertFalse(self.router.is_running())
+
+    def test_start_already_started(self):
+        """Test starting an already started router."""
+        self.router.start()
+        self.assertTrue(self.router.is_running())
+
+        # Starting again should log warning but not fail
+        self.router.start()
+        self.assertTrue(self.router.is_running())
+
+        self.router.stop()
+
+    def test_stop_not_started(self):
+        """Test stopping a router that was never started."""
+        self.assertFalse(self.router.is_running())
+        # Should not raise exception
+        self.router.stop()
+        self.assertFalse(self.router.is_running())
 
 
 if __name__ == "__main__":
