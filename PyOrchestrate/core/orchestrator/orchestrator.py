@@ -10,9 +10,8 @@ from PyOrchestrate.core.orchestrator.worker_pool import WorkerPoolScheduler
 from PyOrchestrate.core.orchestrator.message_router import MessageRouter
 from PyOrchestrate.core.orchestrator.event_bus import OrchestratorEventBus
 from PyOrchestrate.core.orchestrator.command_interface import CommandInterface
-from PyOrchestrate.core.utilities.command_handler import CommandException
 from PyOrchestrate.core.orchestrator.event_store import EventStore, BucketRingStore
-from PyOrchestrate.core.utilities.event import OrchestratorEvent, AgentEvent
+from PyOrchestrate.core.utilities.event import OrchestratorEvent
 from PyOrchestrate.core.utilities.validation import (
     ValidationResult,
     ValidationSeverity,
