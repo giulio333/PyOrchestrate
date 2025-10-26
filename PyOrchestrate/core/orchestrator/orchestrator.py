@@ -654,14 +654,3 @@ class Orchestrator(BaseClass):
             self.logger.debug(f"Config: run_mode={rm.value}")
         else:
             self.logger.debug(f"Config: run_mode={rm}")
-
-    # Compatibility properties for backward compatibility
-    @property
-    def event_store(self):
-        """Access EventStore via event_bus for backward compatibility."""
-        return self.event_bus.event_store
-
-    @property
-    def event_manager(self):
-        """Access EventManager via event_bus for backward compatibility."""
-        return self.event_bus.event_manager
