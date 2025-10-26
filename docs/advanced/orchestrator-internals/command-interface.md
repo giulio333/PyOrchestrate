@@ -546,5 +546,5 @@ logging.getLogger("PyOrchestrate.CommandInterface").setLevel(logging.DEBUG)
 
 - [CLI Reference](../../cli/runtime-commands.md) - Complete CLI command documentation
 - [OrchestratorEventBus](./event-bus.md) - Event recording
-- [MessageChannel](../../learn/utilities/message-channel.md) - Low-level communication
+- [MessageChannel](../utilities/message-channel.md) - Low-level communication
 - [Orchestrator Internals](./index.md) - Architecture overview

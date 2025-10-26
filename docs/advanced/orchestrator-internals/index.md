@@ -275,11 +275,11 @@ The managers use low-level utilities for their implementation:
 
 | Utility | Used By | Purpose |
 |---------|---------|---------|
-| [EventManager](../../learn/utilities/event-manager.md) | OrchestratorEventBus | Callback execution |
-| [PluginManager](../../learn/utilities/plugin-manager.md) | AgentLifecycleManager | Plugin lifecycle |
-| [MessageChannel](../../learn/utilities/message-channel.md) | MessageRouter, CommandInterface | Inter-process communication |
+| [EventManager](../utilities/event-manager.md) | OrchestratorEventBus | Callback execution |
+| [PluginManager](../utilities/plugin-manager.md) | AgentLifecycleManager | Plugin lifecycle |
+| [MessageChannel](../utilities/message-channel.md) | MessageRouter, CommandInterface | Inter-process communication |
 
-These utilities are documented separately in the [Utilities](../../learn/utilities/) section.
+These utilities are documented separately in the [Utilities](../utilities/) section.
 
 ## Common Patterns
 
@@ -341,5 +341,5 @@ For simpler use cases, the high-level orchestrator API is sufficient.
 ## See Also
 
 - [Introduction to Orchestrator](../../learn/introduction/orchestrator/) - High-level usage guide
-- [Core Utilities](../../learn/utilities/) - Low-level building blocks
+- [Core Utilities](../utilities/) - Low-level building blocks
 - [CLI Reference](../../cli/) - Command-line tools

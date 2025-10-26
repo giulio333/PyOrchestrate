@@ -343,6 +343,6 @@ print(f"Filtering messages from: {terminated}")
 ## See Also
 
 - [OrchestratorEventBus](./event-bus.md) - Receives translated events
-- [MessageChannel](../../learn/utilities/message-channel.md) - Low-level message transport
+- [MessageChannel](../utilities/message-channel.md) - Low-level message transport
 - [AgentLifecycleManager](./lifecycle-manager.md) - Creates agents with MessageChannel
 - [Orchestrator Internals](./index.md) - Architecture overview

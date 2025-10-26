@@ -189,7 +189,7 @@ For understanding how these utilities are composed into higher-level functionali
 ### For Application Developers
 
 1. Start with **[Introduction](../../learn/introduction/)** - Understand orchestrators and agents
-2. Learn **[Orchestrator API](../../learn/introduction/orchestrator_api/)** - High-level usage
+2. Learn **[Orchestrator API](../../learn/introduction/orchestrator_api)** - High-level usage
 3. Explore **Examples** - Practical patterns
 
 You typically won't need to interact with these utilities directly.
@@ -203,5 +203,5 @@ You typically won't need to interact with these utilities directly.
 ## See Also
 
 - [Orchestrator Internals](../orchestrator-internals/) - High-level manager architecture
-- [Configuration and Validation](../config_and_validation) - Configuration management
+- [Configuration and Validation](../../learn/config_and_validation) - Configuration management
 - [Advanced Architecture](../../advanced/) - Deep architectural topics

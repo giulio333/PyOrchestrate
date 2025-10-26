@@ -343,8 +343,8 @@ for agent_name, agent_entry in orchestrator.memory.agents.items():
 
 - [DependencyGraph](./dependency-graph.md) - Determines agent startup order
 - [WorkerPoolScheduler](./worker-pool.md) - Manages concurrent agent execution
-- [PluginManager](../../learn/utilities/plugin-manager.md) - Plugin lifecycle management
-- [MessageChannel](../../learn/utilities/message-channel.md) - Inter-agent communication
+- [PluginManager](../utilities/plugin-manager.md) - Plugin lifecycle management
+- [MessageChannel](../utilities/message-channel.md) - Inter-agent communication
 - [Orchestrator Internals](./index.md) - Architecture overview
 
 ### Agent Runner
@@ -698,5 +698,5 @@ finally:
 
 - [DependencyGraph](./dependency-graph.md) - Determines agent startup order
 - [WorkerPoolScheduler](./worker-pool.md) - Manages concurrent agent execution
-- [PluginManager](../../learn/utilities/plugin-manager.md) - Plugin lifecycle management
-- [MessageChannel](../../learn/utilities/message-channel.md) - Inter-agent communication
+- [PluginManager](../utilities/plugin-manager.md) - Plugin lifecycle management
+- [MessageChannel](../utilities/message-channel.md) - Inter-agent communication

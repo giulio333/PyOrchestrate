@@ -341,5 +341,5 @@ event_policies = {
 ## See Also
 
 - [MessageRouter](./message-router.md) - Routes agent messages to EventBus
-- [EventManager](../../learn/utilities/event-manager.md) - Low-level callback system
+- [EventManager](../utilities/event-manager.md) - Low-level callback system
 - [Orchestrator Internals](./index.md) - Architecture overview
