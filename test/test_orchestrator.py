@@ -95,7 +95,10 @@ class TestOrchestrator(unittest.TestCase):
             )
 
     def test_handle_agent_message_events(self):
-        """Verify that message_router.route_agent_message emits the correct events."""
+        """
+        Verify that the orchestrator delegates agent messages to the message router,
+        and that the correct events are emitted as a result.
+        """
         event_map = {
             AgentEvent.AGENT_CLOSE.value: OrchestratorEvent.AGENT_TERMINATED,
             AgentEvent.AGENT_START.value: OrchestratorEvent.AGENT_STARTED,
