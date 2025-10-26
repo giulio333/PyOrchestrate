@@ -231,7 +231,7 @@ class BaseClass:
             If the configuration has warnings, a `ConfigValidationWarning` is raised.
 
         Warning:
-            Do not override this method. If you need to implement custom validation logic, 
+            Do not override this method. If you need to implement custom validation logic,
             override the `validate` method in the `Config` class.
 
         Raises:
