@@ -71,16 +71,16 @@ class AgentPlugin(BaseClass.Plugin):
     Plugin class for agents.
 
     This class can contain various plugins that extend agent functionality.
-    
+
     Plugins can be defined as class attributes (defaults) and overridden via constructor:
-    
+
     Example:
         class MyPlugin(AgentPlugin):
             zmq = ZeroMQPubSub("tcp://*:5555", zmq.PUB)
-        
+
         # Use default
         plugin1 = MyPlugin()
-        
+
         # Override heartbeat
         plugin2 = MyPlugin(heartbeat=AgentHeartbeatTimerPlugin())
     """
