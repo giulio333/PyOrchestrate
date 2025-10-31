@@ -2,7 +2,7 @@
 
 **Report Date:** 2025-10-31  
 **Repository:** giulio333/PyOrchestrate  
-**Commit Analyzed:** 9023c43 (Merge PR #69 - Orchestrator Refactoring)
+**Commit Analyzed:** 9023c43 (Merge Pull Request #69 - Orchestrator Refactoring)
 
 ---
 
