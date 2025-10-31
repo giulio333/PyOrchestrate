@@ -135,14 +135,30 @@ class BaseClassPlugin:
     Base class for plugins.
 
     Can be used to store Plugin objects.
+    
+    This class automatically handles plugin attributes defined as class attributes
+    and allows overriding them via constructor kwargs, eliminating the need for
+    explicit __init__ implementations in derived classes.
+    
+    Example:
+        class MyPlugin(BaseClassPlugin):
+            # Define default plugins as class attributes
+            zmq: ZeroMQPubSub = ZeroMQPubSub("tcp://*:5555", zmq.PUB)
+            heartbeat: HeartbeatPlugin | None = None
+        
+        # Use defaults
+        plugin1 = MyPlugin()
+        
+        # Override specific plugins
+        plugin2 = MyPlugin(heartbeat=HeartbeatPlugin())
     """
 
     def __init__(
         self,
         **kwargs,
     ):
-
-        # store user-defined attributes
+        # Store user-defined attributes passed via constructor
+        # These will override class-level default values
         self._custom_attr: dict[str, Any] = kwargs
 
     def __getattribute__(self, key: str) -> Any:

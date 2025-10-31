@@ -219,15 +219,21 @@ class OrchestratorPlugin(BaseClass.Plugin):
     Plugin class for the Orchestrator.
 
     This class can contain various plugins that extend orchestrator functionality.
+    
+    Plugins can be defined as class attributes (defaults) and overridden via constructor:
+    
+    Example:
+        class MyOrchestratorPlugin(OrchestratorPlugin):
+            custom_plugin = CustomPlugin()
+        
+        # Use default
+        plugin1 = MyOrchestratorPlugin()
+        
+        # Override heartbeat
+        plugin2 = MyOrchestratorPlugin(heartbeat=OrchestratorHeartbeatPlugin())
     """
 
     heartbeat: OrchestratorHeartbeatPlugin | None = None
-
-    def __init__(self, heartbeat: OrchestratorHeartbeatPlugin | None = None, **kwargs):
-        super().__init__(**kwargs)
-
-        if heartbeat is not None:
-            self.heartbeat = heartbeat
 
 
 class Orchestrator(BaseClass):
