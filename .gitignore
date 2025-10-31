@@ -11,3 +11,9 @@ __pycache__/
 /logs
 
 *.egg-info/
+# Coverage files
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover

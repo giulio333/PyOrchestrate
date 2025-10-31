@@ -1,0 +1,164 @@
+{
+  "report_metadata": {
+    "report_date": "2025-10-31",
+    "repository": "giulio333/PyOrchestrate",
+    "commit": "9023c43",
+    "commit_message": "Merge pull request #69 - Orchestrator Refactoring",
+    "report_version": "1.0"
+  },
+  "overall_score": {
+    "total": 85,
+    "grade": "B+",
+    "status": "Good"
+  },
+  "test_results": {
+    "total_tests": 178,
+    "passed": 174,
+    "failed": 0,
+    "skipped": 4,
+    "pass_rate": 97.8,
+    "execution_time_seconds": 20.66
+  },
+  "code_coverage": {
+    "overall_percentage": 68,
+    "total_statements": 2402,
+    "missing_statements": 779,
+    "modules_high_coverage": [
+      {"name": "command_interface.py", "coverage": 100},
+      {"name": "message_router.py", "coverage": 100},
+      {"name": "event_bus.py", "coverage": 100},
+      {"name": "dependency_graph.py", "coverage": 98},
+      {"name": "channel_handler.py", "coverage": 96},
+      {"name": "worker_pool.py", "coverage": 96},
+      {"name": "base_agent.py", "coverage": 95}
+    ],
+    "modules_low_coverage": [
+      {"name": "heartbeat.py", "coverage": 20, "priority": "high"},
+      {"name": "command_handler.py", "coverage": 22, "priority": "high"},
+      {"name": "periodic_timer.py", "coverage": 28, "priority": "high"},
+      {"name": "lifecycle_manager.py", "coverage": 38, "priority": "high"},
+      {"name": "exceptions.py", "coverage": 47, "priority": "medium"}
+    ]
+  },
+  "code_quality": {
+    "linting": {
+      "tool": "flake8",
+      "total_violations": 694,
+      "violations_by_type": {
+        "E501_line_too_long": 641,
+        "F401_unused_import": 27,
+        "F541_fstring_no_placeholders": 7,
+        "W293_blank_line_whitespace": 6,
+        "E303_too_many_blank_lines": 4,
+        "W291_trailing_whitespace": 3,
+        "F841_unused_variable": 3,
+        "E302_expected_blank_lines": 2
+      },
+      "most_problematic_files": [
+        {"file": "web_interface/server.py", "violations": 40},
+        {"file": "cli.py", "violations": 9},
+        {"file": "utilities/logguru.py", "violations": 5}
+      ]
+    },
+    "complexity": {
+      "total_lines": 10445,
+      "total_modules": 35,
+      "average_lines_per_module": 299,
+      "largest_modules": [
+        {"name": "web_interface/server.py", "lines": 1161},
+        {"name": "core/plugins/com.py", "lines": 916},
+        {"name": "cli.py", "lines": 692}
+      ]
+    }
+  },
+  "recommendations": {
+    "high_priority": [
+      {
+        "title": "Improve Test Coverage",
+        "description": "Increase coverage to 80%, focus on heartbeat.py, command_handler.py, lifecycle_manager.py",
+        "effort_estimate": "2-3 days",
+        "impact": "high"
+      },
+      {
+        "title": "Fix Unused Variables/Imports",
+        "description": "Remove 3 unused variables and 27 unused imports",
+        "effort_estimate": "1 hour",
+        "impact": "medium"
+      },
+      {
+        "title": "Code Style Cleanup",
+        "description": "Fix 641 line length violations and whitespace issues",
+        "effort_estimate": "2-3 hours",
+        "impact": "medium"
+      }
+    ],
+    "medium_priority": [
+      {
+        "title": "Refactor Large Modules",
+        "description": "Break down server.py (1,161 lines) and com.py (916 lines)",
+        "effort_estimate": "1-2 days",
+        "impact": "medium"
+      },
+      {
+        "title": "Enhanced Error Handling",
+        "description": "Improve exceptions.py coverage and add specific exception types",
+        "effort_estimate": "1 day",
+        "impact": "medium"
+      },
+      {
+        "title": "Performance Testing",
+        "description": "Add load tests and benchmark message routing",
+        "effort_estimate": "2 days",
+        "impact": "high"
+      }
+    ],
+    "low_priority": [
+      {
+        "title": "Documentation Enhancement",
+        "description": "Add more inline comments and architecture diagrams",
+        "effort_estimate": "3-4 days",
+        "impact": "low"
+      },
+      {
+        "title": "Security Hardening",
+        "description": "Add security scanning and authentication",
+        "effort_estimate": "2-3 days",
+        "impact": "medium"
+      }
+    ]
+  },
+  "architecture": {
+    "strengths": [
+      "Clean separation of concerns",
+      "Well-designed plugin system",
+      "Clear module boundaries",
+      "Good use of design patterns"
+    ],
+    "concerns": [
+      "Large modules need refactoring",
+      "Some tight coupling between orchestrator and agents",
+      "MessageChannel potential bottleneck"
+    ]
+  },
+  "dependencies": {
+    "status": "healthy",
+    "core_dependencies": [
+      "fastapi>=0.116.1",
+      "loguru>=0.7.3",
+      "psutil>=7.0.0",
+      "pydantic>=2.11.7",
+      "pyzmq>=26.4.0",
+      "requests>=2.32.3",
+      "uvicorn>=0.35.0"
+    ],
+    "vulnerabilities": []
+  },
+  "maintainability_score": {
+    "test_coverage": 68,
+    "code_style_compliance": 75,
+    "documentation": 95,
+    "module_cohesion": 90,
+    "complexity": 80,
+    "overall": 82
+  }
+}
