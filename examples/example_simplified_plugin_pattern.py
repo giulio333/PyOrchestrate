@@ -13,7 +13,7 @@ from PyOrchestrate.core.plugins.com import ZeroMQPubSub, SocketType
 class Publisher(PeriodicProcessAgent):
     """
     Publisher agent demonstrating the simplified plugin pattern.
-    
+
     Notice how the Plugin class doesn't need an __init__ method!
     Plugins are simply defined as class attributes and can be
     overridden via constructor if needed.
