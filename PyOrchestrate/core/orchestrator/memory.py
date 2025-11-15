@@ -44,7 +44,7 @@ class AgentEntry:
 
     def __init__(
         self,
-        agent_class,
+        agent_class: Type[BaseAgent],
         name: str,
         control_events: Optional[BaseAgent.ControlEvents] = None,
         state_events: Optional[BaseAgent.StateEvents] = None,
@@ -53,16 +53,16 @@ class AgentEntry:
         record_event_callback: Optional[Any] = None,
         **kwargs: Any,
     ):
-        self.agent_class = agent_class
-        self.name = name
-        self.config = config
-        self.plugin = plugin
-        self.kwargs = kwargs
-        self._instance = None
-        self._record_event_callback = record_event_callback
+        self.agent_class: Type[BaseAgent] = agent_class
+        self.name: str = name
+        self.config: Optional[BaseClass.Config] = config
+        self.plugin: Optional[BaseClass.Plugin] = plugin
+        self.kwargs: Dict[str, Any] = kwargs
+        self._instance: Optional[BaseAgent] = None
+        self._record_event_callback: Optional[Any] = record_event_callback
 
-        self.control_events = control_events
-        self.state_events = state_events
+        self.control_events: Optional[BaseAgent.ControlEvents] = control_events
+        self.state_events: Optional[BaseAgent.StateEvents] = state_events
 
     @property
     def instance(self) -> AgentProtocol:
@@ -147,16 +147,39 @@ class AgentEntry:
 
     def initialize_agent(self) -> None:
         """
-        Create agent instance.
+        Create agent instance (lazy initialization).
+
+        This method performs the actual instantiation of the agent. It constructs a parameters
+        dictionary with all necessary values (config, plugin, events, kwargs) and passes them
+        to the agent class constructor.
+
+        **Lazy Initialization Pattern:**
+            The agent instance is NOT created during registration (in OMemory.add_agent()),
+            but only when initialize_agent() is called just before the agent starts.
+            This ensures memory efficiency and allows for proper event setup.
+
+        **Parameter Propagation:**
+            - config: Uses provided custom config or None (agent will use default)
+            - plugin: Uses provided custom plugin or None (agent will use default)
+            - control_events: Uses provided events or None (agent will create with proper type)
+            - state_events: Uses provided events or None (agent will create with proper type)
+            - kwargs: All additional keyword arguments are passed and become agent attributes
+
+        **Error Handling:**
+            If agent instantiation fails, the exception is propagated to the caller.
+            Check agent logs for detailed error information.
 
         Notes:
-            - If custom agent configuration is not provided, the default
-                configuration will be used (agent_class.Config).
-            - If custom agent plugin is not provided, the default plugin will
-                be used (agent_class.Plugin).
+            - Default config/plugin are created by the agent itself in __init__ if not provided
+            - Events are created with the correct type (multiprocessing.Event or threading.Event)
+              based on the agent's a_type attribute
+            - Control events are set to ready by default
 
         Returns:
             None
+
+        Raises:
+            Exception: If agent instantiation fails (e.g., missing required parameters)
         """
         # if self.config is None:
         #     self.config = self.agent_class.Config()
