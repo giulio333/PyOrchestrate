@@ -89,17 +89,40 @@ class BaseAgent(BaseClass, ABC):
     This class provides a common interface for agent lifecycle management, defining
     the essential methods that an agent must implement.
 
-    Each agent manages two types of events:
+    **Event System:**
+        Each agent manages two types of events:
 
-    - state_events: For managing the agent's internal state
-    - control_events: For handling external commands
+        - state_events: For managing the agent's internal state (start, ready, close)
+        - control_events: For handling external commands (setup, execute, stop)
 
-    Events are communicated to the orchestrator via message channel, allowing
-    centralized event management and coordination. The orchestrator handles
-    all event processing and callback execution.
+        Events are communicated to the orchestrator via message channel, allowing
+        centralized event management and coordination. The orchestrator handles
+        all event processing and callback execution.
+
+    **Lazy Initialization Pattern:**
+        Agents are not instantiated during registration but only when the orchestrator
+        calls start(). This ensures memory efficiency and allows proper event setup.
+        See AgentEntry.initialize_agent() for details.
+
+    **Error Handling:**
+        Exceptions during agent execution are caught and handled gracefully:
+        - ConfigValidationError: Sets termination_status to ERROR
+        - Other exceptions: Sets termination_status to CRITICAL
+        - Cleanup (on_close, plugins) always executes in finally block
+        - Error details are logged to agent-specific log file
+        - AGENT_CLOSE message is sent even if errors occur
+
+    **Lifecycle Flow:**
+        1. Registration: Agent metadata stored in orchestrator
+        2. Initialization: Agent instance created (lazy)
+        3. Startup: Process/Thread starts, run() executes
+        4. Setup: Plugins initialized, user setup() runs
+        5. Execution: Core logic executes
+        6. Termination: Cleanup, plugins finalized, close_event set
 
     Warnings:
         When overriding methods, always call the parent implementation using super().
+        This ensures proper event signaling and lifecycle management.
 
     Usage:
         Derived classes must implement the `execute` method to define their core logic.
@@ -111,6 +134,7 @@ class BaseAgent(BaseClass, ABC):
         plugin (PluginProtocol): Plugin interface for agent extension.
         state_events (StateEvents): Events for internal state management.
         control_events (ControlEvents): Events for external command handling.
+        termination_status (AgentTerminationStatus): Final status when agent closes.
 
     Methods:
         run: Main entry point for agent execution.
@@ -119,6 +143,7 @@ class BaseAgent(BaseClass, ABC):
         stop: Requests external termination of the agent.
         validate_config: Validates the configuration.
         on_stop: Handles cleanup when the agent is stopped.
+        on_close: Performs final cleanup during shutdown.
     """
 
     a_type: str = ""
@@ -130,10 +155,32 @@ class BaseAgent(BaseClass, ABC):
         """
         Events related to the internal state of the agent.
 
+        These events are set by the agent during its lifecycle to signal different
+        state transitions. They are used to synchronize external code with the agent's
+        internal state.
+
+        **Event Lifecycle:**
+            1. start_event: Set when Agent.run() starts (before setup)
+            2. ready_event: Set after setup() completes and agent is ready for execution
+            3. close_event: Set after execution completes and cleanup is done
+
+        **Custom vs Auto-Created:**
+            - If custom events are provided during registration, they are used as-is
+            - If no custom events are provided, the agent creates new events with the
+              correct type (multiprocessing.Event for process agents,
+              threading.Event for thread agents)
+
+        **Usage Example:**
+            >>> agent = MyAgent(name="test")
+            >>> agent.start()
+            >>> agent.state_events.start_event.wait()    # Wait for agent to start
+            >>> agent.state_events.ready_event.wait()    # Wait for agent to be ready
+            >>> agent.state_events.close_event.wait()    # Wait for agent to complete
+
         Attributes:
-            start_event: Event to signal that the agent is starting.
-            ready_event: Event to signal that the agent is ready to start the execution.
-            close_event: Event to signal that the agent has completed the execution.
+            start_event: Event to signal that the agent is starting (set before setup).
+            ready_event: Event to signal that the agent is ready to execute (set after setup).
+            close_event: Event to signal that the agent has completed (set during cleanup).
         """
 
         def __init__(self, start_event, ready_event, close_event):
@@ -143,12 +190,43 @@ class BaseAgent(BaseClass, ABC):
 
     class ControlEvents:
         """
-        Events related to external commands.
+        Events related to external commands and execution control.
+
+        These events are used to control the agent's execution flow from outside.
+        They allow external code to pause/resume execution and request termination.
+
+        **Event Defaults:**
+            Control events are set to ready state by default, allowing the agent to
+            proceed without waiting. You can configure them to block execution at specific points.
+
+        **Event Lifecycle:**
+            1. setup_event: Must be set before the agent can proceed with setup phase
+            2. execute_event: Must be set before the agent can execute its core logic
+            3. stop_event: Set by external code to request agent termination
+
+        **Custom vs Auto-Created:**
+            - If custom events are provided during registration, they are used as-is
+            - If no custom events are provided, the agent creates new events with the
+              correct type (multiprocessing.Event for process agents,
+              threading.Event for thread agents)
+            - Auto-created events are set to ready by default (setup_event and execute_event)
+
+        **Usage Example - Pause Execution:**
+            >>> # Create a paused execution scenario
+            >>> setup_event = threading.Event()  # Don't set - will block
+            >>> execute_event = threading.Event()  # Don't set - will block
+            >>> control_events = BaseAgent.ControlEvents(setup_event, execute_event, threading.Event())
+            >>> agent = MyAgent(name="test", control_events=control_events)
+            >>> agent.start()
+            >>> # Agent will block in setup phase until we set the event
+            >>> setup_event.set()  # Allow setup to proceed
+            >>> # Agent will still block in execute phase
+            >>> execute_event.set()  # Allow execution to proceed
 
         Attributes:
-            setup_event: Event to signal that the agent can make the setup.
-            execute_event: Event to signal that the agent can make the execution.
-            stop_event: Event to signal that the agent must stop.
+            setup_event: Event to signal that setup phase can proceed (default: ready).
+            execute_event: Event to signal that execution phase can proceed (default: ready).
+            stop_event: Event to signal that the agent must stop (default: not set).
         """
 
         def __init__(self, setup_event, execute_event, stop_event):
@@ -366,14 +444,39 @@ class BaseAgent(BaseClass, ABC):
 
         Performs initialization when the agent starts.
 
+        This method is called after the agent starts and before execution. It provides
+        a hook for custom initialization logic such as opening connections, loading data,
+        or preparing resources needed for execution.
+
+        **Execution Control:**
+            This method waits for control_events.setup_event before executing user code.
+            By default, the event is already set, so execution proceeds immediately.
+            Custom setup_events can be used to delay setup until an external signal.
+
+        **Error Handling:**
+            Any exception raised in setup will be caught by the main run() method and
+            will set the agent's termination_status to ERROR. The agent will not proceed
+            to the execute phase.
+
+        **Event Signaling:**
+            - Signals ready_event after setup completes (via _handle_ready)
+            - ready_event is set in the state_events after this method returns
+
         Warnings:
-            When overriding, ensure to call the parent implementation.
+            When overriding, ensure to call the parent implementation with super().setup()
 
         Notes:
-            Implement setup logic here. This method runs once before `execute`.
+            - Implement setup logic here. This method runs once before execute.
+            - Uses control_events.setup_event for execution control
+            - Triggers state_events.ready_event upon completion
 
-            - Uses `control_events.setup_event` for execution control.
-            - Triggers `state_events.ready_event` upon completion.
+        Example:
+            >>> class MyAgent(PeriodicProcessAgent):
+            ...     def setup(self):
+            ...         super().setup()  # MUST call parent first
+            ...         self.logger.info("Initializing agent")
+            ...         self.connection = self.open_database()
+            ...         self.logger.info("Setup complete")
         """
         if self.control_events is not None:
             self.control_events.setup_event.wait()
@@ -382,10 +485,57 @@ class BaseAgent(BaseClass, ABC):
     def execute(self):
         """
         @abstractmethod
-        Implements the agent's core logic.
+
+        Implements the agent's core logic and execution loop.
+
+        This is the main method where the agent performs its work. It's called after
+        setup() completes and handles the primary business logic of the agent.
+
+        **Execution Control:**
+            This method waits for control_events.execute_event before executing user code.
+            By default, the event is already set, so execution proceeds immediately.
+            Custom execute_events can be used to delay execution until an external signal.
+
+        **Agent Type Behavior:**
+            - PeriodicAgent and PoolAgent: Override runner() instead of execute()
+            - LoopingAgent and BaseAgent: Override execute() directly
+            - PeriodicAgent.execute() calls runner() repeatedly at intervals
+
+        **Error Handling:**
+            - Any exception raised in execute will be caught by run()
+            - Termination status will be set to CRITICAL
+            - Error message will be sent to the orchestrator
+            - Cleanup (on_close, plugin finalization) will always execute
+
+        **Resource Access:**
+            Your implementation can access:
+            - self.config: Agent configuration parameters
+            - self.plugin: Plugins for extending functionality
+            - self.msg_channel: Communication with orchestrator
+            - self.logger: Logging system
 
         Warnings:
-            When overriding, ensure to call the parent implementation.
+            When overriding, ensure to call the parent implementation with super().execute()
+
+        Notes:
+            - This method can run indefinitely (for looping agents) or return (for periodic agents)
+            - Use control_events.execute_event for execution flow control
+            - Use control_events.stop_event to check for termination requests
+
+        Example - Looping Agent:
+            >>> class MyLoopingAgent(LoopingThreadAgent):
+            ...     def execute(self):
+            ...         super().execute()  # MUST call parent first
+            ...         while not self.control_events.stop_event.is_set():
+            ...             self.logger.info("Processing...")
+            ...             time.sleep(1)
+
+        Example - Periodic Agent:
+            >>> class MyPeriodicAgent(PeriodicProcessAgent):
+            ...     def runner(self):
+            ...         super().runner()  # MUST call parent first
+            ...         self.logger.info("Periodic execution")
+            ...         # This runs once per interval
         """
         if self.control_events is not None:
             self.control_events.execute_event.wait()
@@ -420,9 +570,47 @@ class BaseAgent(BaseClass, ABC):
         """
         Performs final cleanup when the agent is closing.
 
+        This method is called in the finally block of run(), ensuring it executes
+        regardless of whether the agent completed normally or encountered an error.
+
+        **Execution Order in Shutdown:**
+            1. on_close() is called (this method)
+            2. plugin_manager.finalize_plugins() is called
+            3. _handle_stop() is called (sends AGENT_CLOSE event)
+            4. state_events.close_event is set
+            5. Agent terminates
+
+        **Error Handling Considerations:**
+            - This method should NOT raise exceptions as it runs in the finally block
+            - If an exception is raised, it will mask the original exception
+            - Use try/except internally to handle cleanup errors gracefully
+
+        **Common Cleanup Tasks:**
+            - Close database connections
+            - Release file handles
+            - Stop background timers
+            - Clean up temporary files
+            - Notify external services
+
+        Warnings:
+            - Do NOT raise exceptions from this method
+            - Always ensure critical resources are released
+
         Notes:
-            Override this method to implement custom cleanup logic
-            that should execute during agent shutdown.
+            - Override this method to implement custom cleanup logic
+            - This executes during agent shutdown (in finally block)
+            - Plugins are finalized AFTER this method returns
+
+        Example:
+            >>> class MyAgent(PeriodicProcessAgent):
+            ...     def on_close(self):
+            ...         try:
+            ...             self.logger.info("Cleaning up resources")
+            ...             if hasattr(self, 'connection') and self.connection:
+            ...                 self.connection.close()
+            ...             self.logger.info("Cleanup complete")
+            ...         except Exception as e:
+            ...             self.logger.error(f"Error during cleanup: {e}")
         """
 
     def _info(self) -> None:
