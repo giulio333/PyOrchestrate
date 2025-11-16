@@ -158,12 +158,6 @@ class AgentEntry:
         Returns:
             None
         """
-        # if self.config is None:
-        #     self.config = self.agent_class.Config()
-
-        # if self.plugin is None:
-        #     self.plugin = self.agent_class.Plugin()
-
         params: dict[str, Any] = dict()
         params["name"] = self.name
         params["config"] = self.config
