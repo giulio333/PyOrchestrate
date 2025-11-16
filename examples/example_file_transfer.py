@@ -28,7 +28,8 @@ class FileSendAgent(PeriodicProcessAgent):
     def setup(self) -> None:
         super().setup()
         # Configure the ZeroMQ plugin in PUB mode and bind it to tcp://0.0.0.0:5555
-        self.socket = ZeroMQPubSub("tcp://0.0.0.0:5555", zmq.PUB).initialize()
+        self.socket = ZeroMQPubSub("tcp://0.0.0.0:5555", zmq.PUB)
+        self.socket.initialize()
         self.logger.info(
             f"Initializing FileSendAgent. File to send: {self.config.file_path}"
         )
@@ -83,7 +84,8 @@ class FileReceiveAgent(PeriodicProcessAgent):
     def setup(self) -> None:
         super().setup()
         # Configure the ZeroMQ plugin in SUB mode and connect to the publisher
-        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB).initialize()
+        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+        self.socket.initialize()
         # Subscribe to all messages
         self.logger.info("FileReceiveAgent initialized, waiting for incoming file...")
         try:

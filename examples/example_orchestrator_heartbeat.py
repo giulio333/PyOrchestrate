@@ -10,10 +10,7 @@ import time
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.orchestrator.orchestrator import OrchestratorPlugin
 from PyOrchestrate.core.agent import PeriodicProcessAgent
-from PyOrchestrate.core.plugins.orchestrator_heartbeat import (
-    OrchestratorHeartbeatPlugin,
-    HeartbeatConfig,
-)
+
 from PyOrchestrate.core.plugins.heartbeat import AgentHeartbeatTimerPlugin
 
 
@@ -43,25 +40,6 @@ class TestAgent(PeriodicProcessAgent):
 
 
 if __name__ == "__main__":
-    # Create heartbeat configuration
-    heartbeat_config = HeartbeatConfig(
-        enabled=True,
-        agent_send_interval=5.0,  # Agents send heartbeat every 5 seconds
-        agent_jitter=0.1,  # 10% jitter to avoid thundering herd
-        timeout_multiplier=2.5,  # Timeout after 12.5 seconds (5 * 2.5)
-        check_interval=3.0,  # Check for timeouts every 3 seconds
-        auto_inject=True,  # Automatically inject heartbeat into agents
-    )
-
-    # Create orchestrator heartbeat plugin
-    # heartbeat_plugin = OrchestratorHeartbeatPlugin(config=heartbeat_config)
-
-    # Create orchestrator plugin container
-    # orchestrator_plugin = OrchestratorPlugin(heartbeat=heartbeat_plugin)
-
-    # Create orchestrator with heartbeat monitoring
-    # orchestrator = Orchestrator(plugin=orchestrator_plugin)
-
     orchestrator = Orchestrator()
 
     # Register multiple test agents
