@@ -115,7 +115,7 @@ class PeriodicTimer:
         else:
             if not self.compensate_delay:
                 # Adjust the next_time to the current time to compensate for delay
-                self.next_time = time.perf_counter()
+                self.reset()
             # If not compensating, allow next_time to continue accumulating delays
             return False
 
