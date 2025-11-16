@@ -22,3 +22,7 @@ pyorchestrate-web = "PyOrchestrate.web_interface.server:main"
 where = ["."]
 include = ["PyOrchestrate*"]
 exclude = ["tests*", "docs*", "examples*", "scripts*", "logs*", "junit*", "build*", "dist*", "*.egg-info*"]
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
