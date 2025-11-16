@@ -283,17 +283,18 @@ class CommandHandler:
                             if hasattr(agent, "instance") and agent.instance
                             else False
                         ),
-                        "started": agent.name in self.orchestrator._started_agents,
+                        "started": agent.name
+                        in self.orchestrator.worker_pool._started_agents,
                         "in_queue": agent.name
-                        in self.orchestrator._waiting_agents_queue,
+                        in self.orchestrator.worker_pool._waiting_queue,
                     }
                 )
 
             return {
                 "agents": agents_info,
-                "running_count": self.orchestrator._running_agents,
+                "running_count": self.orchestrator.worker_pool._running_agents,
                 "max_workers": self.orchestrator.config.max_workers,
-                "waiting_count": len(self.orchestrator._waiting_agents_queue),
+                "waiting_count": len(self.orchestrator.worker_pool._waiting_queue),
             }
 
         except Exception as e:
@@ -302,7 +303,7 @@ class CommandHandler:
     def _cmd_start_agent(self, agent_name: str) -> dict:
         """Start a specific agent."""
         try:
-            if agent_name in self.orchestrator._started_agents:
+            if agent_name in self.orchestrator.worker_pool._started_agents:
                 raise CommandException(
                     message=f"Agent {agent_name} is already started",
                     code=409,
@@ -317,7 +318,7 @@ class CommandHandler:
                 )
 
             # Start the agent using existing logic
-            self.orchestrator._start_agent_callback(agent_name)
+            self.orchestrator.worker_pool.start_agent(agent_name)
             return {
                 "message": f"Agent {agent_name} start initiated",
             }
@@ -341,9 +342,9 @@ class CommandHandler:
                 )
 
             agent.stop()
-            if agent_name in self.orchestrator._started_agents:
-                self.orchestrator._started_agents.remove(agent_name)
-                self.orchestrator._running_agents -= 1
+            if agent_name in self.orchestrator.worker_pool._started_agents:
+                self.orchestrator.worker_pool._started_agents.remove(agent_name)
+                self.orchestrator.worker_pool._running_agents -= 1
 
             return {
                 "message": f"Agent {agent_name} stopped",
@@ -371,8 +372,8 @@ class CommandHandler:
                     if hasattr(agent, "instance") and agent.instance
                     else False
                 ),
-                "started": agent.name in self.orchestrator._started_agents,
-                "in_queue": agent.name in self.orchestrator._waiting_agents_queue,
+                "started": agent.name in self.orchestrator.worker_pool._started_agents,
+                "in_queue": agent.name in self.orchestrator.worker_pool._waiting_queue,
                 "dependencies": self.orchestrator.dependencies.get(agent.name, []),
             }
 
@@ -388,12 +389,12 @@ class CommandHandler:
         try:
             return {
                 "total_agents": len(self.orchestrator.memory.agents),
-                "running_agents": self.orchestrator._running_agents,
+                "running_agents": self.orchestrator.worker_pool._running_agents,
                 "max_workers": self.orchestrator.config.max_workers,
-                "waiting_agents": len(self.orchestrator._waiting_agents_queue),
+                "waiting_agents": len(self.orchestrator.worker_pool._waiting_queue),
                 "command_interface_enabled": self.orchestrator.config.enable_command_interface,
-                "command_socket_path": (
-                    self.orchestrator.config.command_socket_path
+                "command_zmq_address": (
+                    self.orchestrator.config.command_zmq_address
                     if self.orchestrator.config.enable_command_interface
                     else None
                 ),
@@ -430,8 +431,10 @@ class CommandHandler:
                         if hasattr(agent, "instance") and agent.instance
                         else False
                     ),
-                    "started": agent.name in self.orchestrator._started_agents,
-                    "in_queue": agent.name in self.orchestrator._waiting_agents_queue,
+                    "started": agent.name
+                    in self.orchestrator.worker_pool._started_agents,
+                    "in_queue": agent.name
+                    in self.orchestrator.worker_pool._waiting_queue,
                     "pid": (
                         agent.instance.pid
                         if hasattr(agent, "instance")
@@ -487,9 +490,9 @@ class CommandHandler:
             return {
                 "timestamp": datetime.now().isoformat(),
                 "orchestrator": {
-                    "running_agents": self.orchestrator._running_agents,
+                    "running_agents": self.orchestrator.worker_pool._running_agents,
                     "max_workers": self.orchestrator.config.max_workers,
-                    "waiting_agents": len(self.orchestrator._waiting_agents_queue),
+                    "waiting_agents": len(self.orchestrator.worker_pool._waiting_queue),
                 },
                 "agents": agents_stats,
             }

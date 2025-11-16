@@ -81,8 +81,7 @@ class OrchestratorConfig(BaseClass.Config):
     allowed_commands: set[str] | str | None = None
     """Allowed commands for CLI interface. Can be a set of commands, a preset name, or None for all commands."""
     run_mode: RunMode = RunMode.STOP_ON_EMPTY
-    """Execution mode for the orchestrator. Defaults to RunMode.STOP_ON_EMPTY (stops when all agents finish). 
-    Set to RunMode.DAEMON to keep running until explicit shutdown."""
+    """Execution mode for the orchestrator. Defaults to RunMode.STOP_ON_EMPTY."""
     history_max_events: int = 5000
     """Maximum number of events to store in history (ring buffer size)."""
     history_payload_bytes: int = 256
