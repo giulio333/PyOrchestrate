@@ -18,11 +18,13 @@ dependencies = [
 pyorchestrate = "PyOrchestrate.cli:main"
 pyorchestrate-web = "PyOrchestrate.web_interface.server:main"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["PyOrchestrate*"]
-exclude = ["tests*", "docs*", "examples*", "scripts*", "logs*", "junit*", "build*", "dist*", "*.egg-info*"]
-
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["PyOrchestrate*"]
+exclude = ["test*", "examples*", "docs*", "logs*"]
+
+[tool.uv]
+package = true
