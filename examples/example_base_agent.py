@@ -23,7 +23,8 @@ class APIFetchAgent(PeriodicProcessAgent):
         Agent initialization: registers the communication plugin and logs the setup.
         """
         super().setup()
-        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB).initialize()
+        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
+        self.socket.initialize()
         time.sleep(1)
 
     def _fetch_data(self):
@@ -87,7 +88,8 @@ class APIAlertAgent(PeriodicProcessAgent):
         Initializes the agent for receiving messages.
         """
         super().setup()
-        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB).initialize()
+        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+        self.socket.initialize()
 
     def runner(self) -> None:
         """
@@ -122,7 +124,7 @@ if __name__ == "__main__":
     fetch_agent: AgentEntry = orchestrator.register_agent(
         APIFetchAgent,
         "APIFetchAgent",
-        APIAlertAgent.Config(execution_interval=1, limit=5),
+        APIFetchAgent.Config(execution_interval=1, limit=5),
     )
     alert_agent: AgentEntry = orchestrator.register_agent(
         APIAlertAgent, "APIAlertAgent", APIAlertAgent.Config(execution_interval=1)
