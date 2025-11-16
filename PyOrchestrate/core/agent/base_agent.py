@@ -6,9 +6,8 @@ import threading
 import multiprocessing
 import time
 from abc import ABC, abstractmethod
-from typing import final, Protocol, Literal, Optional, List
+from typing import final, Protocol, Literal, Optional
 from enum import Enum
-from datetime import datetime
 
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.event import AgentEvent
@@ -75,6 +74,7 @@ class AgentPlugin(BaseClass.Plugin):
     Plugins can be defined as class attributes (defaults) and overridden via constructor:
 
     Example:
+        ```python
         class MyPlugin(AgentPlugin):
             zmq = ZeroMQPubSub("tcp://*:5555", zmq.PUB)
 
@@ -83,9 +83,10 @@ class AgentPlugin(BaseClass.Plugin):
 
         # Override heartbeat
         plugin2 = MyPlugin(heartbeat=AgentHeartbeatTimerPlugin())
+        ```
     """
 
-    heartbeat: AgentHeartbeatTimerPlugin | None = None
+    pass
 
 
 class BaseAgent(BaseClass, ABC):
