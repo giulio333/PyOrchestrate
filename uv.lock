@@ -300,7 +300,7 @@ wheels = [
 [[package]]
 name = "pyorchestrate"
 version = "0.2.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "loguru" },
