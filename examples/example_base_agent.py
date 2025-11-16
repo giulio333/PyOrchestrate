@@ -2,6 +2,7 @@ import time
 import multiprocessing
 import requests
 import zmq
+import multiprocessing
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
 from PyOrchestrate.core.agent import PeriodicProcessAgent
@@ -25,7 +26,6 @@ class APIFetchAgent(PeriodicProcessAgent):
         super().setup()
         self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
         self.socket.initialize()
-        time.sleep(1)
 
     def _fetch_data(self):
         """
@@ -76,10 +76,7 @@ class APIFetchAgent(PeriodicProcessAgent):
 
 class APIAlertAgent(PeriodicProcessAgent):
     class Config(PeriodicProcessAgent.Config):
-        api_url: str = "https://catfact.ninja/fact"
-        """Url of the external API to fetch data from."""
-        keyword: str = "and"
-        """Keyword to search for in the fetched data."""
+        execution_interval: float = 0
 
     config: Config
 
@@ -120,14 +117,21 @@ if __name__ == "__main__":
     # Orchestrator initialization
     orchestrator = Orchestrator()
 
+    ready_event = multiprocessing.Event()
+
     # Registering agents
     fetch_agent: AgentEntry = orchestrator.register_agent(
         APIFetchAgent,
         "APIFetchAgent",
         APIFetchAgent.Config(execution_interval=1, limit=5),
+        state_events=APIFetchAgent.StateEvents(None, ready_event, None),
     )
+
     alert_agent: AgentEntry = orchestrator.register_agent(
-        APIAlertAgent, "APIAlertAgent", APIAlertAgent.Config(execution_interval=1)
+        APIAlertAgent,
+        "APIAlertAgent",
+        APIAlertAgent.Config(execution_interval=1),
+        control_events=APIAlertAgent.ControlEvents(ready_event, None, None),
     )
 
     # Starting agents
