@@ -81,7 +81,8 @@ class OrchestratorConfig(BaseClass.Config):
     allowed_commands: set[str] | str | None = None
     """Allowed commands for CLI interface. Can be a set of commands, a preset name, or None for all commands."""
     run_mode: RunMode = RunMode.STOP_ON_EMPTY
-    """Required explicit run mode. Must be set to RunMode.STOP_ON_EMPTY or RunMode.DAEMON."""
+    """Execution mode for the orchestrator. Defaults to RunMode.STOP_ON_EMPTY (stops when all agents finish). 
+    Set to RunMode.DAEMON to keep running until explicit shutdown."""
     history_max_events: int = 5000
     """Maximum number of events to store in history (ring buffer size)."""
     history_payload_bytes: int = 256
@@ -110,7 +111,8 @@ class OrchestratorConfig(BaseClass.Config):
             enable_command_interface (bool | None, optional): Enable external command interface via ZeroMQ. Defaults to None.
             command_zmq_address (str | None, optional): ZeroMQ address for external commands. Defaults to None.
             allowed_commands (set[str] | str | None, optional): Allowed commands for CLI interface. Can be a set of commands, a preset name, or None for all commands. Defaults to None.
-            run_mode (RunMode | None, optional): Required lifecycle policy. Must be set to RunMode.STOP_ON_EMPTY or RunMode.DAEMON. Defaults to None.
+            run_mode (RunMode | None, optional): Execution mode for the orchestrator. If None, defaults to RunMode.STOP_ON_EMPTY
+                (stops when all agents finish).
             history_max_events (int | None, optional): Maximum number of events to store in history (ring buffer size). Defaults to None.
             history_payload_bytes (int | None, optional): Maximum size for event payload data. Defaults to None.
         """
