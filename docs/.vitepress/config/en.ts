@@ -112,14 +112,6 @@ export const enConfig = {
           ]
         }
       ],
-      '/examples/cli': [
-        {
-          text: 'CLI Examples',
-          items: [
-            { text: 'Runtime Control', link: '/examples/cli/runtime-control.md' },
-          ]
-        }
-      ],
       '/examples/events': [
         {
           text: 'Events Examples',
