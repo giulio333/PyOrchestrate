@@ -55,7 +55,10 @@ class OrchestratorHeartbeatPlugin(PluginProtocol):
         Initialize the orchestrator heartbeat plugin.
 
         Args:
-            config: Heartbeat configuration. If None, uses default configuration.
+            agent_send_interval: Expected interval (in seconds) between agent heartbeats
+            agent_jitter: Jitter factor (0.0 to 1.0) for agent heartbeat intervals
+            timeout_multiplier: Multiplier for timeout detection (e.g., 3.0 means timeout if no heartbeat in 3 * interval)
+            check_interval: Interval (in seconds) to check for heartbeat timeouts
         """
         self.agent_send_interval = agent_send_interval
         self.agent_jitter = agent_jitter
