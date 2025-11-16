@@ -46,14 +46,10 @@ class CriticalAgent(PeriodicProcessAgent):
 
 class MyOrchestrator(Orchestrator):
     class Plugin(OrchestratorPlugin):
-        """Plugins for the orchestrator."""
-
         heartbeat = OrchestratorHeartbeatPlugin(agent_send_interval=2)
 
     class Config(Orchestrator.Config):
-        """Configuration for the MyOrchestrator."""
-
-        run_mode = RunMode.DAEMON
+        run_mode = RunMode.STOP_ON_EMPTY
 
 
 if __name__ == "__main__":
