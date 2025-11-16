@@ -5,7 +5,7 @@ import zmq
 import multiprocessing
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
-from PyOrchestrate.core.agent import PeriodicProcessAgent
+from PyOrchestrate.core.agent import PeriodicProcessAgent, LoopingProcessAgent
 from PyOrchestrate.core.plugins import ZeroMQPubSub
 
 
@@ -74,11 +74,7 @@ class APIFetchAgent(PeriodicProcessAgent):
         self.socket.finalize()
 
 
-class APIAlertAgent(PeriodicProcessAgent):
-    class Config(PeriodicProcessAgent.Config):
-        execution_interval: float = 0
-
-    config: Config
+class APIAlertAgent(LoopingProcessAgent):
 
     def setup(self) -> None:
         """
@@ -88,11 +84,11 @@ class APIAlertAgent(PeriodicProcessAgent):
         self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
         self.socket.initialize()
 
-    def runner(self) -> None:
+    def cycle(self) -> None:
         """
         Listens for messages sent by APIFetchAgent.
         """
-        super().runner()
+        super().cycle()
 
         message: str = self.socket.recv().decode()
 
