@@ -220,23 +220,48 @@ class BaseAgent(BaseClass, ABC):
 
         self._validate_agent_class()
 
-        self.state_events = state_events or self.StateEvents(
-            start_event=EventType(),
-            ready_event=EventType(),
-            close_event=EventType(),
-        )
+        ### TEMP EVENT MANAGEMENT
+        # Initialize or populate state_events
+        if state_events is None:
+            self.state_events = self.StateEvents(
+                start_event=EventType(),
+                ready_event=EventType(),
+                close_event=EventType(),
+            )
+        else:
+            # Populate missing events in the provided state_events
+            if state_events.start_event is None:
+                state_events.start_event = EventType()
+            if state_events.ready_event is None:
+                state_events.ready_event = EventType()
+            if state_events.close_event is None:
+                state_events.close_event = EventType()
+            self.state_events = state_events
         """Events related to the internal state of the agent."""
-        self.control_events = control_events or self.ControlEvents(
-            setup_event=EventType(),
-            execute_event=EventType(),
-            stop_event=EventType(),
-        )
-        """Events related to external commands."""
 
-        if not control_events:
+        # Initialize or populate control_events
+        if control_events is None:
+            self.control_events = self.ControlEvents(
+                setup_event=EventType(),
+                execute_event=EventType(),
+                stop_event=EventType(),
+            )
             # default set to ready
             self.control_events.setup_event.set()
             self.control_events.execute_event.set()
+        else:
+            # Populate missing events in the provided control_events
+            if control_events.setup_event is None:
+                control_events.setup_event = EventType()
+                control_events.setup_event.set()  # default set to ready
+            if control_events.execute_event is None:
+                control_events.execute_event = EventType()
+                control_events.execute_event.set()  # default set to ready
+            if control_events.stop_event is None:
+                control_events.stop_event = EventType()
+            self.control_events = control_events
+        """Events related to external commands."""
+        ### TEMP EVENT MANAGEMENT
 
         self.plugin_manager = PluginManager(self.plugin)
         """Plugin manager for managing plugins."""
