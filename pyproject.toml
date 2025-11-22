@@ -26,6 +26,8 @@ pyorchestrate-web = "PyOrchestrate.web_interface.server:main"
 package = true
 
 [tool.setuptools.packages.find]
-where = ["."]
 include = ["PyOrchestrate*"]
-exclude = ["tests*", "docs*", "examples*", "scripts*", "logs*", "junit*", "build*", "dist*", "*.egg-info*"]
+exclude = ["test*", "examples*", "docs*", "logs*"]
+
+[tool.uv]
+package = true

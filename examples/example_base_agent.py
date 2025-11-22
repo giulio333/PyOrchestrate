@@ -2,9 +2,10 @@ import time
 import multiprocessing
 import requests
 import zmq
+import multiprocessing
 
 from PyOrchestrate.core.orchestrator import Orchestrator, AgentEntry
-from PyOrchestrate.core.agent import PeriodicProcessAgent
+from PyOrchestrate.core.agent import PeriodicProcessAgent, LoopingProcessAgent
 from PyOrchestrate.core.plugins import ZeroMQPubSub
 
 
@@ -23,8 +24,8 @@ class APIFetchAgent(PeriodicProcessAgent):
         Agent initialization: registers the communication plugin and logs the setup.
         """
         super().setup()
-        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB).initialize()
-        time.sleep(1)
+        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
+        self.socket.initialize()
 
     def _fetch_data(self):
         """
@@ -73,27 +74,21 @@ class APIFetchAgent(PeriodicProcessAgent):
         self.socket.finalize()
 
 
-class APIAlertAgent(PeriodicProcessAgent):
-    class Config(PeriodicProcessAgent.Config):
-        api_url: str = "https://catfact.ninja/fact"
-        """Url of the external API to fetch data from."""
-        keyword: str = "and"
-        """Keyword to search for in the fetched data."""
-
-    config: Config
+class APIAlertAgent(LoopingProcessAgent):
 
     def setup(self) -> None:
         """
         Initializes the agent for receiving messages.
         """
         super().setup()
-        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB).initialize()
+        self.socket = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+        self.socket.initialize()
 
-    def runner(self) -> None:
+    def cycle(self) -> None:
         """
         Listens for messages sent by APIFetchAgent.
         """
-        super().runner()
+        super().cycle()
 
         message: str = self.socket.recv().decode()
 
@@ -118,14 +113,21 @@ if __name__ == "__main__":
     # Orchestrator initialization
     orchestrator = Orchestrator()
 
+    ready_event = multiprocessing.Event()
+
     # Registering agents
     fetch_agent: AgentEntry = orchestrator.register_agent(
         APIFetchAgent,
         "APIFetchAgent",
-        APIAlertAgent.Config(execution_interval=1, limit=5),
+        APIFetchAgent.Config(execution_interval=1, limit=5),
+        state_events=APIFetchAgent.StateEvents(None, ready_event, None),
     )
+
     alert_agent: AgentEntry = orchestrator.register_agent(
-        APIAlertAgent, "APIAlertAgent", APIAlertAgent.Config(execution_interval=1)
+        APIAlertAgent,
+        "APIAlertAgent",
+        APIAlertAgent.Config(execution_interval=1),
+        control_events=APIAlertAgent.ControlEvents(ready_event, None, None),
     )
 
     # Starting agents
