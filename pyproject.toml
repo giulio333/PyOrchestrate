@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "PyOrchestrate"
 version = "0.2.0"
@@ -18,9 +22,8 @@ dependencies = [
 pyorchestrate = "PyOrchestrate.cli:main"
 pyorchestrate-web = "PyOrchestrate.web_interface.server:main"
 
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+[tool.uv]
+package = true
 
 [tool.setuptools.packages.find]
 include = ["PyOrchestrate*"]

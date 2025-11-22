@@ -8,9 +8,7 @@ monitor agent health and inject heartbeat functionality into agents.
 import time
 
 from PyOrchestrate.core.orchestrator import Orchestrator
-from PyOrchestrate.core.orchestrator.orchestrator import OrchestratorPlugin
 from PyOrchestrate.core.agent import PeriodicProcessAgent
-
 from PyOrchestrate.core.plugins.heartbeat import AgentHeartbeatTimerPlugin
 
 
