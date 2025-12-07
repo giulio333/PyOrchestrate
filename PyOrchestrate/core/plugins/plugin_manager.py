@@ -37,29 +37,24 @@ class PluginManager:
                 return False
             return True
 
-        # 1) Class attributes (default/legacy) — base layer
-        for key, value in plugins.__class__.__dict__.items():
-            if key.startswith("_"):
-                continue
-            if is_plugin_instance(value):
-                merged[key] = value
-
-        # 2) Instance attributes — override class
-        for key, value in vars(plugins).items():
-            if key.startswith("_"):
-                continue
-            if is_plugin_instance(value):
-                merged[key] = value  # override
-
-        # 3) _custom_attr (iniezioni dinamiche) — override
+        # Collect all potential attribute names from class and instance
+        all_keys = set()
+        all_keys.update(plugins.__class__.__dict__.keys())
+        all_keys.update(vars(plugins).keys())
         if hasattr(plugins, "_custom_attr"):
-            for key, value in plugins._custom_attr.items():
-                if key.startswith("_"):
-                    continue
-                if is_plugin_instance(value):
-                    merged[key] = value  # override
+            all_keys.update(plugins._custom_attr.keys())
 
-        # Converte in lista di tuple
+        # Use getattr to resolve each attribute (respects __getattribute__ priority)
+        for key in all_keys:
+            if key.startswith("_"):
+                continue
+            try:
+                value = getattr(plugins, key)
+                if is_plugin_instance(value):
+                    merged[key] = value
+            except AttributeError:
+                continue
+
         return list(merged.items())
 
     def set_owner(self, owner):
