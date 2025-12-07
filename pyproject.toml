@@ -28,3 +28,4 @@ package = true
 [tool.setuptools.packages.find]
 include = ["PyOrchestrate*"]
 exclude = ["test*", "examples*", "docs*", "logs*"]
+namespaces = false
