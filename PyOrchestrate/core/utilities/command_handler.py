@@ -575,7 +575,7 @@ class CommandHandler:
             )
 
             # Get events from the event store
-            events: List[EventRecord] = self.orchestrator.event_store.last(
+            events: List[EventRecord] = self.orchestrator.event_bus.event_store.last(
                 n=last,
                 agent=agent,
                 event_name=event_name,
@@ -594,7 +594,7 @@ class CommandHandler:
                     "event_name": event_name,
                     "after_seq": after_seq,
                 },
-                "capacity_info": self.orchestrator.event_store.get_capacity_info(),
+                "capacity_info": self.orchestrator.event_bus.event_store.get_capacity_info(),
             }
 
         except Exception as e:
@@ -620,8 +620,8 @@ class CommandHandler:
             agent = params.get("agent")
 
             # Get statistics from the event store
-            stats = self.orchestrator.event_store.stats(agent=agent)
-            capacity_info = self.orchestrator.event_store.get_capacity_info()
+            stats = self.orchestrator.event_bus.event_store.stats(agent=agent)
+            capacity_info = self.orchestrator.event_bus.event_store.get_capacity_info()
 
             return {
                 "statistics": stats,

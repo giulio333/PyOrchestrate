@@ -9,5 +9,6 @@ __pycache__/
 
 *.log
 /logs
+/build
 
 *.egg-info/

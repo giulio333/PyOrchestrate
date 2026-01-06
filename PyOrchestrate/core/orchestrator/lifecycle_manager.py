@@ -3,7 +3,7 @@
 import time
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
 from PyOrchestrate.core.base.base import BaseClass
-from PyOrchestrate.core.agent.base_agent import BaseAgent
+from PyOrchestrate.core.agent.base_agent import BaseAgent, AgentProtocol
 from PyOrchestrate.core.utilities.messaging import MessageChannel
 
 
@@ -24,7 +24,7 @@ class AgentLifecycleManager:
         >>> manager.stop_agent("agent1")
     """
 
-    def __init__(self, memory: OMemory, config, logger):
+    def __init__(self, memory: OMemory, config: BaseClass.Config, logger):
         """
         Initialize the lifecycle manager.
 
@@ -39,7 +39,7 @@ class AgentLifecycleManager:
 
     def register_agent(
         self,
-        agent_class: type[BaseAgent],
+        agent_class: type[AgentProtocol],
         name: str,
         custom_config: BaseClass.Config | None = None,
         custom_plugin: BaseClass.Plugin | None = None,
@@ -100,6 +100,8 @@ class AgentLifecycleManager:
             Exception: If agent.start() fails critically
         """
         agent = self.memory.get_agent(agent_name)
+        if not agent:
+            raise ValueError(f"Agent '{agent_name}' not found.")
 
         # Initialize agent
         try:
@@ -152,6 +154,10 @@ class AgentLifecycleManager:
             ValueError: If agent not found
         """
         agent = self.memory.get_agent(agent_name)
+
+        if not agent:
+            raise ValueError(f"Agent '{agent_name}' not found.")
+
         agent.stop()
         self.logger.info(f"Agent '{agent_name}' stopped.")
 
@@ -174,7 +180,10 @@ class AgentLifecycleManager:
         Raises:
             ValueError: If agent not found
         """
-        return self.memory.get_agent(agent_name)
+        a = self.memory.get_agent(agent_name)
+        if not a:
+            raise ValueError(f"Agent '{agent_name}' not found.")
+        return a
 
     def get_all_agents(self) -> list[AgentEntry]:
         """

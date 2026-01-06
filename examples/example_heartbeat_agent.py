@@ -49,7 +49,7 @@ class MyOrchestrator(Orchestrator):
         heartbeat = OrchestratorHeartbeatPlugin(agent_send_interval=2)
 
     class Config(Orchestrator.Config):
-        run_mode = RunMode.STOP_ON_EMPTY
+        run_mode = RunMode.DAEMON
 
 
 if __name__ == "__main__":

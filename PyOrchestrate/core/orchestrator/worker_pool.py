@@ -70,9 +70,11 @@ class WorkerPoolScheduler:
             self._waiting_queue.append(agent_name)
             return False
 
-        # Start agent via lifecycle manager
-        success = self.lifecycle_manager.start_agent(agent_name)
+        return self._execute_start(agent_name)
 
+    def _execute_start(self, agent_name: str) -> bool:
+        """Logica centralizzata per l'avvio effettivo dell'agente."""
+        success = self.lifecycle_manager.start_agent(agent_name)
         if success:
             self._running_agents += 1
             self._started_agents.add(agent_name)
@@ -80,7 +82,6 @@ class WorkerPoolScheduler:
                 f"Agent '{agent_name}' started "
                 f"({self._running_agents}/{self.max_workers} slots used)"
             )
-
         return success
 
     def on_agent_terminated(self, agent_name: str) -> None:
@@ -120,12 +121,7 @@ class WorkerPoolScheduler:
 
         agent_name = self._waiting_queue.popleft()
         self.logger.info(f"Starting queued agent '{agent_name}'")
-
-        success = self.lifecycle_manager.start_agent(agent_name)
-
-        if success:
-            self._running_agents += 1
-            self._started_agents.add(agent_name)
+        self._execute_start(agent_name)
 
     @property
     def all_finished(self) -> bool:

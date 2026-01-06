@@ -44,7 +44,7 @@ class AgentEntry:
 
     def __init__(
         self,
-        agent_class,
+        agent_class: Type[AgentProtocol],
         name: str,
         control_events: Optional[BaseAgent.ControlEvents] = None,
         state_events: Optional[BaseAgent.StateEvents] = None,
@@ -256,7 +256,7 @@ class OMemory:
 
     def add_agent(
         self,
-        agent_class: Type[BaseAgent],
+        agent_class: Type[AgentProtocol],
         name: str,
         custom_config: Optional[BaseClass.Config] = None,
         custom_plugin: Optional[BaseClass.Plugin] = None,
@@ -340,21 +340,23 @@ class OMemory:
         """
         return self._groups.get(group_name)
 
-    def get_group_agents(self, group_name: str) -> List:
+    def get_group_agents(self, group_name: str) -> List[AgentProtocol]:
         """
         Ritorna la lista delle istanze degli agenti appartenenti al gruppo.
         """
         group = self._groups.get(group_name)
         if not group:
             return []
-        instances = []
+        instances: List[AgentProtocol] = []
         for agent_name in group.agent_names:
             entry = self._agents.get(agent_name)
             if entry is not None:
                 instances.append(entry.instance)
         return instances
 
-    def get_agent_stats(self, agent_name: str) -> list[dict] | None:
+    def get_agent_stats(
+        self, agent_name: str
+    ) -> list[dict[str, datetime.datetime]] | None:
         """
         Return the event log for the specified agent.
 
@@ -368,7 +370,7 @@ class OMemory:
         """
         return self._agents_history.get(agent_name)
 
-    def get_agent(self, name: str) -> AgentEntry:
+    def get_agent(self, name: str) -> AgentEntry | None:
         """
         Get the `AgentEntry` object corresponding to the provided name.
 
@@ -381,12 +383,7 @@ class OMemory:
         Raises:
             ValueError: If the agent is not found.
         """
-        _ = self._agents.get(name)
-
-        if not _:
-            raise ValueError(f"Agent '{name}' not found.")
-
-        return _
+        return self._agents.get(name)
 
     def get_agent_instance(self, name: str):
         """
@@ -415,7 +412,10 @@ class OMemory:
             None
         """
         now = datetime.datetime.now()
-        event = {"timestamp": now, "event": event_type}
+        event: dict[str, datetime.datetime | str] = {
+            "timestamp": now,
+            "event": event_type,
+        }
         if agent_name not in self._agents_history:
             self._agents_history[agent_name] = []
         self._agents_history[agent_name].append(event)
