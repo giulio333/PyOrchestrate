@@ -11,9 +11,9 @@ The `MessageChannel` class is the internal backbone for communication between th
 1. **Queue-based MessageChannel**: Used for communication between the orchestrator and its agents.
 2. **Socket-based MessageChannel**: Used for communication between the orchestrator and external CLI tools. This uses UNIX domain sockets and is also bidirectional, but designed for integration with external processes.
 
-::: tip
+<Tip>
 For user-facing or custom communication needs, PyOrchestrate provides a flexible plugin system [Communication Plugins](../../learn/agents/plugins/communication-plugins.md) that users can extend and configure as needed.
-:::
+</Tip>
 
 #### 1. Queue-based MessageChannel
 
@@ -32,9 +32,9 @@ flowchart LR
 
 Only messages of type `STATUS` are sent from agents to the orchestrator. The orchestrator processes these messages and emits corresponding events through the `EventManager`.
 
-::: warning
+<Warning>
 Currently, messages from the orchestrator to agents via the MessageChannel are not handled. Only agent-to-orchestrator communication is supported through this channel.
-:::
+</Warning>
 
 The main events handled are:
 

@@ -74,7 +74,7 @@ The `BaseAgent` class defines its own configuration object via the `Config` clas
 | `history_max_events` | 5000 | Maximum number of events to store in the Orchestrator's internal history (ring buffer size). |
 | `history_payload_bytes` | 256 | Maximum number of bytes stored for each event payload in the history. |
 
-::: info Example
+<Info title="Example">
 For example to create an Orchestrator with a maximum of 2 workers, you can do the following:
 
 ```python
@@ -83,7 +83,7 @@ orchestrator = Orchestrator(config=o_config)
 ```
 
 If you don't provide custom values, the Orchestrator will use the default values defined in the `Config` class.
-:::
+</Info>
 
 To learn more about the configuration object, click [here](../../config_and_validation.md).
 

@@ -1,6 +1,5 @@
 ---
 title: Advanced
-editLink: true
 ---
 
 # Advanced

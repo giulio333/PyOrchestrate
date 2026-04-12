@@ -1,31 +1,30 @@
 ---
-layout: home
-
-hero:
-  name: "PyOrchestrate"
-  text: "Simplify Complexity"
-  tagline: Orchestrating Processes and Threads
-  icon: 🛠️
-  image:
-    src: ./logo.png
-    alt: Banner
-  actions:
-    - theme: brand
-      text: Explore
-      link: /learn/core/orchestrator
-    - theme: alt
-      text: Get Started
-      link: /api-examples
-
-
-
-features:
-  - title: Customizable Agents
-    details: Design agents that fit your needs by extending and customizing base classes.
-  - title: Orchestrator Management Made Easy
-    details: Set up, manage, and scale your orchestrations seamlessly.
-  - title: Real-time CLI Control
-    details: Monitor, control, and debug your running orchestrator with powerful CLI commands.
-  - title: Built-In Monitoring and Logging
-    details: Track performance and troubleshoot issues with ease.
+title: PyOrchestrate
+description: Simplify the development and management of complex multi-agent Python applications.
 ---
+
+# Welcome to PyOrchestrate
+
+**PyOrchestrate** is a Python library that simplifies building and managing complex applications made of multiple interacting components — called **agents** — that run as threads or processes.
+
+<CardGroup cols={2}>
+  <Card title="Introduction" icon="book-open" href="/docs/learn/introduction/index">
+    Understand the core concepts: agents, orchestrator, configuration, and plugins.
+  </Card>
+  <Card title="Getting Started" icon="rocket" href="/docs/learn/agents/index">
+    Build your first agent and wire it up to an orchestrator.
+  </Card>
+  <Card title="Examples" icon="code" href="/docs/examples/basic/project-initialization">
+    Explore ready-to-run examples from basic setups to advanced use cases.
+  </Card>
+  <Card title="Advanced" icon="gear" href="/docs/advanced/orchestrator-internals/index">
+    Dive into orchestrator internals, utilities, and architecture details.
+  </Card>
+</CardGroup>
+
+## Why PyOrchestrate?
+
+- **Modularity** — Build systems from distinct, manageable agents
+- **Scalability** — Design applications that grow in complexity and size
+- **Flexibility** — Customize agent behavior and orchestration logic
+- **Clarity** — A structured approach to developing complex concurrent systems

@@ -1,6 +1,5 @@
 ---
 title: How Agents Works
-editLink: true
 ---
 
 # How Agents Works
@@ -13,8 +12,7 @@ Each Agent encapsulates a specific task and can run either in a separate **threa
 
 ### Agent Types
 
-![alt text](./types_l.svg){.light-only}
-![alt text](./types_d.svg){.dark-only}
+![alt text](./types_l.svg)
 
 Agents can be implemented in different styles, depending on their intended behavior:
 
@@ -26,9 +24,9 @@ Agents can be implemented in different styles, depending on their intended behav
 
 Each one builds on top of the core logic provided by `BaseAgent`, inheriting its lifecycle and configuration support.
 
-::: tip
+<Tip>
 To learn more about the different Agent types, check out the [Hierarchical Structure](../../agents/index.md#hierarchical-structure) section.
-:::
+</Tip>
 
 ### Configuration
 
@@ -36,9 +34,9 @@ Each Agent has a `Config` class that defines its settings, like how often it run
 
 Built-in Agents use their configuration class to manage essential parameters. For example, the `LoopingAgent` defines options like loop interval and stop conditions in its config. 
 
-::: tip Example
+<Tip title="Example">
 See the [LoopingAgent Config](../../../learn/agents/built-in-agents/loopingagent.md#configuration) for more details.
-:::
+</Tip>
 
 ### Plugin System
 
@@ -55,8 +53,7 @@ This is defined at the time of Agent creation and is managed internally by the O
 
 ## Lifecycle
 
-![alt text](./lifecycle_l.svg){.light-only}
-![alt text](./lifecycle_d.svg){.dark-only}
+![alt text](./lifecycle_l.svg)
 
 All Agents follow a standardized lifecycle:
 
@@ -78,8 +75,7 @@ Throughout this lifecycle, internal and external events are used to synchronize 
 
 Each Agent manages two kinds of event systems.
 
-![alt text](./events_l.svg){.light-only}
-![alt text](./events_d.svg){.dark-only}
+![alt text](./events_l.svg)
 
 ### MessageChannel
 
@@ -100,9 +96,9 @@ These represent the internal status of the Agent. They indicate key lifecycle tr
 
 These events are useful for **observing** the current state of each Agent and synchronizing other components in the system.
 
-::: tip
+<Tip>
 To learn more about the different events, check out the [Agent State Events](../../agents/index.md#stateevents) section.
-:::
+</Tip>
 
 ### Control Events  
 
@@ -114,9 +110,9 @@ These allow the Orchestrator (or other Agents) to **drive** the Agent's lifecycl
 
 Control events give you fine-grained control over each phase of execution, allowing custom orchestration strategies.
 
-::: tip
+<Tip>
 To learn more about the different events, check out the [Agent Control Events](../../agents/index.md#controlevents) section.
-:::
+</Tip>
 
 ## Validation and Safety
 
@@ -131,14 +127,14 @@ You can assign different severity levels to each validation rule using `Validati
 - `warning`: the Agent will still start, but you’ll get a log message letting you know something might need attention.
 - `error`: the Agent won’t start, and an error will be logged — this is used for serious issues that could break execution.
 
-::: tip
+<Tip>
    There’s also a special severity level: `critical`.  
    This one is used by some built-in Agents for essential checks that must **never** be ignored.  
-:::
+</Tip>
 
-::: tip
+<Tip>
 To learn more about the different validation policies, check out the [Validation](../../agents/index.md#validation) section.
-:::
+</Tip>
 
 ## Grouping and Control
 

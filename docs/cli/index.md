@@ -1,6 +1,5 @@
 ---
 title: CLI Overview
-editLink: true
 ---
 
 # PyOrchestrate CLI
@@ -43,9 +42,9 @@ All runtime commands support two output formats:
 - **Table format** (`--format table`): Human-readable output with formatted tables (default)
 - **JSON format** (`--format json`): Machine-readable structured output for automation
 
-::: tip Real-time Control
+<Tip title="Real-time Control">
 The runtime commands enable DevOps workflows, monitoring integration, and dynamic agent management without stopping your orchestrator.
-:::
+</Tip>
 
 ## Installation
 

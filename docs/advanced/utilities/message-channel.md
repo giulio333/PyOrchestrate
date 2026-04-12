@@ -1,6 +1,5 @@
 ---
 title: Message Channel
-editLink: true
 ---
 
 # Message Channel
@@ -24,9 +23,9 @@ Two logical message types are supported: COMMAND and STATUS. Both are serialized
 | `payload` | object | Message-specific content (always a JSON object) |
 | `timestamp` | string | ISO8601 timestamp for envelope creation |
 
-::: tip
+<Tip>
 When sending envelopes over stream transports, prefer line-delimited JSON (one JSON object per line) to simplify framing.
-:::
+</Tip>
 
 ### COMMAND — request
 

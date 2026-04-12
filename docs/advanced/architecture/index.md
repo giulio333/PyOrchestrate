@@ -1,6 +1,5 @@
 ---
 title: Architecture
-editLink: true
 ---
 
 # Architecture

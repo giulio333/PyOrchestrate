@@ -1,6 +1,5 @@
 ---
 title: CLI Examples
-editLink: true
 ---
 
 # CLI Examples

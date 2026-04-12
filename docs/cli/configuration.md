@@ -1,6 +1,5 @@
 ---
 title: CLI Configuration
-editLink: true
 ---
 
 # CLI Configuration
@@ -57,9 +56,9 @@ if __name__ == "__main__":
     orchestrator.join()
 ```
 
-::: tip Socket Configuration
+<Tip title="Socket Configuration">
 The socket path must be accessible to both the orchestrator and the CLI. Make sure the directories exist and have the correct permissions.
-:::
+</Tip>
 
 ## Configuration Options
 
@@ -70,9 +69,9 @@ The socket path must be accessible to both the orchestrator and the CLI. Make su
 | `enable_command_interface` | `bool` | `False` | Enable/disable the CLI command interface |
 | `command_socket_path` | `str` | `"/tmp/pyorchestrate.sock"` | Path to the UNIX socket file |
 
-::: info Simplified Configuration
+<Info title="Simplified Configuration">
 The current CLI implementation supports basic configuration options. Advanced security and logging options may be available in future versions.
-:::
+</Info>
 
 ## Socket Configuration
 

@@ -1,6 +1,5 @@
 ---
 title: WorkerPoolScheduler
-editLink: true
 ---
 
 # WorkerPoolScheduler

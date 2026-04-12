@@ -1,6 +1,5 @@
 ---
 title: Orchestrator Internals
-editLink: true
 ---
 
 # Orchestrator Internals
@@ -95,9 +94,9 @@ Exposes a command-based API over ZeroMQ that allows you to query agent status, v
 
 The managers coordinate to handle complex workflows:
 
-::: tip Internal Memory
+<Tip title="Internal Memory">
 The orchestrator uses `OMemory` internally to store `AgentEntry` objects for each registered agent. Managers access this shared memory to coordinate agent lifecycle and retrieve agent metadata.
-:::
+</Tip>
 
 ### Agent Startup Flow
 

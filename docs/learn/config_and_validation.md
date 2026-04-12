@@ -1,12 +1,10 @@
 ---
 title: Config and Validation
-editLink: false
 ---
 
 # Config and Validation
 
-![alt text](config_l.svg){.light-only}
-![alt text](config_d.svg){.dark-only}
+![alt text](config_l.svg)
 
 Every Agent and Orchestrator in PyOrchestrate comes with a **Config object**.  
 You can think of it as the **blueprint** that defines how each component behaves.  
@@ -41,9 +39,9 @@ class MyAgent(PeriodicProcessAgent):
 custom_config = MyAgent.Config(limit=10, output_directory="custom")
 ```
 
-::: tip 
+<Tip>
 The `Config` class inherits from the respective parent's `Config` class. This allows you to customize the configuration while retaining the built-in ones.
-:::
+</Tip>
 
 ## Built-in vs User-Defined Attributes
 
@@ -52,9 +50,9 @@ The `Config` class inherits from the respective parent's `Config` class. This al
 
 Both are treated the same way by the framework, which means you can freely mix them.  
 
-::: tip
+<Tip>
 All **built-in attribute** are well documented. For example, see [LoopingAgent Configuration](./agents/built-in-agents/loopingagent.md#configuration):
-::: 
+</Tip>
 
 ## Validation
 

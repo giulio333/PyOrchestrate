@@ -1,6 +1,5 @@
 ---
 title: AgentLifecycleManager
-editLink: true
 ---
 
 # AgentLifecycleManager

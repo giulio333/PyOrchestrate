@@ -1,6 +1,5 @@
 ---
 title: CommandInterface
-editLink: true
 ---
 
 # CommandInterface

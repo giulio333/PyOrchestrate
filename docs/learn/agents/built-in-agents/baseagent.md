@@ -21,7 +21,7 @@ You can create a custom agent by inheriting from the `BaseProcessAgent` or `Base
 | [on_stop](#on-stop) | Implement custom logic during external shutdown request. | Optional :orange_circle: |
 | [on_close](#on-close) | Implement custom logic during the agent’s shutdown. | Optional :orange_circle: |
 
-::: tip Important
+<Tip title="Important">
 Make sure to call the parent method **for each overridden** method.
 
 ```python{3}
@@ -30,7 +30,7 @@ class CustomAgent(BaseProcessAgent):
         super().setup()
         # Custom setup logic
 ```
-:::
+</Tip>
 
 ## Inheritance
 
@@ -150,9 +150,9 @@ This is the entry point for all agents, encapsulating their entire lifecycle and
 
 It provides [execute](#execute) method to be overridden by the derived class to define the core logic of the agent.
 
-::: warning Do not override
+<Warning title="Do not override">
 Marked as `@final` to prevent overriding in derived class ensuring that the core logic remains consistent across all agents.
-:::
+</Warning>
 
 ### setup
 ```python
@@ -161,13 +161,13 @@ Marked as `@final` to prevent overriding in derived class ensuring that the core
 
 This method is called before the agent starts running. It can be overridden to perform any setup operations required by the agent.
 
-::: tip Control Events
+<Tip title="Control Events">
 The setup method waits for the `control_events.setup_event` to be triggered, giving external systems the ability to manage when the setup phase starts.
-:::
+</Tip>
 
-::: tip
+<Tip>
 Be sure to call the parent method if you override it.
-:::
+</Tip>
 
 ### execute
 
@@ -177,9 +177,9 @@ Be sure to call the parent method if you override it.
 
 This method is called by the `run()` method to execute the core logic of the agent. It must be overridden by the derived class to define the agent's behavior.
 
-::: tip
+<Tip>
 Be sure to call the parent method.
-:::
+</Tip>
 
 ### stop
 
@@ -191,13 +191,13 @@ This method is called to stop the agent from external systems.
 
 Keep in mind that agents will not stop immediately. They will complete the current iteration of the `execute` method before stopping.
 
-::: warning Do not override
+<Warning title="Do not override">
 Marked as `@final` to prevent overriding in derived class ensuring that the core logic remains consistent across all agents.
-:::
+</Warning>
 
-::: tip
+<Tip>
 To implement custom logic during the agent’s shutdown, override the [on_stop](#on_stop) method in your derived class.
-:::
+</Tip>
 
 ### on_stop
 

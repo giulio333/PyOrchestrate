@@ -15,9 +15,9 @@ In PyOrchestrate, validation is an important mechanism that helps ensure your ag
 3. Use the Orchestrator to manage multiple agents with different validation states
 4. Handle validation errors appropriately
 
-::: tip How Validation Works
+<Tip title="How Validation Works">
 For a detailed explanation of how validation works in PyOrchestrate, please refer to the [Validation](../../learn/agents/index.md#validation) page.
-:::
+</Tip>
 
 ## Agent Implementation
 

@@ -1,6 +1,5 @@
 ---
 title: Runtime Commands
-editLink: true
 ---
 
 # Runtime Commands
@@ -408,9 +407,9 @@ ConfigManager        ALIVE    12348    0.5      18.7     0.5      4        01:15
 DatabaseAgent        DEAD     N/A      N/A      N/A      N/A      N/A      N/A
 ```
 
-::: tip Continuous Monitoring
+<Tip title="Continuous Monitoring">
 The `stats` command continues to run until Ctrl+C is pressed, updating information every `--interval` seconds (default 2 seconds).
-:::
+</Tip>
 
 ### `shutdown`
 
@@ -437,9 +436,9 @@ Orchestrator shutdown initiated successfully
 }
 ```
 
-::: warning Complete Shutdown
+<Warning title="Complete Shutdown">
 The `shutdown` command will stop all agents and the orchestrator. This operation cannot be undone once started.
-:::
+</Warning>
 
 ## Comando di Creazione Progetto
 

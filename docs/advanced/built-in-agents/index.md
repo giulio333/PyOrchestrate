@@ -1,6 +1,5 @@
 ---
 title: Agents
-editLink: true
 ---
 
 # Advanced Agents

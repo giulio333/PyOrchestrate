@@ -1,15 +1,14 @@
 ---
 title: Core Utilities
-editLink: true
 ---
 
 # Core Utilities
 
 This section documents the **low-level utility components** of PyOrchestrate that provide foundational infrastructure for the framework. These utilities are used internally by higher-level components like the orchestrator managers and agents.
 
-::: tip Understanding the Architecture
+<Tip title="Understanding the Architecture">
 These utilities are **building blocks** used by the framework's higher-level components. If you're learning about orchestrator internals, see the [Orchestrator Internals](../orchestrator-internals/) section to understand how these utilities are composed into specialized managers.
-:::
+</Tip>
 
 ## Overview
 
@@ -54,9 +53,9 @@ graph TD
     style MC fill:#fff4e1
 ```
 
-::: tip Key Principle
+<Tip title="Key Principle">
 You typically interact with **high-level managers** (blue), which internally use these **low-level utilities** (yellow).
-:::
+</Tip>
 
 ## Available Utilities
 

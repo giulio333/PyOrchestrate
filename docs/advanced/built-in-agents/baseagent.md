@@ -37,19 +37,19 @@ sequenceDiagram
     BaseAgent->>BaseAgent.StateEvents: Set close_event
 ```
 
-::: tip
+<Tip>
 The `execute()` method is abstract and must be overridden in all derived classes.
-:::
+</Tip>
 
-::: tip
+<Tip>
 The `setup()` method is abstract and must be overridden in all derived classes.
-:::
+</Tip>
 
-::: warning
+<Warning>
 The `run()` method orchestrates the entire lifecycle of the agent, from `setup` to `shutdown`.
 
 Marked as `@final` to prevent overriding in derived class ensuring that the core logic remains consistent across all agents.
-:::
+</Warning>
 
 
 ### Use Case:

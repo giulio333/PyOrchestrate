@@ -219,9 +219,9 @@ Consider using multiple standalone agents when:
 - Your agents need to run at different frequencies
 - You want to utilize multiple CPU cores for better performance
 
-::: tip Configuration Tip
+<Tip title="Configuration Tip">
 When creating multiple instances of the same agent class with different configurations, it's best to create dedicated configuration objects rather than modifying default values. This ensures that each agent has a clear and well-defined behavior.
-:::
+</Tip>
 
 ## Complete Example
 

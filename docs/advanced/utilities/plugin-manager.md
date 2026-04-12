@@ -1,6 +1,5 @@
 ---
 title: Plugin Manager
-editLink: true
 ---
 
 # Plugin Manager

@@ -1,6 +1,5 @@
 ---
 title: Web Interface
-editLink: true
 ---
 
 # PyOrchestrate Web Interface

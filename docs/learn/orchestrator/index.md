@@ -1,15 +1,14 @@
 ---
 title: Orchestrator
-editLink: true
 ---
 
 # Orchestrator
 
 The **Orchestrator** is a central component responsible for coordinating multiple **Agents** and managing their lifecycle. It ensures seamless communication among **Agents** and serves as a single point for controlling the entire flow.
 
-::: tip
+<Tip>
 For **more information**, see this [link](../introduction/orchestrator/index.md).
-:::
+</Tip>
 
 ### Why use Orchestrator?
 
@@ -47,9 +46,9 @@ Every Orchestrator has a set of **parameters** that define its own data. These p
 
 The `Config` class is used by the agent to **create a configuration object for itself**. 
 
-::: info Example
+<Info title="Example">
 See the [Config and Validation](../config_and_validation.md) section for more details on how to define and use configuration classes.
-:::
+</Info>
 
 ### Run Mode
 
@@ -68,8 +67,7 @@ The Orchestrator can operate in different **run modes**, which control how long 
 
 ### Event Manager
 
-![alt text](event_manager_l.svg){.light-only}
-![alt text](event_manager_d.svg){.dark-only}
+![alt text](event_manager_l.svg)
 
 The **Event Manager** facilitates a set of **events** (`OrchestratorEvent`) that notify when something happens during the orchestration process (e.g., an agent completes). These events can be used as **signals** to perform specific actions (e.g., sending a message on Telegram).
 
@@ -89,8 +87,7 @@ Available events are stored in the `OrchestratorEvent` class:
 
 ### Message Channels
 
-![alt text](message_channel_l.svg){.light-only}
-![alt text](message_channel_d.svg){.dark-only}
+![alt text](message_channel_l.svg)
 
 The Orchestrator communicates through two `MessageChannel` objects:
 
@@ -160,9 +157,9 @@ orchestrator.register_agent(Publisher, "Pub3", custom_config=custom_config)
 
 In this example, we create three `Publisher` agents. The first two use default settings, while the third writes to a custom output file.
 
-::: tip
+<Tip>
 For more details on Agent's **Configuration**, **StateEvents** etc. check out the [Agent Overview](../agents/index.md#overview).
-:::
+</Tip>
 
 ## Registering Events
 
@@ -176,9 +173,9 @@ orchestrator.register_event(event_type, callback)
 
 All available events are defined in the `OrchestratorEvent`, see [EventManager](#event-manager)
 
-::: tip
+<Tip>
 Callbacks registered with `register_event` are invoked each time the event occurs for any agent that triggers it. Agent-related events include an `agent_name` argument so your callback can identify which agent fired the event.
-:::
+</Tip>
 
 ### Example
 

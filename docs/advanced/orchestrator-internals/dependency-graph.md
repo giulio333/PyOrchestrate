@@ -1,6 +1,5 @@
 ---
 title: DependencyGraph
-editLink: true
 ---
 
 # DependencyGraph

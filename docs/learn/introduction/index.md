@@ -1,6 +1,5 @@
 ---
 title: Welcome to PyOrchestrate
-editLink: false
 ---
 
 # Introduction to PyOrchestrate

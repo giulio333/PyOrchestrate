@@ -1,6 +1,5 @@
 ---
 title: How Orchestration Works
-editLink: true
 ---
 
 # How Orchestration Works
@@ -12,8 +11,7 @@ The **Orchestrator** is the component in charge of supervising and coordinating 
 
 ### Registering Agents
 
-![alt text](./reg_l.svg){.light-only}
-![alt text](./reg_d.svg){.dark-only}
+![alt text](./reg_l.svg)
 
 Before using the Orchestrator, you need to **register the Agents** you want it to manage.
 
@@ -25,9 +23,9 @@ This is done using the `register_agent()` method. You just provide:
 
 Once registered, the Orchestrator knows how to **start**, **monitor**, and **stop** the Agent.
 
-::: tip Behind the scenes
+<Tip title="Behind the scenes">
 Each Agent is wrapped in an `AgentEntry` object that stores everything needed: the class, config, events, and more.
-:::
+</Tip>
 
 ### Running Multiple Agents of the Same Class
 
@@ -38,10 +36,10 @@ For example, imagine you have a `FileWriterAgent` that writes data to a file. By
 ![alt text](./multi_l.svg){.light-only style="display: block; margin: 0 auto; width: 100%"}
 ![alt text](./multi_d.svg){.dark-only style="display: block; margin: 0 auto; width: 100%"}
 
-::: tip
+<Tip>
 - For more details on how to register Agents, check out the [Orchestrator Registering Agents](../../orchestrator/index.md#registering-agents).
 - For more details on Agent's parameters and configuration, check out the [Agent Overview](../../agents/index.md#overview).
-:::
+</Tip>
 
 ## Execution Lifecycle
 
@@ -54,8 +52,7 @@ The Orchestrator’s liveness is governed by an explicit lifecycle policy called
 
 ### How Agent Execution Works
 
-![alt text](./execution_l.svg){.light-only}
-![alt text](./execution_d.svg){.dark-only}
+![alt text](./execution_l.svg)
 
 This section describes how execution proceeds; final liveness depends solely on the selected `RunMode`:
 
@@ -75,9 +72,9 @@ This section describes how execution proceeds; final liveness depends solely on 
 
    When all Agents have completed and the queue is empty, the Orchestrator emits an `ALL_AGENTS_TERMINATED` event. In `STOP_ON_EMPTY` it then terminates. In `DAEMON` it remains alive until you request shutdown.
 
-::: tip
+<Tip>
 You can subclass the `Orchestrator` class to change its behavior and plug in your own logic.
-:::
+</Tip>
 
 ### Parallel Execution & Concurrency Limits
 
@@ -118,9 +115,9 @@ This channel lets external tools interact with the Orchestrator in real time:
 
 The same command and data surface exposed by the CLI can also be used by a **web-based interface**, so dashboards and remote-control UIs can access the same functionality. 
 
-::: tip Learn More
+<Tip title="Learn More">
 See the [CLI Documentation](/cli/) for the full command reference, security notes, and examples of both CLI and web interfaces.
-:::
+</Tip>
 
 ## Customizing the Behavior
 
@@ -132,10 +129,10 @@ Every system has different needs:
 To adapt to these scenarios, the Orchestrator provides a dedicated configuration object: `Orchestrator.Config`.  
 Through this object, you can **fine-tune how the Orchestrator behaves**, without changing your code.  
 
-::: tip
+<Tip>
 For the complete technical details and available options, see:  
 [Orchestrator Configuration](../../orchestrator/index.md#configuration).
-:::
+</Tip>
 
 
 ## Why Use the Orchestrator?

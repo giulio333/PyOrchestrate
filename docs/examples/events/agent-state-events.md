@@ -50,9 +50,9 @@ class SimpleCounterAgent(PeriodicProcessAgent):
 
 The `runner` method executes periodically based on the configured interval, incrementing and logging the counter value. This simple example lets us focus on the state events functionality.
 
-::: tip Configuration Tip
+<Tip title="Configuration Tip">
 PyOrchestrate agents use a nested `Config` class pattern for configuration. When extending an agent, you can override built-in attributes like `execution_interval` and `limit` through your custom `Config` class. This maintains type safety and enables proper parameter validation.
-:::
+</Tip>
 
 ## Using State Events
 

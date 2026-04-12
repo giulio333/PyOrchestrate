@@ -3,3 +3,4 @@ docs/.vitepress/cache/
 *.log
 .env
 *.json
+!docs.json

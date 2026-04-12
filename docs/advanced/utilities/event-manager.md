@@ -1,6 +1,5 @@
 ---
 title: Event Manager
-editLink: true
 ---
 
 # Event Manager

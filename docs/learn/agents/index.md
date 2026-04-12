@@ -1,6 +1,5 @@
 ---
 title: Agents
-editLink: true
 ---
 
 # Agents
@@ -11,9 +10,9 @@ The framework provides a range of [built-in agents](./built-in-agents/baseagent.
 
 All you need to do is choose the agent that best fits your requirements and inherit from it to create your own custom agent.
 
-::: tip
+<Tip>
 For **more information**, see this [link](../introduction/agents/index.md).
-:::
+</Tip>
 
 ### Why Use Agents?
 
@@ -23,8 +22,7 @@ Agents save you from reinventing the wheel by offering ready-made solutions for 
 
 Here’s an example of a custom agent that inherits from `PeriodicProcessAgent`.
 
-![alt text](assets/example_1_l.svg){.light-only}
-![alt text](assets/example_1_d.svg){.dark-only}
+![alt text](assets/example_1_l.svg)
 
 ```python
 class MyAgent(PeriodicProcessAgent):
@@ -46,8 +44,7 @@ class MyAgent(PeriodicProcessAgent):
 
 ## Overview
 
-![alt text](assets/overview_l.svg){.light-only}
-![alt text](assets/overview_d.svg){.dark-only}
+![alt text](assets/overview_l.svg)
 
 ### Configuration
 
@@ -57,13 +54,13 @@ The `Config` class is used by the agent to **create a configuration object for i
 
 
 
-::: tip 
+<Tip>
 In every agent, the `Config` class inherits from the respective parent agent's `Config` class. This allows you to customize the agent's configuration while retaining the built-in ones.
-:::
+</Tip>
 
-::: info Example
+<Info title="Example">
 See the [Config and Validation](../config_and_validation.md) section for more details on how to define and use configuration classes.
-:::
+</Info>
 
 ### **StateEvents**
 
@@ -79,13 +76,13 @@ Some of the **built-in** state events are:
 | `ready_event` | Event to signal that the agent is ready to start the execution. |
 | `close_event` | Event to signal that the agent has completed the execution. |
 
-::: tip 
+<Tip>
 In every agent, the `StateEvents` class inherits from the respective parent agent's `StateEvents` class. This allows you to customize the agent's state events while retaining the built-in ones.
-:::
+</Tip>
 
-::: info Example
+<Info title="Example">
 In our example, we didn't define any custom state events. We will discuss customizing these in more advanced topics.
-:::
+</Info>
 
 ### **ControlEvents**
 
@@ -101,13 +98,13 @@ Some of the **built-in** control events are:
 | `execute_event` | Event to signal that the agent can execute its logic. |
 | `stop_event` | Event to signal that the agent must stop. |
 
-::: tip 
+<Tip>
 In every agent, the `ControlEvents` class inherits from the respective parent agent's `ControlEvents` class. This allows you to customize the agent's control events while retaining the built-in ones.
-:::
+</Tip>
 
-::: info Example
+<Info title="Example">
 In our example, we didn't define any custom control events. We will discuss customizing these in more advanced topics.
-:::
+</Info>
 
 ### Plugin
 
@@ -115,18 +112,18 @@ The `Plugin` class is used by the agent to **create a plugin object for itself**
 
 The `agent.plugin` object is useful for retrieving **built-in** or **user-initialized** **plugins**. The agent will autonomously **initialize** and **release** their resources at startup and shutdown. This ensures that the plugins are properly managed throughout the agent's lifecycle.
 
-::: tip 
+<Tip>
 In every agent, the `Plugin` class inherits from the respective parent agent's `Plugin` class. This allows you to customize the agent's plugin while retaining the built-in ones.
-:::
+</Tip>
 
-::: info Example
+<Info title="Example">
 For example `MyAgent` class define its own plugin class via parent agent's `Plugin` class.
 
 ```python
 class MyAgent(PeriodicProcessAgent): #
 
-    class Plugin(PeriodicProcessAgent.Plugin): # [!code focus]
-        zmq = ZmqPubSub("tcp://*:5555",zmq.PUB) # [!code focus]
+    class Plugin(PeriodicProcessAgent.Plugin):
+        zmq = ZmqPubSub("tcp://*:5555",zmq.PUB)
 
     plugin: Plugin
 
@@ -134,9 +131,9 @@ class MyAgent(PeriodicProcessAgent): #
         super().runner()
 
         self.logger.info("Sending message")
-        self.plugin.zmq.send("hello world".encode()) # [!code focus]
+        self.plugin.zmq.send("hello world".encode())
 ```
-:::
+</Info>
 
 ## Extend and Customize
 
@@ -144,24 +141,24 @@ But **how do you create an agent** that fits your specific needs?
 
 Agents are designed to be **extensible** and **customizable**. You can inherit from a built-in agent and override its methods to create your own custom agent.
 
-::: tip
+<Tip>
 You can also **add new methods** to extend the agent’s capabilities.
-:::
+</Tip>
 
 There are two types of methods you can override:
 
 -   [abstract methods](#abstract-methods): These methods are required and must be overridden to define the agent’s behavior.
 -   [template methods](#template-methods): These methods are optional and can be overridden to customize the agent’s behavior further.
 
-::: warning
+<Warning>
 Be sure to call `super().method()` when overriding to ensure the agent’s core functionality is preserved.
-:::
+</Warning>
 
 ### Abstract methods
 
 Almost every agent provides `@abstractmethod` that you need to override to define the agent’s behavior. These methods are where you implement the logic that makes your agent unique.
 
-::: tip
+<Tip>
 In the example we made before, we are inheriting from `PeriodicProcessAgent`. 
 
 This means we must override the `runner` method, which is an `@abstractmethod`, as mentioned in the [PeriodicAgent]() documentation.
@@ -183,13 +180,13 @@ class MyAgent(PeriodicProcessAgent):
         super().setup()
         self.logger.info(f"FileWriter {self.name} initialized. pid={self.pid}")
 
-    def runner(self): # [!code focus]
-        """ # [!code focus]
-        Runner method for the agent. # [!code focus]
-        """ # [!code focus]
-        self.logger.info("Doing some work") # [!code focus]
+    def runner(self):
+        """
+        Runner method for the agent.
+        """
+        self.logger.info("Doing some work")
 ```
-:::
+</Tip>
 
 ### Template methods
 
@@ -197,7 +194,7 @@ Other methods are **optional** and can be overridden to customize the agent’s 
 
 
 
-::: tip
+<Tip>
 In the example we made before, we are inheriting from `PeriodicAgent`. 
 
 This means we can override the `setup` method, which is a `@templatemethod`, ensuring we call `super().setup()` at the beginning, as mentioned in the [PeriodicAgent]() documentation.
@@ -212,12 +209,12 @@ class MyAgent(PeriodicProcessAgent):
         execution_interval = 1
         output_directory = "output"
 
-    def setup(self): # [!code focus]
-        """ # [!code focus]
-        Setup method for the agent. # [!code focus]
-        """ # [!code focus]
-        super().setup() # [!code focus]
-        self.logger.info(f"FileWriter {self.name} initialized. pid={self.pid}") # [!code focus]
+    def setup(self):
+        """
+        Setup method for the agent.
+        """
+        super().setup()
+        self.logger.info(f"FileWriter {self.name} initialized. pid={self.pid}")
 
     def runner(self):
         """
@@ -225,7 +222,7 @@ class MyAgent(PeriodicProcessAgent):
         """
         self.logger.info("Doing some work")
 ```
-:::
+</Tip>
 
 
 ## Hierarchical Structure
@@ -259,11 +256,11 @@ graph TD
     LoopingAgent --> LoopingProcessAgent
 ```
 
-::: tip
+<Tip>
 In the example we made before, `MyAgent` class inherits from `PeriodicProcessAgent`. This means that `MyAgent` will have the behavior of a `PeriodicAgent` and the execution mode of a `Process`.
 
 ```python
-class MyAgent(PeriodicProcessAgent): # [!code focus]
+class MyAgent(PeriodicProcessAgent):
     """Agent Class that logs a message periodically."""
 
     class Config(PeriodicProcessAgent.Config): 
@@ -272,7 +269,7 @@ class MyAgent(PeriodicProcessAgent): # [!code focus]
         execution_interval = 1
         output_directory = "output"
 ```
-:::
+</Tip>
 
 ## BaseAgent
 

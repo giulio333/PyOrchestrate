@@ -64,6 +64,6 @@ class MyAgent(BaseProcessAgent):
 
 ---
 
-::: tip
+<Tip>
 Automatic management via the `Plugin` class is recommended for most scenarios. Manual management is useful for advanced or custom setups where you need more control over plugin lifecycle.
-:::
+</Tip>

@@ -1,6 +1,5 @@
 ---
 title: MessageRouter
-editLink: true
 ---
 
 # MessageRouter

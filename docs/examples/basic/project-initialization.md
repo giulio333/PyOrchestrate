@@ -76,9 +76,9 @@ class WeatherCollector(PeriodicProcessAgent[WCConfig]):
 
 The `runner` method executes periodically and logs the response. If any request fails, it raises a `RecoverableException` which prevents the agent from stopping.
 
-::: tip Configuration Tip
+<Tip title="Configuration Tip">
 When adding a new agent, you can override the `Config` attribute to use a custom configuration class, as shown with `WCConfig`.
-:::
+</Tip>
 
 ## Orchestrator Integration
 
