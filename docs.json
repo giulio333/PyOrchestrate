@@ -1,6 +1,7 @@
 {
   "$schema": "https://mintlify.com/schema.json",
   "name": "PyOrchestrate",
+  "theme": "mint",
   "logo": {
     "light": "/docs/public/logo.png",
     "dark": "/docs/public/logo.png"
