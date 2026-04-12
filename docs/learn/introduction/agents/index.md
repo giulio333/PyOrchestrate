@@ -12,7 +12,8 @@ Each Agent encapsulates a specific task and can run either in a separate **threa
 
 ### Agent Types
 
-![alt text](./types_l.svg)
+<img src="./types_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="./types_d.svg" alt="alt text" className="hidden dark:block" />
 
 Agents can be implemented in different styles, depending on their intended behavior:
 
@@ -53,7 +54,8 @@ This is defined at the time of Agent creation and is managed internally by the O
 
 ## Lifecycle
 
-![alt text](./lifecycle_l.svg)
+<img src="./lifecycle_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="./lifecycle_d.svg" alt="alt text" className="hidden dark:block" />
 
 All Agents follow a standardized lifecycle:
 
@@ -75,7 +77,8 @@ Throughout this lifecycle, internal and external events are used to synchronize 
 
 Each Agent manages two kinds of event systems.
 
-![alt text](./events_l.svg)
+<img src="./events_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="./events_d.svg" alt="alt text" className="hidden dark:block" />
 
 ### MessageChannel
 

@@ -1,22 +1,28 @@
 {
-  "$schema": "https://mintlify.com/schema.json",
-  "name": "PyOrchestrate",
+  "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
+  "name": "PyOrchestrate",
+  "colors": {
+    "primary": "#6D28D9",
+    "light": "#A78BFA",
+    "dark": "#4C1D95"
+  },
+  "background": {
+    "decoration": "gradient"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "favicon": "/docs/public/favicon.ico",
   "logo": {
     "light": "/docs/public/logo.png",
     "dark": "/docs/public/logo.png"
   },
-  "favicon": "/docs/public/favicon.ico",
-  "colors": {
-    "primary": "#16a34a",
-    "light": "#22c55e",
-    "dark": "#15803d"
-  },
-  "topbar": {
+  "navbar": {
     "links": [
       {
-        "name": "GitHub",
-        "url": "https://github.com/giulio333/PyOrchestrateDocumentation"
+        "label": "GitHub",
+        "href": "https://github.com/giulio333/PyOrchestrateDocumentation"
       }
     ]
   },
@@ -149,9 +155,9 @@
     "global": {
       "anchors": [
         {
-          "name": "Home",
-          "url": "docs/index",
-          "icon": "house"
+          "anchor": "GitHub",
+          "href": "https://github.com/giulio333/PyOrchestrateDocumentation",
+          "icon": "github"
         }
       ]
     }

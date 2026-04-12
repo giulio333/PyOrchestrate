@@ -22,7 +22,8 @@ Agents save you from reinventing the wheel by offering ready-made solutions for 
 
 Here’s an example of a custom agent that inherits from `PeriodicProcessAgent`.
 
-![alt text](assets/example_1_l.svg)
+<img src="assets/example_1_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="assets/example_1_d.svg" alt="alt text" className="hidden dark:block" />
 
 ```python
 class MyAgent(PeriodicProcessAgent):
@@ -44,7 +45,8 @@ class MyAgent(PeriodicProcessAgent):
 
 ## Overview
 
-![alt text](assets/overview_l.svg)
+<img src="assets/overview_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="assets/overview_d.svg" alt="alt text" className="hidden dark:block" />
 
 ### Configuration
 

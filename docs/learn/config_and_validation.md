@@ -4,7 +4,8 @@ title: Config and Validation
 
 # Config and Validation
 
-![alt text](config_l.svg)
+<img src="config_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="config_d.svg" alt="alt text" className="hidden dark:block" />
 
 Every Agent and Orchestrator in PyOrchestrate comes with a **Config object**.  
 You can think of it as the **blueprint** that defines how each component behaves.  

@@ -67,7 +67,8 @@ The Orchestrator can operate in different **run modes**, which control how long 
 
 ### Event Manager
 
-![alt text](event_manager_l.svg)
+<img src="event_manager_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="event_manager_d.svg" alt="alt text" className="hidden dark:block" />
 
 The **Event Manager** facilitates a set of **events** (`OrchestratorEvent`) that notify when something happens during the orchestration process (e.g., an agent completes). These events can be used as **signals** to perform specific actions (e.g., sending a message on Telegram).
 
@@ -87,7 +88,8 @@ Available events are stored in the `OrchestratorEvent` class:
 
 ### Message Channels
 
-![alt text](message_channel_l.svg)
+<img src="message_channel_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="message_channel_d.svg" alt="alt text" className="hidden dark:block" />
 
 The Orchestrator communicates through two `MessageChannel` objects:
 

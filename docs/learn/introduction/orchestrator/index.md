@@ -11,7 +11,8 @@ The **Orchestrator** is the component in charge of supervising and coordinating 
 
 ### Registering Agents
 
-![alt text](./reg_l.svg)
+<img src="./reg_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="./reg_d.svg" alt="alt text" className="hidden dark:block" />
 
 Before using the Orchestrator, you need to **register the Agents** you want it to manage.
 
@@ -33,8 +34,8 @@ You can reuse the same **Agent class** to run **multiple Agents** that do slight
 
 For example, imagine you have a `FileWriterAgent` that writes data to a file. By passing a different file path to each one during registration, you can launch two Agents from the same class: one that writes to `log_a.txt` and another that writes to `log_b.txt`.
 
-![alt text](./multi_l.svg){.light-only style="display: block; margin: 0 auto; width: 100%"}
-![alt text](./multi_d.svg){.dark-only style="display: block; margin: 0 auto; width: 100%"}
+<img src="./multi_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="./multi_d.svg" alt="alt text" className="hidden dark:block" />
 
 <Tip>
 - For more details on how to register Agents, check out the [Orchestrator Registering Agents](../../orchestrator/index.md#registering-agents).
@@ -52,7 +53,8 @@ The Orchestrator’s liveness is governed by an explicit lifecycle policy called
 
 ### How Agent Execution Works
 
-![alt text](./execution_l.svg)
+<img src="./execution_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="./execution_d.svg" alt="alt text" className="hidden dark:block" />
 
 This section describes how execution proceeds; final liveness depends solely on the selected `RunMode`:
 
