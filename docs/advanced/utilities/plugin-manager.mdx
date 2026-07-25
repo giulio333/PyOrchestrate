@@ -282,7 +282,7 @@ plugin_manager = PluginManager(production_plugins)
 Agents use the Plugin Manager to manage their communication and utility plugins:
 
 ```python
-from PyOrchestrate.core.agents.base_agent import BaseAgent
+from PyOrchestrate.core.agent.base_agent import BaseAgent
 
 class MyAgent(BaseAgent):
     def __init__(self, config):
@@ -304,16 +304,18 @@ class MyAgent(BaseAgent):
 Orchestrators similarly use the Plugin Manager for their plugin ecosystem:
 
 ```python
-from PyOrchestrate.core.orchestrator.base_orchestrator import BaseOrchestrator
+from PyOrchestrate.core.orchestrator import Orchestrator
 
-class MyOrchestrator(BaseOrchestrator):
-    def __init__(self, config):
-        super().__init__(config)
-        # Plugin manager handles orchestrator plugins
-        
-    def start(self):
-        super().start()
-        # All plugins are properly initialized before orchestrator starts
+class MyOrchestrator(Orchestrator):
+    class Plugin(Orchestrator.Plugin):
+        # Declare orchestrator-level plugins here.
+        pass
+
+# The inherited constructor creates the PluginManager, assigns its owner,
+# and initializes declared plugins.
+orchestrator = MyOrchestrator(
+    config=MyOrchestrator.Config(enable_command_interface=False)
+)
 ```
 
 ## Plugin Protocol Compliance

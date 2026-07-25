@@ -23,24 +23,26 @@ Advanced commands for real-time control of running orchestrators:
 - **Dynamic control**: `start`/`stop` - Start, stop, and manage agents on-demand
 - **System inspection**: `status` - Get detailed reports for orchestrator or specific agents
 - **Dependencies**: `dependencies` - Show agent dependency graph
+- **Command permissions**: `commands` - Show which runtime commands are allowed
 - **Event tracking**: `history`/`history-stats` - Get event history and statistics
 - **Real-time monitoring**: `stats` - Continuous monitoring like `docker stats`
-- **Remote management**: `shutdown` - Gracefully shutdown orchestrator via UNIX sockets
+- **Remote management**: `shutdown` - Gracefully shutdown the orchestrator through ZeroMQ
 
 ## Web Interface
 
-PyOrchestrate also provides a web-based interface for monitoring and controlling your orchestrator:
+PyOrchestrate also provides a web-based interface for monitoring your orchestrator:
 
-- **Web dashboard**: `pyorchestrate-web` - Launch a web interface for visual monitoring and control
-- **Real-time updates**: Live dashboard with agent status, statistics, and logs
+- **Web dashboard**: `pyorchestrate-web` - Launch a browser-based monitoring interface
+- **Runtime data**: Inspect agent status, statistics, dependencies, and event history
 - **Authentication**: Optional token-based authentication for secure access
-- **Remote access**: Web-based alternative to CLI commands
+- **Remote access**: Read orchestrator data from a browser or REST client
 
 ### Output Formats
 
-All runtime commands support two output formats:
+Runtime commands support two output formats, except `stats`, which uses a continuously refreshed table:
+
 - **Table format** (`--format table`): Human-readable output with formatted tables (default)
-- **JSON format** (`--format json`): Machine-readable structured output for automation
+- **JSON format** (`--format json`): Machine-readable output for automation
 
 <Tip title="Real-time Control">
 The runtime commands enable DevOps workflows, monitoring integration, and dynamic agent management without stopping your orchestrator.
@@ -75,19 +77,22 @@ pyorchestrate --help
 pyorchestrate-web --help
 
 # Start web interface
-pyorchestrate-web --host 0.0.0.0 --port 8080 --socket /tmp/pyorchestrate.sock
+pyorchestrate-web --host 0.0.0.0 --port 8000 --socket tcp://127.0.0.1:5555
 ```
 
 ### Runtime Control
 
-To use runtime commands, your orchestrator must be configured with the command interface enabled:
+To use runtime commands, the orchestrator command interface must be enabled. It is enabled by default, but configuring it explicitly makes the runtime endpoint clear:
 
 ```python
-# In your orchestrator configuration
+from PyOrchestrate.core.orchestrator import Orchestrator
+
 config = Orchestrator.Config(
     enable_command_interface=True,
-    command_socket_path="/tmp/pyorchestrate.sock"
+    command_zmq_address="tcp://*:5555",
 )
+
+orchestrator = Orchestrator(config=config)
 ```
 
 Then you can control the running orchestrator:
@@ -109,7 +114,7 @@ pyorchestrate history --last 10
 pyorchestrate shutdown
 
 # Start web interface for visual monitoring
-pyorchestrate-web --port 8080 --socket /tmp/pyorchestrate.sock
+pyorchestrate-web --port 8000 --socket tcp://127.0.0.1:5555
 ```
 
 ## Architecture
@@ -119,35 +124,32 @@ The CLI consists of two main components:
 ### 1. Direct Commands
 Commands that operate on project files and configurations without requiring a running orchestrator.
 
-### 2. Socket-based Commands  
-Commands that communicate with a running orchestrator via UNIX sockets, enabling real-time control and monitoring.
+### 2. ZeroMQ-based Commands
+Commands that communicate with a running orchestrator through a ZeroMQ ROUTER/DEALER channel over TCP, enabling real-time control and monitoring.
 
 ```mermaid
 graph TD
     A[CLI Client] --> B{Command Type}
-    A1[Web Interface] --> B
     B -->|Direct| C[Project Files]
-    B -->|Runtime| D[UNIX Socket]
+    B -->|Runtime| D[ZeroMQ over TCP]
+    A1[Web Interface] --> D
     D --> E[Running Orchestrator]
     E --> F[Agent Manager]
     E --> G[Statistics Engine]
     E --> H[Command Handler]
-    A1 --> I[Web Dashboard]
-    I --> J[Real-time Updates]
-    I --> K[Agent Control]
 ```
 
 ## Security Considerations
 
-- **UNIX Sockets**: Provide secure local communication with file-based permissions
+- **Network binding**: Use `tcp://127.0.0.1:5555` when the command interface should only be reachable locally
+- **Remote exposure**: Binding to `tcp://*:5555` exposes the command interface on every network interface
 - **Command Validation**: All commands are validated before execution
-- **Access Control**: Socket permissions can be configured for multi-user environments
-- **Audit Logging**: All CLI commands are logged for security monitoring
+- **Command Restrictions**: Use `allowed_commands` to select a preset or provide an explicit set of permitted commands
 
 ## Next Steps
 
 - Learn about [Runtime Commands](/cli/runtime-commands) for real-time orchestrator control
-- Explore [Web Interface](/cli/web-interface) for browser-based monitoring and control
+- Explore [Web Interface](/cli/web-interface) for browser-based monitoring
 - Check [Configuration](/cli/configuration) options for the command interface
 - See practical [Examples](/cli/examples) of CLI usage in different scenarios
 

@@ -106,7 +106,7 @@ This is useful when you need to **execute specific logic in response to Agent li
 
 ### CLI
 
-PyOrchestrate provides a runtime **command interface** (`CLI`) that communicates with the Orchestrator over a dedicated communication channel — a `UNIX socket` — much like how **Docker** talks to its daemon.  
+PyOrchestrate provides a runtime **command interface** (`CLI`) that communicates with the Orchestrator through a ZeroMQ ROUTER/DEALER channel over TCP.
 
 This channel lets external tools interact with the Orchestrator in real time:  
 
@@ -115,7 +115,7 @@ This channel lets external tools interact with the Orchestrator in real time:
 - **Collect statistics and performance metrics**  
 - **Query event history for auditing and debugging**  
 
-The same command and data surface exposed by the CLI can also be used by a **web-based interface**, so dashboards and remote-control UIs can access the same functionality. 
+The same data surface is used by a read-only **web interface**, which exposes HTML and JSON monitoring views.
 
 <Tip title="Learn More">
 See the [CLI Documentation](/cli/index) for the full command reference, security notes, and examples of both CLI and web interfaces.
@@ -149,4 +149,4 @@ Here are some **typical use cases** where the Orchestrator shines:
 - **Automation Workflows**: coordinate different tasks (file watchers, API pollers, message processors) in a single, unified process.  
 - **Resilient Applications**: recover gracefully when an agent crashes, restart it, and keep the system stable without manual intervention.  
 
-By abstracting away threads, processes, and low-level synchronization, the Orchestrator lets you focus on **what your agents do**, not on **how they’re coordinated**.  
+By abstracting away threads, processes, and low-level synchronization, the Orchestrator lets you focus on **what your agents do**, not on **how they’re coordinated**.

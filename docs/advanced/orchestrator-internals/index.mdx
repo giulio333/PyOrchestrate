@@ -216,7 +216,7 @@ config = Orchestrator.Config(
     max_workers=20,
     run_mode=RunMode.DAEMON,
     enable_command_interface=True,
-    command_zmq_address="tcp://127.0.0.1:5570",
+    command_zmq_address="tcp://127.0.0.1:5555",
     allowed_commands="monitoring",  # Read-only commands
     history_max_events=5000
 )

@@ -4,37 +4,62 @@ title: Orchestrator API
 
 # Orchestrator API
 
-The **Orchestrator API** provides a communication channel for external tools to interact with the Orchestrator.  
-It is exposed through a local `UNIX socket`, similar to how Docker communicates with its daemon.
+The external Orchestrator API is a ZeroMQ command interface over TCP. The orchestrator binds a ROUTER socket and external clients connect with DEALER sockets.
 
 ## Interfaces
 
-Two main clients use this channel:
+- **CLI:** interactive runtime inspection and control through commands such as `ps`, `status`, `start`, `stop`, `history`, and `shutdown`.
+- **Web interface:** a read-only HTTP layer that queries the same command interface and renders HTML or JSON.
 
-- **Command-Line Interface (CLI):** a lightweight tool for interactive use or scripting.  
-  Typical commands: `start`, `stop`, `status`, and runtime queries.  
+## Configuration
 
-- **Web UI:** a minimal HTTP layer built on top of the same channel.  
-  It can return data as **JSON** for machines or render **HTML** dashboards for humans.  
+```python
+from PyOrchestrate.core.orchestrator import Orchestrator
 
-## What You Can Do
+config = Orchestrator.Config(
+    enable_command_interface=True,
+    command_zmq_address="tcp://127.0.0.1:5555",
+)
 
-Through these interfaces, you can:
+orchestrator = Orchestrator(config=config)
+```
 
-- Start or stop agents dynamically.  
-- Inspect running agents and their configurations.  
-- Collect performance metrics and orchestrator statistics.  
-- Query event history for auditing and debugging.  
+The CLI connects to `tcp://127.0.0.1:5555` by default:
 
-## Security Notes
+```bash
+pyorchestrate status
+```
 
-The channel is local by default (filesystem socket).  
-To keep it secure, you should:  
+## Capabilities
 
-- Restrict file permissions.  
-- Limit available commands with `allowed_commands` or presets.  
-- Protect any HTTP-facing UI with authentication, TLS, or network restrictions.  
+Through the CLI you can:
+
+- inspect orchestrator and agent state;
+- start or stop registered agents;
+- inspect dependencies and command permissions;
+- collect runtime statistics;
+- query event history;
+- request graceful shutdown.
+
+The web interface exposes monitoring operations only.
+
+## Security
+
+The command transport does not provide authentication or encryption. Bind to loopback for local-only use:
+
+```python
+command_zmq_address="tcp://127.0.0.1:5555"
+```
+
+When remote access is required:
+
+- use a private network and firewall rules;
+- restrict operations with `allowed_commands`;
+- avoid exposing the ZeroMQ port directly to the public internet;
+- protect the web interface with bearer authentication and HTTPS.
 
 ## Learn More
 
-For full command references, security guidelines, and usage examples, see the [CLI Documentation](/cli/index).  
+- [CLI overview](/cli/index)
+- [CLI configuration](/cli/configuration)
+- [Runtime commands](/cli/runtime-commands)

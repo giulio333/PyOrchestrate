@@ -79,11 +79,9 @@ Each registered agent is stored as an `AgentEntry` containing:
 
 ## Agent Instantiation
 
-## Agent Instantiation
-
 ### Process vs Thread Mode
 
-The lifecycle manager can create agents as either **processes** or **threads** based on orchestrator configuration:
+Execution mode is selected by the registered agent class, not by an orchestrator configuration flag:
 
 | Mode | Use Case | Isolation | Communication |
 |------|----------|-----------|---------------|
@@ -91,9 +89,18 @@ The lifecycle manager can create agents as either **processes** or **threads** b
 | **Thread** | I/O-intensive work, shared memory | Shared memory space | Direct memory access |
 
 ```python
-# Configure execution mode
-config = OrchestratorConfig(use_multiprocessing=True)  # Processes
-config = OrchestratorConfig(use_multiprocessing=False) # Threads
+from PyOrchestrate.core.agent.periodic_agent import (
+    PeriodicProcessAgent,
+    PeriodicThreadAgent,
+)
+
+# Subclass PeriodicProcessAgent for a process-backed agent.
+class CpuWorker(PeriodicProcessAgent):
+    ...
+
+# Subclass PeriodicThreadAgent for a thread-backed agent.
+class IoWorker(PeriodicThreadAgent):
+    ...
 ```
 
 ### Agent Lifecycle Flow

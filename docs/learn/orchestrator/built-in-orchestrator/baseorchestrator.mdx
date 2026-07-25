@@ -1,110 +1,128 @@
 ---
-title: BaseOrchestrator
+title: Orchestrator
 ---
 
-# BaseOrchestrator
+# Orchestrator
 
-The **BaseOrchestrator** is the foundation of all other orchestrators in PyOrchestrate. It provides the basic structure for any custom orchestrator.
+`Orchestrator` is the built-in coordinator for agent registration, dependency validation, worker scheduling, event history, inter-agent message routing, and external runtime commands.
 
-## Why use BaseOrchestrator?
+There is no public `BaseOrchestrator` class in the current package. Customize behavior by configuring or subclassing `Orchestrator`.
 
-Use it as a starting point to create your own orchestrators with completely custom behavior.
-
-## Sequence Diagram
-
-The sequence diagram below illustrates the lifecycle of the `BaseAgent` after it is started.
+## Lifecycle
 
 ```mermaid
 sequenceDiagram
-    participant Config as Orchestrator.Config
-    participant Orchestrator as Orchestrator
-    participant Memory as OMemory
-    participant EventManager as EventManager
-    participant Agents as Registered Agents
-    participant CLI as CLI / Web UI
-    participant MsgThread as Message Thread
+    participant App
+    participant Orchestrator
+    participant Workers as Worker Pool
+    participant Router as Message Router
+    participant CLI as CLI / Web Client
+    participant Commands as Command Interface
 
-    Orchestrator->>Config: validate_config()
-    Orchestrator->>Memory: init agent memory
-    Orchestrator->>EventManager: init centralized event manager
-    Orchestrator->>MsgThread: start background message loop
-    Orchestrator->>CLI: open UNIX socket (if enabled)
+    App->>Orchestrator: Orchestrator(config=...)
+    Orchestrator->>Router: start()
+    Orchestrator->>Commands: bind ZeroMQ ROUTER
+    App->>Orchestrator: register_agent(...)
+    App->>Orchestrator: start()
+    Orchestrator->>Workers: start agents up to max_workers
+    CLI->>Commands: runtime command
+    Commands->>Orchestrator: inspect or control
 
-    CLI-->>Orchestrator: external command (start, stop, status)
-    Orchestrator->>Agents: register agents
-    Orchestrator->>Orchestrator: validate_dependencies()
-    Orchestrator->>Agents: start agents (respecting max_workers)
-
-    Agents-->>Orchestrator: send events (STARTED, READY, TERMINATED)
-    Orchestrator->>EventManager: emit orchestrator events
-
-    loop Monitor
-        Orchestrator->>Agents: check status
-        Agents-->>Orchestrator: terminated / alive
-        Orchestrator->>Orchestrator: start queued agents if slot available
+    alt RunMode.STOP_ON_EMPTY
+        Orchestrator->>Orchestrator: stop when work is complete
+    else RunMode.DAEMON
+        CLI->>Commands: shutdown
+        Commands->>Orchestrator: request graceful shutdown
     end
 
-    alt RunMode = STOP_ON_EMPTY
-        Orchestrator->>Orchestrator: shutdown after all agents finish
-    else RunMode = DAEMON
-        CLI-->>Orchestrator: shutdown command
-        Orchestrator->>Orchestrator: graceful shutdown
-    end
-
-    Orchestrator->>MsgThread: stop message loop
-    Orchestrator->>CLI: close command channel
-    Orchestrator->>EventManager: record SHUTDOWN event
-
+    Orchestrator->>Router: stop()
+    Orchestrator->>Commands: stop()
 ```
 
 ## Configuration
 
-The `BaseAgent` class defines its own configuration object via the `Config` class.
-
 | Attribute | Default | Description |
-|-----------|---------|-------------|
-| `logger_config` | `LoggerConfig()` | Defines configuration for the logger. |
-| `validation_policy` | `ValidationPolicy()` | Defines the validation policy. |
-| `check_interval` | 1 | The interval (in seconds) at which the Orchestrator checks the status of agents. |
-| `max_workers` | 5 | The maximum number of worker threads to use for executing tasks. |
-| `enable_command_interface` | True | Enable external command interface via UNIX socket (runtime CLI). |
-| `command_socket_path` | `/tmp/pyorchestrate.sock` | Filesystem path used for the UNIX socket when the command interface is enabled. |
-| `allowed_commands` | None | Restricts which external commands are accepted by the CLI: a set of command names, a preset name (string), or `None` to allow all commands. |
-| `run_mode` | `STOP_ON_EMPTY` | Lifecycle policy: `STOP_ON_EMPTY` or `DAEMON`. |
-| `history_max_events` | 5000 | Maximum number of events to store in the Orchestrator's internal history (ring buffer size). |
-| `history_payload_bytes` | 256 | Maximum number of bytes stored for each event payload in the history. |
-
-<Info title="Example">
-For example to create an Orchestrator with a maximum of 2 workers, you can do the following:
+|---|---|---|
+| `check_interval` | `1` | Agent status polling interval in seconds |
+| `max_workers` | `5` | Maximum number of concurrently running agents |
+| `agent_start_timeout` | `30.0` | Maximum time to wait for agent startup |
+| `enable_command_interface` | `True` | Enable external runtime commands |
+| `command_zmq_address` | `"tcp://*:5555"` | ZeroMQ ROUTER bind address |
+| `allowed_commands` | `None` | Preset, explicit set, or all commands |
+| `run_mode` | `RunMode.STOP_ON_EMPTY` | Orchestrator lifecycle policy |
+| `history_max_events` | `5000` | Event history capacity |
+| `history_payload_bytes` | `256` | Maximum stored event payload size |
 
 ```python
-o_config = Orchestrator.Config(max_workers=2)
-orchestrator = Orchestrator(config=o_config)
+from PyOrchestrate.core.orchestrator import Orchestrator, RunMode
+
+config = Orchestrator.Config(
+    max_workers=2,
+    command_zmq_address="tcp://127.0.0.1:5555",
+    run_mode=RunMode.DAEMON,
+)
+
+orchestrator = Orchestrator(
+    config=config,
+    name="MyOrchestrator",
+)
 ```
 
-If you don't provide custom values, the Orchestrator will use the default values defined in the `Config` class.
-</Info>
+See [Config and Validation](/learn/config_and_validation) for the shared configuration model.
 
-To learn more about the configuration object, click [here](/learn/config_and_validation).
+## Main Components
 
-## Use Case
+### Agent Memory
 
-When no predefined Orchestrator meets your requirements, the `BaseOrchestrator` is ideal for implementing custom logic.
+`OMemory` stores registered agent entries and groups.
 
-## Attributes
+### Dependency Graph
 
-### Logger
+`DependencyGraph` validates agent dependencies and determines which agents can start.
+
+### Worker Pool
+
+`WorkerPoolScheduler` enforces `max_workers` and queues agents when no execution slot is available.
+
+### Event Bus and Store
+
+`OrchestratorEventBus` combines event dispatch with bounded event history.
+
+### Message Router
+
+`MessageRouter` consumes agent messages and forwards lifecycle information to the event system.
+
+### Command Interface
+
+When enabled, `CommandInterface` binds a ZeroMQ ROUTER socket and serves CLI or web monitoring clients.
+
+## Register and Run Agents
 
 ```python
-logger: Logger
+orchestrator.register_agent(Worker, "Worker1")
+orchestrator.register_agent(Worker, "Worker2")
+
+orchestrator.start()
+orchestrator.join()
 ```
 
-The logger object for the agent. Available levels are `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR`, and `CRITICAL`.
+For a continuously available orchestrator, use `RunMode.DAEMON` and request shutdown through the CLI:
 
-### Config
+```bash
+pyorchestrate shutdown
+```
+
+## Subclassing
+
+Subclass `Orchestrator` when configuration alone is insufficient:
 
 ```python
-config: BaseAgent.Config
+from PyOrchestrate.core.orchestrator import Orchestrator
+
+
+class MyOrchestrator(Orchestrator):
+    class Config(Orchestrator.Config):
+        max_workers = 2
 ```
 
-The configuration object for the agent.
+Prefer passing an `Orchestrator.Config` instance when only values need to change.

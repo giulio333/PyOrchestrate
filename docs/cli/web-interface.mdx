@@ -4,352 +4,166 @@ title: Web Interface
 
 # PyOrchestrate Web Interface
 
-The PyOrchestrate Web Interface provides a browser-based dashboard for monitoring and controlling your orchestrator and agents. It offers the same functionality as the CLI commands but through an intuitive web interface.
+The web interface is a read-only FastAPI layer for browser-based monitoring. It uses the same ZeroMQ command interface as the CLI and renders responses as HTML or JSON.
 
-## Command Overview
-
-```bash
-pyorchestrate-web [--host HOST] [--port PORT] [--socket SOCKET] [--enable-auth] [--auth-token AUTH_TOKEN]
-```
-
-## Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--host` | `str` | `127.0.0.1` | Host address to bind the web server to |
-| `--port` | `int` | `8080` | Port number for the web server |
-| `--socket` | `str` | `/tmp/pyorchestrate.sock` | Path to the orchestrator's UNIX socket |
-| `--enable-auth` | `flag` | `False` | Enable token-based authentication |
-| `--auth-token` | `str` | `None` | Authentication token (required if auth is enabled) |
-
-## Basic Usage
-
-### Start Web Interface
-
-Start the web interface with default settings:
+## Start the Server
 
 ```bash
 pyorchestrate-web
 ```
 
-This will start the web server on `http://127.0.0.1:8080` and connect to the default socket at `/tmp/pyorchestrate.sock`.
+Default settings:
 
-### Custom Host and Port
+| Option | Default | Description |
+|---|---|---|
+| `--host` | `127.0.0.1` | HTTP server bind host |
+| `--port` | `8000` | HTTP server port |
+| `--socket` | `tcp://127.0.0.1:5555` | Orchestrator ZeroMQ address |
+| `--enable-auth` | disabled | Require bearer-token authentication |
+| `--auth-token` | none | Token required when authentication is enabled |
 
-Start the web interface on a specific host and port:
+The option is named `--socket` for compatibility, but it expects a ZeroMQ TCP address.
 
-```bash
-pyorchestrate-web --host 0.0.0.0 --port 3000
-```
-
-This allows access from any network interface on port 3000.
-
-### Custom Socket Path
-
-Connect to an orchestrator using a custom socket path:
+Connect to a custom orchestrator endpoint:
 
 ```bash
-pyorchestrate-web --socket /var/run/pyorchestrate/prod.sock
+pyorchestrate-web \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --socket tcp://127.0.0.1:5555
 ```
+
+Open `http://127.0.0.1:8000`.
 
 ## Authentication
 
-### Enable Authentication
-
-For production environments, enable token-based authentication:
+Enable bearer-token authentication explicitly:
 
 ```bash
-pyorchestrate-web --enable-auth --auth-token "your-secret-token"
-```
-
-### Environment Variables
-
-You can also set the authentication token via environment variable:
-
-```bash
-export PYORCHESTRATE_AUTH_TOKEN="your-secret-token"
-pyorchestrate-web --enable-auth
-```
-
-## Web Interface Features
-
-### Dashboard Overview
-
-The web interface provides:
-
-- **Real-time Agent Status**: Live view of all registered agents
-- **System Statistics**: CPU, memory, and performance metrics
-- **Event History**: Browsable log of orchestrator events
-- **Agent Control**: Start, stop, and restart agents
-- **Dependency Graph**: Visual representation of agent dependencies
-
-### Main Sections
-
-#### 1. Agents Overview
-- List of all registered agents
-- Status indicators (Running, Stopped, Failed)
-- Quick action buttons (Start/Stop/Restart)
-- Agent-specific metrics
-
-#### 2. System Status
-- Orchestrator health information
-- Resource utilization graphs
-- Performance metrics over time
-- Error rates and alerts
-
-#### 3. Event Log
-- Filterable event history
-- Real-time event streaming
-- Export capabilities
-- Search and pagination
-
-#### 4. Dependencies
-- Interactive dependency graph
-- Agent relationship visualization
-- Dependency health status
-- Impact analysis
-
-## Production Configuration
-
-### Secure Setup
-
-For production deployments:
-
-```bash
-# Generate a secure token
-export AUTH_TOKEN=$(openssl rand -hex 32)
-
-# Start with authentication and specific binding
 pyorchestrate-web \
-  --host 0.0.0.0 \
-  --port 8080 \
-  --socket /var/run/pyorchestrate/prod.sock \
+  --enable-auth \
+  --auth-token "replace-with-a-secret-token"
+```
+
+The token must be passed through `--auth-token`; the command does not currently read an authentication token from an environment variable automatically.
+
+Authenticated JSON request:
+
+```bash
+curl \
+  -H "Authorization: Bearer replace-with-a-secret-token" \
+  -H "Accept: application/json" \
+  http://127.0.0.1:8000/api/orchestrator/status
+```
+
+<Warning title="Use TLS for remote access">
+Bearer tokens are not encrypted by HTTP. Keep the server on loopback or place it behind a trusted HTTPS reverse proxy before allowing remote access.
+</Warning>
+
+## Available Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/` | Redirect to the orchestrator status view |
+| `GET` | `/api/health` | Check the web service itself |
+| `GET` | `/api/orchestrator/status` | Read orchestrator status |
+| `GET` | `/api/agents` | List registered agents |
+| `GET` | `/api/agents/{agent_name}` | Read one agent's status |
+| `GET` | `/api/orchestrator/dependencies` | Read agent dependencies |
+| `GET` | `/api/orchestrator/stats` | Read agent and orchestrator statistics |
+| `GET` | `/api/history` | Read event history |
+| `GET` | `/api/history/stats` | Read aggregated event statistics |
+| `GET` | `/docs` | Open the generated FastAPI API reference |
+
+The interface does not expose agent start, stop, restart, or shutdown endpoints.
+
+## HTML and JSON
+
+Browser requests render an HTML monitoring view. Request JSON with either `?format=json` or an `Accept` header:
+
+```bash
+curl "http://127.0.0.1:8000/api/agents?format=json"
+```
+
+```bash
+curl \
+  -H "Accept: application/json" \
+  http://127.0.0.1:8000/api/history
+```
+
+## History Filters
+
+The history endpoint accepts:
+
+| Query parameter | Description |
+|---|---|
+| `last` | Maximum number of recent events |
+| `agent` | Filter by agent name |
+| `event_type` | Filter by event name |
+| `after_seq` | Return events after a sequence number |
+
+```bash
+curl \
+  -H "Accept: application/json" \
+  "http://127.0.0.1:8000/api/history?last=20&agent=Worker"
+```
+
+## Production Topology
+
+Keep both internal services private when possible:
+
+```text
+Browser
+   |
+HTTPS reverse proxy
+   |
+pyorchestrate-web :8000
+   |
+ZeroMQ TCP :5555
+   |
+Orchestrator
+```
+
+Example:
+
+```bash
+pyorchestrate-web \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --socket tcp://127.0.0.1:5555 \
   --enable-auth \
   --auth-token "$AUTH_TOKEN"
 ```
 
-### Reverse Proxy Setup
-
-Example Nginx configuration:
-
-```nginx
-server {
-    listen 80;
-    server_name pyorchestrate.example.com;
-    
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # WebSocket support for real-time updates
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-```
-
-### Docker Deployment
-
-```dockerfile
-FROM python:3.9-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-EXPOSE 8080
-
-CMD ["pyorchestrate-web", "--host", "0.0.0.0", "--port", "8080", "--socket", "/var/run/pyorchestrate/orchestrator.sock"]
-```
-
-Docker Compose example:
-
-```yaml
-version: '3.8'
-services:
-  orchestrator:
-    build: .
-    volumes:
-      - socket-volume:/var/run/pyorchestrate
-    command: python orchestrator.py
-    
-  web-interface:
-    build: .
-    ports:
-      - "8080:8080"
-    volumes:
-      - socket-volume:/var/run/pyorchestrate
-    command: pyorchestrate-web --host 0.0.0.0 --port 8080 --socket /var/run/pyorchestrate/orchestrator.sock --enable-auth --auth-token ${AUTH_TOKEN}
-    environment:
-      - AUTH_TOKEN=${AUTH_TOKEN}
-    depends_on:
-      - orchestrator
-
-volumes:
-  socket-volume:
-```
-
-## API Integration
-
-The web interface also exposes REST API endpoints for programmatic access:
-
-### Endpoints
-
-- `GET /api/status` - Get orchestrator status
-- `GET /api/agents` - List all agents
-- `POST /api/agents/{name}/start` - Start an agent
-- `POST /api/agents/{name}/stop` - Stop an agent
-- `GET /api/events` - Get event history
-- `GET /api/stats` - Get system statistics
-
-### Authentication Headers
-
-When authentication is enabled, include the token in requests:
-
-```bash
-curl -H "Authorization: Bearer your-secret-token" http://localhost:8080/api/status
-```
-
-## Development and Testing
-
-### Development Mode
-
-For development, start without authentication:
-
-```bash
-pyorchestrate-web --host 127.0.0.1 --port 3000
-```
-
-### Testing Connection
-
-Test if the web interface can connect to your orchestrator:
-
-```bash
-# Start orchestrator with command interface
-python your_orchestrator.py &
-
-# Start web interface
-pyorchestrate-web --socket /tmp/pyorchestrate.sock
-
-# Open browser to http://localhost:8080
-```
+Here the shell expands `AUTH_TOKEN`; `pyorchestrate-web` itself does not read the variable.
 
 ## Troubleshooting
 
-### Common Issues
+### Web server is unavailable
 
-#### Cannot Connect to Socket
-
-```bash
-# Check if socket exists
-ls -la /tmp/pyorchestrate.sock
-
-# Check orchestrator is running with command interface
-python -c "
-import socket
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-try:
-    sock.connect('/tmp/pyorchestrate.sock')
-    print('Socket connection successful')
-except Exception as e:
-    print(f'Socket connection failed: {e}')
-finally:
-    sock.close()
-"
-```
-
-#### Permission Denied
+Confirm the HTTP listener:
 
 ```bash
-# Check socket permissions
-stat /tmp/pyorchestrate.sock
-
-# Fix permissions if needed
-chmod 660 /tmp/pyorchestrate.sock
+curl -f http://127.0.0.1:8000/api/health
+lsof -nP -iTCP:8000 -sTCP:LISTEN
 ```
 
-#### Port Already in Use
+### Orchestrator data cannot be loaded
+
+The health endpoint only checks the web service. Test the ZeroMQ endpoint separately:
 
 ```bash
-# Find process using the port
-lsof -i :8080
-
-# Use a different port
-pyorchestrate-web --port 8081
+pyorchestrate status --socket tcp://127.0.0.1:5555
 ```
 
-### Debug Mode
+Verify that the orchestrator command interface is enabled and bound to the expected address.
 
-Enable debug logging:
+### Authentication fails
+
+Pass the same token supplied at startup:
 
 ```bash
-export PYORCHESTRATE_DEBUG=1
-pyorchestrate-web --port 8080
+curl \
+  -H "Authorization: Bearer replace-with-a-secret-token" \
+  http://127.0.0.1:8000/api/health
 ```
-
-## Integration Examples
-
-### Monitoring Dashboard
-
-Create a custom monitoring setup:
-
-```bash
-#!/bin/bash
-# monitoring-setup.sh
-
-# Start orchestrator
-python orchestrator.py &
-ORCH_PID=$!
-
-# Wait for orchestrator to initialize
-sleep 3
-
-# Start web interface with monitoring-specific settings
-pyorchestrate-web \
-  --host 0.0.0.0 \
-  --port 8080 \
-  --socket /tmp/pyorchestrate.sock \
-  &
-WEB_PID=$!
-
-echo "Orchestrator PID: $ORCH_PID"
-echo "Web Interface PID: $WEB_PID"
-echo "Dashboard available at: http://localhost:8080"
-
-# Cleanup function
-cleanup() {
-    echo "Shutting down..."
-    kill $WEB_PID 2>/dev/null
-    kill $ORCH_PID 2>/dev/null
-}
-
-trap cleanup EXIT
-wait
-```
-
-### Health Check Script
-
-```bash
-#!/bin/bash
-# health-check-web.sh
-
-WEB_URL="http://localhost:8080"
-AUTH_TOKEN="your-token"
-
-# Check web interface health
-if curl -f -H "Authorization: Bearer $AUTH_TOKEN" "$WEB_URL/api/status" > /dev/null 2>&1; then
-    echo "Web interface is healthy"
-    exit 0
-else
-    echo "Web interface is not responding"
-    exit 1
-fi
-```
-
-The PyOrchestrate Web Interface provides a user-friendly alternative to CLI commands, making it easy to monitor and control your orchestrator through a browser-based dashboard.

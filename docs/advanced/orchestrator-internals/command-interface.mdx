@@ -4,546 +4,245 @@ title: CommandInterface
 
 # CommandInterface
 
-The **CommandInterface** provides external control of the orchestrator through a command-based API exposed over a ZeroMQ socket. It enables CLI tools and other external clients to query and control the orchestrator at runtime.
+`CommandInterface` exposes runtime orchestrator operations to external clients. The orchestrator receives `ServiceMessage` commands through a ZeroMQ ROUTER socket; CLI and web clients connect through DEALER sockets.
 
-## Purpose and Design
+## Responsibilities
 
-The CommandInterface allows you to interact with a running orchestrator without modifying your application code. This is particularly useful for:
-
-- **Production monitoring**: Query agent status without stopping the system
-- **Runtime control**: Pause, resume, or shutdown agents dynamically
-- **Debugging**: Inspect agent states and event history
-- **CI/CD Integration**: Automated health checks and deployment verification
-
-## Core Responsibilities
-
-| Responsibility | Description |
-|---------------|-------------|
-| **Command Reception** | Listen for commands via ZMQ REQ/REP socket |
-| **Command Validation** | Validate commands against allowed whitelist |
-| **Command Execution** | Execute approved commands and return results |
-| **Event Recording** | Log command executions to event history |
-| **Security** | Enforce command restrictions via whitelist |
+| Responsibility | Implementation |
+|---|---|
+| Transport | `MessageChannel("zmq_router", address)` |
+| Request handling | `CommandHandler.execute_command_msg()` |
+| Permission checks | `CommandPermissions` and `allowed_commands` |
+| Response protocol | Structured `ServiceMessage` command responses |
+| Error history | Failed interface operations are recorded as `CLI_ERROR` events |
+| Lifecycle | Started and stopped with the orchestrator channel handlers |
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    CLI[CLI client<br/>DEALER] -->|ServiceMessage| ROUTER[CommandInterface<br/>ROUTER]
+    WEB[Web interface<br/>DEALER] -->|ServiceMessage| ROUTER
+    ROUTER --> HANDLER[CommandHandler]
+    HANDLER --> ORCH[Orchestrator managers]
+    ORCH --> HANDLER
+    HANDLER -->|Command response| ROUTER
 ```
-CLI Tool / External Client
-    ↓ (ZMQ REQ socket)
-CommandInterface (ZMQ REP socket)
-    ↓ validates command
-    ↓ executes command
-    ↓ records to EventStore
-    ↓ (ZMQ REP socket)
-CLI Tool receives JSON response
-```
+
+ROUTER/DEALER is asynchronous and supports multiple clients. It is not the strict REQ/REP pattern.
 
 ## Configuration
 
-### Enabling CommandInterface
-
-The CommandInterface is **disabled by default** for security. Enable it in the orchestrator configuration:
-
 ```python
-config = OrchestratorConfig(
+from PyOrchestrate.core.orchestrator import Orchestrator
+
+config = Orchestrator.Config(
     enable_command_interface=True,
-    command_zmq_address="tcp://127.0.0.1:5570",
-    allowed_commands="basic"  # Security level
+    command_zmq_address="tcp://127.0.0.1:5555",
+    allowed_commands="monitoring",
 )
 
 orchestrator = Orchestrator(config=config)
 ```
 
-### Configuration Options
+| Option | Default | Description |
+|---|---|---|
+| `enable_command_interface` | `True` | Create and start the external command interface |
+| `command_zmq_address` | `"tcp://*:5555"` | ROUTER bind address |
+| `allowed_commands` | `None` | Preset name, explicit command set, or all commands |
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `enable_command_interface` | `bool` | Enable/disable command interface (default: `False`) |
-| `command_zmq_address` | `str` | ZMQ socket address (default: `"tcp://127.0.0.1:5570"`) |
-| `allowed_commands` | `str` or `set` | Command whitelist preset or custom set |
+The command interface starts during `Orchestrator` initialization and stops during orchestrator shutdown.
 
-### Command Whitelist Presets
+## Commands
 
-The `allowed_commands` setting controls which commands are permitted:
+The handler recognizes:
+
+| Command | Operation |
+|---|---|
+| `ps` | List registered agents |
+| `status` | Read orchestrator or agent status |
+| `dependencies` | Read the dependency mapping |
+| `start` | Start a registered agent |
+| `stop` | Stop a registered agent |
+| `commands` | Inspect effective permissions |
+| `stats` | Read resource statistics |
+| `history` | Read event history |
+| `history-stats` | Read aggregate event statistics |
+| `shutdown` | Request graceful shutdown |
+
+## Permission Presets
+
+`CommandPermissions` provides four presets:
+
+### `production`
+
+Allows operational inspection:
+
+```text
+commands
+dependencies
+history
+history-stats
+ps
+stats
+status
+```
+
+### `development`
+
+Allows every command.
+
+### `read_only`
+
+Allows the same read-only surface as `production`.
+
+### `monitoring`
+
+Allows:
+
+```text
+commands
+history
+history-stats
+ps
+stats
+status
+```
+
+Use a preset:
 
 ```python
-# Basic commands only (safe for production)
-config = OrchestratorConfig(
-    allowed_commands="basic"
+config = Orchestrator.Config(
+    allowed_commands="production",
 )
-# Allows: ps, status
-
-# Monitoring commands (read-only operations)
-config = OrchestratorConfig(
-    allowed_commands="monitoring"
-)
-# Allows: ps, status, stats, history
-
-# All commands (use with caution!)
-config = OrchestratorConfig(
-    allowed_commands="all"
-)
-# Allows: ps, status, stats, history, shutdown, and more
-
-# Custom whitelist
-config = OrchestratorConfig(
-    allowed_commands={"ps", "status"}
-)
-# Allows only specified commands
 ```
 
-## Available Commands
+Or an explicit set:
 
-### `ps` - List Agents
-
-Lists all registered agents with their current status.
-
-**CLI Usage**:
-```bash
-pyorchestrate ps
+```python
+config = Orchestrator.Config(
+    allowed_commands={"ps", "status", "commands"},
+)
 ```
 
-**Response**:
+`None` allows all registered commands. Lists are not accepted.
+
+## Request Protocol
+
+Clients create a command message:
+
+```python
+from PyOrchestrate.core.utilities.messaging import ServiceMessage
+
+request = ServiceMessage.create_command(
+    sender="my-client",
+    command="status",
+    args=[],
+)
+```
+
+The payload contains the command, arguments, request identifier, timestamp, and optional metadata.
+
+Successful responses have a payload shaped like:
+
 ```json
 {
   "status": "success",
+  "code": 0,
   "data": {
-    "agents": [
-      {
-        "name": "worker1",
-        "state": "running",
-        "pid": 12345
-      },
-      {
-        "name": "worker2",
-        "state": "completed",
-        "pid": null
-      }
-    ]
-  }
+    "total_agents": 2
+  },
+  "error": null,
+  "request_id": "...",
+  "protocol_version": "..."
 }
 ```
 
-### `status` - Agent Status
+The CLI's JSON formatter prints only the `data` object for successful responses. Direct `MessageChannel` consumers and the web interface receive the complete response payload.
 
-Get detailed status of a specific agent or all agents.
+## Client Example
 
-**CLI Usage**:
-```bash
-pyorchestrate status
-pyorchestrate status worker1
-```
+Use the public CLI client wrapper:
 
-**Response**:
-```json
-{
-  "status": "success",
-  "data": {
-    "agent_name": "worker1",
-    "state": "running",
-    "uptime_seconds": 127.5,
-    "last_heartbeat": "2025-10-26T14:30:00Z"
-  }
-}
-```
-
-### `stats` - System Statistics
-
-Get orchestrator and agent statistics.
-
-**CLI Usage**:
-```bash
-pyorchestrate stats
-```
-
-**Response**:
-```json
-{
-  "status": "success",
-  "data": {
-    "total_agents": 10,
-    "running": 8,
-    "completed": 2,
-    "max_workers": 10,
-    "uptime_seconds": 3600
-  }
-}
-```
-
-### `history` - Event History
-
-Query event history with optional filters.
-
-**CLI Usage**:
-```bash
-pyorchestrate history --limit 50
-pyorchestrate history --category agent --limit 20
-```
-
-**Response**:
-```json
-{
-  "status": "success",
-  "data": {
-    "events": [
-      {
-        "event_name": "AGENT_STARTED",
-        "agent_name": "worker1",
-        "timestamp": "2025-10-26T14:25:00Z"
-      },
-      {
-        "event_name": "AGENT_READY",
-        "agent_name": "worker1",
-        "timestamp": "2025-10-26T14:25:02Z"
-      }
-    ]
-  }
-}
-```
-
-### `shutdown` - Graceful Shutdown
-
-Initiate graceful shutdown of the orchestrator.
-
-**CLI Usage**:
-```bash
-pyorchestrate shutdown
-```
-
-**Response**:
-```json
-{
-  "status": "success",
-  "data": {
-    "message": "Shutdown initiated"
-  }
-}
-```
-
-⚠️ **Security Warning**: Only enable this command in controlled environments!
-
-## Security Considerations
-
-### Command Whitelist Strategy
-
-Choose your security level based on environment:
-
-**Development**:
 ```python
-# All commands allowed for testing
-config = OrchestratorConfig(
-    allowed_commands="all"
-)
+from PyOrchestrate.cli import CommandClient
+
+client = CommandClient("tcp://127.0.0.1:5555")
+response = client.send_command("status")
+
+if response and response["status"] == "success":
+    print(response["data"])
+else:
+    print(response)
 ```
 
-**Staging/QA**:
+## Event History
+
+The command interface records failures as events:
+
+```text
+category: cli
+event_name: CLI_ERROR
+severity: ERROR
+```
+
+Successful commands are not currently written as dedicated command-audit events.
+
+## Network Security
+
+The default orchestrator address, `tcp://*:5555`, binds every network interface. For local-only clients:
+
 ```python
-# Monitoring commands only
-config = OrchestratorConfig(
-    allowed_commands="monitoring"
+config = Orchestrator.Config(
+    command_zmq_address="tcp://127.0.0.1:5555",
 )
 ```
 
-**Production**:
-```python
-# Basic commands only
-config = OrchestratorConfig(
-    allowed_commands="basic"
-)
+The command transport does not add authentication or encryption. When remote access is necessary:
 
-# Or even more restrictive
-config = OrchestratorConfig(
-    allowed_commands={"ps"}  # Only list agents
-)
-```
+1. use a trusted private network;
+2. restrict the port with firewall rules;
+3. configure a restrictive `allowed_commands` preset or set;
+4. avoid exposing the ROUTER socket directly to the public internet.
 
-### Network Security
+Web authentication protects HTTP access to `pyorchestrate-web`; it does not authenticate direct ZeroMQ clients.
 
-**Bind to localhost only** (default):
-```python
-config = OrchestratorConfig(
-    command_zmq_address="tcp://127.0.0.1:5570"  # Local only
-)
-```
+## Error Handling
 
-**Allow network access** (use with authentication):
-```python
-config = OrchestratorConfig(
-    command_zmq_address="tcp://0.0.0.0:5570"  # All interfaces
-)
-# ⚠️ Requires additional security measures!
-```
-
-### Rejected Command Response
-
-When a command is not in the whitelist:
+Rejected or invalid commands return a structured error payload:
 
 ```json
 {
   "status": "error",
   "code": 403,
-  "error": "Command 'shutdown' not allowed"
+  "data": {},
+  "error": "Command 'shutdown' is not allowed...",
+  "request_id": "...",
+  "protocol_version": "..."
 }
 ```
 
-## Integration with CLI
+Common failure categories include:
 
-The PyOrchestrate CLI uses the CommandInterface to communicate with running orchestrators:
-
-```bash
-# CLI connects to default address
-pyorchestrate ps
-
-# CLI connects to custom address
-pyorchestrate --address tcp://192.168.1.100:5570 ps
-
-# CLI waits for orchestrator to be ready
-pyorchestrate status --wait
-```
-
-## Event Recording
-
-All command executions are recorded to the EventStore:
-
-```python
-# Command execution is automatically logged
-orchestrator.event_bus.event_store.query(
-    category="command",
-    limit=10
-)
-
-# Returns:
-# [
-#   {"event_name": "COMMAND_EXECUTED", "command": "ps", "timestamp": "..."},
-#   {"event_name": "COMMAND_EXECUTED", "command": "status", "timestamp": "..."},
-# ]
-```
-
-This provides an audit trail of all external interactions.
-
-## Lifecycle Management
-
-### Automatic Startup
-
-The CommandInterface starts automatically when enabled:
-
-```python
-# In Orchestrator.__init__()
-if config.enable_command_interface:
-    self.command_interface = CommandInterface(...)
-    self.command_interface.start()  # Starts ZMQ listener
-```
-
-### Graceful Shutdown
-
-The interface is stopped during orchestrator cleanup:
-
-```python
-# In Orchestrator.join()
-if self.command_interface:
-    self.command_interface.stop(timeout=2.0)
-    # Waits for pending commands to complete
-```
-
-## Error Handling
-
-### Connection Errors
-
-```json
-{
-  "status": "error",
-  "code": 500,
-  "error": "Internal server error: connection failed"
-}
-```
-
-### Malformed Requests
-
-```json
-{
-  "status": "error",
-  "code": 400,
-  "error": "Invalid command format"
-}
-```
-
-### Command Execution Failures
-
-```json
-{
-  "status": "error",
-  "code": 500,
-  "error": "Failed to execute command: agent not found"
-}
-```
-
-## Common Patterns
-
-### Health Check in CI/CD
-
-```bash
-#!/bin/bash
-# Wait for orchestrator to be ready
-pyorchestrate status --wait --timeout 60
-
-# Check all agents are running
-agents=$(pyorchestrate ps --json | jq '.data.agents | length')
-
-if [ $agents -eq 10 ]; then
-  echo "All agents running"
-  exit 0
-else
-  echo "Only $agents agents running"
-  exit 1
-fi
-```
-
-### Production Monitoring
-
-```python
-import zmq
-
-context = zmq.Context()
-socket = context.socket(zmq.REQ)
-socket.connect("tcp://orchestrator-host:5570")
-
-# Send command
-socket.send_json({
-    "command": "stats",
-    "args": []
-})
-
-# Receive response
-response = socket.recv_json()
-print(f"Running agents: {response['data']['running']}")
-```
-
-### Graceful Deployment
-
-```bash
-# 1. Check current status
-pyorchestrate status
-
-# 2. Initiate graceful shutdown
-pyorchestrate shutdown
-
-# 3. Wait for completion
-while pyorchestrate status 2>/dev/null; do
-  echo "Waiting for shutdown..."
-  sleep 2
-done
-
-# 4. Deploy new version
-./deploy_new_version.sh
-```
+- command not allowed;
+- unknown command;
+- missing required agent name;
+- unknown agent;
+- transport timeout or unavailable endpoint.
 
 ## Testing
 
-### Testing with Mock Socket
+Test the handler without opening a network socket by constructing `CommandHandler` with a mocked orchestrator. Test ROUTER/DEALER integration separately because it requires a local TCP port.
 
-```python
-import unittest
-from unittest.mock import Mock, patch
+For a running orchestrator:
 
-class TestCommandInterface(unittest.TestCase):
-    @patch('zmq.Context')
-    def test_command_execution(self, mock_zmq):
-        # Setup mock socket
-        mock_socket = Mock()
-        mock_zmq.return_value.socket.return_value = mock_socket
-        
-        # Test command interface
-        interface = CommandInterface(...)
-        interface.handle_command({
-            "command": "ps",
-            "args": []
-        })
-        
-        # Verify response
-        mock_socket.send_json.assert_called_once()
-```
-
-## Best Practices
-
-### 1. Use Appropriate Security Level
-
-```python
-# Good: Restrictive in production
-config = OrchestratorConfig(
-    allowed_commands="basic"  # Read-only
-)
-
-# Avoid: Too permissive in production
-config = OrchestratorConfig(
-    allowed_commands="all"  # Dangerous!
-)
-```
-
-### 2. Bind to Localhost by Default
-
-```python
-# Good: Local access only
-command_zmq_address="tcp://127.0.0.1:5570"
-
-# Avoid: Network access without security
-command_zmq_address="tcp://0.0.0.0:5570"
-```
-
-### 3. Monitor Command Usage
-
-```python
-# Track command execution frequency
-commands = orchestrator.event_bus.event_store.query(
-    category="command",
-    limit=100
-)
-
-command_counts = {}
-for event in commands:
-    cmd = event.data.get("command")
-    command_counts[cmd] = command_counts.get(cmd, 0) + 1
-
-print(f"Command usage: {command_counts}")
-```
-
-### 4. Implement Timeouts
-
-```python
-# CLI should timeout if orchestrator is unresponsive
-import zmq
-
-socket.setsockopt(zmq.RCVTIMEO, 5000)  # 5 second timeout
-try:
-    response = socket.recv_json()
-except zmq.Again:
-    print("Orchestrator not responding")
-```
-
-## Debugging
-
-### Test Connection
-
-```python
-import zmq
-
-context = zmq.Context()
-socket = context.socket(zmq.REQ)
-socket.connect("tcp://127.0.0.1:5570")
-
-socket.send_json({"command": "ps", "args": []})
-print(socket.recv_json())
-```
-
-### Enable Debug Logging
-
-```python
-import logging
-logging.getLogger("PyOrchestrate.CommandInterface").setLevel(logging.DEBUG)
+```bash
+pyorchestrate status --socket tcp://127.0.0.1:5555
+pyorchestrate commands --socket tcp://127.0.0.1:5555
 ```
 
 ## See Also
 
-- [CLI Reference](/cli/runtime-commands) - Complete CLI command documentation
-- [OrchestratorEventBus](/advanced/orchestrator-internals/event-bus) - Event recording
-- [MessageChannel](/advanced/utilities/message-channel) - Low-level communication
-- [Orchestrator Internals](/advanced/orchestrator-internals/index) - Architecture overview
+- [CLI configuration](/cli/configuration)
+- [Runtime commands](/cli/runtime-commands)
+- [MessageChannel](/advanced/utilities/message-channel)

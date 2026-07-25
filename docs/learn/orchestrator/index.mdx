@@ -23,7 +23,7 @@ from PyOrchestrate.core.orchestrator import Orchestrator
 from my_project.models import Publisher, Subscriber
 
 if __name__ == "__main__":
-    orchestrator = Orchestrator("Orchestrator")
+    orchestrator = Orchestrator(name="Orchestrator")
 
     # register agents
     orchestrator.register_agent(Publisher, "Publisher")
@@ -93,8 +93,8 @@ Available events are stored in the `OrchestratorEvent` class:
 
 The Orchestrator communicates through two `MessageChannel` objects:
 
-- **`message_channel`**: an in-memory queue where agents push their status updates (*started*, *ready*, *terminated*). The Orchestrator consumes these messages to track agent activity.  
-- **`command_channel`**: a Unix domain socket used by external clients (like the CLI) to send commands or request data. It can be turned off in the config via `enable_command_interface` (enabled by default).  
+- **`msg_channel`**: an in-memory process channel where agents push lifecycle and service messages. The Orchestrator consumes these messages through its message router.
+- **Command interface**: a ZeroMQ ROUTER channel over TCP used by external clients such as the CLI and web interface. It can be turned off with `enable_command_interface` and is enabled by default.
 
 Both channels are watched by a dedicated thread inside the Orchestrator.  
 This thread continuously checks for new messages and routes them to the **Event Manager** or the proper handler, ensuring that every agent event or external command triggers the right callback.
@@ -115,11 +115,11 @@ if __name__ == "__main__":
     # Configure orchestrator
     config = Orchestrator.Config(
         enable_command_interface=True,
-        command_socket_path="/tmp/pyorchestrate.sock",
+        command_zmq_address="tcp://127.0.0.1:5555",
         run_mode=RunMode.DAEMON,
         check_interval=.25
     )
-    orchestrator = Orchestrator("Orchestrator", config=config)
+    orchestrator = Orchestrator(config=config, name="Orchestrator")
 ```
 
 ## Registering Agents
