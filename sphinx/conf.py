@@ -66,7 +66,11 @@ def _markdown_fences_to_rst(app, what, name, obj, options, lines):
             if fence_indent is not None:
                 # dentro un blocco: rientra di 3 spazi sotto la direttiva,
                 # preservando l'indentazione relativa del codice
-                converted.append(" " * (fence_indent + 3) + line[fence_indent:] if line.strip() else "")
+                converted.append(
+                    " " * (fence_indent + 3) + line[fence_indent:]
+                    if line.strip()
+                    else ""
+                )
             else:
                 converted.append(line)
             continue

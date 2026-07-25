@@ -26,14 +26,14 @@ class Scheduler:
     _scheduler = None
 
     def __init__(
-            self,
-            funzione,
-            logger,
-            args=(),
-            kwargs={},
-            start_time=None,
-            delay=0,
-            interval=None,
+        self,
+        funzione,
+        logger,
+        args=(),
+        kwargs={},
+        start_time=None,
+        delay=0,
+        interval=None,
     ) -> None:
         """
         Inizializza una nuova schedulazione.
@@ -191,24 +191,20 @@ if __name__ == "__main__":
 
     logger = Logger("Scheduler")
 
-
     def saluta1(nome):
         print(
             f"{nome} saluta dopo 5 secondi dall'avvio e va via ({datetime.datetime.now().strftime('%H:%M:%S')})"
         )
-
 
     def saluta2(nome):
         print(
             f"{nome} saluta alle 21:53:00 e ripete ogni 10 secondi ({datetime.datetime.now().strftime('%H:%M:%S')})"
         )
 
-
     def saluta3(nome):
         print(
             f"{nome} saluta ogni 10 secondi ({datetime.datetime.now().strftime('%H:%M:%S')})"
         )
-
 
     sched1 = Scheduler(funzione=saluta1, args=("Mario",), delay=5, logger=logger)
 

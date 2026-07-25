@@ -18,7 +18,11 @@ import zmq
 from PyOrchestrate.core.orchestrator import Orchestrator
 from PyOrchestrate.core.agent import LoopingProcessAgent
 from PyOrchestrate.core.plugins.com import (
-    ZeroMQPubSub, ZeroMQReqRep, ZeroMQPair, ZeroMQPoller, SocketType
+    ZeroMQPubSub,
+    ZeroMQReqRep,
+    ZeroMQPair,
+    ZeroMQPoller,
+    SocketType,
 )
 
 
@@ -27,15 +31,17 @@ class PollingAgent(LoopingProcessAgent):
 
     class Config(LoopingProcessAgent.Config):
         """Configuration for the PollingAgent."""
-        
+
         message_count: int = 0
         max_messages: int = 20
 
     class Plugin(LoopingProcessAgent.Plugin):
         """Plugin for the PollingAgent."""
-        
+
         # Multiple communication patterns
-        sub_socket = ZeroMQPubSub("tcp://localhost:5555", SocketType.SUB, subscribe_topic=b"")
+        sub_socket = ZeroMQPubSub(
+            "tcp://localhost:5555", SocketType.SUB, subscribe_topic=b""
+        )
         rep_socket = ZeroMQReqRep("tcp://*:5556", SocketType.REP)
         pair_socket = ZeroMQPair("tcp://*:5557", bind=True)
         poller = ZeroMQPoller()
@@ -45,13 +51,13 @@ class PollingAgent(LoopingProcessAgent):
 
     def setup(self):
         super().setup()
-        
+
         # Initialize all sockets
         self.plugin.sub_socket.initialize()
         self.plugin.rep_socket.initialize()
         self.plugin.pair_socket.initialize()
         self.plugin.poller.initialize()
-        
+
         # Register sockets with poller
         self.plugin.poller.register(self.plugin.sub_socket.socket, zmq.POLLIN)
         self.plugin.poller.register(self.plugin.rep_socket.socket, zmq.POLLIN)
@@ -62,7 +68,7 @@ class PollingAgent(LoopingProcessAgent):
 
         # Poll for events with a timeout
         events = self.plugin.poller.poll(timeout=100)  # 100ms timeout
-        
+
         if not events:
             self.logger.debug("No events received")
             return
@@ -85,25 +91,25 @@ class PollingAgent(LoopingProcessAgent):
             if socket == self.plugin.sub_socket.socket:
                 message = self.plugin.sub_socket.recv(blocking=False)
                 self.logger.info(f"SUB received: {message.decode()}")
-                
+
             elif socket == self.plugin.rep_socket.socket:
                 request = self.plugin.rep_socket.recv(blocking=False)
                 self.logger.info(f"REP received: {request.decode()}")
-                
+
                 # Send reply
                 reply = f"ACK: {request.decode()}"
                 self.plugin.rep_socket.send(reply.encode(), blocking=False)
-                
+
             elif socket == self.plugin.pair_socket.socket:
                 message = self.plugin.pair_socket.recv(blocking=False)
                 self.logger.info(f"PAIR received: {message.decode()}")
-                
+
                 # Send response
                 response = f"Echo: {message.decode()}"
                 self.plugin.pair_socket.send(response.encode(), blocking=False)
-                
+
             self.config.message_count += 1
-            
+
         except zmq.error.Again:
             # No message available (shouldn't happen since we polled)
             self.logger.debug("No message available despite poll event")
@@ -116,13 +122,13 @@ class PublisherAgent(LoopingProcessAgent):
 
     class Config(LoopingProcessAgent.Config):
         """Configuration for the PublisherAgent."""
-        
+
         counter: int = 1
         max_messages: int = 8
 
     class Plugin(LoopingProcessAgent.Plugin):
         """Plugin for the PublisherAgent."""
-        
+
         zmq = ZeroMQPubSub("tcp://*:5555", SocketType.PUB)
 
     config: Config
@@ -139,7 +145,7 @@ class PublisherAgent(LoopingProcessAgent):
         message = f"Published message {self.config.counter}"
         self.logger.info(f"Publishing: {message}")
         self.plugin.zmq.send(message.encode())
-        
+
         self.config.counter += 1
         time.sleep(1)  # Publish every second
 
@@ -149,13 +155,13 @@ class RequesterAgent(LoopingProcessAgent):
 
     class Config(LoopingProcessAgent.Config):
         """Configuration for the RequesterAgent."""
-        
+
         counter: int = 1
         max_messages: int = 6
 
     class Plugin(LoopingProcessAgent.Plugin):
         """Plugin for the RequesterAgent."""
-        
+
         zmq = ZeroMQReqRep("tcp://localhost:5556", SocketType.REQ)
 
     config: Config
@@ -172,14 +178,14 @@ class RequesterAgent(LoopingProcessAgent):
         request = f"Request {self.config.counter}"
         self.logger.info(f"Sending request: {request}")
         self.plugin.zmq.send(request.encode())
-        
+
         # Receive reply
         try:
             reply = self.plugin.zmq.recv(blocking=False)
             self.logger.info(f"Received reply: {reply.decode()}")
         except zmq.error.Again:
             self.logger.warning("No reply received")
-        
+
         self.config.counter += 1
         time.sleep(1.5)  # Send requests every 1.5 seconds
 
@@ -189,13 +195,13 @@ class PairCommunicatorAgent(LoopingProcessAgent):
 
     class Config(LoopingProcessAgent.Config):
         """Configuration for the PairCommunicatorAgent."""
-        
+
         counter: int = 1
         max_messages: int = 5
 
     class Plugin(LoopingProcessAgent.Plugin):
         """Plugin for the PairCommunicatorAgent."""
-        
+
         zmq = ZeroMQPair("tcp://localhost:5557", bind=False)
 
     config: Config
@@ -212,7 +218,7 @@ class PairCommunicatorAgent(LoopingProcessAgent):
         message = f"Pair message {self.config.counter}"
         self.logger.info(f"Sending to pair: {message}")
         self.plugin.zmq.send(message.encode())
-        
+
         # Receive response
         try:
             time.sleep(0.1)  # Small delay for response
@@ -220,7 +226,7 @@ class PairCommunicatorAgent(LoopingProcessAgent):
             self.logger.info(f"Received from pair: {response.decode()}")
         except zmq.error.Again:
             self.logger.debug("No response from pair")
-        
+
         self.config.counter += 1
         time.sleep(2)  # Send every 2 seconds
 

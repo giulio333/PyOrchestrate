@@ -70,7 +70,7 @@ class TestLoopingAgent(unittest.TestCase):
         self.assertEqual(self.agent.name, "test_looping_agent")
         self.assertEqual(self.agent.a_type, "process")
         self.assertEqual(self.agent.config, self.config)
-        self.assertEqual(self.agent.custom_attr, "custom_value")  # type:ignore
+        self.assertEqual(self.agent.custom_attr, "custom_value")  # type: ignore
 
         # Check agent events
         self.assertEqual(self.agent.state_events, self.state_events)
@@ -97,21 +97,21 @@ class TestLoopingAgent(unittest.TestCase):
     def test_execute_without_limit(self):
         """Test execute with infinite loop"""
         self.config.limit = -1
-        self.agent.safe_cycle = MagicMock()  # type:ignore
+        self.agent.safe_cycle = MagicMock()  # type: ignore
         self.control_events.stop_event.is_set.side_effect = [False, False, True]
         self.agent.run()
         self.assertEqual(self.agent.safe_cycle.call_count, 2)
 
     def test_execute_with_limit_early_stop(self):
         """Test execute with limit but stopped early"""
-        self.agent.safe_cycle = MagicMock()  # type:ignore
+        self.agent.safe_cycle = MagicMock()  # type: ignore
         self.control_events.stop_event.is_set.side_effect = [False, True]
         self.agent.run()
         self.assertEqual(self.agent.safe_cycle.call_count, 1)
 
     def test_execute_reaches_limit(self):
         """Test execute reaches limit and logs message"""
-        self.agent.safe_cycle = MagicMock()  # type:ignore
+        self.agent.safe_cycle = MagicMock()  # type: ignore
         self.control_events.stop_event.is_set.return_value = False
         self.agent.run()
         self.assertEqual(self.agent.safe_cycle.call_count, 5)

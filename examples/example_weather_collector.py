@@ -17,7 +17,9 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
 def send_telegram_message(message: str):
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        logging.warning("TELEGRAM_TOKEN/TELEGRAM_CHAT_ID non impostati: messaggio non inviato.")
+        logging.warning(
+            "TELEGRAM_TOKEN/TELEGRAM_CHAT_ID non impostati: messaggio non inviato."
+        )
         return
 
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"

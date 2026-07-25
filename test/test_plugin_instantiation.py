@@ -34,6 +34,7 @@ class TestPluginInstantiation(unittest.TestCase):
 
     def test_base_class_plugin_default_values(self):
         """Test that class attributes serve as defaults."""
+
         class MyPlugin(BaseClassPlugin):
             mock = MockPlugin("class_default")
 
@@ -42,6 +43,7 @@ class TestPluginInstantiation(unittest.TestCase):
 
     def test_base_class_plugin_override_via_constructor(self):
         """Test that constructor kwargs override class attributes."""
+
         class MyPlugin(BaseClassPlugin):
             mock = MockPlugin("class_default")
 
@@ -51,6 +53,7 @@ class TestPluginInstantiation(unittest.TestCase):
 
     def test_base_class_plugin_multiple_attributes(self):
         """Test handling multiple plugin attributes."""
+
         class MyPlugin(BaseClassPlugin):
             plugin1 = MockPlugin("plugin1_default")
             plugin2 = MockPlugin("plugin2_default")
@@ -74,6 +77,7 @@ class TestPluginInstantiation(unittest.TestCase):
 
     def test_agent_plugin_simplified_pattern(self):
         """Test that AgentPlugin no longer needs explicit __init__."""
+
         class MyAgentPlugin(AgentPlugin):
             custom = MockPlugin("custom_default")
 
@@ -92,6 +96,7 @@ class TestPluginInstantiation(unittest.TestCase):
 
     def test_orchestrator_plugin_simplified_pattern(self):
         """Test that OrchestratorPlugin no longer needs explicit __init__."""
+
         class MyOrchestratorPlugin(OrchestratorPlugin):
             custom = MockPlugin("orchestrator_default")
 
@@ -106,6 +111,7 @@ class TestPluginInstantiation(unittest.TestCase):
 
     def test_none_default_values(self):
         """Test handling None as default value."""
+
         class MyPlugin(BaseClassPlugin):
             optional_plugin = None
 
@@ -119,6 +125,7 @@ class TestPluginInstantiation(unittest.TestCase):
 
     def test_custom_attr_compatibility(self):
         """Test that _custom_attr mechanism still works."""
+
         class MyPlugin(BaseClassPlugin):
             default_plugin = MockPlugin("default")
 
@@ -126,7 +133,7 @@ class TestPluginInstantiation(unittest.TestCase):
         plugin = MyPlugin(
             default_plugin=MockPlugin("override"),
             extra_param="extra_value",
-            another_param=42
+            another_param=42,
         )
 
         self.assertEqual(plugin.default_plugin.value, "override")

@@ -867,8 +867,7 @@ class PyOrchestrateWebServer:
         @self.app.get("/")
         async def root():
             """Root endpoint redirects to orchestrator status."""
-            return HTMLResponse(
-                """
+            return HTMLResponse("""
             <!DOCTYPE html>
             <html>
             <head>
@@ -879,8 +878,7 @@ class PyOrchestrateWebServer:
                 <p>Redirecting to <a href="/api/orchestrator/status">PyOrchestrate Status</a>...</p>
             </body>
             </html>
-            """
-            )
+            """)
 
         @self.app.get("/api/health")
         async def health_check(

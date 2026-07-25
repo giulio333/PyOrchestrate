@@ -94,7 +94,7 @@ class TestBaseAgent(unittest.TestCase):
         self.assertEqual(self.agent.name, "test_base_agent")
         self.assertEqual(self.agent.a_type, "process")
         self.assertEqual(self.agent.config, self.config)
-        self.assertEqual(self.agent.custom_attr, "custom_value")  # type:ignore
+        self.assertEqual(self.agent.custom_attr, "custom_value")  # type: ignore
 
         # Check agent events
         self.assertEqual(self.agent.state_events, self.state_events)
@@ -193,7 +193,7 @@ class TestBaseAgent(unittest.TestCase):
         """Test complete run lifecycle"""
         self.agent.setup = MagicMock()
         self.agent.execute = MagicMock()
-        self.agent.validate_config = MagicMock()  # type:ignore
+        self.agent.validate_config = MagicMock()  # type: ignore
 
         self.agent.run()
 
@@ -237,8 +237,8 @@ class TestBaseAgent(unittest.TestCase):
             config=self.config,
             plugin=self.plugin,
             a_type="process",
-            control_events=None,  # type:ignore
-            state_events=None,  # type:ignore
+            control_events=None,  # type: ignore
+            state_events=None,  # type: ignore
             msg_channel=self.msg_channel,
         )
         agent_missing.logger = MagicMock()

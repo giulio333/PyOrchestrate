@@ -17,7 +17,6 @@ from datetime import datetime
 from typing import Callable, Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 
-
 # Thread-safe logger configuration
 logger = logging.getLogger(__name__)
 

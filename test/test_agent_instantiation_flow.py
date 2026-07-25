@@ -42,6 +42,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+
         # Create a simple test agent
         class SimpleTestAgent(BaseProcessAgent):
             class Config(BaseProcessAgent.Config):
@@ -65,8 +66,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         """
         # Create custom config
         custom_config = self.SimpleTestAgent.Config(
-            test_value="custom_value",
-            number=100
+            test_value="custom_value", number=100
         )
 
         # Create orchestrator (disable command interface to avoid port conflicts in tests)
@@ -76,9 +76,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
 
         # Register agent with custom config
         agent_entry = orchestrator.register_agent(
-            self.SimpleTestAgent,
-            "test_agent",
-            custom_config=custom_config
+            self.SimpleTestAgent, "test_agent", custom_config=custom_config
         )
 
         # Verify config is stored in AgentEntry
@@ -106,10 +104,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         )
 
         # Register agent WITHOUT custom config
-        agent_entry = orchestrator.register_agent(
-            self.SimpleTestAgent,
-            "test_agent"
-        )
+        agent_entry = orchestrator.register_agent(self.SimpleTestAgent, "test_agent")
 
         # Config should be None in AgentEntry until initialization
         self.assertIsNone(agent_entry.config)
@@ -135,9 +130,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
 
         # Register agent with custom plugin
         agent_entry = orchestrator.register_agent(
-            self.SimpleTestAgent,
-            "test_agent",
-            custom_plugin=custom_plugin
+            self.SimpleTestAgent, "test_agent", custom_plugin=custom_plugin
         )
 
         # Verify plugin is stored in AgentEntry
@@ -161,10 +154,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         )
 
         # Case 1: No custom control events (will be None until agent initialization)
-        agent_entry1 = orchestrator.register_agent(
-            self.SimpleTestAgent,
-            "test_agent1"
-        )
+        agent_entry1 = orchestrator.register_agent(self.SimpleTestAgent, "test_agent1")
 
         # Control events are None in AgentEntry until initialization
         self.assertIsNone(agent_entry1.control_events)
@@ -182,13 +172,11 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         custom_control_events = BaseAgent.ControlEvents(
             setup_event=multiprocessing.Event(),
             execute_event=multiprocessing.Event(),
-            stop_event=multiprocessing.Event()
+            stop_event=multiprocessing.Event(),
         )
 
         agent_entry2 = orchestrator.register_agent(
-            self.SimpleTestAgent,
-            "test_agent2",
-            control_events=custom_control_events
+            self.SimpleTestAgent, "test_agent2", control_events=custom_control_events
         )
 
         # Verify custom control events are stored
@@ -208,10 +196,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         )
 
         # Case 1: No custom state events (will be None until agent initialization)
-        agent_entry1 = orchestrator.register_agent(
-            self.SimpleTestAgent,
-            "test_agent1"
-        )
+        agent_entry1 = orchestrator.register_agent(self.SimpleTestAgent, "test_agent1")
 
         # State events are None in AgentEntry until initialization
         self.assertIsNone(agent_entry1.state_events)
@@ -229,13 +214,11 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         custom_state_events = BaseAgent.StateEvents(
             start_event=multiprocessing.Event(),
             ready_event=multiprocessing.Event(),
-            close_event=multiprocessing.Event()
+            close_event=multiprocessing.Event(),
         )
 
         agent_entry2 = orchestrator.register_agent(
-            self.SimpleTestAgent,
-            "test_agent2",
-            state_events=custom_state_events
+            self.SimpleTestAgent, "test_agent2", state_events=custom_state_events
         )
 
         # Verify custom state events are stored
@@ -255,10 +238,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         )
 
         # Case 1: No custom msg_channel (orchestrator's channel should be used)
-        agent_entry1 = orchestrator.register_agent(
-            self.SimpleTestAgent,
-            "test_agent1"
-        )
+        agent_entry1 = orchestrator.register_agent(self.SimpleTestAgent, "test_agent1")
 
         agent_entry1.initialize_agent()
 
@@ -272,9 +252,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         custom_msg_channel = MessageChannel("process")
 
         agent_entry2 = orchestrator.register_agent(
-            self.SimpleTestAgent,
-            "test_agent2",
-            msg_channel=custom_msg_channel
+            self.SimpleTestAgent, "test_agent2", msg_channel=custom_msg_channel
         )
 
         agent_entry2.initialize_agent()
@@ -295,7 +273,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
             self.SimpleTestAgent,
             "test_agent",
             custom_attr="custom_value",
-            another_attr=123
+            another_attr=123,
         )
 
         # Verify kwargs are stored in AgentEntry
@@ -323,10 +301,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
 
         agent_name = "MySpecialAgent"
 
-        agent_entry = orchestrator.register_agent(
-            self.SimpleTestAgent,
-            agent_name
-        )
+        agent_entry = orchestrator.register_agent(self.SimpleTestAgent, agent_name)
 
         # Verify name in AgentEntry
         self.assertEqual(agent_entry.name, agent_name)
@@ -345,10 +320,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
             config=Orchestrator.Config(enable_command_interface=False)
         )
 
-        agent_entry = orchestrator.register_agent(
-            self.SimpleTestAgent,
-            "test_agent"
-        )
+        agent_entry = orchestrator.register_agent(self.SimpleTestAgent, "test_agent")
 
         agent_entry.initialize_agent()
 
@@ -362,6 +334,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         """
         Test that agent type is correctly set for ThreadAgent.
         """
+
         class SimpleThreadAgent(BaseThreadAgent):
             def execute(self):
                 super().execute()
@@ -370,10 +343,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
             config=Orchestrator.Config(enable_command_interface=False)
         )
 
-        agent_entry = orchestrator.register_agent(
-            SimpleThreadAgent,
-            "test_agent"
-        )
+        agent_entry = orchestrator.register_agent(SimpleThreadAgent, "test_agent")
 
         agent_entry.initialize_agent()
 
@@ -395,8 +365,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         """
         # Create custom config and plugin
         custom_config = self.SimpleTestAgent.Config(
-            test_value="integration_test",
-            number=999
+            test_value="integration_test", number=999
         )
         custom_plugin = self.SimpleTestAgent.Plugin()
 
@@ -404,12 +373,12 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         custom_control_events = BaseAgent.ControlEvents(
             setup_event=multiprocessing.Event(),
             execute_event=multiprocessing.Event(),
-            stop_event=multiprocessing.Event()
+            stop_event=multiprocessing.Event(),
         )
         custom_state_events = BaseAgent.StateEvents(
             start_event=multiprocessing.Event(),
             ready_event=multiprocessing.Event(),
-            close_event=multiprocessing.Event()
+            close_event=multiprocessing.Event(),
         )
 
         # Create custom msg_channel
@@ -429,7 +398,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
             control_events=custom_control_events,
             state_events=custom_state_events,
             msg_channel=custom_msg_channel,
-            extra_param="extra_value"
+            extra_param="extra_value",
         )
 
         # Verify AgentEntry stores all parameters
@@ -465,6 +434,7 @@ class TestOMemoryAgentEntry(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+
         class SimpleAgent(BaseProcessAgent):
             def execute(self):
                 super().execute()
@@ -479,9 +449,7 @@ class TestOMemoryAgentEntry(unittest.TestCase):
         custom_config = self.SimpleAgent.Config()
 
         agent_entry = self.memory.add_agent(
-            agent_class=self.SimpleAgent,
-            name="test_agent",
-            custom_config=custom_config
+            agent_class=self.SimpleAgent, name="test_agent", custom_config=custom_config
         )
 
         # Verify AgentEntry is created correctly
@@ -495,8 +463,7 @@ class TestOMemoryAgentEntry(unittest.TestCase):
         Test that AgentEntry.initialize_agent() creates the agent instance.
         """
         agent_entry = self.memory.add_agent(
-            agent_class=self.SimpleAgent,
-            name="test_agent"
+            agent_class=self.SimpleAgent, name="test_agent"
         )
 
         # Before initialization, instance should be None
@@ -513,17 +480,11 @@ class TestOMemoryAgentEntry(unittest.TestCase):
         """
         Test that adding an agent with duplicate name raises ValueError.
         """
-        self.memory.add_agent(
-            agent_class=self.SimpleAgent,
-            name="duplicate_agent"
-        )
+        self.memory.add_agent(agent_class=self.SimpleAgent, name="duplicate_agent")
 
         # Try to add another agent with the same name
         with self.assertRaises(ValueError) as context:
-            self.memory.add_agent(
-                agent_class=self.SimpleAgent,
-                name="duplicate_agent"
-            )
+            self.memory.add_agent(agent_class=self.SimpleAgent, name="duplicate_agent")
 
         self.assertIn("already exists", str(context.exception))
 
@@ -537,6 +498,7 @@ class TestAgentInitializationParameters(unittest.TestCase):
         """
         Test that AgentEntry.initialize_agent() builds correct parameters dict.
         """
+
         class TestAgent(BaseProcessAgent):
             def execute(self):
                 super().execute()
@@ -546,12 +508,12 @@ class TestAgentInitializationParameters(unittest.TestCase):
         custom_control_events = BaseAgent.ControlEvents(
             setup_event=multiprocessing.Event(),
             execute_event=multiprocessing.Event(),
-            stop_event=multiprocessing.Event()
+            stop_event=multiprocessing.Event(),
         )
         custom_state_events = BaseAgent.StateEvents(
             start_event=multiprocessing.Event(),
             ready_event=multiprocessing.Event(),
-            close_event=multiprocessing.Event()
+            close_event=multiprocessing.Event(),
         )
 
         agent_entry = AgentEntry(
@@ -561,23 +523,23 @@ class TestAgentInitializationParameters(unittest.TestCase):
             plugin=custom_plugin,
             control_events=custom_control_events,
             state_events=custom_state_events,
-            extra_kwarg="extra_value"
+            extra_kwarg="extra_value",
         )
 
         # Mock the agent class to inspect the parameters
-        with patch.object(TestAgent, '__init__', return_value=None) as mock_init:
+        with patch.object(TestAgent, "__init__", return_value=None) as mock_init:
             agent_entry.initialize_agent()
 
             # Verify __init__ was called with correct parameters
             mock_init.assert_called_once()
             call_kwargs = mock_init.call_args[1]
 
-            self.assertEqual(call_kwargs['name'], "test_agent")
-            self.assertIs(call_kwargs['config'], custom_config)
-            self.assertIs(call_kwargs['plugin'], custom_plugin)
-            self.assertIs(call_kwargs['control_events'], custom_control_events)
-            self.assertIs(call_kwargs['state_events'], custom_state_events)
-            self.assertEqual(call_kwargs['extra_kwarg'], "extra_value")
+            self.assertEqual(call_kwargs["name"], "test_agent")
+            self.assertIs(call_kwargs["config"], custom_config)
+            self.assertIs(call_kwargs["plugin"], custom_plugin)
+            self.assertIs(call_kwargs["control_events"], custom_control_events)
+            self.assertIs(call_kwargs["state_events"], custom_state_events)
+            self.assertEqual(call_kwargs["extra_kwarg"], "extra_value")
 
 
 if __name__ == "__main__":

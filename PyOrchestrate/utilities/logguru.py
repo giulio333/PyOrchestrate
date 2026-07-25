@@ -1,9 +1,9 @@
 """
 Questo modulo definisce la classe `LoggerFactory`, che facilita la creazione e la gestione di logger personalizzati utilizzando Loguru.
 
-**Loguru** è una libreria di logging per Python che semplifica notevolmente la gestione dei log. 
-Uno dei concetti fondamentali in Loguru è il *sink*, che rappresenta una destinazione per i messaggi di log, come file, console o altri flussi. 
-I sink permettono di definire dove e come i messaggi di log vengono emessi, supportando funzionalità come la rotazione dei file, 
+**Loguru** è una libreria di logging per Python che semplifica notevolmente la gestione dei log.
+Uno dei concetti fondamentali in Loguru è il *sink*, che rappresenta una destinazione per i messaggi di log, come file, console o altri flussi.
+I sink permettono di definire dove e come i messaggi di log vengono emessi, supportando funzionalità come la rotazione dei file,
 la compressione, i filtri e la formattazione personalizzata.
 
 La classe `LoggerFactory` utilizza questi concetti per:
@@ -62,11 +62,11 @@ class LoggerFactory:
 
     @classmethod
     def set_defaults(
-            cls,
-            rotation: str | None = None,
-            retention: str | None = None,
-            compression: str | None = None,
-            log_path: str | Path | None = None,
+        cls,
+        rotation: str | None = None,
+        retention: str | None = None,
+        compression: str | None = None,
+        log_path: str | Path | None = None,
     ):
         """
         Imposta i valori di default per rotation, retention, compression e log_path.
@@ -82,14 +82,14 @@ class LoggerFactory:
 
     @classmethod
     def create_logger(
-            cls,
-            log_identifier: str,
-            logger_name: str,
-            level: str = "INFO",
-            rotation: str | None = None,
-            retention: str | None = None,
-            compression: str | None = None,
-            log_path: str | Path | None = None,
+        cls,
+        log_identifier: str,
+        logger_name: str,
+        level: str = "INFO",
+        rotation: str | None = None,
+        retention: str | None = None,
+        compression: str | None = None,
+        log_path: str | Path | None = None,
     ):
         """
         Crea o restituisce un `logger` esistente.

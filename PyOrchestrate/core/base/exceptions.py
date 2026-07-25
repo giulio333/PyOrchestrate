@@ -30,6 +30,7 @@ class TerminateProcess(Exception):
         """
         return self.args[0]
 
+
 class RecoverableException(Exception):
     """Exception raised to signal a recoverable error in an Agent.
 
@@ -44,6 +45,7 @@ class RecoverableException(Exception):
             message (str): The message to be displayed when the exception is raised.
         """
         super().__init__(message)
+
 
 class NonRecoverableException(Exception):
     """Exception raised to signal a non-recoverable error in an Agent.

@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Optional, Literal, Dict, Any
 import zmq
 
-
 # Constants
 DEFAULT_ZMQ_ADDRESS = "tcp://127.0.0.1:5555"
 PROTOCOL_VERSION = "1.0"
