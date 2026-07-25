@@ -166,6 +166,14 @@
             ]
           }
         ]
+      },
+      {
+        "tab": "API Reference",
+        "sdk": {
+          "format": "sphinx",
+          "source": "sdk-artifacts/sphinx-output",
+          "directory": "api"
+        }
       }
     ],
     "global": {

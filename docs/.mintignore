@@ -1,0 +1,3 @@
+# L'artifact Sphinx è consumato dalla feature SDK reference di Mintlify,
+# non va pubblicato come contenuto statico.
+sdk-artifacts/
