@@ -1,0 +1,9 @@
+services:
+  PyOrchestrate-Documentation:
+    container_name: PyOrchestrate-Documentation
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run docs:dev
+    ports:
+      - "8080:7891"

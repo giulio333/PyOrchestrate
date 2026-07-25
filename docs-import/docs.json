@@ -1,0 +1,170 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "PyOrchestrate",
+  "colors": {
+    "primary": "#6D28D9",
+    "light": "#A78BFA",
+    "dark": "#4C1D95"
+  },
+  "background": {
+    "decoration": "gradient"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "favicon": "/docs/public/favicon.ico",
+  "logo": {
+    "light": "/docs/public/logo.png",
+    "dark": "/docs/public/logo.png"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/giulio333/PyOrchestrateDocumentation"
+      }
+    ]
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Learn",
+        "groups": [
+          {
+            "group": "Introduction",
+            "pages": [
+              "docs/learn/introduction/index",
+              "docs/learn/introduction/orchestrator/index",
+              "docs/learn/introduction/agents/index",
+              "docs/learn/introduction/orchestrator_api"
+            ]
+          },
+          {
+            "group": "Getting Started",
+            "pages": [
+              "docs/learn/agents/index",
+              "docs/learn/orchestrator/index",
+              "docs/learn/config_and_validation"
+            ]
+          },
+          {
+            "group": "Built-in Agents",
+            "pages": [
+              "docs/learn/agents/built-in-agents/baseagent",
+              "docs/learn/agents/built-in-agents/loopingagent",
+              "docs/learn/agents/built-in-agents/periodicagent"
+            ]
+          },
+          {
+            "group": "Built-in Orchestrator",
+            "pages": [
+              "docs/learn/orchestrator/built-in-orchestrator/baseorchestrator"
+            ]
+          },
+          {
+            "group": "Plugins",
+            "pages": [
+              "docs/learn/agents/plugins/communication-plugins",
+              "docs/learn/agents/plugins/zeromqpubsub/zeromqpubsub",
+              "docs/learn/agents/plugins/zeromqreqrep/zeromqreqrep"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI",
+        "groups": [
+          {
+            "group": "CLI Reference",
+            "pages": [
+              "docs/cli/index",
+              "docs/cli/runtime-commands",
+              "docs/cli/configuration",
+              "docs/cli/examples"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Examples",
+        "groups": [
+          {
+            "group": "Basic",
+            "pages": [
+              "docs/examples/basic/project-initialization",
+              "docs/examples/basic/standalone-agent"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "docs/examples/advanced/heartbeat-plugin",
+              "docs/examples/advanced/multiple-agents",
+              "docs/examples/advanced/validation"
+            ]
+          },
+          {
+            "group": "Events",
+            "pages": [
+              "docs/examples/events/agent-state-events"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Advanced",
+        "groups": [
+          {
+            "group": "Orchestrator Internals",
+            "pages": [
+              "docs/advanced/orchestrator-internals/index",
+              "docs/advanced/orchestrator-internals/dependency-graph",
+              "docs/advanced/orchestrator-internals/lifecycle-manager",
+              "docs/advanced/orchestrator-internals/worker-pool",
+              "docs/advanced/orchestrator-internals/event-bus",
+              "docs/advanced/orchestrator-internals/message-router",
+              "docs/advanced/orchestrator-internals/command-interface"
+            ]
+          },
+          {
+            "group": "Core Utilities",
+            "pages": [
+              "docs/advanced/utilities/index",
+              "docs/advanced/utilities/event-manager",
+              "docs/advanced/utilities/plugin-manager",
+              "docs/advanced/utilities/message-channel"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "docs/advanced/architecture/message-channel"
+            ]
+          },
+          {
+            "group": "Built-in Agents",
+            "pages": [
+              "docs/advanced/built-in-agents/baseagent",
+              "docs/advanced/built-in-agents/loopingagent"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/giulio333/PyOrchestrateDocumentation",
+          "icon": "github"
+        }
+      ]
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/giulio333/PyOrchestrateDocumentation"
+    }
+  }
+}
