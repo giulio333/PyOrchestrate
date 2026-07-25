@@ -52,8 +52,17 @@ sorgenti. Sphinx produce un artifact JSON che Mintlify consuma tramite la sua
 feature *SDK reference* (`"sdk": {"format": "sphinx"}` in `docs.json`).
 
 ```bash
-./scripts/build_api_reference.sh   # richiede sphinx
+./scripts/build_api_reference.sh   # richiede sphinx, da eseguire con Python 3.13
 ```
+
+> **Rigenera sempre con la versione di Python indicata da `.python-version`
+> (3.13), la stessa del workflow.** Autodoc rende anche le firme ereditate
+> dalla stdlib, che cambiano tra versioni: generando con un Python diverso
+> l'artifact rimbalza avanti e indietro a ogni build — la firma di `enum.Enum`
+> è cambiata nella 3.12 — e la CI produce commit di rigenerazione che non
+> corrispondono a nessuna modifica delle docstring. Se il diff dell'artifact
+> mostra cambiamenti nelle firme senza che tu abbia toccato le docstring,
+> stai usando l'interprete sbagliato.
 
 - `sphinx/conf.py` — configurazione (autodoc + napoleon, docstring Google)
 - `sphinx/*.rst` — un file per sezione; **aggiungere qui i moduli nuovi**,

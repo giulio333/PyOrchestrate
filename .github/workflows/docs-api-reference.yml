@@ -27,10 +27,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Deve restare allineata a .python-version: autodoc rende le firme
+      # ereditate dalla stdlib, che cambiano tra versioni di Python. Con una
+      # versione diversa da quella usata in locale l'artifact rimbalza avanti e
+      # indietro a ogni rigenerazione (es. la firma di enum.Enum, cambiata
+      # nella 3.12), producendo commit automatici che non riflettono nessuna
+      # modifica alle docstring.
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Install dependencies
         run: |
