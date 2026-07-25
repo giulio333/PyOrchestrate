@@ -1,6 +1,0 @@
-node_modules/
-docs/.vitepress/cache/
-*.log
-.env
-*.json
-!docs.json
