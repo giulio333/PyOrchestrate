@@ -248,6 +248,10 @@ graph TD
     PeriodicAgent --> PoolAgent
 ```
 
+<Tip>
+`PoolAgent` is the one branch that changes the shape of the tree: instead of running your logic, it starts an orchestrator of its own and supervises a group of child agents. See [PoolAgent](/learn/agents/built-in-agents/poolagent).
+</Tip>
+
 The hierarchical structure you see above represents only the **behavior** of an agent. Then you have the **execution mode** of an agent, which can be either a **thread** or a **process**.
 
 For example, `LoopingAgent` can be either a `LoopingThreadAgent` or a `LoopingProcessAgent`.

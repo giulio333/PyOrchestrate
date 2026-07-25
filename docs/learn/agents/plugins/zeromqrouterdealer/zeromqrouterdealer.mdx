@@ -1,0 +1,125 @@
+---
+title: ZeroMQRouterDealer Plugin
+description: Learn how to use the ZeroMQRouterDealer plugin for asynchronous request/reply with client identity tracking.
+---
+
+# ZeroMQRouterDealer Plugin
+
+## Introduction to the Router-Dealer Pattern
+
+`ROUTER` and `DEALER` are the asynchronous counterparts of [`REQ`/`REP`](/learn/agents/plugins/zeromqreqrep/zeromqreqrep). They remove the strict send-then-receive lockstep: a `DEALER` can fire several requests without waiting for the answers, and a `ROUTER` can serve many clients at once, replying to each out of order.
+
+The mechanism behind this is the **identity**. A `ROUTER` prefixes every incoming message with the identity of the sender, and uses that same prefix to route a reply back to the right client. This is why the ROUTER side works with *multipart* messages.
+
+Reach for it when you are building a broker, a proxy, or any server that must keep track of who asked what.
+
+## Installation Instructions
+
+The plugin relies on `pyzmq`, a core dependency of PyOrchestrate:
+
+```bash
+pip install pyzmq
+```
+
+## Usage
+
+### Server Example (ROUTER)
+
+The ROUTER side must use `recv_multipart()` and `send_multipart()`: the first frame is the client identity, the rest is your payload.
+
+```python
+from PyOrchestrate.core.agent import LoopingProcessAgent
+from PyOrchestrate.core.plugins import ZeroMQRouterDealer, SocketType
+
+
+class RouterAgent(LoopingProcessAgent):
+
+    class Plugin(LoopingProcessAgent.Plugin):
+        zmq = ZeroMQRouterDealer("tcp://*:5555", SocketType.ROUTER)
+
+    plugin: Plugin
+
+    def cycle(self):
+        super().cycle()
+
+        message_parts = self.plugin.zmq.recv_multipart()
+        client_identity = message_parts[0]
+        message = message_parts[1].decode()
+
+        self.logger.info(f"Router received from {client_identity.decode()}: {message}")
+
+        # The identity must be the first frame of the reply
+        self.plugin.zmq.send_multipart([client_identity, f"ACK: {message}".encode()])
+```
+
+### Client Example (DEALER)
+
+The DEALER side uses plain `send()` and `recv()`: ZeroMQ adds and strips the identity frame for you.
+
+```python
+from PyOrchestrate.core.agent import PeriodicProcessAgent
+from PyOrchestrate.core.plugins import ZeroMQRouterDealer, SocketType
+
+
+class DealerAgent(PeriodicProcessAgent):
+
+    class Config(PeriodicProcessAgent.Config):
+        identity: bytes = b"dealer-1"
+
+    class Plugin(PeriodicProcessAgent.Plugin):
+        zmq = ZeroMQRouterDealer(
+            "tcp://localhost:5555", SocketType.DEALER, identity=b"dealer-1"
+        )
+
+    config: Config
+    plugin: Plugin
+
+    def runner(self):
+        super().runner()
+
+        self.plugin.zmq.send(b"Hello router")
+        self.logger.info(f"Reply: {self.plugin.zmq.recv().decode()}")
+```
+
+<Tip title="Set an explicit identity">
+`identity` is optional: without it ZeroMQ assigns a random one, which still works but makes the router's logs unreadable and prevents you from recognising a client across reconnections. Give each dealer a distinct, stable identity.
+</Tip>
+
+<Warning title="Who binds and who connects is fixed">
+A `ROUTER` socket always binds, a `DEALER` socket always connects. Any other socket type raises `ValueError`. Note that `identity` is only applied to `DEALER` sockets — passing it to a `ROUTER` has no effect.
+</Warning>
+
+For the full constructor signature and the `hwm` argument, see the [API reference](/api/plugins).
+
+## Error Handling
+
+### Dropped replies
+
+A `ROUTER` silently discards a message addressed to an identity it does not know — no exception is raised. If replies seem to vanish, check that you are sending back the **exact** identity frame you received, and that the client is still connected.
+
+### Non-blocking operation
+
+Both `recv_multipart()` and `recv()` accept `blocking=False` and raise `zmq.error.Again` when nothing is available. In a `cycle()` that runs continuously this is usually what you want, so the agent stays responsive to its stop event:
+
+```python
+import zmq
+
+try:
+    parts = self.plugin.zmq.recv_multipart(blocking=False)
+except zmq.error.Again:
+    return
+```
+
+### Malformed frames
+
+`recv_multipart()` returns a list whose length depends on what the peer sent. Check it before indexing, rather than assuming two frames.
+
+## Complete Example
+
+A runnable version with one router and several dealers lives in `examples/communication/example_zmq_routerdealer.py`.
+
+## Resource Links
+
+- [ZeroMQ Official Documentation](https://zeromq.org/documentation/)
+- [PyZMQ Documentation](https://pyzmq.readthedocs.io/en/latest/)
+- [ZeroMQ Guide — Advanced Request-Reply](https://zguide.zeromq.org/docs/chapter3/)

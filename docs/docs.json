@@ -54,7 +54,8 @@
             "pages": [
               "learn/agents/built-in-agents/baseagent",
               "learn/agents/built-in-agents/loopingagent",
-              "learn/agents/built-in-agents/periodicagent"
+              "learn/agents/built-in-agents/periodicagent",
+              "learn/agents/built-in-agents/poolagent"
             ]
           },
           {
@@ -68,7 +69,11 @@
             "pages": [
               "learn/agents/plugins/communication-plugins",
               "learn/agents/plugins/zeromqpubsub/zeromqpubsub",
-              "learn/agents/plugins/zeromqreqrep/zeromqreqrep"
+              "learn/agents/plugins/zeromqreqrep/zeromqreqrep",
+              "learn/agents/plugins/zeromqpushpull/zeromqpushpull",
+              "learn/agents/plugins/zeromqrouterdealer/zeromqrouterdealer",
+              "learn/agents/plugins/zeromqpair/zeromqpair",
+              "learn/agents/plugins/zeromqpoller/zeromqpoller"
             ]
           }
         ]

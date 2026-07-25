@@ -1,0 +1,134 @@
+---
+title: ZeroMQPoller Plugin
+description: Learn how to use the ZeroMQPoller to watch several ZeroMQ sockets at once without blocking on any of them.
+---
+
+# ZeroMQPoller Plugin
+
+## Why a Poller
+
+Every other ZeroMQ plugin gives you one socket. As soon as an agent needs two — say a `SUB` for notifications and a `REP` for commands — you hit a problem: a blocking `recv()` on the first socket freezes the agent even when the second one has a message waiting, and polling each in turn with `blocking=False` burns CPU.
+
+`ZeroMQPoller` is the answer. You register the sockets you care about, then ask once: *which of these are ready?* The call sleeps until something happens or the timeout expires.
+
+<Info>
+The poller is not a communication plugin: it neither sends nor receives. It watches the sockets owned by the other plugins, which is why it is used alongside them rather than instead of them.
+</Info>
+
+## Installation Instructions
+
+The plugin relies on `pyzmq`, a core dependency of PyOrchestrate:
+
+```bash
+pip install pyzmq
+```
+
+## Usage
+
+The poller works with raw `zmq.Socket` objects, which the other plugins expose through their `.socket` property.
+
+<Warning title="Register in setup, not in the Plugin class">
+Declaring the poller in the `Plugin` class gets it initialized with the agent, but **registration cannot happen there**: `.socket` raises `RuntimeError` until the owning plugin has been initialized. Register inside `setup()`, after calling `super().setup()`.
+</Warning>
+
+```python
+import zmq
+
+from PyOrchestrate.core.agent import LoopingProcessAgent
+from PyOrchestrate.core.plugins import (
+    ZeroMQPair,
+    ZeroMQPoller,
+    ZeroMQPubSub,
+    ZeroMQReqRep,
+    SocketType,
+)
+
+
+class PollingAgent(LoopingProcessAgent):
+
+    class Plugin(LoopingProcessAgent.Plugin):
+        sub_socket = ZeroMQPubSub(
+            "tcp://localhost:5555", SocketType.SUB, subscribe_topic=b""
+        )
+        rep_socket = ZeroMQReqRep("tcp://*:5556", SocketType.REP)
+        pair_socket = ZeroMQPair("tcp://*:5557", bind=True)
+        poller = ZeroMQPoller()
+
+    plugin: Plugin
+
+    def setup(self):
+        super().setup()
+
+        self.plugin.poller.register(self.plugin.sub_socket.socket, zmq.POLLIN)
+        self.plugin.poller.register(self.plugin.rep_socket.socket, zmq.POLLIN)
+        self.plugin.poller.register(self.plugin.pair_socket.socket, zmq.POLLIN)
+
+    def cycle(self):
+        super().cycle()
+
+        # Timeout in milliseconds: returns an empty list if nothing is ready
+        events = self.plugin.poller.poll(timeout=100)
+
+        for socket, event in events:
+            if event & zmq.POLLIN:
+                message = socket.recv(zmq.NOBLOCK)
+                self.logger.info(f"Received: {message!r}")
+```
+
+### Choosing a timeout
+
+| `timeout` | Behaviour |
+|-----------|-----------|
+| `None` | Blocks indefinitely until a socket is ready. |
+| `0` | Returns immediately — a pure non-blocking check. |
+| *n* | Waits up to *n* milliseconds. |
+
+<Tip>
+Inside an agent loop, prefer a finite timeout over `None`. A blocked `poll()` ignores the agent's stop event, so the agent only shuts down after the next message arrives — which may be never. A short timeout keeps the loop responsive at negligible cost.
+</Tip>
+
+### Flags
+
+`register()` takes a bitmask, so a socket can be watched for both readiness kinds at once:
+
+- `zmq.POLLIN` — the socket has a message to read.
+- `zmq.POLLOUT` — the socket can accept a message without blocking.
+- `zmq.POLLIN | zmq.POLLOUT` — either.
+
+The returned events are bitmasks too, which is why the example tests them with `&` rather than `==`.
+
+For the exact signatures of `register`, `unregister` and `poll`, see the [API reference](/api/plugins).
+
+## Error Handling
+
+### Reading without NOBLOCK
+
+`poll()` tells you a socket *was* ready. Between that answer and your `recv()`, another reader may have taken the message. Always pass `zmq.NOBLOCK` when reading a polled socket, so a race turns into `zmq.error.Again` instead of a permanent hang.
+
+### Registering an uninitialized socket
+
+Accessing `.socket` before the owning plugin is initialized raises:
+
+```
+RuntimeError: Socket not initialized. Did you forget to call initialize?
+```
+
+Either let the agent initialize the plugins for you and register in `setup()`, or call `initialize()` on each plugin explicitly if you are managing them manually.
+
+### Sockets that go away
+
+Unregister a socket before closing it. Polling a closed socket is undefined behaviour and can take down the whole loop:
+
+```python
+self.plugin.poller.unregister(self.plugin.sub_socket.socket)
+```
+
+## Complete Example
+
+A runnable version watching three socket types at once lives in `examples/communication/example_zmq_polling.py`.
+
+## Resource Links
+
+- [ZeroMQ Official Documentation](https://zeromq.org/documentation/)
+- [PyZMQ Polling Documentation](https://pyzmq.readthedocs.io/en/latest/api/zmq.html#polling)
+- [ZeroMQ Guide — Multipart and Multiple Sockets](https://zguide.zeromq.org/docs/chapter2/)
