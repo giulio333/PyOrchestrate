@@ -1,10 +1,11 @@
 Core
 ====
 
-PyOrchestrate.core.base.base
-----------------------------
+PyOrchestrate.core.base
+-----------------------
 
-.. automodule:: PyOrchestrate.core.base.base
+.. automodule:: PyOrchestrate.core.base
+   :imported-members:
 
 PyOrchestrate.core.base.exceptions
 ----------------------------------

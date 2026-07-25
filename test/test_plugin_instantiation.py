@@ -6,7 +6,7 @@ plugin attributes without requiring explicit __init__ implementations.
 """
 
 import unittest
-from PyOrchestrate.core.base.base import BaseClassPlugin
+from PyOrchestrate.core.base import BaseClassPlugin
 from PyOrchestrate.core.agent.base_agent import AgentPlugin
 from PyOrchestrate.core.orchestrator.orchestrator import OrchestratorPlugin
 from PyOrchestrate.core.plugins.plugin_protocols import PluginProtocol
