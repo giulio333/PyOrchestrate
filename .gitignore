@@ -10,8 +10,26 @@ __pycache__/
 *.log
 /logs
 /build
+/dist
 
 *.egg-info/
+
+# ambienti virtuali
+.venv/
+venv/
+
+# cache di tool e output di CI
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
+junit/
+.coverage
+htmlcov/
+
+# configurazione locale
+.env
+.idea/
 
 # macOS
 .DS_Store

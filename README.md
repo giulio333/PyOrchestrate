@@ -25,11 +25,11 @@ logic while the framework handles complexities like process and thread managemen
 
 ### Installation
 
-Ensure Python 3.12+ is installed, then clone the repository and install the required dependencies:
+Ensure Python 3.11+ is installed, then clone the repository and install the required dependencies:
 
 ``` bash
-git clone https://github.com/yourusername/pyorchestrate.git 
-cd pyorchestrate 
+git clone https://github.com/giulio333/PyOrchestrate.git
+cd PyOrchestrate
 pip install -r requirements.txt
 ```
 
@@ -403,3 +403,7 @@ sorgenti: `sphinx/` contiene la configurazione, `docs/sdk-artifacts/`
 l'output consumato da Mintlify.
 
 * * *
+
+## License
+
+PyOrchestrate is released under the [MIT License](LICENSE).

@@ -245,11 +245,11 @@ agent = MyAgent(
 
 ## Version Management & Requirements
 
-- **CRITICAL**: Update version in BOTH `pyproject.toml` AND `cli.py` (CLIConstants.VERSION)
+- **CRITICAL**: Update version in ALL THREE places: `pyproject.toml`, `cli.py` (CLIConstants.VERSION) and `web_interface/server.py` (FastAPI `version`)
 - **Python**: Requires Python >=3.11 (as specified in pyproject.toml)
 - **CLI entry points**: `pyorchestrate` (main CLI), `pyorchestrate-web` (web interface)
 - **Core dependencies**: loguru, pyzmq, requests, fastapi, uvicorn, psutil, pydantic (keep minimal)
-- **Dev dependencies**: Available in requirements-dev.txt (pytest, flake8, pylint, mkdocs)
+- **Dev dependencies**: Available in requirements-dev.txt (pytest, coverage, flake8, pylint, sphinx)
 - **Installation**: Use `pip install .` to install CLI commands globally
 
 ## Common Patterns (Study examples/)

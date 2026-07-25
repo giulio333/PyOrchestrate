@@ -1,13 +1,36 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+# setuptools>=77 per la dichiarazione della licenza in formato SPDX (PEP 639)
+requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "PyOrchestrate"
 version = "0.2.0"
-description = "PyOrchestrate"
+description = "Framework per orchestrare applicazioni Python multi-processo e multi-thread composte da agenti"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "giulio333", email = "digiagiulio@gmail.com" }]
+keywords = [
+    "orchestration",
+    "multiprocessing",
+    "threading",
+    "agents",
+    "zeromq",
+    "concurrency",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: System :: Distributed Computing",
+]
 dependencies = [
     "fastapi>=0.116.1",
     "loguru>=0.7.3",
@@ -18,12 +41,20 @@ dependencies = [
     "uvicorn>=0.35.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/giulio333/PyOrchestrate"
+Repository = "https://github.com/giulio333/PyOrchestrate"
+Issues = "https://github.com/giulio333/PyOrchestrate/issues"
+
 [project.scripts]
 pyorchestrate = "PyOrchestrate.cli:main"
 pyorchestrate-web = "PyOrchestrate.web_interface.server:main"
 
 [tool.uv]
 package = true
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
 
 [tool.setuptools.packages.find]
 include = ["PyOrchestrate*"]

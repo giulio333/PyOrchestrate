@@ -16,7 +16,7 @@
             "name": "CLI",
             "type": "debugpy",
             "request": "launch",
-            "program": "/Users/giuliodigiamberardino/Documents/repository/PyOrchestrate/PyOrchestrate/cli.py",
+            "program": "${workspaceFolder}/PyOrchestrate/cli.py",
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
