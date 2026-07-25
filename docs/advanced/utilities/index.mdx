@@ -7,7 +7,7 @@ title: Core Utilities
 This section documents the **low-level utility components** of PyOrchestrate that provide foundational infrastructure for the framework. These utilities are used internally by higher-level components like the orchestrator managers and agents.
 
 <Tip title="Understanding the Architecture">
-These utilities are **building blocks** used by the framework's higher-level components. If you're learning about orchestrator internals, see the [Orchestrator Internals](../orchestrator-internals/) section to understand how these utilities are composed into specialized managers.
+These utilities are **building blocks** used by the framework's higher-level components. If you're learning about orchestrator internals, see the [Orchestrator Internals](/advanced/orchestrator-internals/index) section to understand how these utilities are composed into specialized managers.
 </Tip>
 
 ## Overview
@@ -16,9 +16,9 @@ PyOrchestrate's utility layer provides three core low-level components:
 
 | Utility | Purpose | Used By |
 |---------|---------|---------|
-| **[EventManager](./event-manager.md)** | Callback-based event system | OrchestratorEventBus |
-| **[PluginManager](./plugin-manager.md)** | Plugin lifecycle management | AgentLifecycleManager, Agents |
-| **[MessageChannel](./message-channel.md)** | Inter-process communication | MessageRouter, CommandInterface |
+| **[EventManager](/advanced/utilities/event-manager)** | Callback-based event system | OrchestratorEventBus |
+| **[PluginManager](/advanced/utilities/plugin-manager)** | Plugin lifecycle management | AgentLifecycleManager, Agents |
+| **[MessageChannel](/advanced/utilities/message-channel)** | Inter-process communication | MessageRouter, CommandInterface |
 
 ## Architectural Context
 
@@ -59,7 +59,7 @@ You typically interact with **high-level managers** (blue), which internally use
 
 ## Available Utilities
 
-### [Event Manager](./event-manager.md)
+### [Event Manager](/advanced/utilities/event-manager)
 The Event Manager provides a callback-based event notification system. It's used internally by `OrchestratorEventBus` to execute registered callbacks when events occur.
 
 **Key Features**:
@@ -70,7 +70,7 @@ The Event Manager provides a callback-based event notification system. It's used
 
 **Used By**: OrchestratorEventBus (combines EventManager + EventStore)
 
-### [Plugin Manager](./plugin-manager.md)  
+### [Plugin Manager](/advanced/utilities/plugin-manager)  
 The Plugin Manager handles plugin lifecycle operations including initialization, finalization, and owner reference management.
 
 **Key Features**:
@@ -81,7 +81,7 @@ The Plugin Manager handles plugin lifecycle operations including initialization,
 
 **Used By**: AgentLifecycleManager (for agent plugin management), BaseAgent, BaseOrchestrator
 
-### [Message Channel](./message-channel.md)
+### [Message Channel](/advanced/utilities/message-channel)
 The Message Channel provides process-safe message passing between framework components using structured message envelopes.
 
 **Key Features**:
@@ -180,27 +180,27 @@ flowchart TD
 ### 3. Consult Advanced Documentation
 
 For understanding how these utilities are composed into higher-level functionality, see:
-- [Orchestrator Internals](../orchestrator-internals/) - How managers use utilities
-- [Agent Architecture](../../learn/agents/) - How agents use utilities
+- [Orchestrator Internals](/advanced/orchestrator-internals/index) - How managers use utilities
+- [Agent Architecture](/learn/agents/index) - How agents use utilities
 
 ## Learning Path
 
 ### For Application Developers
 
-1. Start with **[Introduction](../../learn/introduction/)** - Understand orchestrators and agents
-2. Learn **[Orchestrator API](../../learn/introduction/orchestrator_api)** - High-level usage
+1. Start with **[Introduction](/learn/introduction/index)** - Understand orchestrators and agents
+2. Learn **[Orchestrator API](/learn/introduction/orchestrator_api)** - High-level usage
 3. Explore **Examples** - Practical patterns
 
 You typically won't need to interact with these utilities directly.
 
 ### For Framework Contributors
 
-1. Read **[Orchestrator Internals](../orchestrator-internals/)** - Understand manager architecture
+1. Read **[Orchestrator Internals](/advanced/orchestrator-internals/index)** - Understand manager architecture
 2. Study **Core Utilities** (this section) - Low-level building blocks
 3. Review source code - Implementation details
 
 ## See Also
 
-- [Orchestrator Internals](../orchestrator-internals/) - High-level manager architecture
-- [Configuration and Validation](../../learn/config_and_validation) - Configuration management
-- [Advanced Architecture](../../advanced/) - Deep architectural topics
+- [Orchestrator Internals](/advanced/orchestrator-internals/index) - High-level manager architecture
+- [Configuration and Validation](/learn/config_and_validation) - Configuration management
+- [Advanced Architecture](/advanced/index) - Deep architectural topics

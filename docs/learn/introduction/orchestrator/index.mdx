@@ -11,8 +11,8 @@ The **Orchestrator** is the component in charge of supervising and coordinating 
 
 ### Registering Agents
 
-<img src="./reg_l.svg" alt="alt text" className="block dark:hidden" />
-<img src="./reg_d.svg" alt="alt text" className="hidden dark:block" />
+<img src="/learn/introduction/orchestrator/reg_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="/learn/introduction/orchestrator/reg_d.svg" alt="alt text" className="hidden dark:block" />
 
 Before using the Orchestrator, you need to **register the Agents** you want it to manage.
 
@@ -34,12 +34,12 @@ You can reuse the same **Agent class** to run **multiple Agents** that do slight
 
 For example, imagine you have a `FileWriterAgent` that writes data to a file. By passing a different file path to each one during registration, you can launch two Agents from the same class: one that writes to `log_a.txt` and another that writes to `log_b.txt`.
 
-<img src="./multi_l.svg" alt="alt text" className="block dark:hidden" />
-<img src="./multi_d.svg" alt="alt text" className="hidden dark:block" />
+<img src="/learn/introduction/orchestrator/multi_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="/learn/introduction/orchestrator/multi_d.svg" alt="alt text" className="hidden dark:block" />
 
 <Tip>
-- For more details on how to register Agents, check out the [Orchestrator Registering Agents](../../orchestrator/index.md#registering-agents).
-- For more details on Agent's parameters and configuration, check out the [Agent Overview](../../agents/index.md#overview).
+- For more details on how to register Agents, check out the [Orchestrator Registering Agents](/learn/orchestrator/index#registering-agents).
+- For more details on Agent's parameters and configuration, check out the [Agent Overview](/learn/agents/index#overview).
 </Tip>
 
 ## Execution Lifecycle
@@ -53,8 +53,8 @@ The Orchestrator’s liveness is governed by an explicit lifecycle policy called
 
 ### How Agent Execution Works
 
-<img src="./execution_l.svg" alt="alt text" className="block dark:hidden" />
-<img src="./execution_d.svg" alt="alt text" className="hidden dark:block" />
+<img src="/learn/introduction/orchestrator/execution_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="/learn/introduction/orchestrator/execution_d.svg" alt="alt text" className="hidden dark:block" />
 
 This section describes how execution proceeds; final liveness depends solely on the selected `RunMode`:
 
@@ -118,7 +118,7 @@ This channel lets external tools interact with the Orchestrator in real time:
 The same command and data surface exposed by the CLI can also be used by a **web-based interface**, so dashboards and remote-control UIs can access the same functionality. 
 
 <Tip title="Learn More">
-See the [CLI Documentation](/cli/) for the full command reference, security notes, and examples of both CLI and web interfaces.
+See the [CLI Documentation](/cli/index) for the full command reference, security notes, and examples of both CLI and web interfaces.
 </Tip>
 
 ## Customizing the Behavior
@@ -133,7 +133,7 @@ Through this object, you can **fine-tune how the Orchestrator behaves**, without
 
 <Tip>
 For the complete technical details and available options, see:  
-[Orchestrator Configuration](../../orchestrator/index.md#configuration).
+[Orchestrator Configuration](/learn/orchestrator/index#configuration).
 </Tip>
 
 

@@ -7,7 +7,7 @@ title: Orchestrator
 The **Orchestrator** is a central component responsible for coordinating multiple **Agents** and managing their lifecycle. It ensures seamless communication among **Agents** and serves as a single point for controlling the entire flow.
 
 <Tip>
-For **more information**, see this [link](../introduction/orchestrator/index.md).
+For **more information**, see this [link](/learn/introduction/orchestrator/index).
 </Tip>
 
 ### Why use Orchestrator?
@@ -47,7 +47,7 @@ Every Orchestrator has a set of **parameters** that define its own data. These p
 The `Config` class is used by the agent to **create a configuration object for itself**. 
 
 <Info title="Example">
-See the [Config and Validation](../config_and_validation.md) section for more details on how to define and use configuration classes.
+See the [Config and Validation](/learn/config_and_validation) section for more details on how to define and use configuration classes.
 </Info>
 
 ### Run Mode
@@ -67,8 +67,8 @@ The Orchestrator can operate in different **run modes**, which control how long 
 
 ### Event Manager
 
-<img src="event_manager_l.svg" alt="alt text" className="block dark:hidden" />
-<img src="event_manager_d.svg" alt="alt text" className="hidden dark:block" />
+<img src="/learn/orchestrator/event_manager_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="/learn/orchestrator/event_manager_d.svg" alt="alt text" className="hidden dark:block" />
 
 The **Event Manager** facilitates a set of **events** (`OrchestratorEvent`) that notify when something happens during the orchestration process (e.g., an agent completes). These events can be used as **signals** to perform specific actions (e.g., sending a message on Telegram).
 
@@ -88,8 +88,8 @@ Available events are stored in the `OrchestratorEvent` class:
 
 ### Message Channels
 
-<img src="message_channel_l.svg" alt="alt text" className="block dark:hidden" />
-<img src="message_channel_d.svg" alt="alt text" className="hidden dark:block" />
+<img src="/learn/orchestrator/message_channel_l.svg" alt="alt text" className="block dark:hidden" />
+<img src="/learn/orchestrator/message_channel_d.svg" alt="alt text" className="hidden dark:block" />
 
 The Orchestrator communicates through two `MessageChannel` objects:
 
@@ -160,7 +160,7 @@ orchestrator.register_agent(Publisher, "Pub3", custom_config=custom_config)
 In this example, we create three `Publisher` agents. The first two use default settings, while the third writes to a custom output file.
 
 <Tip>
-For more details on Agent's **Configuration**, **StateEvents** etc. check out the [Agent Overview](../agents/index.md#overview).
+For more details on Agent's **Configuration**, **StateEvents** etc. check out the [Agent Overview](/learn/agents/index#overview).
 </Tip>
 
 ## Registering Events

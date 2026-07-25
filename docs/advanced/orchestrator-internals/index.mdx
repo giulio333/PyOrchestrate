@@ -25,7 +25,7 @@ Managing all these concerns in a single component would create a complex, hard-t
 
 The Orchestrator coordinates six managers, each handling a specific aspect of the system:
 
-### 1. [DependencyGraph](./dependency-graph.md)
+### 1. [DependencyGraph](/advanced/orchestrator-internals/dependency-graph)
 **Purpose**: Ensures agents start in the correct order based on their dependencies.
 
 If AgentB needs AgentA to be ready first, the DependencyGraph calculates the correct startup sequence. It also detects impossible configurations (like circular dependencies) before the system starts.
@@ -35,7 +35,7 @@ If AgentB needs AgentA to be ready first, the DependencyGraph calculates the cor
 - Topological sorting for startup order
 - Circular dependency detection
 
-### 2. [AgentLifecycleManager](./lifecycle-manager.md)
+### 2. [AgentLifecycleManager](/advanced/orchestrator-internals/lifecycle-manager)
 **Purpose**: Manages the complete lifecycle of agents from creation to termination.
 
 Handles registering agents, creating their process/thread instances, wiring up communication channels, and gracefully shutting them down when needed.
@@ -46,7 +46,7 @@ Handles registering agents, creating their process/thread instances, wiring up c
 - Event wiring for monitoring and control
 - Graceful shutdown
 
-### 3. [WorkerPoolScheduler](./worker-pool.md)
+### 3. [WorkerPoolScheduler](/advanced/orchestrator-internals/worker-pool)
 **Purpose**: Controls how many agents run concurrently to prevent resource exhaustion.
 
 When you have 100 agents but want only 10 running at once, the WorkerPoolScheduler queues the rest and automatically starts them as others complete.
@@ -57,7 +57,7 @@ When you have 100 agents but want only 10 running at once, the WorkerPoolSchedul
 - Automatic scheduling
 - Resource management
 
-### 4. [OrchestratorEventBus](./event-bus.md)
+### 4. [OrchestratorEventBus](/advanced/orchestrator-internals/event-bus)
 **Purpose**: Unified interface for event handling and history tracking.
 
 Manages event callbacks (reacting to events) and event history (querying past events) through a single, consistent interface. Automatically records events when they occur.
@@ -68,7 +68,7 @@ Manages event callbacks (reacting to events) and event history (querying past ev
 - Event history queries
 - Custom retention policies
 
-### 5. [MessageRouter](./message-router.md)
+### 5. [MessageRouter](/advanced/orchestrator-internals/message-router)
 **Purpose**: Routes messages from agents to the orchestrator's event system.
 
 Agents run in separate processes/threads and send messages to communicate. The MessageRouter receives these messages and converts them into orchestrator events that trigger callbacks and get recorded in history.
@@ -79,7 +79,7 @@ Agents run in separate processes/threads and send messages to communicate. The M
 - Message filtering
 - Background processing
 
-### 6. [CommandInterface](./command-interface.md)
+### 6. [CommandInterface](/advanced/orchestrator-internals/command-interface)
 **Purpose**: Enables external control via CLI and monitoring tools.
 
 Exposes a command-based API over ZeroMQ that allows you to query agent status, view statistics, and control the orchestrator without modifying your application code.
@@ -274,11 +274,11 @@ The managers use low-level utilities for their implementation:
 
 | Utility | Used By | Purpose |
 |---------|---------|---------|
-| [EventManager](../utilities/event-manager.md) | OrchestratorEventBus | Callback execution |
-| [PluginManager](../utilities/plugin-manager.md) | AgentLifecycleManager | Plugin lifecycle |
-| [MessageChannel](../utilities/message-channel.md) | MessageRouter, CommandInterface | Inter-process communication |
+| [EventManager](/advanced/utilities/event-manager) | OrchestratorEventBus | Callback execution |
+| [PluginManager](/advanced/utilities/plugin-manager) | AgentLifecycleManager | Plugin lifecycle |
+| [MessageChannel](/advanced/utilities/message-channel) | MessageRouter, CommandInterface | Inter-process communication |
 
-These utilities are documented separately in the [Utilities](../utilities/) section.
+These utilities are documented separately in the [Utilities](/advanced/utilities/index) section.
 
 ## Common Patterns
 
@@ -339,6 +339,6 @@ For simpler use cases, the high-level orchestrator API is sufficient.
 
 ## See Also
 
-- [Introduction to Orchestrator](../../learn/introduction/orchestrator/) - High-level usage guide
-- [Core Utilities](../utilities/) - Low-level building blocks
-- [CLI Reference](../../cli/) - Command-line tools
+- [Introduction to Orchestrator](/learn/introduction/orchestrator/index) - High-level usage guide
+- [Core Utilities](/advanced/utilities/index) - Low-level building blocks
+- [CLI Reference](/cli/index) - Command-line tools

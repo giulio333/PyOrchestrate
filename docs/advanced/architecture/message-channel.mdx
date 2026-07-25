@@ -1,3 +1,7 @@
+---
+title: MessageChannel
+---
+
 # MessageChannel
 
 The `MessageChannel` class serves as the core communication infrastructure in PyOrchestrate, providing a unified interface for message passing between different system components.
@@ -12,7 +16,7 @@ The `MessageChannel` class is the internal backbone for communication between th
 2. **Socket-based MessageChannel**: Used for communication between the orchestrator and external CLI tools. This uses UNIX domain sockets and is also bidirectional, but designed for integration with external processes.
 
 <Tip>
-For user-facing or custom communication needs, PyOrchestrate provides a flexible plugin system [Communication Plugins](../../learn/agents/plugins/communication-plugins.md) that users can extend and configure as needed.
+For user-facing or custom communication needs, PyOrchestrate provides a flexible plugin system [Communication Plugins](/learn/agents/plugins/communication-plugins) that users can extend and configure as needed.
 </Tip>
 
 #### 1. Queue-based MessageChannel
