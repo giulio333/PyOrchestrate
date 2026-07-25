@@ -7,3 +7,8 @@ flake8-gl-codeclimate
 pytest
 coverage
 pylint
+
+# La CI verifica la formattazione con `black --check`: una nuova major di black
+# può cambiare lo stile e far fallire il job senza che il codice sia cambiato.
+# Se succede, fissare qui la versione usata dal workflow.
+black

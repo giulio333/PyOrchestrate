@@ -56,6 +56,13 @@ package = true
 [tool.pytest.ini_options]
 testpaths = ["test"]
 
+# Esplicita i default di black: la CI ora verifica la formattazione invece di
+# riscriverla, quindi lo stile deve essere fissato qui e non dipendere dalla
+# versione di black installata nel runner.
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
 [tool.setuptools.packages.find]
 include = ["PyOrchestrate*"]
 exclude = ["test*", "examples*", "docs*", "logs*"]

@@ -41,8 +41,11 @@ jobs:
           # exit-zero tratta tutti gli errori come warning. L'editor GitHub è largo 127 caratteri
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Format with black
-        run: black .
+      # --check verifica senza riscrivere: prima il job eseguiva `black .`, che
+      # riformattava i sorgenti nel runner e buttava via il risultato a fine run,
+      # quindi passava sempre e non segnalava nulla.
+      - name: Check formatting with black
+        run: black --check --diff .
 
       - name: Test with pytest
         run: pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
