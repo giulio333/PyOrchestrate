@@ -2,7 +2,7 @@
 HTTP Server for PyOrchestrate Web Interface
 
 Provides a REST API that exposes orchestrator data in read-only mode.
-Communicates with the orchestrator via Unix socket using the same
+Communicates with the orchestrator via ZeroMQ using the same
 protocol as the CLI.
 """
 
@@ -33,7 +33,7 @@ class WebServerConfig(BaseModel):
 
 
 class OrchestratorClient:
-    """Client for communicating with the orchestrator via Unix socket."""
+    """Client for communicating with the orchestrator via ZeroMQ."""
 
     def __init__(self, socket_path: str):
         self.zmq_address = socket_path
@@ -505,7 +505,6 @@ def create_html_response(
             <a href="/api/orchestrator/status" class="{'current' if endpoint == 'status' else ''}">📊 Status</a>
             <a href="/api/agents" class="{'current' if endpoint == 'agents' else ''}">🤖 Agents</a>
             <a href="/api/orchestrator/stats" class="{'current' if endpoint == 'stats' else ''}">📈 Stats</a>
-            <a href="/api/orchestrator/report" class="{'current' if endpoint == 'report' else ''}">📋 Report</a>
             <a href="/api/orchestrator/dependencies" class="{'current' if endpoint == 'dependencies' else ''}">🔗 Dependencies</a>
             <a href="/api/history" class="{'current' if endpoint == 'history' else ''}">📜 History</a>
             <a href="/docs" target="_blank">📚 API Docs</a>
@@ -978,26 +977,6 @@ class PyOrchestrateWebServer:
             else:
                 return create_html_response(
                     "Dependencies", response, "/api/orchestrator/dependencies"
-                )
-
-        @self.app.get("/api/orchestrator/report")
-        async def get_full_report(
-            request: Request,
-            format: Optional[str] = None,
-            token: Optional[str] = (
-                Depends(auth_dependency) if auth_dependency else None
-            ),
-        ):
-            """Get full orchestrator report."""
-            response = self.orchestrator_client.send_command("report")
-
-            if format == "json" or "application/json" in request.headers.get(
-                "accept", ""
-            ):
-                return create_pretty_json_response(response)
-            else:
-                return create_html_response(
-                    "Full Report", response, "/api/orchestrator/report"
                 )
 
         @self.app.get("/api/orchestrator/stats")

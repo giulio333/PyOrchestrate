@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # Initialize Orchestrator with command interface enabled
     config = Orchestrator.Config(
         enable_command_interface=True,
-        command_socket_path="/tmp/pyorchestrate.sock"
+        command_zmq_address="tcp://*:5555"
     )
     orchestrator = Orchestrator(config=config)
 
@@ -333,7 +333,12 @@ class ArgumentParser:
                 cmd_parser.add_argument(
                     "--agent", type=str, help="Filter by agent name"
                 )
-                cmd_parser.add_argument("--type", type=str, help="Filter by event type")
+                cmd_parser.add_argument(
+                    "--type",
+                    dest="event_name",
+                    type=str,
+                    help="Filter by event type",
+                )
                 cmd_parser.add_argument(
                     "--after-seq", type=int, help="Filter by sequence number"
                 )
@@ -407,9 +412,9 @@ class CLIApplication:
             # Prepare command arguments
             ArgumentParser.prepare_command_from_args(args)
 
-            # Create client with appropriate socket path
-            socket_path = getattr(args, "socket", CLIConstants.DEFAULT_ZMQ_ADDRESS)
-            client = CommandClient(socket_path)
+            # Create client with the requested ZeroMQ address
+            zmq_address = getattr(args, "socket", CLIConstants.DEFAULT_ZMQ_ADDRESS)
+            client = CommandClient(zmq_address)
 
             # Route and execute command
             router = CommandRouter(client, self.formatter)
@@ -513,8 +518,8 @@ class OutputFormatter:
             output.append(
                 f"Command Interface: {'Enabled' if data.get('command_interface_enabled') else 'Disabled'}"
             )
-            if data.get("command_socket_path"):
-                output.append(f"Socket Path: {data['command_socket_path']}")
+            if data.get("command_zmq_address"):
+                output.append(f"ZeroMQ Address: {data['command_zmq_address']}")
 
         return "\n".join(output)
 
@@ -578,7 +583,7 @@ class OutputFormatter:
             if filters.get("agent"):
                 filter_parts.append(f"agent={filters['agent']}")
             if filters.get("event_name"):
-                filter_parts.append(f"type={filters['type']}")
+                filter_parts.append(f"type={filters['event_name']}")
             if filters.get("last"):
                 filter_parts.append(f"last={filters['last']}")
             if filters.get("after_seq"):
