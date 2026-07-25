@@ -762,7 +762,15 @@ class ZeroMQPair(PluginProtocol):
     def finalize(self):
         """
         Finalizes the ZeroMQ plugin.
+
+        Closes the socket and terminates the context.
         """
+        if not self._initialized:
+            return
+
+        self.socket.close()
+        self.context.term()
+        self._initialized = False
 
     def set_owner(self, owner):
         return super().set_owner(owner)
