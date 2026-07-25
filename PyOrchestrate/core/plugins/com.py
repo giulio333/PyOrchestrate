@@ -46,12 +46,6 @@ class ZeroMQPubSub(PluginProtocol):
         context (zmq.Context): The ZeroMQ context.
         socket (zmq.Socket): The ZeroMQ socket.
 
-    Methods:
-        initialize: Initializes the ZeroMQ plugin.
-        finalize: Finalizes the ZeroMQ plugin.
-        recv: Receives a message using ZeroMQ.
-        send: Sends a message using ZeroMQ.
-        setsockopt: Sets a socket option.
     """
 
     def __init__(
@@ -194,11 +188,6 @@ class ZeroMQReqRep(PluginProtocol):
         context (zmq.Context): The ZeroMQ context.
         socket (zmq.Socket): The ZeroMQ socket.
 
-    Methods:
-        initialize: Initializes the ZeroMQ plugin.
-        send: Sends a message using ZeroMQ.
-        recv: Receives a message using ZeroMQ.
-        finalize: Finalizes the ZeroMQ plugin.
     """
 
     def __init__(
@@ -328,11 +317,6 @@ class ZeroMQPushPull(PluginProtocol):
         context (zmq.Context): The ZeroMQ context.
         socket (zmq.Socket): The ZeroMQ socket.
 
-    Methods:
-        initialize: Initializes the ZeroMQ plugin.
-        send: Sends a message using ZeroMQ.
-        recv: Receives a message using ZeroMQ.
-        finalize: Finalizes the ZeroMQ plugin.
     """
 
     def __init__(
@@ -481,13 +465,6 @@ class ZeroMQRouterDealer(PluginProtocol):
         context (zmq.Context): The ZeroMQ context.
         socket (zmq.Socket): The ZeroMQ socket.
 
-    Methods:
-        initialize: Initializes the ZeroMQ plugin.
-        send: Sends a message using ZeroMQ.
-        recv: Receives a message using ZeroMQ.
-        send_multipart: Sends a multipart message using ZeroMQ.
-        recv_multipart: Receives a multipart message using ZeroMQ.
-        finalize: Finalizes the ZeroMQ plugin.
     """
 
     def __init__(
@@ -682,11 +659,6 @@ class ZeroMQPair(PluginProtocol):
         context (zmq.Context): The ZeroMQ context.
         socket (zmq.Socket): The ZeroMQ socket.
 
-    Methods:
-        initialize: Initializes the ZeroMQ plugin.
-        send: Sends a message using ZeroMQ.
-        recv: Receives a message using ZeroMQ.
-        finalize: Finalizes the ZeroMQ plugin.
     """
 
     def __init__(
@@ -829,12 +801,6 @@ class ZeroMQPoller(PluginProtocol):
     Attributes:
         poller (zmq.Poller): The ZeroMQ poller instance.
 
-    Methods:
-        initialize: Initializes the ZeroMQ poller.
-        register: Registers a socket with the poller.
-        unregister: Unregisters a socket from the poller.
-        poll: Polls for events on registered sockets.
-        finalize: Finalizes the ZeroMQ poller.
     """
 
     def __init__(self, context: zmq.Context | None = None):

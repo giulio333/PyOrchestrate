@@ -34,12 +34,6 @@ class AgentEntry:
         kwargs (Any): Additional keyword arguments for the agent.
         instance (BaseAgent): The agent instance.
 
-    Methods:
-        start: Start the agent instance.
-        stop: Stop the agent instance.
-        join: Join the agent instance.
-        restart: Restart the agent instance.
-        status: Get the status of the agent
     """
 
     def __init__(
@@ -217,21 +211,6 @@ class OMemory:
         _groups (Dict[str, Group]): Map from group name to `Group` object.
         _agent_stats (Dict[str, List[Dict[str, Any]]]): mappa dell’agente con una lista di eventi registrati.
 
-    Methods:
-        add_agent: Add an agent to the orchestrator memory.
-        get_agent_entry: Get the `AgentEntry` object corresponding to the provided name.
-        get_agent_instance: Get the agent instance for the provided name.
-        create_group: Create an empty group if it doesn't already exist.
-        add_agent_to_group: Add an existing agent to the specified group.
-        remove_agent_from_group: Remove an agent from the specified group.
-        get_group: Get the `Group` object if it exists.
-        get_group_agents: Get the list of agent instances belonging to the group.
-        start_agent: Start the agent with the given name.
-        stop_agent: Stop the agent with the given name.
-        join_agent: Join the agent with the given name.
-        restart_agent: Restart the agent with the given name.
-        agents: Get the list of all `AgentEntry` objects
-        get_agent_stats: Get the event log for the specified agent
     """
 
     def __init__(self) -> None:

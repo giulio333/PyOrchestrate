@@ -101,11 +101,6 @@ class LoopingAgent(BaseAgent):
         state_events (StateEvents): Events for internal state management.
         control_events (ControlEvents): Events for external command handling.
 
-    Methods:
-        execute: Executes the agent's core logic in a loop.
-        safe_cycle: Executes the agent's cycle method in a try-except block.
-        cycle: Defines the agent's core logic to be executed in each iteration of the loop.
-        _info: Logs the agent's configuration.
     """
 
     Config = LoopingAgentConfig

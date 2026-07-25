@@ -110,11 +110,6 @@ class PeriodicAgent(LoopingAgent):
     Warnings:
         The `cycle` method must not be implemented in the derived class.
 
-    Methods:
-        runner: The method to be executed periodically. This method must be implemented in the derived class.
-        setup: Setup method to initialize the agent. This method is called once before the agent cycle method.
-        cycle: The method that defines the agent's work to be done in each iteration of the loop.
-            This method must be implemented in the derived class.
     """
 
     Config = PeriodicAgentConfig

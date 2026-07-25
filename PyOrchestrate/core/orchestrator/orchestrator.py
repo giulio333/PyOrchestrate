@@ -61,7 +61,7 @@ class OrchestratorConfig(BaseClass.Config):
         max_workers (int): The maximum number of workers that can run concurrently. Defaults to 5.
         agent_start_timeout (float): Maximum time in seconds to wait for an agent to start. Defaults to 30.0.
         enable_command_interface (bool): Enable external command interface via ZeroMQ over TCP. Defaults to True.
-        command_zmq_address (str): ZeroMQ address for external commands. Defaults to "tcp://*:5555".
+        command_zmq_address (str): ZeroMQ address for external commands. Defaults to ``"tcp://*:5555"``.
         logger (LoggerConfig): Logger configuration.
         run_mode (RunMode): Required lifecycle policy. Defaults to RunMode.STOP_ON_EMPTY.
         history_max_events (int): Maximum number of events to store in history (ring buffer size). Defaults to 5000.
@@ -253,15 +253,6 @@ class Orchestrator(BaseClass):
         event_manager (EventManager): Centralized event manager for handling all agent events.
         dependencies (dict[str, list[str]]): Dependencies among agents.
 
-    Methods:
-        register_agent: Register an agent on the orchestrator.
-        add_dependency: Add dependencies among agents.
-        validate_dependencies: Check for dependency errors.
-        start: Start all registered agents.
-        stop: Stop all registered agents.
-        join: Wait for all agents to complete.
-        simple_join: Simple join method to wait for all processes or threads to complete their execution.
-        report: Report the status of all agents.
     """
 
     Config = OrchestratorConfig

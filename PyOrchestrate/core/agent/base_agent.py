@@ -119,13 +119,6 @@ class BaseAgent(BaseClass, ABC):
         state_events (StateEvents): Events for internal state management.
         control_events (ControlEvents): Events for external command handling.
 
-    Methods:
-        run: Main entry point for agent execution.
-        setup: Performs initialization when the agent starts.
-        execute: Implements the agent's core logic.
-        stop: Requests external termination of the agent.
-        validate_config: Validates the configuration.
-        on_stop: Handles cleanup when the agent is stopped.
     """
 
     a_type: str = ""

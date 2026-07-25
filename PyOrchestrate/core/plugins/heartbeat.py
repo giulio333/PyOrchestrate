@@ -30,7 +30,8 @@ class OrchestratorHeartbeatPlugin(PluginProtocol):
     3. Detects agents that have stopped sending heartbeats (timeout detection)
     4. Provides status and health information for all monitored agents
 
-    Example usage:
+    Example:
+        ```python
         heartbeat_plugin = OrchestratorHeartbeatPlugin(
             config=HeartbeatConfig(
                 agent_send_interval=10.0,
@@ -42,6 +43,7 @@ class OrchestratorHeartbeatPlugin(PluginProtocol):
         orchestrator = Orchestrator(
             plugin=OrchestratorPlugin(heartbeat=heartbeat_plugin)
         )
+        ```
     """
 
     def __init__(
@@ -321,7 +323,8 @@ class AgentHeartbeatTimerPlugin(PluginProtocol):
     It automatically starts a background timer thread that sends AGENT_HEARTBEAT
     messages at regular intervals.
 
-    Example usage:
+    Example:
+        ```python
         class MyAgent(PeriodicProcessAgent):
             class Plugin(PeriodicProcessAgent.Plugin):
                 heartbeat = AgentHeartbeatTimerPlugin(
@@ -331,6 +334,7 @@ class AgentHeartbeatTimerPlugin(PluginProtocol):
                 )
 
             plugin: Plugin
+        ```
 
     Attributes:
         enabled: Whether the heartbeat is enabled

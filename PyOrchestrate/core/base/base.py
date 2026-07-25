@@ -141,6 +141,7 @@ class BaseClassPlugin:
     explicit __init__ implementations in derived classes.
 
     Example:
+        ```python
         class MyPlugin(BaseClassPlugin):
             # Define default plugins as class attributes
             zmq: ZeroMQPubSub = ZeroMQPubSub("tcp://*:5555", zmq.PUB)
@@ -151,6 +152,7 @@ class BaseClassPlugin:
 
         # Override specific plugins
         plugin2 = MyPlugin(heartbeat=HeartbeatPlugin())
+        ```
     """
 
     def __init__(
