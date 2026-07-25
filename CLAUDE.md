@@ -15,13 +15,22 @@ path nella navigation sono relativi a `docs/` (`learn/agents/index`, non
 ### Anteprima locale
 
 ```bash
+rm -rf docs/.mint          # vedi nota sulla cache, qui sotto
 cd docs
-npx mint dev            # anteprima su http://localhost:3000
-npx mint broken-links   # verifica dei link interni
+npx mint dev               # anteprima su http://localhost:3000
+npx mint broken-links      # verifica dei link interni
 ```
 
 L'anteprima rende il sito come sarà online, tab API Reference compreso. Da
 lanciare sempre prima di pushare modifiche alla documentazione.
+
+> **Svuota sempre `docs/.mint` prima di avviare `mint dev`.** Il dev server vi
+> tiene la cache della build precedente e non rilegge da zero tutto il
+> contenuto — in particolare l'artifact Sphinx. Senza questo passaggio continui
+> a vedere la versione vecchia e ti convinci che una modifica non abbia avuto
+> effetto: è già successo sia con le pagine dell'API reference sia con gli slug
+> `/api/...` dopo aver spostato i `.rst`. Se una modifica "non si vede",
+> sospetta la cache prima di sospettare la configurazione.
 
 ### Regole di scrittura delle pagine
 
@@ -60,9 +69,9 @@ L'artifact si rigenera da solo su `main` quando cambiano i sorgenti Python,
 tramite `.github/workflows/docs-api-reference.yml`. In locale va rigenerato a
 mano dopo aver modificato le docstring.
 
-**Dopo aver rigenerato l'artifact, riavvia `mint dev`** (`rm -rf docs/.mint`):
-il dev server tiene in cache la versione precedente e continuerebbe a mostrare
-i vecchi slug.
+Dopo ogni rigenerazione dell'artifact riavvia `mint dev` svuotando la cache,
+come descritto nella nota sull'anteprima locale: altrimenti continui a vedere
+la reference precedente.
 
 ## Test
 
