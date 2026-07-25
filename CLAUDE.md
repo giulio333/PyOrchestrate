@@ -84,4 +84,33 @@ la reference precedente.
 
 ## Test
 
-Vedi le istruzioni globali: i test girano nel devcontainer, non sull'host.
+```bash
+uv sync --extra web      # crea .venv con dipendenze, extra web e gruppo dev
+uv run pytest
+```
+
+**Questo repo non ha un devcontainer, e la regola globale «i test girano nel
+devcontainer» qui non si applica.** `.devcontainer/devcontainer.json` è stato
+rimosso: conteneva solo `tasks`, senza `image` né `build`, quindi non definiva
+nessun ambiente e non era avviabile — chi lo seguiva alla lettera restava
+bloccato. L'isolamento lo dà `uv`, che ricrea `.venv` da `uv.lock` senza
+toccare l'interprete di sistema.
+
+Non installare le dipendenze con `pip` sull'host: `uv run` lo fa da sé nella
+venv del progetto.
+
+### Dipendenze
+
+- **Core** (`[project.dependencies]`): solo ciò che il package importa —
+  `loguru`, `psutil`, `pyzmq`.
+- **Extra `web`**: `fastapi`, `uvicorn`, `pydantic`, usati unicamente da
+  `PyOrchestrate/web_interface/server.py`. Senza l'extra la web interface non
+  è importabile: se aggiungi un test o un modulo che la tocca, ricordati che
+  la CI installa `pip install -e ".[web]"`.
+- **Gruppo `dev`** (`[dependency-groups]`, PEP 735): pytest, black, flake8,
+  pylint, coverage, sphinx. `uv` lo installa di default, quindi `uv run pytest`
+  basta. Ha sostituito `requirements-dev.txt`.
+- `requirements.txt` è **generato**, non scritto a mano: rigeneralo con il
+  comando annotato nella sua prima riga dopo ogni `uv lock`. È uno dei due file
+  che Dependabot legge (l'altro è `uv.lock`), quindi un lock aggiornato ma un
+  export vecchio lascia gli alert aperti.
