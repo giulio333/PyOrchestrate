@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # 3.13 è la versione di sviluppo (.python-version) e quella con cui
-        # viene generata l'API reference: va testata, non solo usata.
+        # 3.13 is the development version (.python-version) and the one the
+        # API reference is generated with: it must be tested, not just used.
         python-version: ["3.11", "3.12", "3.13"]
 
     steps:
@@ -32,20 +32,22 @@ jobs:
           pip install flake8 pytest black pre-commit
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      # `[web]` because fastapi/uvicorn/pydantic are an extra: without it the
+      # web interface is not importable and modules touching it are untestable.
       - name: Install repository
         run: |
-          pip install -e .
+          pip install -e ".[web]"
 
       - name: Lint with flake8
         run: |
-          # Stoppa la build in caso di errori di sintassi o nomi non definiti
+          # Stop the build on syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero tratta tutti gli errori come warning. L'editor GitHub è largo 127 caratteri
+          # exit-zero treats every error as a warning. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      # --check verifica senza riscrivere: prima il job eseguiva `black .`, che
-      # riformattava i sorgenti nel runner e buttava via il risultato a fine run,
-      # quindi passava sempre e non segnalava nulla.
+      # --check verifies without rewriting: the job used to run `black .`,
+      # which reformatted the sources in the runner and threw the result away
+      # at the end of the run, so it always passed and reported nothing.
       - name: Check formatting with black
         run: black --check --diff .
 

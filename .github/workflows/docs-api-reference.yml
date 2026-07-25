@@ -1,8 +1,8 @@
 name: API Reference
 
-# L'artifact Sphinx che alimenta il tab "API Reference" di Mintlify vive nel
-# repo: senza questo job resterebbe fermo all'ultima generazione manuale mentre
-# le docstring cambiano.
+# The Sphinx artifact behind Mintlify's "API Reference" tab lives in the repo:
+# without this job it would stay frozen at the last manual build while the
+# docstrings keep changing.
 
 on:
   push:
@@ -27,12 +27,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Deve restare allineata a .python-version: autodoc rende le firme
-      # ereditate dalla stdlib, che cambiano tra versioni di Python. Con una
-      # versione diversa da quella usata in locale l'artifact rimbalza avanti e
-      # indietro a ogni rigenerazione (es. la firma di enum.Enum, cambiata
-      # nella 3.12), producendo commit automatici che non riflettono nessuna
-      # modifica alle docstring.
+      # Must stay aligned with .python-version: autodoc renders signatures
+      # inherited from the standard library, and those change between Python
+      # versions. With an interpreter other than the one used locally the
+      # artifact flips back and forth on every build (enum.Enum's signature
+      # changed in 3.12), producing automatic commits that reflect no docstring
+      # change at all.
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -43,7 +43,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install sphinx==8.1.3
-          pip install -e .
+          # `[web]`: autodoc imports the modules it documents, and the
+          # reference now includes web_interface.server, which needs fastapi.
+          pip install -e ".[web]"
 
       - name: Build API reference artifact
         run: ./scripts/build_api_reference.sh
