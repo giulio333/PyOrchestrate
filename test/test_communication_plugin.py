@@ -288,12 +288,16 @@ class TestEnhancedNonBlockingOperations(unittest.TestCase):
 
         time.sleep(0.1)
 
-        # Test non-blocking send
-        pub.send(b"test", blocking=False)
-
-        # Test non-blocking receive with no message available
+        # Test non-blocking receive with no message available.
+        # Asserted BEFORE sending anything: checking it after a send would be a
+        # race against delivery, not a test of the non-blocking behaviour.
         with self.assertRaises(zmq.error.Again):
             sub.recv(blocking=False)
+
+        # Test non-blocking send. Delivery is deliberately not asserted here:
+        # PUB drops messages for subscribers whose subscription has not
+        # propagated yet, so any such assertion would be flaky by design.
+        pub.send(b"test", blocking=False)
 
         pub.finalize()
         sub.finalize()
@@ -328,14 +332,24 @@ class TestEnhancedNonBlockingOperations(unittest.TestCase):
         push.initialize()
         pull.initialize()
 
+        # Let the PULL connection register: a PUSH with no connected peer
+        # raises Again on a non-blocking send, which is not what is tested here.
         time.sleep(0.1)
+
+        # Test non-blocking receive with no message available.
+        # Asserted BEFORE sending anything. Doing it after a send raced the
+        # delivery: PUSH/PULL queues reliably, so the message does arrive and
+        # whether it had arrived yet depended on timing.
+        with self.assertRaises(zmq.error.Again):
+            pull.recv(blocking=False)
 
         # Test non-blocking send
         push.send(b"test", blocking=False)
 
-        # Test non-blocking receive with no message available
-        with self.assertRaises(zmq.error.Again):
-            pull.recv(blocking=False)
+        # The message is queued, so it does arrive: wait for it instead of
+        # asserting on an arbitrary sleep.
+        self.assertTrue(pull.socket.poll(timeout=5000), "message never arrived")
+        self.assertEqual(pull.recv(blocking=False), b"test")
 
         push.finalize()
         pull.finalize()
