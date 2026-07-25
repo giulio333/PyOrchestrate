@@ -631,10 +631,9 @@ class ZeroMQRouterDealer(PluginProtocol):
         with client identity as the first part.
 
         Args:
-            blocking (bool, optional): If True, the receive operation blocks until a message arrives.
-                                      If False, the receive returns immediately
-                                          and may raise zmq.error.Again
-                                      if no message is available. Defaults to True.
+            blocking (bool, optional): If True, the receive operation blocks until a
+                message arrives. If False, the receive returns immediately and may
+                raise zmq.error.Again if no message is available. Defaults to True.
 
         Returns:
             list[bytes]: The list of received message parts.

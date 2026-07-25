@@ -46,3 +46,42 @@ intersphinx_mapping = {
 }
 
 exclude_patterns = ["_build"]
+
+
+def _markdown_fences_to_rst(app, what, name, obj, options, lines):
+    """Converte i code fence Markdown delle docstring in direttive RST.
+
+    Le docstring del progetto usano ```python ... ```, che RST non riconosce:
+    senza questa conversione il blocco finisce nella pagina come testo
+    letterale e trascina con sé il resto della sezione. Farlo qui evita di
+    riscrivere le docstring in RST, che nell'IDE risulterebbero meno leggibili.
+    """
+    converted = []
+    fence_indent = None
+
+    for line in lines:
+        stripped = line.lstrip()
+
+        if not stripped.startswith("```"):
+            if fence_indent is not None:
+                # dentro un blocco: rientra di 3 spazi sotto la direttiva,
+                # preservando l'indentazione relativa del codice
+                converted.append(" " * (fence_indent + 3) + line[fence_indent:] if line.strip() else "")
+            else:
+                converted.append(line)
+            continue
+
+        if fence_indent is None:
+            fence_indent = len(line) - len(stripped)
+            language = stripped[3:].strip() or "text"
+            converted.append(" " * fence_indent + f".. code-block:: {language}")
+            converted.append("")
+        else:
+            converted.append("")
+            fence_indent = None
+
+    lines[:] = converted
+
+
+def setup(app):
+    app.connect("autodoc-process-docstring", _markdown_fences_to_rst)

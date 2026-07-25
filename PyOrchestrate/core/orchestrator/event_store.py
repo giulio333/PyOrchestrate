@@ -432,6 +432,7 @@ class EventStore:
         Retrieve recent events with optional filtering.
 
         Storage behavior:
+
         - If event_name is None: Merges results from all configured stores (default + any event-specific stores)
         - If event_name is specified: Uses the event-specific store if configured,
           otherwise falls back to the default ring buffer
