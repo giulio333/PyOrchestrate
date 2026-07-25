@@ -6,28 +6,20 @@ from logging import Logger
 
 class Scheduler:
     """
-    Gestisce la schedulazione di funzioni in modo flessibile, permettendo l'esecuzione
-    a un orario specifico, dopo un certo ritardo o a intervalli regolari.
+    Schedules functions flexibly, allowing execution at a specific time, after
+    a given delay, or at regular intervals.
 
-    Attributi di Classe:
-        _scheduler (sched.scheduler): Lo scheduler condiviso tra tutte le istanze della classe.
-
-    Metodi:
-        __init__: Inizializza una nuova istanza di Schedulazione con una funzione da eseguire.
-        calcola_ritardo_iniziale: Calcola il ritardo iniziale prima della prima esecuzione.
-        start: Avvia la schedulazione della funzione.
-        _pianifica_prossima_esecuzione: Pianifica la prossima esecuzione della funzione.
-        _esegui_funzione: Esegue la funzione e ripianifica la prossima esecuzione se necessario.
-        run: Avvia lo scheduler globale per gestire gli eventi pianificati.
-        cancel: Cancella l'evento schedulato.
+    Attributes:
+        _scheduler (sched.scheduler): The scheduler shared by every instance of
+            the class.
     """
 
-    # Attributo di classe per lo scheduler condiviso
+    # Class attribute holding the shared scheduler
     _scheduler = None
 
     def __init__(
         self,
-        funzione,
+        func,
         logger,
         args=(),
         kwargs={},
@@ -36,74 +28,77 @@ class Scheduler:
         interval=None,
     ) -> None:
         """
-        Inizializza una nuova schedulazione.
+        Initializes a new schedule.
 
         Args:
-            funzione (callable): La funzione da eseguire quando l'evento è attivato.
-            logger (Logger): Oggetto logger per la registrazione degli eventi.
-            args (tuple): Argomenti posizionali da passare alla funzione (opzionale).
-            kwargs (dict): Argomenti keyword da passare alla funzione (opzionale).
-            start_time (str | datetime.time | datetime.datetime, opzionale): L'orario specifico per la prima esecuzione.
-                Può essere una stringa nel formato 'HH:MM:SS' o 'YYYY-MM-DD HH:MM:SS'.
-            delay (int, opzionale): Ritardo in secondi prima della prima esecuzione. Se `start_time` è specificato, `delay` è ignorato.
-            interval (int, opzionale): Intervallo in secondi per eseguire periodicamente la funzione.
+            func (callable): The function to run when the event fires.
+            logger (Logger): Logger object used to record events.
+            args (tuple): Positional arguments passed to the function (optional).
+            kwargs (dict): Keyword arguments passed to the function (optional).
+            start_time (str | datetime.time | datetime.datetime, optional): The
+                specific time of the first execution. Accepts a string in the
+                ``'HH:MM:SS'`` or ``'YYYY-MM-DD HH:MM:SS'`` format.
+            delay (int, optional): Delay in seconds before the first execution.
+                Ignored when ``start_time`` is given.
+            interval (int, optional): Interval in seconds between periodic runs.
 
         Raises:
-            ValueError: Se `start_time` è nel passato o se non è un formato valido.
+            ValueError: If ``start_time`` is in the past or is not a valid format.
         """
 
         if not Scheduler._scheduler:
             Scheduler._scheduler = sched.scheduler(time.time, time.sleep)
 
-        self.funzione = funzione
+        self.func = func
         self.args = args
         self.kwargs = kwargs
         self.delay = delay
-        self.interval = interval  # Intervallo per esecuzioni periodiche
-        self.event = None  # Evento schedulato
+        self.interval = interval  # Interval between periodic runs
+        self.event = None  # Scheduled event
         self.logger: Logger = logger
 
-        # Gestione di start_time
+        # start_time handling
         if start_time:
             if isinstance(start_time, str):
-                # Prova a convertire la stringa in datetime.time o datetime.datetime
+                # Try to parse the string as datetime.time or datetime.datetime
                 try:
-                    # Prova a interpretare come 'YYYY-MM-DD HH:MM:SS'
+                    # Try 'YYYY-MM-DD HH:MM:SS' first
                     self.start_time = datetime.datetime.strptime(
                         start_time, "%Y-%m-%d %H:%M:%S"
                     )
                 except ValueError:
                     try:
-                        # Prova a interpretare come 'HH:MM:SS'
+                        # Fall back to 'HH:MM:SS'
                         time_obj = datetime.datetime.strptime(
                             start_time, "%H:%M:%S"
                         ).time()
                         self.start_time = time_obj
                     except ValueError:
                         raise ValueError(
-                            "start_time deve essere nel formato 'HH:MM:SS' o 'YYYY-MM-DD HH:MM:SS'"
+                            "start_time must use the 'HH:MM:SS' or "
+                            "'YYYY-MM-DD HH:MM:SS' format"
                         )
             elif isinstance(start_time, (datetime.time, datetime.datetime)):
                 self.start_time = start_time
             else:
                 raise ValueError(
-                    "start_time deve essere una stringa, datetime.time o datetime.datetime"
+                    "start_time must be a string, datetime.time or datetime.datetime"
                 )
         else:
             self.start_time = None
 
-        # Pianifica la prima esecuzione
+        # Schedule the first execution
         self.start()
 
-    def calcola_ritardo_iniziale(self):
+    def compute_initial_delay(self):
         """
-        Calcola il ritardo iniziale prima della prima esecuzione della funzione.
+        Computes the initial delay before the first execution of the function.
 
         Returns:
-            float: Il ritardo in secondi prima della prima esecuzione.
+            float: The delay in seconds before the first execution.
 
         Raises:
-            ValueError: Se `start_time` è un oggetto `datetime.datetime` nel passato.
+            ValueError: If ``start_time`` is a ``datetime.datetime`` in the past.
         """
 
         if self.start_time:
@@ -115,120 +110,75 @@ class Scheduler:
             elif isinstance(self.start_time, datetime.datetime):
                 scheduled_time = self.start_time
                 if scheduled_time < now:
-                    raise ValueError(f"start_time={scheduled_time} è nel passato.")
+                    raise ValueError(f"start_time={scheduled_time} is in the past.")
             else:
                 raise ValueError(
-                    "start_time deve essere datetime.time o datetime.datetime"
+                    "start_time must be datetime.time or datetime.datetime"
                 )
 
             delay = (scheduled_time - now).total_seconds()
             return max(0, delay)
         else:
-            # Se non è specificato start_time, utilizza il ritardo fornito
+            # Without an explicit start_time, use the delay provided
             return self.delay
 
     def start(self):
         """
-        Inizia la schedulazione della funzione, calcolando il ritardo iniziale
-        e pianificando la prima esecuzione.
+        Starts scheduling the function, computing the initial delay and
+        planning the first execution.
         """
-        ritardo_iniziale = self.calcola_ritardo_iniziale()
-        self._pianifica_prossima_esecuzione(ritardo_iniziale)
+        initial_delay = self.compute_initial_delay()
+        self._schedule_next_run(initial_delay)
 
-    def _pianifica_prossima_esecuzione(self, delay):
+    def _schedule_next_run(self, delay):
         """
-        Pianifica la prossima esecuzione della funzione.
+        Schedules the next execution of the function.
 
         Args:
-            delay (float): Ritardo in secondi prima della prossima esecuzione.
+            delay (float): Delay in seconds before the next execution.
         """
         if Scheduler._scheduler:
-            self.event = Scheduler._scheduler.enter(delay, 1, self._esegui_funzione)
+            self.event = Scheduler._scheduler.enter(delay, 1, self._run_function)
 
-    def _esegui_funzione(self):
+    def _run_function(self):
         """
-        Esegue la funzione e, se specificato, pianifica la prossima esecuzione
-        dopo l'intervallo stabilito.
+        Runs the function and, when an interval is configured, schedules the
+        next execution after that interval.
         """
 
-        self.logger.info(f"executing scheduler job=[{self.funzione.__name__}]")
+        self.logger.info(f"executing scheduler job=[{self.func.__name__}]")
 
-        self.funzione(*self.args, **self.kwargs)
+        self.func(*self.args, **self.kwargs)
 
         if self.interval:
-            self._pianifica_prossima_esecuzione(self.interval)
+            self._schedule_next_run(self.interval)
 
     @classmethod
     def run(cls, blocking=True):
         """
-        Esegue lo scheduler globale per gestire gli eventi pianificati.
+        Runs the global scheduler to process the planned events.
 
         Args:
-            blocking (bool): Se True, lo scheduler blocca l'esecuzione fino a che non ci sono più eventi pianificati.
+            blocking (bool): If True, the scheduler blocks until no scheduled
+                events are left.
         """
         if cls._scheduler:
             cls._scheduler.run(blocking=blocking)
 
     def cancel(self):
         """
-        Cancella l'evento schedulato.
+        Cancels the scheduled event.
 
-        Se l'evento è già stato eseguito o cancellato, gestisce l'errore in modo sicuro.
+        Handles the error safely when the event has already run or been
+        cancelled.
         """
         if self.event:
             try:
                 if Scheduler._scheduler:
                     Scheduler._scheduler.cancel(self.event)
-                    self.logger.debug("Schedulazione cancellata.")
+                    self.logger.debug("Schedule cancelled.")
                 else:
-                    self.logger.debug("Impossibile cancellare l'evento.")
+                    self.logger.debug("Unable to cancel the event.")
             except ValueError:
-                self.logger.debug("L'evento è già stato eseguito o cancellato.")
+                self.logger.debug("The event has already run or been cancelled.")
             self.event = None
-
-
-if __name__ == "__main__":
-
-    logger = Logger("Scheduler")
-
-    def saluta1(nome):
-        print(
-            f"{nome} saluta dopo 5 secondi dall'avvio e va via ({datetime.datetime.now().strftime('%H:%M:%S')})"
-        )
-
-    def saluta2(nome):
-        print(
-            f"{nome} saluta alle 21:53:00 e ripete ogni 10 secondi ({datetime.datetime.now().strftime('%H:%M:%S')})"
-        )
-
-    def saluta3(nome):
-        print(
-            f"{nome} saluta ogni 10 secondi ({datetime.datetime.now().strftime('%H:%M:%S')})"
-        )
-
-    sched1 = Scheduler(funzione=saluta1, args=("Mario",), delay=5, logger=logger)
-
-    sched2 = Scheduler(
-        funzione=saluta2,
-        args=("Luisa",),
-        start_time="18:53:00",
-        interval=10,
-        logger=logger,
-    )
-
-    sched3 = Scheduler(funzione=saluta3, args=("Luca",), interval=10, logger=logger)
-
-    sched4 = Scheduler(
-        funzione=saluta1,
-        args=("Giulia",),
-        start_time="2025-10-17 18:55:00",
-        logger=logger,
-    )
-
-    try:
-
-        print("Avvio dello scheduler...")
-        Scheduler.run(blocking=True)
-
-    except KeyboardInterrupt:
-        print("Esecuzione interrotta dall'utente.")

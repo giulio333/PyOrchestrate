@@ -1,11 +1,11 @@
-"""Configurazione Sphinx per l'API reference di PyOrchestrate.
+"""Sphinx configuration for the PyOrchestrate API reference.
 
-L'output utile non è HTML ma l'artifact JSON che Mintlify consuma:
+The useful output is not HTML but the JSON artifact Mintlify consumes:
 
     python -m sphinx -b json sphinx docs/sdk-artifacts/sphinx-output
 
-Vive fuori da docs/ perché quella cartella è la docs root di Mintlify e
-tutto ciò che contiene verrebbe pubblicato come pagina.
+This lives outside docs/ because that folder is Mintlify's docs root, and
+everything inside it would be published as a page.
 """
 
 import os
@@ -22,7 +22,7 @@ release = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["versi
 
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.napoleon",  # docstring in stile Google, già usate nel progetto
+    "sphinx.ext.napoleon",  # Google-style docstrings, already used in the project
     "sphinx.ext.intersphinx",
 ]
 
@@ -35,9 +35,9 @@ autodoc_default_options = {
 autodoc_typehints = "description"
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
-# Rende le sezioni "Attributes:" campi :ivar: invece di descrizioni separate:
-# senza questo, ogni attributo documentato nella docstring della classe e
-# presente anche come membro reale viene emesso due volte.
+# Render "Attributes:" sections as :ivar: fields instead of standalone
+# descriptions: without this, every attribute documented in the class docstring
+# and also present as a real member is emitted twice.
 napoleon_use_ivar = True
 
 intersphinx_mapping = {
@@ -49,12 +49,12 @@ exclude_patterns = ["_build"]
 
 
 def _markdown_fences_to_rst(app, what, name, obj, options, lines):
-    """Converte i code fence Markdown delle docstring in direttive RST.
+    """Converts Markdown code fences in docstrings into RST directives.
 
-    Le docstring del progetto usano ```python ... ```, che RST non riconosce:
-    senza questa conversione il blocco finisce nella pagina come testo
-    letterale e trascina con sé il resto della sezione. Farlo qui evita di
-    riscrivere le docstring in RST, che nell'IDE risulterebbero meno leggibili.
+    The project's docstrings use ```python ... ```, which RST does not
+    recognise: without this conversion the block lands on the page as literal
+    text and drags the rest of the section along with it. Doing it here avoids
+    rewriting the docstrings in RST, which would read worse in the IDE.
     """
     converted = []
     fence_indent = None
@@ -64,8 +64,8 @@ def _markdown_fences_to_rst(app, what, name, obj, options, lines):
 
         if not stripped.startswith("```"):
             if fence_indent is not None:
-                # dentro un blocco: rientra di 3 spazi sotto la direttiva,
-                # preservando l'indentazione relativa del codice
+                # inside a block: indent 3 spaces under the directive,
+                # preserving the code's own relative indentation
                 converted.append(
                     " " * (fence_indent + 3) + line[fence_indent:]
                     if line.strip()

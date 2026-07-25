@@ -4,8 +4,29 @@ title: Agents
 
 # Advanced Agents
 
-In PyOrchestrate, **agents** are the core building blocks. 
+In PyOrchestrate, **agents** are the core building blocks.
 
 Each agent runs as a **process** or a **thread** and acts as a container for your custom logic. Whether you need continuous execution, periodic tasks, or one-shot operations, agents are designed to fit a variety of scenarios and adapt to your workflows.
 
-Before diving into the **built-in agents**, let’s take a moment to understand some core concepts that define how agents work in PyOrchestrate.
+## The built-in agents
+
+Each built-in agent has a single page, under Learn. They are the canonical reference: this section used to carry shorter copies of `BaseAgent` and `LoopingAgent`, which drifted out of step with them.
+
+<CardGroup cols={2}>
+  <Card title="BaseAgent" icon="box" href="/learn/agents/built-in-agents/baseagent">
+    The foundation of every agent: lifecycle, `run()`, and the methods you override.
+  </Card>
+  <Card title="LoopingAgent" icon="repeat" href="/learn/agents/built-in-agents/loopingagent">
+    Continuous execution until stopped or until a limit is reached.
+  </Card>
+  <Card title="PeriodicAgent" icon="timer" href="/learn/agents/built-in-agents/periodicagent">
+    A LoopingAgent on a fixed interval, with optional delay compensation.
+  </Card>
+  <Card title="PoolAgent" icon="network" href="/learn/agents/built-in-agents/poolagent">
+    An agent that owns an orchestrator of its own and supervises a group of child agents.
+  </Card>
+</CardGroup>
+
+## Going deeper
+
+For what happens beneath the agents — how they are scheduled, how their state reaches the orchestrator and how messages flow — see [Orchestrator Internals](/advanced/orchestrator-internals/index) and the [Message Channel](/advanced/utilities/message-channel).

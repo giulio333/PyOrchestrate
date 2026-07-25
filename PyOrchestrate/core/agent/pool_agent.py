@@ -48,7 +48,10 @@ class PoolAgentConfig(PeriodicAgent.Config):
         ... )
     """
 
-    agent_entry: list[AgentEntry] | None = None
+    # Plural, matching __init__, validate and setup: a singular name here left
+    # the class default unreachable, so a pool without an explicit
+    # agents_entry raised AttributeError instead of the validation warning.
+    agents_entry: list[AgentEntry] | None = None
     auto_reboot: bool = False
 
     def __init__(

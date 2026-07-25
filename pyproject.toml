@@ -1,12 +1,12 @@
 [build-system]
-# setuptools>=77 per la dichiarazione della licenza in formato SPDX (PEP 639)
+# setuptools>=77 for the SPDX-format license declaration (PEP 639)
 requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "PyOrchestrate"
 version = "0.2.0"
-description = "Framework per orchestrare applicazioni Python multi-processo e multi-thread composte da agenti"
+description = "Framework to orchestrate multi-process and multi-thread Python applications made of agents"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -28,17 +28,31 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Topic :: System :: Distributed Computing",
 ]
+# Only what the package actually imports. `requests` used to be listed here
+# without appearing in any import under PyOrchestrate/ (the examples use it),
+# and it pulled in urllib3 and idna along with their advisories.
+# These are floors, not pins: exact versions live in `uv.lock` and
+# `requirements.txt`, the two files Dependabot reads.
 dependencies = [
-    "fastapi>=0.116.1",
     "loguru>=0.7.3",
     "psutil>=7.0.0",
-    "pydantic>=2.11.7",
     "pyzmq>=26.4.0",
-    "requests>=2.32.3",
-    "uvicorn>=0.35.0",
+]
+
+[project.optional-dependencies]
+# The web interface is the only consumer of fastapi/uvicorn/pydantic: they
+# were core dependencies for everyone while serving a subset of users.
+# Install with `pip install PyOrchestrate[web]` or `uv sync --extra web`.
+# fastapi>=0.140 is the first release that resolves to starlette>=1.3.1, where
+# the advisories reported against this repo are fixed.
+web = [
+    "fastapi>=0.140.0",
+    "pydantic>=2.11.7",
+    "uvicorn[standard]>=0.35.0",
 ]
 
 [project.urls]
@@ -50,15 +64,33 @@ Issues = "https://github.com/giulio333/PyOrchestrate/issues"
 pyorchestrate = "PyOrchestrate.cli:main"
 pyorchestrate-web = "PyOrchestrate.web_interface.server:main"
 
+# Replaces requirements-dev.txt: uv installs this group by default, so
+# `uv run pytest` works with no flags and there is no second list to keep in
+# sync. CI installs the same tools with pip.
+[dependency-groups]
+dev = [
+    "black",
+    "coverage",
+    "flake8",
+    "flake8-gl-codeclimate",
+    "pylint",
+    "pytest",
+    # Not a package dependency: only the scripts under examples/ import it.
+    "requests>=2.33.0",
+    # Builds the JSON artifact behind Mintlify's SDK reference. Pinned because
+    # the output format changes across Sphinx majors.
+    "sphinx==8.1.3",
+]
+
 [tool.uv]
 package = true
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
 
-# Esplicita i default di black: la CI ora verifica la formattazione invece di
-# riscriverla, quindi lo stile deve essere fissato qui e non dipendere dalla
-# versione di black installata nel runner.
+# Spell out black's defaults: CI checks formatting instead of rewriting it, so
+# the style must be fixed here rather than depend on the black version
+# installed in the runner.
 [tool.black]
 line-length = 88
 target-version = ["py311"]

@@ -10,6 +10,49 @@ This page documents the internal Message Channel used by the framework. It is in
 
 The Message Channel is a transport-agnostic primitive that carries logical envelopes between framework components. It standardizes message shapes, framing, correlation and basic validation so higher-level components can focus on application logic.
 
+## The two channels
+
+A running system contains two distinct `MessageChannel` instances, chosen through the `a_type` argument. They carry the same envelopes over different transports and serve different pairs of components.
+
+### 1. Queue-based — orchestrator ↔ agents
+
+Built with `a_type="thread"` or `a_type="process"` depending on how the agents run. The channel is local to the machine and backed by a standard queue.
+
+```mermaid
+flowchart LR
+    O[Orchestrator]
+    A1[Agent 1]
+    A2[Agent 2]
+    A3[Agent N]
+    O <--> A1
+    O <--> A2
+    O <--> A3
+```
+
+In practice only `STATUS` messages travel this way, from the agents to the orchestrator. The orchestrator consumes them and re-emits the corresponding events through the `EventManager`:
+
+- `AGENT_STARTED` — the agent has started.
+- `AGENT_READY` — the agent is ready.
+- `AGENT_TERMINATED` — the agent has closed.
+- `AGENT_ERROR` — the agent reported an error (payload starts with `ERROR:`).
+
+<Warning>
+The orchestrator → agent direction of this channel is not consumed by anything today. Agents are driven through their [ControlEvents](/learn/agents/index#controlevents), not by messages on the queue.
+</Warning>
+
+### 2. ZeroMQ-based — orchestrator ↔ CLI and web interface
+
+Built with `a_type="zmq_router"` on the orchestrator side and `a_type="zmq_dealer"` on the client side, over a TCP address (`tcp://127.0.0.1:5555` by default). This is what lets an external process attach to a running orchestrator.
+
+```mermaid
+flowchart LR
+    O["Orchestrator (zmq_router)"]
+    CLI["CLI / web interface (zmq_dealer)"]
+    O <--> CLI
+```
+
+Here the traffic is `COMMAND`: the client sends a request, the orchestrator parses the payload, delegates execution to a `CommandHandler` and sends the response — or the error — back over the same channel, correlated by `request_id`.
+
 ## Supported message types
 
 Two logical message types are supported: COMMAND and STATUS. Both are serialized as JSON envelopes with a small set of top-level fields.
@@ -111,12 +154,7 @@ Example status envelope:
 - Validation and correlation: basic envelope validation is performed on receive; `request_id` is used to correlate COMMAND request/response flows.
 - Operational safeguards: the channel enforces timeouts, message size limits and clean shutdown semantics to protect the runtime.
 
-## How the framework uses the channel (external view)
-
-- Orchestrator ↔ CLI/Webclient: the orchestrator typically exposes a network endpoint (e.g. ZeroMQ ROUTER). CLI and webclient components act as clients and exchange COMMAND messages with the orchestrator.
-- Orchestrator ↔ Agents: the orchestrator and agents communicate using queues or network transports. Agents emit STATUS messages (heartbeats, state changes) and receive COMMAND messages from the orchestrator.
-
-The module is internal: application code interacts with higher-level framework APIs rather than the channel directly.
+The module is internal: application code interacts with higher-level framework APIs rather than the channel directly. If you need agents to exchange data of your own, use the [Communication Plugins](/learn/agents/plugins/communication-plugins) instead — they exist precisely so that user traffic does not share the framework's control channel.
 
 ## Operational notes
 
@@ -128,9 +166,5 @@ The module is internal: application code interacts with higher-level framework A
 
 ## See also
 
-- Search the codebase for `ServiceMessage` and `MessageChannel` to inspect implementation details.
-
----
-title: Message Channel
-editLink: true
----
+- [`MessageChannel` and `ServiceMessage` in the API reference](/api/utilities) — constructor arguments, methods and exact signatures, generated from the source.
+- [Communication Plugins](/learn/agents/plugins/communication-plugins) — the user-facing way to make agents talk to each other and to the outside world.

@@ -91,7 +91,7 @@ class WeatherCollector(PeriodicProcessAgent):
                 self.logger.info(f"Risultato: {data}")
 
         except Exception as e:
-            raise RecoverableException(f"Errore nella richiesta: {e}")
+            raise RecoverableException(f"Request error: {e}")
 
 
 if __name__ == "__main__":

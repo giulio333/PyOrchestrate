@@ -1,38 +1,41 @@
 """
-Questo modulo definisce la classe `LoggerFactory`, che facilita la creazione e la gestione di logger personalizzati utilizzando Loguru.
+This module defines the `LoggerFactory` class, which creates and manages
+custom loggers built on Loguru.
 
-**Loguru** è una libreria di logging per Python che semplifica notevolmente la gestione dei log.
-Uno dei concetti fondamentali in Loguru è il *sink*, che rappresenta una destinazione per i messaggi di log, come file, console o altri flussi.
-I sink permettono di definire dove e come i messaggi di log vengono emessi, supportando funzionalità come la rotazione dei file,
-la compressione, i filtri e la formattazione personalizzata.
+**Loguru** is a Python logging library that considerably simplifies log
+handling. One of its core concepts is the *sink*, a destination for log
+messages such as a file, the console or another stream. Sinks define where and
+how messages are emitted, and support features like file rotation,
+compression, filters and custom formatting.
 
-La classe `LoggerFactory` utilizza questi concetti per:
+`LoggerFactory` uses those concepts to:
 
-- Rimuovere il logger predefinito e aggiungere un sink per la console con un formato specifico.
-- Gestire sink file individuali per diversi identificatori di log, con meccanismi di rotazione e compressione.
-- Fornire un metodo thread-safe per creare e recuperare logger configurati per diversi componenti dell'applicazione.
+- Remove the default logger and add a console sink with a specific format.
+- Manage individual file sinks per log identifier, with rotation and
+  compression.
+- Provide a thread-safe way to create and retrieve loggers configured for the
+  different components of an application.
 """
 
 from loguru import logger
 import sys
-from typing import Dict, Any, Optional
+from typing import Dict
 import threading
-from time import sleep
 from pathlib import Path
 
 
 class LoggerFactory:
     """
-    Factory per creare e gestire logger personalizzati utilizzando Loguru.
+    Factory that creates and manages custom loggers using Loguru.
 
     Attributes:
-        _sinks (Dict[str, int]): Mappa dei sink ID.
-        _initialized (bool): Flag per indicare se il logger è stato inizializzato.
-        _lock (threading.Lock): Lock per garantire l'accesso thread-safe ai sink.
-        rotation_default (str): Frequenza di rotazione dei file di log di default.
-        retention_default (str): Durata di retention dei file di log di default.
-        compression_default (str): Tipo di compressione dei file di log di default.
-        log_path_default (Path | str | None): Percorso di default in cui salvare i file di log.
+        _sinks (Dict[str, int]): Map of sink IDs.
+        _initialized (bool): Whether the logger has been initialized.
+        _lock (threading.Lock): Lock guaranteeing thread-safe access to sinks.
+        rotation_default (str): Default rotation frequency for log files.
+        retention_default (str): Default retention period for log files.
+        compression_default (str): Default compression type for log files.
+        log_path_default (Path | str | None): Default directory for log files.
     """
 
     _sinks: Dict[str, int] = {}
@@ -69,7 +72,7 @@ class LoggerFactory:
         log_path: str | Path | None = None,
     ):
         """
-        Imposta i valori di default per rotation, retention, compression e log_path.
+        Sets the default values for rotation, retention, compression and log_path.
         """
         if rotation is not None:
             cls.rotation_default = rotation
@@ -92,25 +95,27 @@ class LoggerFactory:
         log_path: str | Path | None = None,
     ):
         """
-        Crea o restituisce un `logger` esistente.
+        Creates a new `logger`, or returns an existing one.
 
         Args:
-            log_identifier (str): Identificatore univoco per il logger (es. nome del `thread`).
-            logger_name (str): Nome del logger, verrà incluso nel formato dei messaggi.
-            level (str): Livello di log.
-            rotation (str): Frequenza di rotazione dei file di log.
-            retention (str): Durata di retention dei file di log.
-            compression (str): Tipo di compressione dei file di log.
-            log_path (str | Path): Percorso in cui salvare i file di log.
+            log_identifier (str): Unique identifier for the logger (for example
+                the `thread` name).
+            logger_name (str): Logger name, included in the message format.
+            level (str): Log level.
+            rotation (str): Rotation frequency for log files.
+            retention (str): Retention period for log files.
+            compression (str): Compression type for log files.
+            log_path (str | Path): Directory where log files are written.
+
         Returns:
-            Logger configurato.
+            The configured logger.
         """
 
         with cls._lock:
             if not cls._initialized:
-                # Rimuove il logger predefinito
+                # Drop the default logger
                 logger.remove()
-                # Aggiunge un sink console
+                # Add a console sink
                 logger.add(
                     sys.stderr,
                     format=cls.dev_format,
@@ -157,44 +162,9 @@ class LoggerFactory:
     @classmethod
     def close_all(cls) -> None:
         """
-        Chiude tutti i `sink`.
+        Closes every `sink`.
         """
         with cls._lock:
             logger.remove()
             cls._sinks.clear()
             cls._initialized = False
-
-
-# Esempio di utilizzo
-def task(log_identifier: str, logger_name: str):
-    path = Path(__file__).parent / "logs"
-
-    # LoggerFactory.set_defaults(log_path=path)
-
-    task_logger = LoggerFactory.create_logger(
-        log_identifier, logger_name, log_path=path
-    )
-
-    while True:
-        task_logger.info(f"Starting task {logger_name}")
-        # Simulazione di operazioni
-        task_logger.success(f"End of task {logger_name}")
-        sleep(1)
-
-
-if __name__ == "__main__":
-    # Esegui i thread di esempio
-    main_thread = threading.Thread(target=task, args=("Engine", "Engine"))
-    thread1 = threading.Thread(target=task, args=("Worker1", "Worker1"))
-    thread2 = threading.Thread(target=task, args=("Worker2", "Worker2"))
-
-    main_thread.start()
-    thread1.start()
-    thread2.start()
-
-    main_thread.join()
-    thread1.join()
-    thread2.join()
-
-    # Chiude tutti i sink prima della chiusura dell'applicazione
-    LoggerFactory.close_all()

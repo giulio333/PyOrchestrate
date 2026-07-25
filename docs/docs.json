@@ -54,7 +54,8 @@
             "pages": [
               "learn/agents/built-in-agents/baseagent",
               "learn/agents/built-in-agents/loopingagent",
-              "learn/agents/built-in-agents/periodicagent"
+              "learn/agents/built-in-agents/periodicagent",
+              "learn/agents/built-in-agents/poolagent"
             ]
           },
           {
@@ -68,7 +69,11 @@
             "pages": [
               "learn/agents/plugins/communication-plugins",
               "learn/agents/plugins/zeromqpubsub/zeromqpubsub",
-              "learn/agents/plugins/zeromqreqrep/zeromqreqrep"
+              "learn/agents/plugins/zeromqreqrep/zeromqreqrep",
+              "learn/agents/plugins/zeromqpushpull/zeromqpushpull",
+              "learn/agents/plugins/zeromqrouterdealer/zeromqrouterdealer",
+              "learn/agents/plugins/zeromqpair/zeromqpair",
+              "learn/agents/plugins/zeromqpoller/zeromqpoller"
             ]
           }
         ]
@@ -153,16 +158,13 @@
           {
             "group": "Architecture",
             "pages": [
-              "advanced/architecture/index",
-              "advanced/architecture/message-channel"
+              "advanced/architecture/index"
             ]
           },
           {
             "group": "Built-in Agents",
             "pages": [
-              "advanced/built-in-agents/index",
-              "advanced/built-in-agents/baseagent",
-              "advanced/built-in-agents/loopingagent"
+              "advanced/built-in-agents/index"
             ]
           }
         ]
@@ -190,5 +192,19 @@
     "socials": {
       "github": "https://github.com/giulio333/PyOrchestrate"
     }
-  }
+  },
+  "redirects": [
+    {
+      "source": "/advanced/architecture/message-channel",
+      "destination": "/advanced/utilities/message-channel"
+    },
+    {
+      "source": "/advanced/built-in-agents/baseagent",
+      "destination": "/learn/agents/built-in-agents/baseagent"
+    },
+    {
+      "source": "/advanced/built-in-agents/loopingagent",
+      "destination": "/learn/agents/built-in-agents/loopingagent"
+    }
+  ]
 }

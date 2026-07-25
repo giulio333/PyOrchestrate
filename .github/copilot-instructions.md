@@ -77,24 +77,24 @@ def on_stop(self):
 
 ### Testing
 ```bash
-# Install dev dependencies first
-pip install -r requirements-dev.txt
+# Create the environment: dependencies, web extra and dev tools
+uv sync --extra web
 
 # Run all tests with verbose output
-python3 -m pytest test/ -v --tb=short
+uv run pytest test/ -v --tb=short
 
 # Run specific test file
-python3 -m pytest test/test_base_agent.py -v
+uv run pytest test/test_base_agent.py -v
 
 # Run with coverage
-coverage run -m pytest test/ && coverage report
+uv run coverage run -m pytest test/ && uv run coverage report
 
 # Use MagicMock for testing agents (see test/test_base_agent.py)
 ```
 
 ### Code Quality
 ```bash
-# Lint code (flake8 available in requirements-dev.txt)
+# Lint code (flake8 comes from the `dev` dependency group)
 flake8 .
 
 # Additional linting with pylint
@@ -245,12 +245,16 @@ agent = MyAgent(
 
 ## Version Management & Requirements
 
-- **CRITICAL**: Update version in ALL THREE places: `pyproject.toml`, `cli.py` (CLIConstants.VERSION) and `web_interface/server.py` (FastAPI `version`)
-- **Python**: Requires Python >=3.11 (as specified in pyproject.toml)
-- **CLI entry points**: `pyorchestrate` (main CLI), `pyorchestrate-web` (web interface)
-- **Core dependencies**: loguru, pyzmq, requests, fastapi, uvicorn, psutil, pydantic (keep minimal)
-- **Dev dependencies**: Available in requirements-dev.txt (pytest, coverage, flake8, pylint, sphinx)
-- **Installation**: Use `pip install .` to install CLI commands globally
+- **Version**: declared ONLY in `pyproject.toml`. Everything else reads
+  `PyOrchestrate.__version__`, which comes from the distribution metadata —
+  never hardcode the number anywhere else.
+- **Python**: Requires Python >=3.11; development and the API reference use 3.13 (`.python-version`)
+- **CLI entry points**: `pyorchestrate` (main CLI), `pyorchestrate-web` (web interface, needs the `web` extra)
+- **Core dependencies**: loguru, pyzmq, psutil — only what the package imports
+- **`web` extra**: fastapi, uvicorn, pydantic — used solely by `web_interface/server.py`
+- **Dev dependencies**: the `dev` group in `pyproject.toml` (pytest, coverage, flake8, pylint, black, sphinx), installed by default by `uv sync`
+- **`requirements.txt` is generated**: regenerate with the command in its first line after every `uv lock`; Dependabot reads it and `uv.lock`
+- **Installation**: `pip install .`, or `pip install ".[web]"` for the web interface
 
 ## Common Patterns (Study examples/)
 

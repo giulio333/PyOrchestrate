@@ -1,0 +1,117 @@
+---
+title: ZeroMQPair Plugin
+description: Learn how to use the ZeroMQPair plugin for exclusive bidirectional communication between two peers.
+---
+
+# ZeroMQPair Plugin
+
+## Introduction to the Pair Pattern
+
+`PAIR` is the simplest ZeroMQ socket: an exclusive, bidirectional channel between **exactly two** peers. There is no routing, no fan-out, no load balancing — whatever one side sends, the other receives, in order.
+
+That simplicity is the point. When two components need to talk to each other and nobody else, `PAIR` avoids the ceremony of the other patterns: no lockstep like `REQ`/`REP`, no topics like `PUB`/`SUB`, no identity frames like `ROUTER`/`DEALER`.
+
+<Warning title="Two peers, and only two">
+A `PAIR` socket accepts a single connection. A second peer connecting to the same address does not get an error — it simply never exchanges anything useful. If you need more than two participants, use [PushPull](/learn/agents/plugins/zeromqpushpull/zeromqpushpull) or [RouterDealer](/learn/agents/plugins/zeromqrouterdealer/zeromqrouterdealer) instead.
+</Warning>
+
+## Installation Instructions
+
+The plugin relies on `pyzmq`, a core dependency of PyOrchestrate:
+
+```bash
+pip install pyzmq
+```
+
+## Usage
+
+Unlike the other ZeroMQ plugins, `ZeroMQPair` lets you decide which side binds through the `bind` argument. One peer must pass `bind=True` (the default), the other `bind=False`.
+
+### Peer A — binds
+
+```python
+from PyOrchestrate.core.agent import PeriodicProcessAgent
+from PyOrchestrate.core.plugins import ZeroMQPair
+
+
+class PairAgentA(PeriodicProcessAgent):
+
+    class Config(PeriodicProcessAgent.Config):
+        limit = 10
+        execution_interval = 1.0
+        counter: int = 1
+
+    class Plugin(PeriodicProcessAgent.Plugin):
+        zmq = ZeroMQPair("tcp://*:5555", bind=True)
+
+    config: Config
+    plugin: Plugin
+
+    def runner(self):
+        super().runner()
+
+        message = f"Hello from A - Message {self.config.counter}"
+        self.logger.info(f"Peer A sending: {message}")
+        self.plugin.zmq.send(message.encode())
+        self.config.counter += 1
+```
+
+### Peer B — connects
+
+```python
+from PyOrchestrate.core.agent import PeriodicProcessAgent
+from PyOrchestrate.core.plugins import ZeroMQPair
+
+
+class PairAgentB(PeriodicProcessAgent):
+
+    class Plugin(PeriodicProcessAgent.Plugin):
+        zmq = ZeroMQPair("tcp://localhost:5555", bind=False)
+
+    plugin: Plugin
+
+    def runner(self):
+        super().runner()
+
+        message = self.plugin.zmq.recv()
+        self.logger.info(f"Peer B received: {message.decode()}")
+        self.plugin.zmq.send(b"ACK from B")
+```
+
+For the constructor arguments, including `hwm` and a shared `context`, see the [API reference](/api/plugins).
+
+## Error Handling
+
+### Both peers binding
+
+If both sides pass `bind=True`, the second one fails at `initialize()` with `zmq.error.ZMQError: Address already in use`. Decide once which peer owns the address — usually the longer-lived one.
+
+### Reading and writing in the same cycle
+
+`PAIR` is bidirectional, so it is tempting to send and then immediately receive within one `runner()`. A blocking `recv()` there stalls the agent until the peer answers. Use `blocking=False` and handle the miss:
+
+```python
+import zmq
+
+self.plugin.zmq.send(b"ping")
+
+try:
+    response = self.plugin.zmq.recv(blocking=False)
+    self.logger.info(f"Received: {response.decode()}")
+except zmq.error.Again:
+    self.logger.debug("No response yet")
+```
+
+### No automatic reconnection
+
+`PAIR` sockets do not recover a broken connection the way most other ZeroMQ socket types do. If a peer dies, the channel stays dead: restart both sides, or pick a different pattern when peers come and go.
+
+## Complete Example
+
+A runnable version with two peers talking both ways lives in `examples/communication/example_zmq_pair.py`.
+
+## Resource Links
+
+- [ZeroMQ Official Documentation](https://zeromq.org/documentation/)
+- [PyZMQ Documentation](https://pyzmq.readthedocs.io/en/latest/)
+- [ZeroMQ Guide — Socket Combinations](https://zguide.zeromq.org/docs/chapter2/)

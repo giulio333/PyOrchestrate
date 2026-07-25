@@ -52,7 +52,7 @@ class PushAgent(PeriodicProcessAgent):
     def on_close(self):
         super().on_close()
 
-        # Invia un messaggio END per ogni worker
+        # Send one END message per worker
         self.logger.info(
             f"Sending termination signal to {self.config.num_workers} workers"
         )

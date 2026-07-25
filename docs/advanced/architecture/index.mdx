@@ -5,3 +5,22 @@ title: Architecture
 # Architecture
 
 The architecture of PyOrchestrate is designed to provide a flexible and efficient framework for building and managing agents. This section provides an overview of the key architectural components and their interactions.
+
+## Where to look
+
+The architectural pieces are documented next to the code they describe, rather than duplicated here:
+
+<CardGroup cols={2}>
+  <Card title="Message Channel" icon="arrow-left-right" href="/advanced/utilities/message-channel">
+    The internal transport between orchestrator, agents, CLI and web interface: the two channel types, the envelope format and the message flows.
+  </Card>
+  <Card title="Orchestrator Internals" icon="layers" href="/advanced/orchestrator-internals/index">
+    Dependency graph, lifecycle manager, worker pool, event bus, message router and command interface.
+  </Card>
+  <Card title="Core Utilities" icon="wrench" href="/advanced/utilities/index">
+    Event manager, plugin manager and the other building blocks shared across the framework.
+  </Card>
+  <Card title="Agents" icon="box" href="/learn/agents/index">
+    The agent model, its lifecycle, and the built-in agents you inherit from.
+  </Card>
+</CardGroup>

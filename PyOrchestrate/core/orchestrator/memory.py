@@ -187,14 +187,14 @@ class Group:
 
     def add_agent(self, agent_name: str) -> None:
         """
-        Aggiunge un agente (rappresentato dal suo nome) al gruppo.
+        Adds an agent (identified by its name) to the group.
         """
         if agent_name not in self.agent_names:
             self.agent_names.append(agent_name)
 
     def remove_agent(self, agent_name: str) -> None:
         """
-        Rimuove un agente dal gruppo.
+        Removes an agent from the group.
         """
         if agent_name in self.agent_names:
             self.agent_names.remove(agent_name)
@@ -292,14 +292,14 @@ class OMemory:
 
     def create_group(self, group_name: str) -> None:
         """
-        Crea un gruppo vuoto, se non esiste già.
+        Creates an empty group, unless it already exists.
         """
         if group_name not in self._groups:
             self._groups[group_name] = Group(group_name)
 
     def add_agent_to_group(self, agent_name: str, group_name: str) -> None:
         """
-        Aggiunge un agente esistente al gruppo specificato (se il gruppo esiste).
+        Adds an existing agent to the given group, when the group exists.
         """
         if agent_name in self._agents and group_name in self._groups:
             group = self._groups[group_name]
@@ -307,7 +307,7 @@ class OMemory:
 
     def remove_agent_from_group(self, agent_name: str, group_name: str) -> None:
         """
-        Rimuove un agente dal gruppo specificato (se il gruppo esiste).
+        Removes an agent from the given group, when the group exists.
         """
         if group_name in self._groups:
             group = self._groups[group_name]
@@ -315,13 +315,13 @@ class OMemory:
 
     def get_group(self, group_name: str) -> Optional[Group]:
         """
-        Ritorna l'oggetto `Group`, se esiste.
+        Returns the `Group` object, when it exists.
         """
         return self._groups.get(group_name)
 
     def get_group_agents(self, group_name: str) -> List[AgentProtocol]:
         """
-        Ritorna la lista delle istanze degli agenti appartenenti al gruppo.
+        Returns the list of agent instances belonging to the group.
         """
         group = self._groups.get(group_name)
         if not group:

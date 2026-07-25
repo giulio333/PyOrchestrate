@@ -1,0 +1,137 @@
+---
+title: ZeroMQPushPull Plugin
+description: Learn how to use the ZeroMQPushPull plugin to distribute tasks across workers with the ZeroMQ Push-Pull pattern.
+---
+
+# ZeroMQPushPull Plugin
+
+## Introduction to the Push-Pull Pattern
+
+The **Push-Pull** pattern builds a one-way pipeline. A `PUSH` socket fans tasks out to the `PULL` sockets connected to it, and ZeroMQ takes care of the load balancing: each message goes to exactly **one** worker, chosen round-robin among those able to accept it.
+
+This is the difference that matters when choosing between patterns:
+
+| Pattern | Each message reaches | Direction |
+|---------|----------------------|-----------|
+| [PubSub](/learn/agents/plugins/zeromqpubsub/zeromqpubsub) | every interested subscriber | one-way |
+| **PushPull** | exactly one worker | one-way |
+| [ReqRep](/learn/agents/plugins/zeromqreqrep/zeromqreqrep) | one peer, with a reply | round-trip |
+
+Use it to spread work across a pool of workers, or to chain processing stages into a pipeline.
+
+## Installation Instructions
+
+The plugin relies on `pyzmq`, which is a core dependency of PyOrchestrate. If you installed the framework you already have it:
+
+```bash
+pip install pyzmq
+```
+
+## Usage
+
+Declare the plugin in your agent's `Plugin` class and PyOrchestrate initializes and finalizes it with the agent lifecycle.
+
+### Producer Example (PUSH)
+
+```python
+from PyOrchestrate.core.agent import PeriodicProcessAgent
+from PyOrchestrate.core.plugins import ZeroMQPushPull, SocketType
+
+
+class PushAgent(PeriodicProcessAgent):
+
+    class Config(PeriodicProcessAgent.Config):
+        limit = 20
+        execution_interval = 0.1
+        counter: int = 1
+
+    class Plugin(PeriodicProcessAgent.Plugin):
+        zmq = ZeroMQPushPull("tcp://*:5555", SocketType.PUSH)
+
+    config: Config
+    plugin: Plugin
+
+    def runner(self):
+        super().runner()
+
+        task = f"Task {self.config.counter}"
+        self.logger.info(f"Pushing task: {task}")
+        self.plugin.zmq.send(task.encode())
+        self.config.counter += 1
+```
+
+### Worker Example (PULL)
+
+```python
+from PyOrchestrate.core.agent import LoopingProcessAgent
+from PyOrchestrate.core.plugins import ZeroMQPushPull, SocketType
+
+
+class PullAgent(LoopingProcessAgent):
+
+    class Plugin(LoopingProcessAgent.Plugin):
+        zmq = ZeroMQPushPull("tcp://localhost:5555", SocketType.PULL)
+
+    plugin: Plugin
+
+    def cycle(self):
+        super().cycle()
+
+        task = self.plugin.zmq.recv()
+        if task == b"END":
+            self.stop()
+            return
+
+        self.logger.info(f"Processing: {task.decode()}")
+```
+
+<Warning title="Who binds and who connects is fixed">
+`initialize()` does **not** offer a choice here: a `PUSH` socket always binds to the address, a `PULL` socket always connects to it. Give the producer a bindable address (`tcp://*:5555`) and the workers a reachable one (`tcp://localhost:5555`). Any socket type other than `PUSH` or `PULL` raises `ValueError`.
+</Warning>
+
+For constructor arguments — including the `hwm` high water mark and a shared `context` — see the [API reference](/api/plugins).
+
+## Error Handling
+
+### Stopping the workers
+
+A `PULL` socket has no way of knowing the producer is done: it simply blocks on the next `recv()`. Send an explicit sentinel, **one per worker**, since each message is consumed by a single worker:
+
+```python
+def on_close(self):
+    super().on_close()
+
+    for _ in range(self.config.num_workers):
+        self.plugin.zmq.send(b"END")
+```
+
+### Non-blocking receives
+
+Pass `blocking=False` to return immediately when no task is queued. The call raises `zmq.error.Again` instead of waiting, so handle it:
+
+```python
+import zmq
+
+try:
+    task = self.plugin.zmq.recv(blocking=False)
+except zmq.error.Again:
+    return  # nothing to do this cycle
+```
+
+### Slow joiner
+
+A worker that connects after the producer has started misses the tasks already dispatched — they went to whoever was connected at the time. Start the workers first, or have the producer wait before its first send.
+
+### Backpressure
+
+Without an `hwm`, a producer faster than its workers grows the send queue until memory runs out. Set the high water mark to make `send()` block (or raise, when non-blocking) once the queue is full.
+
+## Complete Example
+
+A runnable version with multiple workers lives in `examples/communication/example_zmq_pushpull.py`.
+
+## Resource Links
+
+- [ZeroMQ Official Documentation](https://zeromq.org/documentation/)
+- [PyZMQ Documentation](https://pyzmq.readthedocs.io/en/latest/)
+- [ZeroMQ Guide — Divide and Conquer](https://zguide.zeromq.org/docs/chapter1/#Divide-and-Conquer)

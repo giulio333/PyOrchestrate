@@ -1,8 +1,8 @@
 API Reference
 =============
 
-Riferimento delle API pubbliche di PyOrchestrate, generato dalle docstring
-dei sorgenti.
+Reference for the public API of PyOrchestrate, generated from the docstrings
+in the sources.
 
 .. toctree::
    :maxdepth: 2
@@ -12,3 +12,5 @@ dei sorgenti.
    plugins
    utilities
    base
+   cli
+   web
