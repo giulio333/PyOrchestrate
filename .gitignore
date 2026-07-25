@@ -12,3 +12,10 @@ __pycache__/
 /build
 
 *.egg-info/
+
+# macOS
+.DS_Store
+
+# docs
+node_modules/
+.mint/
