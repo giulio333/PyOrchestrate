@@ -7,8 +7,8 @@ dei sorgenti.
 .. toctree::
    :maxdepth: 2
 
-   api/agent
-   api/orchestrator
-   api/plugins
-   api/utilities
-   api/base
+   agent
+   orchestrator
+   plugins
+   utilities
+   base
