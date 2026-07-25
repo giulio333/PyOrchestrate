@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
 
+from PyOrchestrate import __version__
 from PyOrchestrate.core.utilities.messaging import (
     MessageChannel,
     ServiceMessage,
@@ -18,7 +19,10 @@ from PyOrchestrate.core.utilities.messaging import (
 class CLIConstants:
     """Constants used throughout the CLI application."""
 
-    VERSION = "0.2.0"
+    #: Alias of :data:`PyOrchestrate.__version__`, which reads the distribution
+    #: metadata: the version is declared only in ``pyproject.toml``. Kept as an
+    #: attribute so existing readers of ``CLIConstants.VERSION`` keep working.
+    VERSION = __version__
     DEFAULT_ZMQ_ADDRESS = "tcp://127.0.0.1:5555"
     DEFAULT_STATS_INTERVAL = 2.0
 

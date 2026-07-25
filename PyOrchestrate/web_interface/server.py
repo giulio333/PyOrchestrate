@@ -16,6 +16,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 import uvicorn
 
+from PyOrchestrate import __version__
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 from PyOrchestrate.cli import CLIConstants
 
@@ -828,7 +829,7 @@ class PyOrchestrateWebServer:
         self.app = FastAPI(
             title="PyOrchestrate Web Interface",
             description="Read-only web interface for PyOrchestrate orchestrator monitoring",
-            version="0.2.0",
+            version=__version__,
         )
         self.orchestrator_client = OrchestratorClient(config.socket_path)
         self._setup_middleware()
