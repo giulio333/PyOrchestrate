@@ -229,7 +229,7 @@ If you encounter issues with the `start` command, here are some common problems 
 3. **Invalid app name**: Ensure that the app name provided is a valid directory name and does not contain any restricted characters.
 4. **Directory already exists**: If the specified app directory already exists, the command will not overwrite it. Choose a different app name or manually delete the existing directory.
 
-For more details, refer to the documentation in the repository or the `usage.md` file.
+For more details, see the CLI documentation in [`docs/cli/`](docs/cli/index.mdx).
 
 * * *
 
@@ -386,6 +386,20 @@ Agents follow a structured lifecycle:
 
 The PyOrchestrate framework provides a powerful and flexible way to manage multi-process and multi-thread architectures. With the modern configuration and plugin systems, it's easier than ever to build scalable, maintainable concurrent applications in Python.
 
-For more information and detailed documentation, please refer to the repository and the `docs` directory.
+For more information and detailed documentation, see the `docs/` directory.
+
+### Working on the documentation
+
+The docs are a [Mintlify](https://mintlify.com) site living in `docs/`:
+
+```bash
+cd docs && npx mint dev          # anteprima locale
+npx mint broken-links            # verifica dei link
+./scripts/build_api_reference.sh # rigenera l'API reference dalle docstring
+```
+
+L'API reference è generata da Sphinx a partire dalle docstring dei
+sorgenti: `sphinx/` contiene la configurazione, `docs/sdk-artifacts/`
+l'output consumato da Mintlify.
 
 * * *
