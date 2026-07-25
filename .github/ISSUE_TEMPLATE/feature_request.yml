@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest a capability or an improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for the suggestion. Please write in English."
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >
+        What are you trying to do that the framework makes hard today? Describe
+        the situation, not the solution you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: How you imagine it working, ideally with the code you would want to write.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead
+      description: >
+        Existing agents, plugins or workarounds you already considered, and why
+        they did not fit.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Agents
+        - Orchestrator
+        - Plugins / communication
+        - CLI
+        - Web interface
+        - Documentation
+        - Other
+    validations:
+      required: true

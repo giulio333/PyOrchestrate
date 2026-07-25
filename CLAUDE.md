@@ -21,8 +21,28 @@ npx mint dev               # anteprima su http://localhost:3000
 npx mint broken-links      # verifica dei link interni
 ```
 
-L'anteprima rende il sito come sarà online, tab API Reference compreso. Da
-lanciare sempre prima di pushare modifiche alla documentazione.
+Da lanciare sempre prima di pushare modifiche alla documentazione.
+
+> **Se il tab API Reference è vuoto in locale, è la CLI vecchia, non la
+> configurazione.** Serve `mint` >= 4.2.742: con la 4.2.507 il dev server non
+> renderizzava la feature SDK reference — il tab compariva nella barra ma era
+> vuoto e ogni `/api/...` rispondeva 404. Attenzione che `npx mint` preferisce
+> il binario installato globalmente e **non** scarica da sé la versione nuova:
+>
+> ```bash
+> npm install -g mint@latest    # poi verifica con: mint --version
+> ```
+>
+> Non toccare `docs.json` per inseguire questo sintomo: la config è valida
+> contro lo schema Mintlify (`mint validate` passa) e l'artifact viene letto
+> nonostante `sdk-artifacts/` sia in `.mintignore`. Verificato entrambi.
+
+> **`mint broken-links` segnala come rotti tutti i link `/api/...`: sono falsi
+> positivi.** Il checker guarda solo le pagine con un file `.mdx` alle spalle e
+> non conosce quelle generate dall'artifact SDK, quindi continua a riportarli
+> anche con la CLI aggiornata e con il dev server che le serve a 200. Prima di
+> "correggere" uno di quei link, provalo su `http://localhost:3000/api/...`.
+> Gli slug corretti sono `/api/<nome-del-rst>`, come da `directory: "api"`.
 
 > **Svuota sempre `docs/.mint` prima di avviare `mint dev`.** Il dev server vi
 > tiene la cache della build precedente e non rilegge da zero tutto il
@@ -65,8 +85,14 @@ feature *SDK reference* (`"sdk": {"format": "sphinx"}` in `docs.json`).
 > stai usando l'interprete sbagliato.
 
 - `sphinx/conf.py` — configurazione (autodoc + napoleon, docstring Google)
-- `sphinx/*.rst` — un file per sezione; **aggiungere qui i moduli nuovi**,
-  altrimenti non compaiono nella reference
+- `sphinx/*.rst` — un file per sezione (`agent`, `orchestrator`, `plugins`,
+  `utilities`, `base`, `cli`, `web`); **aggiungere qui i moduli nuovi** e
+  inserirli nel toctree di `sphinx/index.rst`, altrimenti non compaiono nella
+  reference
+- Le pagine narrative **rimandano alla reference per firme e parametri**
+  (`/api/plugins`, `/api/agent`, …) invece di ricopiarli: una firma scritta a
+  mano in un `.mdx` è un secondo posto da cui può divergere dal codice, ed è il
+  meccanismo che ha prodotto i metodi fantasma di `OMemory`.
 - `docs/sdk-artifacts/` — output generato, committato perché Mintlify lo legge
   dal repo; escluso dalla pubblicazione via `docs/.mintignore`
 
