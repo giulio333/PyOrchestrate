@@ -208,6 +208,17 @@ class TestBaseAgent(unittest.TestCase):
         self.agent.execute = MagicMock(side_effect=Exception("Test error"))
         self.agent.run()
         self.state_events.close_event.set.assert_called_once()
+        error_messages = [
+            call_args.args[1]
+            for call_args in self.msg_channel.send.call_args_list
+            if call_args.args[1].payload["status"] == "error"
+        ]
+        self.assertEqual(len(error_messages), 1)
+        self.assertEqual(
+            error_messages[0].payload["event"],
+            AgentEvent.AGENT_ERROR.value,
+        )
+        self.assertEqual(error_messages[0].payload["error"], "Test error")
 
     def test_on_stop_is_called(self):
         """Test on_stop method is called during stop."""
@@ -298,6 +309,33 @@ class TestBaseAgent(unittest.TestCase):
             close_msg.payload,
             {"status": "success", "error": "", "event": AgentEvent.AGENT_CLOSE.value},
         )
+
+    def test_send_message_adds_current_generation_to_application_status(self):
+        self.agent.generation_id = 7
+        message = ServiceMessage.create_status(
+            sender=self.agent.name,
+            status="ready",
+            event_name=AgentEvent.AGENT_READY.value,
+        )
+
+        self.agent.send_message(message)
+
+        sent_message = self.msg_channel.send.call_args.args[1]
+        self.assertEqual(sent_message.payload["generation_id"], 7)
+
+    def test_send_message_preserves_explicit_status_generation(self):
+        self.agent.generation_id = 7
+        message = ServiceMessage.create_status(
+            sender=self.agent.name,
+            status="ready",
+            event_name=AgentEvent.AGENT_READY.value,
+            generation_id=6,
+        )
+
+        self.agent.send_message(message)
+
+        sent_message = self.msg_channel.send.call_args.args[1]
+        self.assertEqual(sent_message.payload["generation_id"], 6)
 
 
 class TestServiceMessage(unittest.TestCase):

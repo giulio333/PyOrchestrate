@@ -1,226 +1,328 @@
-"""Unit tests for WorkerPoolScheduler class."""
+"""Tests for worker-slot reservation, queueing, and quarantine."""
 
-import unittest
-from unittest.mock import MagicMock, call
-from collections import deque
+import threading
+from itertools import count
+from unittest.mock import MagicMock
 
-from PyOrchestrate.core.orchestrator.worker_pool import WorkerPoolScheduler
+from PyOrchestrate.core.orchestrator.lifecycle_manager import (
+    LifecycleStartResult,
+    LifecycleStartStatus,
+)
+from PyOrchestrate.core.orchestrator.memory import AgentStartAttempt
+from PyOrchestrate.core.orchestrator.worker_pool import (
+    WorkerPoolScheduler,
+    WorkerStartStatus,
+)
 from PyOrchestrate.core.utilities.command_handler import (
     CommandException,
     CommandHandler,
 )
 
 
-class TestWorkerPoolScheduler(unittest.TestCase):
-    """Test cases for WorkerPoolScheduler class."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.mock_lifecycle_manager = MagicMock()
-        self.mock_logger = MagicMock()
-        self.scheduler = WorkerPoolScheduler(
-            max_workers=3,
-            lifecycle_manager=self.mock_lifecycle_manager,
-            logger=self.mock_logger,
-        )
-
-    def test_initialization(self):
-        """Test scheduler initializes with correct values."""
-        self.assertEqual(self.scheduler.max_workers, 3)
-        self.assertEqual(self.scheduler.running_count, 0)
-        self.assertEqual(self.scheduler.queue_size, 0)
-        self.assertTrue(self.scheduler.all_finished)
-
-    def test_can_start_agent_with_capacity(self):
-        """Test can_start_agent returns True when below max_workers."""
-        self.assertTrue(self.scheduler.can_start_agent())
-
-    def test_can_start_agent_at_capacity(self):
-        """Test can_start_agent returns False when at max_workers."""
-        # Simulate 3 agents running
-        self.scheduler._running_agents = 3
-        self.assertFalse(self.scheduler.can_start_agent())
-
-    def test_start_agent_success(self):
-        """Test starting agent when capacity available."""
-        self.mock_lifecycle_manager.start_agent.return_value = True
-
-        result = self.scheduler.start_agent("agent1")
-
-        self.assertTrue(result)
-        self.mock_lifecycle_manager.start_agent.assert_called_once_with("agent1")
-        self.assertEqual(self.scheduler.running_count, 1)
-        self.assertIn("agent1", self.scheduler._started_agents)
-
-    def test_start_agent_failure(self):
-        """Test starting agent when lifecycle manager returns False."""
-        self.mock_lifecycle_manager.start_agent.return_value = False
-
-        result = self.scheduler.start_agent("agent1")
-
-        self.assertFalse(result)
-        self.assertEqual(self.scheduler.running_count, 0)
-        self.assertNotIn("agent1", self.scheduler._started_agents)
-
-    def test_start_agent_queued_at_capacity(self):
-        """Test agent is queued when max_workers reached."""
-        # Fill capacity
-        self.scheduler._running_agents = 3
-
-        result = self.scheduler.start_agent("agent4")
-
-        self.assertFalse(result)
-        self.assertEqual(self.scheduler.queue_size, 1)
-        self.assertEqual(self.scheduler._waiting_queue[0], "agent4")
-        self.mock_lifecycle_manager.start_agent.assert_not_called()
-
-    def test_on_agent_terminated_decrements_count(self):
-        """Test on_agent_terminated decrements running count."""
-        # Setup: agent1 is running
-        self.scheduler._running_agents = 1
-        self.scheduler._started_agents.add("agent1")
-
-        self.scheduler.on_agent_terminated("agent1")
-
-        self.assertEqual(self.scheduler.running_count, 0)
-        self.assertNotIn("agent1", self.scheduler._started_agents)
-
-    def test_on_agent_terminated_starts_queued_agent(self):
-        """Test on_agent_terminated starts next queued agent."""
-        # Setup: 3 agents running, 1 queued
-        self.scheduler._running_agents = 3
-        self.scheduler._started_agents = {"agent1", "agent2", "agent3"}
-        self.scheduler._waiting_queue.append("agent4")
-        self.mock_lifecycle_manager.start_agent.return_value = True
-
-        self.scheduler.on_agent_terminated("agent1")
-
-        # Should have started agent4
-        self.mock_lifecycle_manager.start_agent.assert_called_once_with("agent4")
-        self.assertEqual(self.scheduler.running_count, 3)  # 2 + 1 new
-        self.assertIn("agent4", self.scheduler._started_agents)
-        self.assertEqual(self.scheduler.queue_size, 0)
-
-    def test_on_agent_terminated_never_started(self):
-        """Test on_agent_terminated with agent that was never started."""
-        # Agent not in started_agents (e.g., timed out)
-        self.scheduler.on_agent_terminated("agent_unknown")
-
-        # Should not change running count
-        self.assertEqual(self.scheduler.running_count, 0)
-        self.mock_logger.debug.assert_called()
-
-    def test_all_finished_with_running_agents(self):
-        """Test all_finished returns False when agents running."""
-        self.scheduler._running_agents = 2
-        self.assertFalse(self.scheduler.all_finished)
-
-    def test_all_finished_with_queued_agents(self):
-        """Test all_finished returns False when agents queued."""
-        self.scheduler._waiting_queue.append("agent1")
-        self.assertFalse(self.scheduler.all_finished)
-
-    def test_all_finished_empty(self):
-        """Test all_finished returns True when nothing running or queued."""
-        self.assertTrue(self.scheduler.all_finished)
-
-    def test_get_stats(self):
-        """Test get_stats returns correct information."""
-        self.scheduler._running_agents = 2
-        self.scheduler._started_agents = {"agent1", "agent2"}
-        self.scheduler._waiting_queue.append("agent3")
-
-        stats = self.scheduler.get_stats()
-
-        self.assertEqual(stats["running"], 2)
-        self.assertEqual(stats["queued"], 1)
-        self.assertEqual(stats["max_workers"], 3)
-        self.assertEqual(stats["capacity_used"], "2/3")
-        self.assertEqual(set(stats["started_agents"]), {"agent1", "agent2"})
-
-    def test_multiple_agents_queued_fifo(self):
-        """Test multiple queued agents are started in FIFO order."""
-        # Fill capacity
-        self.scheduler._running_agents = 3
-        self.scheduler._started_agents = {"agent1", "agent2", "agent3"}
-
-        # Queue multiple agents
-        self.scheduler.start_agent("agent4")
-        self.scheduler.start_agent("agent5")
-        self.scheduler.start_agent("agent6")
-
-        self.assertEqual(self.scheduler.queue_size, 3)
-
-        # Terminate agent1, should start agent4
-        self.mock_lifecycle_manager.start_agent.return_value = True
-        self.scheduler.on_agent_terminated("agent1")
-
-        self.mock_lifecycle_manager.start_agent.assert_called_with("agent4")
-        self.assertEqual(self.scheduler.queue_size, 2)
-
-        # Terminate agent2, should start agent5
-        self.scheduler.on_agent_terminated("agent2")
-
-        calls = self.mock_lifecycle_manager.start_agent.call_args_list
-        self.assertEqual(calls[-1], call("agent5"))
-
-    def test_queue_properties(self):
-        """Test queue_size and running_count properties."""
-        self.scheduler._running_agents = 2
-        self.scheduler._waiting_queue = deque(["agent3", "agent4"])
-
-        self.assertEqual(self.scheduler.queue_size, 2)
-        self.assertEqual(self.scheduler.running_count, 2)
-
-    def test_stop_command_waits_for_termination_before_advancing_queue(self):
-        """Stopping an agent must not release its worker slot prematurely."""
-        scheduler = WorkerPoolScheduler(
-            max_workers=1,
-            lifecycle_manager=self.mock_lifecycle_manager,
-            logger=self.mock_logger,
-        )
-        self.mock_lifecycle_manager.start_agent.return_value = True
-        scheduler.start_agent("agent1")
-        scheduler.start_agent("agent2")
-
-        orchestrator = MagicMock()
-        orchestrator.logger = self.mock_logger
-        orchestrator.lifecycle_manager = self.mock_lifecycle_manager
-        orchestrator.memory.get_agent.return_value = MagicMock()
-        orchestrator.worker_pool = scheduler
-        handler = CommandHandler(orchestrator, {"stop"})
-
-        result = handler._cmd_stop_agent("agent1")
-
-        self.assertEqual(result["message"], "Stop requested for agent agent1")
-        self.mock_lifecycle_manager.stop_agent.assert_called_once_with("agent1")
-        self.assertEqual(scheduler.running_count, 1)
-        self.assertIn("agent1", scheduler._started_agents)
-        self.assertEqual(list(scheduler._waiting_queue), ["agent2"])
-
-        scheduler.on_agent_terminated("agent1")
-
-        self.assertEqual(
-            self.mock_lifecycle_manager.start_agent.call_args_list[-1],
-            call("agent2"),
-        )
-        self.assertEqual(scheduler.running_count, 1)
-        self.assertNotIn("agent1", scheduler._started_agents)
-        self.assertIn("agent2", scheduler._started_agents)
-        self.assertEqual(scheduler.queue_size, 0)
-
-    def test_stop_command_preserves_not_found_error(self):
-        """A missing agent remains a 404 instead of being wrapped as a 500."""
-        orchestrator = MagicMock()
-        orchestrator.logger = self.mock_logger
-        orchestrator.memory.get_agent.return_value = None
-        handler = CommandHandler(orchestrator, {"stop"})
-
-        with self.assertRaises(CommandException) as context:
-            handler._cmd_stop_agent("missing")
-
-        self.assertEqual(context.exception.code, 404)
+def outcome(status, reason=None):
+    return LifecycleStartResult(status, reason)
 
 
-if __name__ == "__main__":
-    unittest.main()
+def make_scheduler(max_workers=3):
+    lifecycle = MagicMock()
+    generations = count(1)
+    lifecycle.prepare_start.side_effect = lambda agent_name: AgentStartAttempt(
+        agent_name,
+        next(generations),
+    )
+    lifecycle.execute_start.return_value = outcome(LifecycleStartStatus.STARTED)
+    return (
+        WorkerPoolScheduler(max_workers, lifecycle, MagicMock()),
+        lifecycle,
+    )
+
+
+def executed_names(lifecycle):
+    return [call.args[0] for call in lifecycle.execute_start.call_args_list]
+
+
+def test_initial_state_and_stats_are_consistent():
+    scheduler, _ = make_scheduler()
+
+    assert scheduler.can_start_agent()
+    assert scheduler.running_count == 0
+    assert scheduler.queue_size == 0
+    assert scheduler.all_finished
+    assert scheduler.get_stats()["capacity_used"] == "0/3"
+
+
+def test_start_and_queue_use_reserved_capacity():
+    scheduler, lifecycle = make_scheduler(max_workers=1)
+
+    assert scheduler.start_agent("one").status is WorkerStartStatus.STARTED
+    assert scheduler.start_agent("two").status is WorkerStartStatus.QUEUED
+
+    assert scheduler.running_count == 1
+    assert scheduler.queue_size == 1
+    assert not scheduler.can_start_agent()
+    assert executed_names(lifecycle) == ["one"]
+
+
+def test_duplicate_active_start_is_rejected():
+    scheduler, _ = make_scheduler()
+    scheduler.start_agent("one")
+
+    try:
+        scheduler.start_agent("one")
+        raise AssertionError("expected duplicate start to fail")
+    except RuntimeError as error:
+        assert "already active" in str(error)
+
+
+def test_termination_starts_next_agent_fifo():
+    scheduler, lifecycle = make_scheduler(max_workers=1)
+    scheduler.start_agent("one")
+    scheduler.start_agent("two")
+
+    scheduler.on_agent_terminated("one")
+
+    assert executed_names(lifecycle) == ["one", "two"]
+    assert scheduler.is_started("two")
+    assert scheduler.queue_size == 0
+
+
+def test_unknown_termination_does_not_mutate_lifecycle():
+    scheduler, lifecycle = make_scheduler()
+
+    scheduler.on_agent_terminated("unknown")
+
+    lifecycle.mark_terminated.assert_not_called()
+    assert scheduler.all_finished
+
+
+def test_clean_queued_failure_advances_to_following_agent():
+    scheduler, lifecycle = make_scheduler(max_workers=1)
+    scheduler.start_agent("running")
+    scheduler.start_agent("fails")
+    scheduler.start_agent("starts")
+    lifecycle.execute_start.side_effect = [
+        outcome(LifecycleStartStatus.FAILED_CLEAN),
+        outcome(LifecycleStartStatus.STARTED),
+    ]
+
+    scheduler.on_agent_terminated("running")
+
+    assert executed_names(lifecycle)[-2:] == ["fails", "starts"]
+    assert scheduler.is_started("starts")
+    assert scheduler.queue_size == 0
+
+
+def test_live_queued_failure_remains_tracked_and_blocks_slot():
+    scheduler, lifecycle = make_scheduler(max_workers=1)
+    scheduler.start_agent("running")
+    scheduler.start_agent("stubborn")
+    scheduler.start_agent("later")
+    lifecycle.execute_start.return_value = outcome(
+        LifecycleStartStatus.FAILED_LIVE, "still alive"
+    )
+
+    scheduler.on_agent_terminated("running")
+
+    stats = scheduler.get_stats()
+    assert scheduler.tracks_agent("stubborn")
+    assert stats["quarantined_agents"] == ["stubborn"]
+    assert stats["capacity_used"] == "1/1"
+    assert scheduler.queue_size == 1
+    assert not scheduler.all_finished
+
+
+def test_stats_separate_running_starting_and_quarantined():
+    scheduler, _ = make_scheduler()
+    scheduler._started_agents.add("running")
+    scheduler._starting_agents.add("starting")
+    scheduler._failed_live_agents.add("quarantined")
+    scheduler._waiting_queue.append("queued")
+
+    stats = scheduler.get_stats()
+
+    assert stats["running"] == 2
+    assert stats["starting"] == 1
+    assert stats["quarantined"] == 1
+    assert stats["queued"] == 1
+    assert stats["capacity_used"] == "3/3"
+    assert stats["quarantined_agents"] == ["quarantined"]
+
+
+def test_immediate_live_failure_is_never_invisible():
+    scheduler, lifecycle = make_scheduler()
+    lifecycle.execute_start.return_value = outcome(LifecycleStartStatus.FAILED_LIVE)
+
+    result = scheduler.start_agent("stubborn")
+
+    assert result.status is WorkerStartStatus.FAILED_LIVE
+    assert scheduler.tracks_agent("stubborn")
+    assert scheduler.running_count == 1
+    assert not scheduler.all_finished
+
+
+def test_unexpected_start_exception_still_tracks_a_live_instance():
+    scheduler, lifecycle = make_scheduler()
+    lifecycle.execute_start.side_effect = RuntimeError("invariant failure")
+    lifecycle.is_attempt_alive.return_value = True
+
+    try:
+        scheduler.start_agent("stubborn")
+        raise AssertionError("expected startup exception")
+    except RuntimeError as error:
+        assert "invariant failure" in str(error)
+
+    assert scheduler.tracks_agent("stubborn")
+    assert scheduler.get_stats()["quarantined_agents"] == ["stubborn"]
+
+
+def test_unknown_agent_never_reserves_or_quarantines_a_slot():
+    scheduler, lifecycle = make_scheduler(max_workers=1)
+    lifecycle.get_agent.side_effect = ValueError("Agent 'missing' not found.")
+
+    try:
+        scheduler.start_agent("missing")
+        raise AssertionError("expected missing agent to fail")
+    except ValueError as error:
+        assert "not found" in str(error)
+
+    lifecycle.execute_start.assert_not_called()
+    assert not scheduler.tracks_agent("missing")
+    assert scheduler.get_stats()["quarantined_agents"] == []
+    assert scheduler.get_stats()["capacity_used"] == "0/1"
+    assert scheduler.all_finished
+
+
+def test_clean_immediate_failure_drains_work_queued_during_startup():
+    scheduler, lifecycle = make_scheduler(max_workers=1)
+    entered = threading.Event()
+    release = threading.Event()
+
+    def first_start(agent_name, _attempt):
+        if agent_name == "fails":
+            entered.set()
+            release.wait(timeout=1)
+            return outcome(LifecycleStartStatus.FAILED_CLEAN)
+        return outcome(LifecycleStartStatus.STARTED)
+
+    lifecycle.execute_start.side_effect = first_start
+    startup = threading.Thread(target=scheduler.start_agent, args=("fails",))
+    startup.start()
+    assert entered.wait(timeout=1)
+    assert scheduler.start_agent("next").status is WorkerStartStatus.QUEUED
+
+    release.set()
+    startup.join(timeout=1)
+
+    assert scheduler.is_started("next")
+    assert scheduler.queue_size == 0
+
+
+def test_starting_reservation_prevents_finished_state():
+    scheduler, _ = make_scheduler(max_workers=1)
+    scheduler._starting_agents.add("slow")
+
+    assert not scheduler.all_finished
+    assert not scheduler.can_start_agent()
+
+
+def test_pool_lock_is_available_during_blocking_startup():
+    scheduler, lifecycle = make_scheduler(max_workers=1)
+    entered = threading.Event()
+    release = threading.Event()
+
+    def blocking_start(_agent_name, _attempt):
+        entered.set()
+        release.wait(timeout=1)
+        return outcome(LifecycleStartStatus.STARTED)
+
+    lifecycle.execute_start.side_effect = blocking_start
+    startup = threading.Thread(target=scheduler.start_agent, args=("slow",))
+    startup.start()
+    assert entered.wait(timeout=1)
+
+    assert scheduler.get_stats()["starting_agents"] == ["slow"]
+    scheduler.stop_agent("slow")
+    lifecycle.stop_agent.assert_called_once_with("slow")
+
+    release.set()
+    startup.join(timeout=1)
+    assert not startup.is_alive()
+
+
+def test_stop_queued_agent_cancels_it():
+    scheduler, lifecycle = make_scheduler(max_workers=1)
+    scheduler.start_agent("running")
+    scheduler.start_agent("queued")
+
+    scheduler.stop_agent("queued")
+
+    assert not scheduler.is_queued("queued")
+    lifecycle.stop_agent.assert_called_once_with("queued")
+
+
+def test_stop_all_clears_queue_before_delegating():
+    scheduler, lifecycle = make_scheduler(max_workers=1)
+    scheduler.start_agent("running")
+    scheduler.start_agent("queued")
+
+    scheduler.stop_all()
+
+    assert scheduler.queue_size == 0
+    lifecycle.stop_all.assert_called_once_with()
+
+
+def test_stop_all_rejects_starts_arriving_during_shutdown():
+    scheduler, lifecycle = make_scheduler(max_workers=1)
+    entered = threading.Event()
+    release = threading.Event()
+
+    def blocking_stop_all():
+        entered.set()
+        assert release.wait(timeout=1)
+
+    lifecycle.stop_all.side_effect = blocking_stop_all
+    shutdown = threading.Thread(target=scheduler.stop_all)
+    shutdown.start()
+    assert entered.wait(timeout=1)
+
+    try:
+        scheduler.start_agent("late")
+        raise AssertionError("expected a start during shutdown to fail")
+    except RuntimeError as error:
+        assert "stopping" in str(error)
+
+    assert not scheduler.is_queued("late")
+    assert not scheduler.tracks_agent("late")
+
+    release.set()
+    shutdown.join(timeout=1)
+    assert not shutdown.is_alive()
+
+
+def test_stop_command_preserves_slot_until_termination():
+    scheduler, lifecycle = make_scheduler(max_workers=1)
+    scheduler.start_agent("one")
+    scheduler.start_agent("two")
+    orchestrator = MagicMock()
+    orchestrator.memory.get_agent.return_value = MagicMock()
+    orchestrator.worker_pool = scheduler
+    handler = CommandHandler(orchestrator, {"stop"})
+
+    handler._cmd_stop_agent("one")
+
+    assert scheduler.is_started("one")
+    assert scheduler.is_queued("two")
+    scheduler.on_agent_terminated("one")
+    assert scheduler.is_started("two")
+
+
+def test_stop_command_preserves_not_found_error():
+    orchestrator = MagicMock()
+    orchestrator.memory.get_agent.return_value = None
+    handler = CommandHandler(orchestrator, {"stop"})
+
+    try:
+        handler._cmd_stop_agent("missing")
+        raise AssertionError("expected CommandException")
+    except CommandException as error:
+        assert error.code == 404

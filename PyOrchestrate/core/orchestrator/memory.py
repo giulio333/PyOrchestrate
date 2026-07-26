@@ -1,8 +1,31 @@
 import datetime
+import threading
+from dataclasses import dataclass
+from enum import Enum
 from typing import Dict, List, Optional, Type, Any
 
 from PyOrchestrate.core.agent import BaseAgent, AgentProtocol
 from PyOrchestrate.core.base import BaseClass
+
+
+class AgentLifecycleState(Enum):
+    """Parent-process lifecycle state for an orchestrated agent entry."""
+
+    REGISTERED = "registered"
+    STARTING = "starting"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    TERMINATED = "terminated"
+    FAILED = "failed"
+    QUARANTINED = "quarantined"
+
+
+@dataclass(frozen=True, slots=True)
+class AgentStartAttempt:
+    """Identity of one prepared startup generation."""
+
+    agent_name: str
+    generation_id: int
 
 
 class AgentEntry:
@@ -53,10 +76,143 @@ class AgentEntry:
         self.plugin = plugin
         self.kwargs = kwargs
         self._instance = None
+        self._instance_generation_id: int | None = None
         self._record_event_callback = record_event_callback
+        self._state = AgentLifecycleState.REGISTERED
+        self._state_lock = threading.RLock()
+        self._start_cancel_requested = threading.Event()
+        self._generation_id = 0
+        self._active_start_attempt: AgentStartAttempt | None = None
+        self._stop_requested_generation_id: int | None = None
 
         self.control_events = control_events
         self.state_events = state_events
+
+    @property
+    def state(self) -> AgentLifecycleState:
+        """Return the lifecycle state tracked by the orchestrator process."""
+        with self._state_lock:
+            return self._state
+
+    def _transition_to(
+        self,
+        state: AgentLifecycleState,
+        allowed_from: set[AgentLifecycleState],
+    ) -> None:
+        """Perform a validated parent-process lifecycle transition."""
+        with self._state_lock:
+            if self._state not in allowed_from:
+                allowed = ", ".join(sorted(item.value for item in allowed_from))
+                raise RuntimeError(
+                    f"Agent '{self.name}' cannot transition from "
+                    f"'{self._state.value}' to '{state.value}'; "
+                    f"expected one of: {allowed}."
+                )
+            self._state = state
+
+    def _prepare_start(self) -> AgentStartAttempt:
+        """Allocate and enter one startup attempt atomically."""
+        with self._state_lock:
+            allowed = {
+                AgentLifecycleState.REGISTERED,
+                AgentLifecycleState.TERMINATED,
+                AgentLifecycleState.FAILED,
+            }
+            if self._state not in allowed:
+                expected = ", ".join(sorted(item.value for item in allowed))
+                raise RuntimeError(
+                    f"Agent '{self.name}' cannot transition from "
+                    f"'{self._state.value}' to "
+                    f"'{AgentLifecycleState.STARTING.value}'; "
+                    f"expected one of: {expected}."
+                )
+            if self._instance is not None and self._instance.is_alive():
+                raise RuntimeError(
+                    f"Cannot prepare agent '{self.name}' while it is alive."
+                )
+
+            self._generation_id += 1
+            attempt = AgentStartAttempt(self.name, self._generation_id)
+            # A dead previous generation is no longer the instance owned by
+            # this attempt. Constructor failures must therefore leave no
+            # current instance to clean up.
+            self._instance = None
+            self._instance_generation_id = None
+            self._active_start_attempt = attempt
+            self._stop_requested_generation_id = None
+            self._start_cancel_requested.clear()
+            self._state = AgentLifecycleState.STARTING
+            return attempt
+
+    def _validate_attempt_unlocked(self, attempt: AgentStartAttempt) -> None:
+        if attempt.agent_name != self.name or self._active_start_attempt != attempt:
+            raise RuntimeError(
+                f"Startup attempt {attempt.generation_id} is not active "
+                f"for agent '{self.name}'."
+            )
+
+    def _transition_attempt_to(
+        self,
+        attempt: AgentStartAttempt,
+        state: AgentLifecycleState,
+        allowed_from: set[AgentLifecycleState],
+    ) -> None:
+        """Transition only when ``attempt`` still owns this entry."""
+        with self._state_lock:
+            self._validate_attempt_unlocked(attempt)
+            if self._state not in allowed_from:
+                allowed = ", ".join(sorted(item.value for item in allowed_from))
+                raise RuntimeError(
+                    f"Agent '{self.name}' attempt {attempt.generation_id} "
+                    f"cannot transition from '{self._state.value}' to "
+                    f"'{state.value}'; expected one of: {allowed}."
+                )
+            self._state = state
+
+    def _request_stop(
+        self,
+    ) -> tuple[AgentLifecycleState, AgentStartAttempt | None]:
+        """Atomically cancel the current attempt and enter a stop state."""
+        with self._state_lock:
+            previous = self._state
+            attempt = self._active_start_attempt
+            if previous is AgentLifecycleState.REGISTERED:
+                self._state = AgentLifecycleState.TERMINATED
+            elif previous is AgentLifecycleState.STARTING:
+                self._start_cancel_requested.set()
+                self._state = AgentLifecycleState.STOPPING
+            elif previous in {
+                AgentLifecycleState.RUNNING,
+                AgentLifecycleState.QUARANTINED,
+            }:
+                self._state = AgentLifecycleState.STOPPING
+            return previous, attempt
+
+    def _attempt_cancel_requested(self, attempt: AgentStartAttempt) -> bool:
+        with self._state_lock:
+            self._validate_attempt_unlocked(attempt)
+            return self._start_cancel_requested.is_set()
+
+    @property
+    def generation_id(self) -> int:
+        """Return the generation assigned to the current instance."""
+        with self._state_lock:
+            return self._generation_id
+
+    @property
+    def is_initialized(self) -> bool:
+        """Return whether the concrete thread/process instance exists."""
+        with self._state_lock:
+            return self._instance is not None
+
+    def _has_instance(self, attempt: AgentStartAttempt) -> bool:
+        """Return whether ``attempt`` owns the current concrete instance."""
+        with self._state_lock:
+            return (
+                self._active_start_attempt == attempt
+                and self._instance is not None
+                and self._instance_generation_id == attempt.generation_id
+            )
 
     @property
     def instance(self) -> AgentProtocol:
@@ -69,44 +225,95 @@ class AgentEntry:
         assert self._instance is not None, "Agent instance not initialized yet."
         return self._instance
 
-    def start(self) -> None:
-        """
-        Start the agent instance.
-        """
-        self.instance.start()
-        self._record_event("start")
+    def _start_instance(self, attempt: AgentStartAttempt | None = None) -> bool:
+        """Start only if ``attempt`` is still authoritative and uncancelled."""
+        with self._state_lock:
+            resolved = attempt or self._active_start_attempt
+            if resolved is None:
+                raise RuntimeError(
+                    f"Agent '{self.name}' has no initialized startup attempt."
+                )
+            self._validate_attempt_unlocked(resolved)
+            if attempt is not None:
+                if (
+                    self._state is not AgentLifecycleState.STARTING
+                    or self._start_cancel_requested.is_set()
+                ):
+                    return False
+            if (
+                self._instance is None
+                or self._instance_generation_id != resolved.generation_id
+            ):
+                raise RuntimeError(
+                    f"Agent '{self.name}' attempt {resolved.generation_id} "
+                    "has no matching instance."
+                )
+            self._instance.start()
+            self._record_event("start")
+            return True
 
-    def stop(self) -> None:
-        """
-        Stop the agent instance.
-        """
-        self.instance.stop()
+    def _stop_instance(self, attempt: AgentStartAttempt | None = None) -> bool:
+        """Claim and request stop at most once for one generation."""
+        with self._state_lock:
+            resolved = attempt or self._active_start_attempt
+            if (
+                resolved is None
+                or self._instance is None
+                or self._instance_generation_id != resolved.generation_id
+                or self._active_start_attempt != resolved
+                or self._stop_requested_generation_id == resolved.generation_id
+            ):
+                return False
+            self._stop_requested_generation_id = resolved.generation_id
+            instance = self._instance
+
+        instance.stop()
         self._record_event("stop")
+        return True
 
-    def join(self) -> None:
-        """
-        Join the agent instance.
-        """
-        self.instance.join()
+    def _join_instance(
+        self,
+        timeout: float | None = None,
+        attempt: AgentStartAttempt | None = None,
+    ) -> bool:
+        """Join only the instance belonging to ``attempt``."""
+        with self._state_lock:
+            resolved = attempt or self._active_start_attempt
+            if (
+                resolved is None
+                or self._instance is None
+                or self._instance_generation_id != resolved.generation_id
+                or self._active_start_attempt != resolved
+            ):
+                return False
+            instance = self._instance
+
+        instance.join(timeout=timeout)
         self._record_event("join")
+        return True
 
-    def restart(self) -> None:
-        """
-        Restart the agent instance.
-        """
-        self.stop()
-        self.join()
-        # self.instance = self._create_instance()
-        self.start()
+    @property
+    def start_cancel_requested(self) -> bool:
+        """Return whether startup cancellation was requested."""
+        return self._start_cancel_requested.is_set()
 
-    def is_alive(self) -> bool:
+    def is_alive(self, attempt: AgentStartAttempt | None = None) -> bool:
         """
         Check if the agent instance is alive.
 
         Returns:
             bool: True if the agent instance is alive, False otherwise.
         """
-        return self.instance.is_alive()
+        with self._state_lock:
+            if self._instance is None:
+                return False
+            if attempt is not None and (
+                self._active_start_attempt != attempt
+                or self._instance_generation_id != attempt.generation_id
+            ):
+                return False
+            instance = self._instance
+        return instance.is_alive()
 
     def status(self) -> str:
         """
@@ -124,6 +331,12 @@ class AgentEntry:
             str: Agent status.
         """
 
+        if not self.is_initialized:
+            return (
+                f"{self.name} -> state: {self.state.value} alive: False "
+                "daemon: False ident: None pid: None"
+            )
+
         if self.instance.a_type == "process":
             alive: bool = self.instance.is_alive()
             daemon: bool = self.instance.daemon
@@ -139,7 +352,7 @@ class AgentEntry:
 
         return f"{self.instance.name} -> alive: {alive} daemon: {daemon} ident: {ident} pid: {pid}"
 
-    def initialize_agent(self) -> None:
+    def _initialize_instance(self, attempt: AgentStartAttempt | None = None) -> bool:
         """
         Create agent instance.
 
@@ -152,15 +365,66 @@ class AgentEntry:
         Returns:
             None
         """
-        params: dict[str, Any] = dict()
-        params["name"] = self.name
-        params["config"] = self.config
-        params["plugin"] = self.plugin
-        params["control_events"] = self.control_events
-        params["state_events"] = self.state_events
-        params.update(self.kwargs)
+        lifecycle_owned = attempt is not None
+        with self._state_lock:
+            if attempt is None:
+                if self._instance is not None and self._instance.is_alive():
+                    raise RuntimeError(
+                        f"Cannot initialize agent '{self.name}' while it is alive."
+                    )
+                self._generation_id += 1
+                attempt = AgentStartAttempt(self.name, self._generation_id)
+                self._instance = None
+                self._instance_generation_id = None
+                self._active_start_attempt = attempt
+                self._stop_requested_generation_id = None
+            else:
+                self._validate_attempt_unlocked(attempt)
+                if (
+                    self._state is not AgentLifecycleState.STARTING
+                    or self._start_cancel_requested.is_set()
+                ):
+                    return False
 
-        self._instance = self.agent_class(**params)
+            params: dict[str, Any] = dict()
+            params["name"] = self.name
+            params["config"] = self.config
+            params["plugin"] = self.plugin
+            params["control_events"] = self.control_events
+            params["state_events"] = self.state_events
+            params.update(self.kwargs)
+            # Lifecycle identity is owned by the entry and cannot be
+            # overridden through registration kwargs.
+            params["generation_id"] = attempt.generation_id
+
+        # Agent constructors may perform user-defined, blocking work. Keep that
+        # work outside the entry lock so a concurrent stop can cancel startup.
+        instance = self.agent_class(**params)
+
+        with self._state_lock:
+            self._validate_attempt_unlocked(attempt)
+            self._instance = instance
+            self._instance_generation_id = attempt.generation_id
+
+            # Keep the entry and concrete instance on the same event objects.
+            # This also makes startup timeout protection work when callers rely
+            # on the agent's default event containers.
+            self.control_events = getattr(
+                instance, "control_events", self.control_events
+            )
+            self.state_events = getattr(instance, "state_events", self.state_events)
+            if self.state_events:
+                self.state_events.start_event.clear()
+                self.state_events.ready_event.clear()
+                self.state_events.close_event.clear()
+            if self.control_events:
+                self.control_events.stop_event.clear()
+            return (
+                self._state is AgentLifecycleState.STARTING
+                and not self._start_cancel_requested.is_set()
+                if lifecycle_owned
+                else True
+            )
 
     def _record_event(self, event_type: str) -> None:
         """

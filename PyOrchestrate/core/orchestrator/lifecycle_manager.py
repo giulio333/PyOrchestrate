@@ -1,41 +1,67 @@
 """Agent lifecycle management for registration, startup, and termination."""
 
+import threading
 import time
-from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
-from PyOrchestrate.core.base.base import BaseClass
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import Enum
+
 from PyOrchestrate.core.agent.base_agent import BaseAgent, AgentProtocol
+from PyOrchestrate.core.base.base import BaseClass
+from PyOrchestrate.core.orchestrator.memory import (
+    OMemory,
+    AgentEntry,
+    AgentLifecycleState,
+    AgentStartAttempt,
+)
 from PyOrchestrate.core.utilities.messaging import MessageChannel
 
 
+class LifecycleStartStatus(Enum):
+    """Outcome of one authoritative lifecycle startup attempt."""
+
+    STARTED = "started"
+    CANCELLED = "cancelled"
+    FAILED_CLEAN = "failed_clean"
+    FAILED_LIVE = "failed_live"
+
+
+@dataclass(frozen=True)
+class LifecycleStartResult:
+    """Typed result returned by :meth:`AgentLifecycleManager.start_agent`."""
+
+    status: LifecycleStartStatus
+    reason: str | None = None
+
+    @property
+    def started(self) -> bool:
+        return self.status is LifecycleStartStatus.STARTED
+
+    @property
+    def live_failure(self) -> bool:
+        return self.status is LifecycleStartStatus.FAILED_LIVE
+
+
 class AgentLifecycleManager:
-    """
-    Manages the complete lifecycle of agents.
+    """Authoritative owner of agent lifecycle state transitions."""
 
-    This class handles:
-    - Agent registration with validation
-    - Agent startup with timeout protection
-    - Agent termination (individual and bulk)
-    - Configuration injection and validation
+    _FAILED_START_CLEANUP_TIMEOUT = 2.0
+    _START_WAIT_POLL_INTERVAL = 0.05
 
-    Example:
-        >>> manager = AgentLifecycleManager(memory, config, logger)
-        >>> entry = manager.register_agent(MyAgent, "agent1", custom_config=config)
-        >>> success = manager.start_agent("agent1")
-        >>> manager.stop_agent("agent1")
-    """
-
-    def __init__(self, memory: OMemory, config: BaseClass.Config, logger):
-        """
-        Initialize the lifecycle manager.
-
-        Args:
-            memory: OMemory instance for agent storage
-            config: Orchestrator configuration
-            logger: Logger instance
-        """
+    def __init__(
+        self,
+        memory: OMemory,
+        config: BaseClass.Config,
+        logger,
+        before_start: Callable[[str, int], None] | None = None,
+    ):
         self.memory = memory
         self.config = config
         self.logger = logger
+        self.before_start = before_start
+        # Registration mutates shared memory. Blocking lifecycle operations
+        # intentionally do not hold this manager-wide lock.
+        self._lock = threading.RLock()
 
     def register_agent(
         self,
@@ -48,148 +74,285 @@ class AgentLifecycleManager:
         msg_channel: MessageChannel | None = None,
         **kwargs,
     ) -> AgentEntry:
-        """
-        Register an agent with the orchestrator.
-
-        Args:
-            agent_class: The agent class to instantiate
-            name: Unique name for the agent
-            custom_config: Optional custom configuration
-            custom_plugin: Optional custom plugin
-            control_events: Control events for the agent
-            state_events: State events for the agent
-            msg_channel: Message channel for agent communication
-            **kwargs: Additional arguments passed to agent
-
-        Returns:
-            AgentEntry: The registered agent entry
-
-        Raises:
-            ValueError: If agent name is not unique
-            ConfigValidationError: If agent config is invalid
-        """
-        agent_entry: AgentEntry = self.memory.add_agent(
-            agent_class=agent_class,
-            name=name,
-            custom_config=custom_config,
-            custom_plugin=custom_plugin,
-            control_events=control_events,
-            state_events=state_events,
-            msg_channel=msg_channel,
-            **kwargs,
-        )
-
+        """Register an agent without creating its concrete instance."""
+        with self._lock:
+            agent_entry = self.memory.add_agent(
+                agent_class=agent_class,
+                name=name,
+                custom_config=custom_config,
+                custom_plugin=custom_plugin,
+                control_events=control_events,
+                state_events=state_events,
+                msg_channel=msg_channel,
+                **kwargs,
+            )
         self.logger.debug(f"Agent '{name}' registered.")
         return agent_entry
 
-    def start_agent(self, agent_name: str) -> bool:
-        """
-        Start an agent with timeout protection.
+    def prepare_start(self, agent_name: str) -> AgentStartAttempt:
+        """Prepare a non-blocking startup attempt for scheduler ownership."""
+        return self.get_agent(agent_name)._prepare_start()
 
-        Waits for agent.state_events.start_event with configured timeout.
-        If timeout is exceeded, attempts to stop the agent and returns False.
-
-        Args:
-            agent_name: Name of the agent to start
-
-        Returns:
-            bool: True if agent started successfully, False if timeout occurred
-
-        Raises:
-            ValueError: If agent not found
-            Exception: If agent.start() fails critically
-        """
-        agent = self.memory.get_agent(agent_name)
-        if not agent:
-            raise ValueError(f"Agent '{agent_name}' not found.")
-
-        # Initialize agent
+    def execute_start(
+        self,
+        agent_name: str,
+        attempt: AgentStartAttempt,
+    ) -> LifecycleStartResult:
+        """Create and start one prepared generation with bounded acknowledgement."""
+        agent = self.get_agent(agent_name)
+        if agent._attempt_cancel_requested(attempt):
+            return self._finish_failed_start(agent, attempt, cancelled=True)
         try:
-            agent.initialize_agent()
-        except Exception as e:
-            self.logger.error(f"Failed to initialize agent '{agent_name}': {e}")
+            if not agent._initialize_instance(attempt):
+                return self._finish_failed_start(agent, attempt, cancelled=True)
+            if agent._attempt_cancel_requested(attempt):
+                return self._finish_failed_start(agent, attempt, cancelled=True)
+            if self.before_start:
+                self.before_start(agent_name, attempt.generation_id)
+            if agent._attempt_cancel_requested(attempt):
+                return self._finish_failed_start(agent, attempt, cancelled=True)
+            if not agent._start_instance(attempt):
+                return self._finish_failed_start(agent, attempt, cancelled=True)
+        except Exception as error:
+            self.logger.error(f"Failed to start agent '{agent_name}': {error}")
+            return self._finish_failed_start(agent, attempt, reason=str(error))
+
+        start_event = agent.state_events.start_event if agent.state_events else None
+        deadline = time.monotonic() + self.config.agent_start_timeout
+        while start_event and not start_event.is_set():
+            if agent._attempt_cancel_requested(attempt):
+                return self._finish_failed_start(agent, attempt, cancelled=True)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                reason = (
+                    f"startup acknowledgement timed out after "
+                    f"{self.config.agent_start_timeout}s"
+                )
+                self.logger.error(f"Agent '{agent_name}' {reason}.")
+                return self._finish_failed_start(agent, attempt, reason=reason)
+            start_event.wait(min(self._START_WAIT_POLL_INTERVAL, remaining))
+
+        if agent._attempt_cancel_requested(attempt):
+            return self._finish_failed_start(agent, attempt, cancelled=True)
+
+        try:
+            agent._transition_attempt_to(
+                attempt,
+                AgentLifecycleState.RUNNING,
+                {AgentLifecycleState.STARTING},
+            )
+        except RuntimeError:
+            if agent._attempt_cancel_requested(attempt):
+                return self._finish_failed_start(agent, attempt, cancelled=True)
             raise
 
-        # Start agent with timeout protection
+        self.logger.info(f"Agent '{agent_name}' started successfully.")
+        return LifecycleStartResult(LifecycleStartStatus.STARTED)
+
+    def start_agent(self, agent_name: str) -> LifecycleStartResult:
+        """Prepare and execute a fresh generation without scheduler accounting."""
+        attempt = self.prepare_start(agent_name)
+        return self.execute_start(agent_name, attempt)
+
+    def restart_agent(self, agent_name: str) -> LifecycleStartResult:
+        """Restart through the same guarded startup path as a first start."""
+        return self.start_agent(agent_name)
+
+    def _finish_failed_start(
+        self,
+        agent: AgentEntry,
+        attempt: AgentStartAttempt,
+        *,
+        cancelled: bool = False,
+        reason: str | None = None,
+    ) -> LifecycleStartResult:
         try:
-            start_time = time.time()
-            agent.start()
+            cleaned = self._cleanup_failed_start(agent, attempt)
+        except Exception as cleanup_error:
+            # Unknown cleanup errors must be treated conservatively: releasing
+            # ownership could make a live instance invisible to the scheduler.
+            self.logger.exception(
+                f"Unexpected cleanup failure for agent '{agent.name}': "
+                f"{cleanup_error}"
+            )
+            try:
+                cleaned = not agent.is_alive(attempt)
+            except Exception:
+                cleaned = False
+        current = agent.state
+        allowed = {
+            AgentLifecycleState.STARTING,
+            AgentLifecycleState.STOPPING,
+            AgentLifecycleState.QUARANTINED,
+        }
 
-            # Wait for agent to actually start (with timeout)
-            if agent.state_events and agent.state_events.start_event:
-                if not agent.state_events.start_event.wait(
-                    timeout=self.config.agent_start_timeout
-                ):
-                    elapsed = time.time() - start_time
-                    self.logger.error(
-                        f"Agent '{agent_name}' failed to start within timeout "
-                        f"({elapsed:.1f}s > {self.config.agent_start_timeout}s)"
-                    )
+        if not cleaned:
+            if current is not AgentLifecycleState.QUARANTINED:
+                agent._transition_attempt_to(
+                    attempt,
+                    AgentLifecycleState.QUARANTINED,
+                    allowed,
+                )
+            return LifecycleStartResult(
+                LifecycleStartStatus.FAILED_LIVE,
+                reason or "agent remained alive after startup cleanup",
+            )
 
-                    # Try to stop the agent to clean up
-                    try:
-                        agent.stop()
-                    except Exception as stop_error:
-                        self.logger.error(
-                            f"Failed to stop timed-out agent '{agent_name}': {stop_error}"
-                        )
+        target = (
+            AgentLifecycleState.TERMINATED if cancelled else AgentLifecycleState.FAILED
+        )
+        if current in allowed:
+            agent._transition_attempt_to(attempt, target, allowed)
+        return LifecycleStartResult(
+            (
+                LifecycleStartStatus.CANCELLED
+                if cancelled
+                else LifecycleStartStatus.FAILED_CLEAN
+            ),
+            reason,
+        )
 
-                    return False
-
-            self.logger.info(f"Agent '{agent_name}' started successfully.")
+    def _cleanup_failed_start(
+        self,
+        agent: AgentEntry,
+        attempt: AgentStartAttempt,
+    ) -> bool:
+        """Attempt bounded cleanup and report whether no live instance remains."""
+        if not agent._has_instance(attempt):
             return True
 
-        except Exception as e:
-            self.logger.error(f"Failed to start agent '{agent_name}': {e}")
-            raise
+        try:
+            agent._stop_instance(attempt)
+        except Exception as stop_error:
+            self.logger.error(
+                f"Failed to stop agent '{agent.name}' after startup failure: "
+                f"{stop_error}"
+            )
+
+        try:
+            agent._join_instance(
+                timeout=self._FAILED_START_CLEANUP_TIMEOUT,
+                attempt=attempt,
+            )
+        except Exception as join_error:
+            self.logger.error(
+                f"Failed to join agent '{agent.name}' after startup failure: "
+                f"{join_error}"
+            )
+
+        if not agent.is_alive(attempt):
+            return True
+
+        instance = agent.instance
+        terminate = getattr(instance, "terminate", None)
+        if callable(terminate) and instance.a_type == "process":
+            self.logger.warning(
+                f"Force-terminating failed process agent '{agent.name}'."
+            )
+            try:
+                terminate()
+                agent._join_instance(
+                    timeout=self._FAILED_START_CLEANUP_TIMEOUT,
+                    attempt=attempt,
+                )
+            except Exception as terminate_error:
+                self.logger.error(
+                    f"Failed to force-terminate process agent '{agent.name}': "
+                    f"{terminate_error}"
+                )
+
+        if agent.is_alive(attempt):
+            self.logger.critical(
+                f"Agent '{agent.name}' is still alive and has been quarantined."
+            )
+            return False
+        return True
 
     def stop_agent(self, agent_name: str) -> None:
-        """
-        Stop a specific agent.
+        """Cancel startup or request stop without waiting on another agent."""
+        agent = self.get_agent(agent_name)
+        state, attempt = agent._request_stop()
 
-        Args:
-            agent_name: Name of the agent to stop
+        if state in {
+            AgentLifecycleState.REGISTERED,
+            AgentLifecycleState.TERMINATED,
+            AgentLifecycleState.FAILED,
+            AgentLifecycleState.STOPPING,
+        }:
+            return
 
-        Raises:
-            ValueError: If agent not found
-        """
-        agent = self.memory.get_agent(agent_name)
+        if attempt is None or not agent.is_alive(attempt):
+            # A concurrent startup owns the final STARTING/STOPPING outcome.
+            if state is not AgentLifecycleState.STARTING:
+                agent._transition_to(
+                    AgentLifecycleState.TERMINATED,
+                    {AgentLifecycleState.STOPPING},
+                )
+            return
 
-        if not agent:
-            raise ValueError(f"Agent '{agent_name}' not found.")
-
-        agent.stop()
-        self.logger.info(f"Agent '{agent_name}' stopped.")
+        try:
+            agent._stop_instance(attempt)
+        except Exception:
+            if agent.is_alive(attempt):
+                agent._transition_to(
+                    AgentLifecycleState.QUARANTINED,
+                    {AgentLifecycleState.STOPPING},
+                )
+            else:
+                agent._transition_to(
+                    AgentLifecycleState.FAILED,
+                    {AgentLifecycleState.STOPPING},
+                )
+            raise
+        self.logger.info(f"Stop requested for agent '{agent_name}'.")
 
     def stop_all(self) -> None:
-        """Stop all registered agents."""
+        """Request stop for every registered agent."""
+        errors: list[Exception] = []
         for agent in self.memory.agents:
-            agent.stop()
-            self.logger.info(f"Stopping agent '{agent.name}'.")
+            try:
+                self.stop_agent(agent.name)
+            except Exception as error:
+                errors.append(error)
+                self.logger.error(f"Failed to stop agent '{agent.name}': {error}")
+        if errors:
+            raise ExceptionGroup("Failed to stop one or more agents", errors)
+
+    def join_agent(self, agent_name: str, timeout: float | None = None) -> None:
+        """Join an initialized concrete instance through lifecycle ownership."""
+        self.get_agent(agent_name)._join_instance(timeout=timeout)
+
+    def is_attempt_alive(
+        self,
+        agent_name: str,
+        attempt: AgentStartAttempt,
+    ) -> bool:
+        """Return whether the instance owned by ``attempt`` remains alive."""
+        return self.get_agent(agent_name).is_alive(attempt)
+
+    def mark_terminated(self, agent_name: str) -> None:
+        """Record termination observed by the orchestrator."""
+        agent = self.get_agent(agent_name)
+        state = agent.state
+        if state is AgentLifecycleState.TERMINATED:
+            return
+        if state is AgentLifecycleState.FAILED and not agent.is_alive():
+            return
+        agent._transition_to(
+            AgentLifecycleState.TERMINATED,
+            {
+                AgentLifecycleState.STARTING,
+                AgentLifecycleState.RUNNING,
+                AgentLifecycleState.STOPPING,
+                AgentLifecycleState.QUARANTINED,
+            },
+        )
 
     def get_agent(self, agent_name: str) -> AgentEntry:
-        """
-        Retrieve an agent entry by name.
-
-        Args:
-            agent_name: Name of the agent
-
-        Returns:
-            AgentEntry: The agent entry
-
-        Raises:
-            ValueError: If agent not found
-        """
-        a = self.memory.get_agent(agent_name)
-        if not a:
+        agent = self.memory.get_agent(agent_name)
+        if not agent:
             raise ValueError(f"Agent '{agent_name}' not found.")
-        return a
+        return agent
 
     def get_all_agents(self) -> list[AgentEntry]:
-        """
-        Get all registered agents.
-
-        Returns:
-            list[AgentEntry]: List of all agent entries
-        """
         return self.memory.agents

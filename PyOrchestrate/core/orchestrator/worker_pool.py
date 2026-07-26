@@ -1,169 +1,309 @@
-"""Worker pool and agent scheduling queue management."""
+"""Worker-pool capacity reservation and agent scheduling."""
 
+import threading
 from collections import deque
+from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
+
+from PyOrchestrate.core.orchestrator.lifecycle_manager import (
+    LifecycleStartResult,
+    LifecycleStartStatus,
+)
+from PyOrchestrate.core.orchestrator.memory import AgentStartAttempt
 
 if TYPE_CHECKING:
     from PyOrchestrate.core.orchestrator.lifecycle_manager import AgentLifecycleManager
 
 
+class WorkerStartStatus(Enum):
+    """Scheduler-level outcome of a start request."""
+
+    STARTED = "started"
+    QUEUED = "queued"
+    CANCELLED = "cancelled"
+    FAILED_CLEAN = "failed_clean"
+    FAILED_LIVE = "failed_live"
+
+
+@dataclass(frozen=True)
+class WorkerStartResult:
+    """Typed scheduler result that preserves lifecycle failure semantics."""
+
+    status: WorkerStartStatus
+    reason: str | None = None
+
+    @property
+    def started(self) -> bool:
+        return self.status is WorkerStartStatus.STARTED
+
+    @property
+    def queued(self) -> bool:
+        return self.status is WorkerStartStatus.QUEUED
+
+
 class WorkerPoolScheduler:
-    """
-    Manages worker pool and agent scheduling queue.
-
-    This class handles:
-    - Enforcing max_workers limit
-    - Queueing agents when limit is reached
-    - Automatically scheduling agents from queue when slots free up
-    - Tracking running agent count
-
-    Example:
-        >>> scheduler = WorkerPoolScheduler(max_workers=5, lifecycle_manager, logger)
-        >>> scheduler.start_agent("agent1")  # Starts immediately if slot available
-        >>> scheduler.start_agent("agent2")  # Queued if at capacity
-        >>> scheduler.on_agent_terminated("agent1")  # Starts next queued agent
-    """
+    """Reserve capacity and schedule agents without blocking the pool lock."""
 
     def __init__(
         self, max_workers: int, lifecycle_manager: "AgentLifecycleManager", logger
     ):
-        """
-        Initialize the worker pool scheduler.
-
-        Args:
-            max_workers: Maximum number of concurrently running agents
-            lifecycle_manager: Agent lifecycle manager for starting agents
-            logger: Logger instance
-        """
         self.max_workers = max_workers
         self.lifecycle_manager = lifecycle_manager
         self.logger = logger
 
-        self._running_agents = 0
+        self._starting_agents: set[str] = set()
         self._started_agents: set[str] = set()
+        self._failed_live_agents: set[str] = set()
         self._waiting_queue: deque[str] = deque()
+        self._accepting_starts = True
+        self._lock = threading.RLock()
 
-    def can_start_agent(self) -> bool:
-        """
-        Check if there's capacity to start a new agent.
-
-        Returns:
-            bool: True if running_agents < max_workers, False otherwise
-        """
-        return self._running_agents < self.max_workers
-
-    def start_agent(self, agent_name: str) -> bool:
-        """
-        Start an agent immediately or queue it if at capacity.
-
-        Args:
-            agent_name: Name of the agent to start
-
-        Returns:
-            bool: True if agent started, False if queued
-        """
-        if not self.can_start_agent():
-            self.logger.warning(
-                f"Max workers ({self.max_workers}) reached. "
-                f"Queueing agent '{agent_name}'"
-            )
-            self._waiting_queue.append(agent_name)
-            return False
-
-        return self._execute_start(agent_name)
-
-    def _execute_start(self, agent_name: str) -> bool:
-        """Logica centralizzata per l'avvio effettivo dell'agente."""
-        success = self.lifecycle_manager.start_agent(agent_name)
-        if success:
-            self._running_agents += 1
-            self._started_agents.add(agent_name)
-            self.logger.info(
-                f"Agent '{agent_name}' started "
-                f"({self._running_agents}/{self.max_workers} slots used)"
-            )
-        return success
-
-    def on_agent_terminated(self, agent_name: str) -> None:
-        """
-        Callback when an agent terminates.
-
-        Decrements running count and starts next queued agent if available.
-
-        Args:
-            agent_name: Name of the terminated agent
-        """
-        if agent_name not in self._started_agents:
-            self.logger.debug(
-                f"Agent '{agent_name}' terminated but was never started (timeout?)"
-            )
-            return
-
-        self._running_agents -= 1
-        self._started_agents.remove(agent_name)
-
-        self.logger.info(
-            f"Agent '{agent_name}' terminated "
-            f"({self._running_agents}/{self.max_workers} slots used)"
+    def _occupied_count_unlocked(self) -> int:
+        return (
+            len(self._starting_agents)
+            + len(self._started_agents)
+            + len(self._failed_live_agents)
         )
 
-        # Try to start next agent from queue
-        self._start_next_queued_agent()
+    def can_start_agent(self) -> bool:
+        with self._lock:
+            return self._occupied_count_unlocked() < self.max_workers
 
-    def _start_next_queued_agent(self) -> None:
-        """Start the next agent from the waiting queue if available."""
-        if not self._waiting_queue:
+    def tracks_agent(self, agent_name: str) -> bool:
+        """Return whether the pool owns a reserved, running, or live-failed agent."""
+        with self._lock:
+            return agent_name in (
+                self._starting_agents | self._started_agents | self._failed_live_agents
+            )
+
+    def is_started(self, agent_name: str) -> bool:
+        with self._lock:
+            return agent_name in self._started_agents
+
+    def is_starting(self, agent_name: str) -> bool:
+        with self._lock:
+            return agent_name in self._starting_agents
+
+    def is_queued(self, agent_name: str) -> bool:
+        with self._lock:
+            return agent_name in self._waiting_queue
+
+    def start_agent(self, agent_name: str) -> WorkerStartResult:
+        """Reserve a slot and start, or enqueue atomically when at capacity."""
+        # Registration is stable for the scheduler lifetime, so reject unknown
+        # names before they can reserve capacity or enter the waiting queue.
+        self.lifecycle_manager.get_agent(agent_name)
+        with self._lock:
+            if not self._accepting_starts:
+                raise RuntimeError(
+                    "Worker pool is stopping and cannot accept new starts."
+                )
+            if self.tracks_agent(agent_name):
+                raise RuntimeError(f"Agent '{agent_name}' is already active.")
+            if agent_name in self._waiting_queue:
+                return WorkerStartResult(WorkerStartStatus.QUEUED)
+            if self._occupied_count_unlocked() >= self.max_workers:
+                self._waiting_queue.append(agent_name)
+                self.logger.warning(
+                    f"Max workers ({self.max_workers}) reached. "
+                    f"Queueing agent '{agent_name}'"
+                )
+                return WorkerStartResult(WorkerStartStatus.QUEUED)
+            self._starting_agents.add(agent_name)
+            try:
+                attempt = self.lifecycle_manager.prepare_start(agent_name)
+            except Exception:
+                self._starting_agents.discard(agent_name)
+                raise
+
+        try:
+            result = self._start_reserved_agent(agent_name, attempt)
+        except Exception:
+            if not self.tracks_agent(agent_name):
+                self._drain_waiting_queue()
+            raise
+        if result.status in {
+            WorkerStartStatus.CANCELLED,
+            WorkerStartStatus.FAILED_CLEAN,
+        }:
+            # Other callers may have queued work while startup was blocking.
+            self._drain_waiting_queue()
+        return result
+
+    def _start_reserved_agent(
+        self,
+        agent_name: str,
+        attempt: AgentStartAttempt,
+    ) -> WorkerStartResult:
+        """Run blocking startup outside the scheduler lock, then classify it."""
+        try:
+            lifecycle_result = self.lifecycle_manager.execute_start(
+                agent_name,
+                attempt,
+            )
+        except Exception:
+            # Invariant/programming errors are exceptional, but the scheduler
+            # must still never forget a concrete instance that may be alive.
+            try:
+                remains_live = self.lifecycle_manager.is_attempt_alive(
+                    agent_name,
+                    attempt,
+                )
+            except Exception:
+                remains_live = True
+            with self._lock:
+                self._starting_agents.discard(agent_name)
+                if remains_live:
+                    self._failed_live_agents.add(agent_name)
+            raise
+
+        worker_result = self._classify_lifecycle_result(lifecycle_result)
+        with self._lock:
+            self._starting_agents.discard(agent_name)
+            if lifecycle_result.status is LifecycleStartStatus.STARTED:
+                self._started_agents.add(agent_name)
+            elif lifecycle_result.status is LifecycleStartStatus.FAILED_LIVE:
+                self._failed_live_agents.add(agent_name)
+            occupied = self._occupied_count_unlocked()
+
+        if worker_result.status is WorkerStartStatus.FAILED_LIVE:
+            self.logger.critical(
+                f"Agent '{agent_name}' failed startup but remains alive; "
+                "its worker slot is quarantined."
+            )
+        elif worker_result.started:
+            self.logger.info(
+                f"Agent '{agent_name}' started "
+                f"({occupied}/{self.max_workers} slots used)"
+            )
+        return worker_result
+
+    @staticmethod
+    def _classify_lifecycle_result(
+        result: LifecycleStartResult,
+    ) -> WorkerStartResult:
+        status_map = {
+            LifecycleStartStatus.STARTED: WorkerStartStatus.STARTED,
+            LifecycleStartStatus.CANCELLED: WorkerStartStatus.CANCELLED,
+            LifecycleStartStatus.FAILED_CLEAN: WorkerStartStatus.FAILED_CLEAN,
+            LifecycleStartStatus.FAILED_LIVE: WorkerStartStatus.FAILED_LIVE,
+        }
+        return WorkerStartResult(status_map[result.status], result.reason)
+
+    def on_agent_terminated(self, agent_name: str) -> None:
+        """Release tracked capacity and schedule queued work."""
+        with self._lock:
+            tracked = self.tracks_agent(agent_name)
+            self._starting_agents.discard(agent_name)
+            self._started_agents.discard(agent_name)
+            self._failed_live_agents.discard(agent_name)
+            occupied = self._occupied_count_unlocked()
+
+        if not tracked:
+            self.logger.debug(
+                f"Agent '{agent_name}' terminated without an owned worker slot."
+            )
             return
 
-        if not self.can_start_agent():
-            self.logger.debug("No free slots to start queued agents")
-            return
+        self.lifecycle_manager.mark_terminated(agent_name)
+        self.logger.info(
+            f"Agent '{agent_name}' terminated "
+            f"({occupied}/{self.max_workers} slots used)"
+        )
+        self._drain_waiting_queue()
 
-        agent_name = self._waiting_queue.popleft()
-        self.logger.info(f"Starting queued agent '{agent_name}'")
-        self._execute_start(agent_name)
+    def _reserve_next_queued(
+        self,
+    ) -> tuple[str, AgentStartAttempt] | None:
+        with self._lock:
+            while (
+                self._waiting_queue
+                and self._occupied_count_unlocked() < self.max_workers
+            ):
+                agent_name = self._waiting_queue.popleft()
+                self._starting_agents.add(agent_name)
+                try:
+                    attempt = self.lifecycle_manager.prepare_start(agent_name)
+                except Exception as error:
+                    self._starting_agents.discard(agent_name)
+                    self.logger.error(
+                        f"Queued agent '{agent_name}' could not prepare startup: "
+                        f"{error}"
+                    )
+                    continue
+                return agent_name, attempt
+            return None
+
+    def _drain_waiting_queue(self) -> None:
+        """Continue after clean failures; retain slots for live failures."""
+        while True:
+            reserved = self._reserve_next_queued()
+            if reserved is None:
+                return
+            agent_name, attempt = reserved
+            self.logger.info(f"Starting queued agent '{agent_name}'")
+            try:
+                result = self._start_reserved_agent(agent_name, attempt)
+            except Exception as error:
+                self.logger.error(
+                    f"Queued agent '{agent_name}' raised during startup: {error}"
+                )
+                continue
+            if result.status in {
+                WorkerStartStatus.STARTED,
+                WorkerStartStatus.FAILED_LIVE,
+            }:
+                return
+            self.logger.error(
+                f"Queued agent '{agent_name}' did not start "
+                f"({result.status.value}); trying next."
+            )
+
+    def stop_agent(self, agent_name: str) -> None:
+        """Cancel a queued request or stop an active lifecycle."""
+        with self._lock:
+            was_queued = agent_name in self._waiting_queue
+            if was_queued:
+                self._waiting_queue = deque(
+                    name for name in self._waiting_queue if name != agent_name
+                )
+        self.lifecycle_manager.stop_agent(agent_name)
+
+    def stop_all(self) -> None:
+        """Cancel queued work and request stop without holding the pool lock."""
+        with self._lock:
+            self._accepting_starts = False
+            self._waiting_queue.clear()
+        self.lifecycle_manager.stop_all()
 
     @property
     def all_finished(self) -> bool:
-        """
-        Check if all agents have finished (none running, none queued).
-
-        Returns:
-            bool: True if no agents running and queue is empty
-        """
-        return self._running_agents == 0 and len(self._waiting_queue) == 0
+        with self._lock:
+            return self._occupied_count_unlocked() == 0 and not self._waiting_queue
 
     @property
     def queue_size(self) -> int:
-        """
-        Get current size of the waiting queue.
-
-        Returns:
-            int: Number of agents waiting in queue
-        """
-        return len(self._waiting_queue)
+        with self._lock:
+            return len(self._waiting_queue)
 
     @property
     def running_count(self) -> int:
-        """
-        Get number of currently running agents.
-
-        Returns:
-            int: Number of agents currently running
-        """
-        return self._running_agents
+        """Return live running plus quarantined agents."""
+        with self._lock:
+            return len(self._started_agents) + len(self._failed_live_agents)
 
     def get_stats(self) -> dict:
-        """
-        Get current scheduler statistics.
-
-        Returns:
-            dict: Statistics including running count, queue size, capacity
-        """
-        return {
-            "running": self._running_agents,
-            "queued": len(self._waiting_queue),
-            "max_workers": self.max_workers,
-            "capacity_used": f"{self._running_agents}/{self.max_workers}",
-            "started_agents": list(self._started_agents),
-        }
+        with self._lock:
+            occupied = self._occupied_count_unlocked()
+            return {
+                "running": len(self._started_agents) + len(self._failed_live_agents),
+                "starting": len(self._starting_agents),
+                "queued": len(self._waiting_queue),
+                "quarantined": len(self._failed_live_agents),
+                "max_workers": self.max_workers,
+                "capacity_used": f"{occupied}/{self.max_workers}",
+                "started_agents": sorted(self._started_agents),
+                "starting_agents": sorted(self._starting_agents),
+                "quarantined_agents": sorted(self._failed_live_agents),
+            }

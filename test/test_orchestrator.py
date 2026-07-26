@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, call
 from datetime import datetime
+from unittest.mock import patch
 
 from PyOrchestrate.core.orchestrator.orchestrator import (
     Orchestrator,
@@ -117,6 +118,22 @@ class TestOrchestrator(unittest.TestCase):
             self.orch.event_bus.event_manager.emit.assert_called_with(  # type: ignore
                 expected_event, agent_name="agent1"
             )
+
+    def test_join_does_not_release_slot_while_generation_is_starting(self):
+        entry = self.orch.register_agent(DummyAgent, "starting-agent")
+        entry._initialize_instance()
+        self.orch.worker_pool = MagicMock()
+        self.orch.worker_pool.is_starting.return_value = True
+        self.orch.worker_pool.all_finished = True
+        self.orch._shutdown_channel_handlers = MagicMock()
+        self.orch.plugin_manager.finalize_plugins = MagicMock()
+        self.orch.start_time = 0
+
+        with patch("PyOrchestrate.core.orchestrator.orchestrator.time.sleep") as sleep:
+            self.orch.join()
+
+        sleep.assert_called_once_with(self.orch.config.check_interval)
+        self.orch.worker_pool.on_agent_terminated.assert_not_called()
 
     # def test_start_call(self):
     #     """
