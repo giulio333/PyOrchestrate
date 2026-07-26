@@ -332,7 +332,7 @@ class CommandHandler:
         self,
         agent_name: str,
     ) -> dict:
-        """Stop a specific agent."""
+        """Request the stop of a specific agent."""
         try:
             agent = self.orchestrator.memory.get_agent(agent_name)
             if not agent:
@@ -341,15 +341,14 @@ class CommandHandler:
                     code=404,
                 )
 
-            agent.stop()
-            if agent_name in self.orchestrator.worker_pool._started_agents:
-                self.orchestrator.worker_pool._started_agents.remove(agent_name)
-                self.orchestrator.worker_pool._running_agents -= 1
+            self.orchestrator.lifecycle_manager.stop_agent(agent_name)
 
             return {
-                "message": f"Agent {agent_name} stopped",
+                "message": f"Stop requested for agent {agent_name}",
             }
 
+        except CommandException:
+            raise
         except Exception as e:
             raise CommandException(
                 f"Failed to stop agent {agent_name}: {str(e)}", code=500

@@ -5,6 +5,10 @@ from unittest.mock import MagicMock, call
 from collections import deque
 
 from PyOrchestrate.core.orchestrator.worker_pool import WorkerPoolScheduler
+from PyOrchestrate.core.utilities.command_handler import (
+    CommandException,
+    CommandHandler,
+)
 
 
 class TestWorkerPoolScheduler(unittest.TestCase):
@@ -167,6 +171,55 @@ class TestWorkerPoolScheduler(unittest.TestCase):
 
         self.assertEqual(self.scheduler.queue_size, 2)
         self.assertEqual(self.scheduler.running_count, 2)
+
+    def test_stop_command_waits_for_termination_before_advancing_queue(self):
+        """Stopping an agent must not release its worker slot prematurely."""
+        scheduler = WorkerPoolScheduler(
+            max_workers=1,
+            lifecycle_manager=self.mock_lifecycle_manager,
+            logger=self.mock_logger,
+        )
+        self.mock_lifecycle_manager.start_agent.return_value = True
+        scheduler.start_agent("agent1")
+        scheduler.start_agent("agent2")
+
+        orchestrator = MagicMock()
+        orchestrator.logger = self.mock_logger
+        orchestrator.lifecycle_manager = self.mock_lifecycle_manager
+        orchestrator.memory.get_agent.return_value = MagicMock()
+        orchestrator.worker_pool = scheduler
+        handler = CommandHandler(orchestrator, {"stop"})
+
+        result = handler._cmd_stop_agent("agent1")
+
+        self.assertEqual(result["message"], "Stop requested for agent agent1")
+        self.mock_lifecycle_manager.stop_agent.assert_called_once_with("agent1")
+        self.assertEqual(scheduler.running_count, 1)
+        self.assertIn("agent1", scheduler._started_agents)
+        self.assertEqual(list(scheduler._waiting_queue), ["agent2"])
+
+        scheduler.on_agent_terminated("agent1")
+
+        self.assertEqual(
+            self.mock_lifecycle_manager.start_agent.call_args_list[-1],
+            call("agent2"),
+        )
+        self.assertEqual(scheduler.running_count, 1)
+        self.assertNotIn("agent1", scheduler._started_agents)
+        self.assertIn("agent2", scheduler._started_agents)
+        self.assertEqual(scheduler.queue_size, 0)
+
+    def test_stop_command_preserves_not_found_error(self):
+        """A missing agent remains a 404 instead of being wrapped as a 500."""
+        orchestrator = MagicMock()
+        orchestrator.logger = self.mock_logger
+        orchestrator.memory.get_agent.return_value = None
+        handler = CommandHandler(orchestrator, {"stop"})
+
+        with self.assertRaises(CommandException) as context:
+            handler._cmd_stop_agent("missing")
+
+        self.assertEqual(context.exception.code, 404)
 
 
 if __name__ == "__main__":
