@@ -165,6 +165,7 @@ class BaseAgent(BaseClass, ABC):
         control_events: Optional[ControlEvents] = None,
         state_events: Optional[StateEvents] = None,
         msg_channel: Optional[MessageChannel] = None,
+        generation_id: int = 0,
         **kwargs,
     ):
         """
@@ -199,6 +200,7 @@ class BaseAgent(BaseClass, ABC):
         self.config = config if config else self.Config()
         self.plugin = plugin if plugin else self.Plugin()
         self.name = name if name else self.__class__.__name__
+        self.generation_id = generation_id
 
         self.start_time = 0
         """Timestamp when the agent started running."""
@@ -319,7 +321,9 @@ class BaseAgent(BaseClass, ABC):
             error_message = ServiceMessage.create_status(
                 sender=self.name,
                 status="error",
+                event_name=AgentEvent.AGENT_ERROR.value,
                 error=str(ex),
+                generation_id=self.generation_id,
             )
             self.send_message(error_message)
 
@@ -354,6 +358,7 @@ class BaseAgent(BaseClass, ABC):
             sender=self.name,
             status="success",
             event_name=AgentEvent.AGENT_START.value,
+            generation_id=self.generation_id,
         )
         self.send_message(msg)
 
@@ -368,6 +373,7 @@ class BaseAgent(BaseClass, ABC):
             sender=self.name,
             status="success",
             event_name=AgentEvent.AGENT_CLOSE.value,
+            generation_id=self.generation_id,
         )
         self.send_message(msg)
 
@@ -382,6 +388,7 @@ class BaseAgent(BaseClass, ABC):
             sender=self.name,
             status="success",
             event_name=AgentEvent.AGENT_READY.value,
+            generation_id=self.generation_id,
         )
         self.send_message(msg)
 
@@ -481,6 +488,12 @@ class BaseAgent(BaseClass, ABC):
         Args:
             msg (ServiceMessage): The message to send.
         """
+        if (
+            msg.type == "STATUS"
+            and self.generation_id
+            and "generation_id" not in msg.payload
+        ):
+            msg.payload["generation_id"] = self.generation_id
         self.msg_channel.send("orchestrator", msg)
 
     def on_message(self, msg: ServiceMessage) -> None:
@@ -573,7 +586,7 @@ class AgentProtocol(Protocol):
 
     def stop(self) -> None: ...
 
-    def join(self) -> None: ...
+    def join(self, timeout: float | None = None) -> None: ...
 
     def is_alive(self) -> bool: ...
 

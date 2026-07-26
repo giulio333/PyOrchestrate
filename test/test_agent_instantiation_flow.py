@@ -8,7 +8,7 @@ are correctly passed through all layers:
 1. Orchestrator.register_agent()
 2. OMemory.add_agent()
 3. AgentEntry creation
-4. AgentEntry.initialize_agent()
+4. AgentEntry._initialize_instance()
 5. Agent __init__()
 6. Agent.run() and lifecycle
 """
@@ -85,7 +85,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         self.assertEqual(agent_entry.config.number, 100)
 
         # Initialize agent (this creates the actual agent instance)
-        agent_entry.initialize_agent()
+        agent_entry._initialize_instance()
 
         # Verify config is passed to agent instance
         self.assertIsNotNone(agent_entry.instance.config)
@@ -110,7 +110,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         self.assertIsNone(agent_entry.config)
 
         # Initialize agent
-        agent_entry.initialize_agent()
+        agent_entry._initialize_instance()
 
         # Now agent should have default config
         self.assertIsNotNone(agent_entry.instance.config)
@@ -137,7 +137,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         self.assertIsNotNone(agent_entry.plugin)
 
         # Initialize agent
-        agent_entry.initialize_agent()
+        agent_entry._initialize_instance()
 
         # Verify plugin is passed to agent instance
         self.assertIsNotNone(agent_entry.instance.plugin)
@@ -160,7 +160,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         self.assertIsNone(agent_entry1.control_events)
 
         # Initialize agent
-        agent_entry1.initialize_agent()
+        agent_entry1._initialize_instance()
 
         # After initialization, agent creates its own control events
         self.assertIsNotNone(agent_entry1.instance.control_events)
@@ -182,7 +182,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         # Verify custom control events are stored
         self.assertIs(agent_entry2.control_events, custom_control_events)
 
-        agent_entry2.initialize_agent()
+        agent_entry2._initialize_instance()
 
         # Verify custom control events are passed to agent
         self.assertIs(agent_entry2.instance.control_events, custom_control_events)
@@ -202,7 +202,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         self.assertIsNone(agent_entry1.state_events)
 
         # Initialize agent
-        agent_entry1.initialize_agent()
+        agent_entry1._initialize_instance()
 
         # After initialization, agent creates its own state events
         self.assertIsNotNone(agent_entry1.instance.state_events)
@@ -224,7 +224,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         # Verify custom state events are stored
         self.assertIs(agent_entry2.state_events, custom_state_events)
 
-        agent_entry2.initialize_agent()
+        agent_entry2._initialize_instance()
 
         # Verify custom state events are passed to agent
         self.assertIs(agent_entry2.instance.state_events, custom_state_events)
@@ -240,7 +240,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         # Case 1: No custom msg_channel (orchestrator's channel should be used)
         agent_entry1 = orchestrator.register_agent(self.SimpleTestAgent, "test_agent1")
 
-        agent_entry1.initialize_agent()
+        agent_entry1._initialize_instance()
 
         # Verify msg_channel exists
         self.assertIsNotNone(agent_entry1.instance.msg_channel)
@@ -255,7 +255,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
             self.SimpleTestAgent, "test_agent2", msg_channel=custom_msg_channel
         )
 
-        agent_entry2.initialize_agent()
+        agent_entry2._initialize_instance()
 
         # Verify custom msg_channel is used
         self.assertIs(agent_entry2.instance.msg_channel, custom_msg_channel)
@@ -283,7 +283,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         self.assertEqual(agent_entry.kwargs["another_attr"], 123)
 
         # Initialize agent
-        agent_entry.initialize_agent()
+        agent_entry._initialize_instance()
 
         # Verify kwargs are passed to agent instance
         self.assertTrue(hasattr(agent_entry.instance, "custom_attr"))
@@ -307,7 +307,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         self.assertEqual(agent_entry.name, agent_name)
 
         # Initialize agent
-        agent_entry.initialize_agent()
+        agent_entry._initialize_instance()
 
         # Verify name in agent instance
         self.assertEqual(agent_entry.instance.name, agent_name)
@@ -322,7 +322,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
 
         agent_entry = orchestrator.register_agent(self.SimpleTestAgent, "test_agent")
 
-        agent_entry.initialize_agent()
+        agent_entry._initialize_instance()
 
         # Verify agent type
         self.assertEqual(agent_entry.instance.a_type, "process")
@@ -345,7 +345,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
 
         agent_entry = orchestrator.register_agent(SimpleThreadAgent, "test_agent")
 
-        agent_entry.initialize_agent()
+        agent_entry._initialize_instance()
 
         # Verify agent type
         self.assertEqual(agent_entry.instance.a_type, "thread")
@@ -360,7 +360,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         This test validates the entire flow:
         1. Orchestrator.register_agent() with custom config and plugin
         2. AgentEntry stores all parameters correctly
-        3. AgentEntry.initialize_agent() creates agent with all parameters
+        3. AgentEntry._initialize_instance() creates agent with all parameters
         4. Agent receives all parameters correctly
         """
         # Create custom config and plugin
@@ -411,7 +411,7 @@ class TestAgentInstantiationFlow(unittest.TestCase):
         self.assertEqual(agent_entry.kwargs["extra_param"], "extra_value")
 
         # Initialize agent
-        agent_entry.initialize_agent()
+        agent_entry._initialize_instance()
 
         # Verify all parameters are passed to agent instance
         self.assertEqual(agent_entry.instance.name, "integration_test_agent")
@@ -460,7 +460,7 @@ class TestOMemoryAgentEntry(unittest.TestCase):
 
     def test_agent_entry_initialize_creates_instance(self):
         """
-        Test that AgentEntry.initialize_agent() creates the agent instance.
+        Test that AgentEntry._initialize_instance() creates the agent instance.
         """
         agent_entry = self.memory.add_agent(
             agent_class=self.SimpleAgent, name="test_agent"
@@ -470,7 +470,7 @@ class TestOMemoryAgentEntry(unittest.TestCase):
         self.assertIsNone(agent_entry._instance)
 
         # Initialize
-        agent_entry.initialize_agent()
+        agent_entry._initialize_instance()
 
         # After initialization, instance should exist
         self.assertIsNotNone(agent_entry._instance)
@@ -496,7 +496,7 @@ class TestAgentInitializationParameters(unittest.TestCase):
 
     def test_agent_init_parameters_dict(self):
         """
-        Test that AgentEntry.initialize_agent() builds correct parameters dict.
+        Test that AgentEntry._initialize_instance() builds correct parameters dict.
         """
 
         class TestAgent(BaseProcessAgent):
@@ -528,7 +528,7 @@ class TestAgentInitializationParameters(unittest.TestCase):
 
         # Mock the agent class to inspect the parameters
         with patch.object(TestAgent, "__init__", return_value=None) as mock_init:
-            agent_entry.initialize_agent()
+            agent_entry._initialize_instance()
 
             # Verify __init__ was called with correct parameters
             mock_init.assert_called_once()

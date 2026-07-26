@@ -38,7 +38,7 @@ class TestMessageRouter(unittest.TestCase):
         self.assertIsNotNone(self.router.event_manager)
         self.assertIsNotNone(self.router.message_channel)
         self.assertIsNotNone(self.router.logger)
-        self.assertEqual(len(self.router._terminated_agents), 0)
+        self.assertEqual(len(self.router.get_terminated_agents()), 0)
         self.assertFalse(self.router.is_running())
 
     def test_route_agent_started_message(self):
@@ -120,9 +120,12 @@ class TestMessageRouter(unittest.TestCase):
         self.logger.debug.assert_called()
 
     def test_route_agent_error_message(self):
-        """Test routing ERROR message."""
+        """Test routing the error event emitted by BaseAgent."""
         msg = ServiceMessage.create_status(
-            sender="test_agent", status="error", event_name="ERROR", error="Test error"
+            sender="test_agent",
+            status="error",
+            event_name=AgentEvent.AGENT_ERROR.value,
+            error="Test error",
         )
 
         self.router.route_agent_message(msg)
@@ -133,6 +136,23 @@ class TestMessageRouter(unittest.TestCase):
             error_message="Test error",
         )
         self.logger.error.assert_called_once()
+
+    def test_route_legacy_uppercase_error_message(self):
+        """Preserve the legacy uppercase error event spelling."""
+        msg = ServiceMessage.create_status(
+            sender="test_agent",
+            status="error",
+            event_name="ERROR",
+            error="Legacy error",
+        )
+
+        self.router.route_agent_message(msg)
+
+        self.event_manager.emit.assert_called_once_with(
+            OrchestratorEvent.AGENT_ERROR,
+            agent_name="test_agent",
+            error_message="Legacy error",
+        )
 
     def test_route_non_status_message_ignored(self):
         """Test that non-STATUS messages are ignored."""
@@ -287,8 +307,54 @@ class TestMessageRouter(unittest.TestCase):
             event_name=AgentEvent.AGENT_HEARTBEAT.value,
         )
         self.router.route_agent_message(msg3)
-        # Still 2 calls (heartbeat was filtered)
         self.assertEqual(self.event_manager.emit.call_count, 2)
+
+    def test_late_messages_from_old_generation_are_ignored(self):
+        """A restarted name cannot be corrupted by its previous instance."""
+        self.router.activate_generation("agent1", 2)
+        old_close = ServiceMessage.create_status(
+            sender="agent1",
+            status="closed",
+            event_name=AgentEvent.AGENT_CLOSE.value,
+            generation_id=1,
+        )
+        old_heartbeat = ServiceMessage.create_status(
+            sender="agent1",
+            status="heartbeat",
+            event_name=AgentEvent.AGENT_HEARTBEAT.value,
+            generation_id=1,
+        )
+
+        self.router.route_agent_message(old_close)
+        self.router.route_agent_message(old_heartbeat)
+
+        self.event_manager.emit.assert_not_called()
+        self.assertFalse(self.router.is_agent_terminated("agent1", 2))
+
+    def test_active_generation_is_accepted_after_restart(self):
+        self.router.activate_generation("agent1", 2)
+        heartbeat = ServiceMessage.create_status(
+            sender="agent1",
+            status="heartbeat",
+            event_name=AgentEvent.AGENT_HEARTBEAT.value,
+            generation_id=2,
+        )
+
+        self.router.route_agent_message(heartbeat)
+
+        self.event_manager.emit.assert_called_once_with(
+            OrchestratorEvent.AGENT_HEARTBEAT, agent_name="agent1"
+        )
+
+    def test_activating_generation_prunes_older_termination_records(self):
+        for generation_id in range(1, 1001):
+            self.router.activate_generation("agent1", generation_id)
+            self.router.mark_agent_terminated("agent1", generation_id)
+
+        self.assertEqual(
+            self.router._terminated_generations,
+            {("agent1", 1000)},
+        )
 
     def test_start_and_stop(self):
         """Test starting and stopping the message router."""

@@ -309,6 +309,7 @@ class Orchestrator(BaseClass):
         self.message_router = MessageRouter(
             self.event_bus.event_manager, self.msg_channel, self.logger
         )
+        self.lifecycle_manager.before_start = self.message_router.activate_generation
 
         # Initialize plugin manager for centralized plugin management
         self.plugin_manager = PluginManager(self.plugin)
@@ -507,9 +508,10 @@ class Orchestrator(BaseClass):
         """
         Terminates all registered agents.
 
-        Delegates to AgentLifecycleManager.
+        Cancels queued starts and delegates running-agent stops to
+        AgentLifecycleManager through WorkerPoolScheduler.
         """
-        self.lifecycle_manager.stop_all()
+        self.worker_pool.stop_all()
 
     def join(self) -> None:
         """
@@ -533,14 +535,22 @@ class Orchestrator(BaseClass):
             alive_count = 0
 
             for agent in self.memory.agents:
-                if not agent.instance.is_alive():
-                    # Check if the agent was started before handling termination
-                    if agent.name in self.worker_pool._started_agents:
+                # A prepared generation may already have an instance but not
+                # have called Thread/Process.start() yet. Startup owns the slot
+                # until it publishes its typed result.
+                if self.worker_pool.is_starting(agent.name):
+                    continue
+
+                if not agent.is_initialized:
+                    continue
+
+                if not agent.is_alive():
+                    if self.worker_pool.tracks_agent(agent.name):
                         self.logger.info(f"Agent '{agent.name}' ended.")
-                        # Notify worker pool of termination (automatically starts next queued)
                         self.worker_pool.on_agent_terminated(agent.name)
-                        # Mark agent as terminated for message filtering
-                        self.message_router.mark_agent_terminated(agent.name)
+                        self.message_router.mark_agent_terminated(
+                            agent.name, agent.generation_id
+                        )
                 else:
                     alive_count += 1
 
@@ -585,7 +595,7 @@ class Orchestrator(BaseClass):
         Simple join method to wait for all processes or threads to complete their execution.
         """
         for agent in self.memory.agents:
-            agent.join()
+            self.lifecycle_manager.join_agent(agent.name)
         self.logger.info("All processes or threads have terminated.")
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")

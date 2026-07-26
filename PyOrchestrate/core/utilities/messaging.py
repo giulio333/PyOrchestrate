@@ -186,6 +186,7 @@ class ServiceMessage:
         status: str,
         event_name: Optional[str] = None,
         error: Optional[str] = None,
+        generation_id: Optional[int] = None,
     ) -> "ServiceMessage":
         """Create a STATUS type ServiceMessage.
 
@@ -197,14 +198,17 @@ class ServiceMessage:
         Returns:
             ServiceMessage instance with type="STATUS"
         """
+        payload = {
+            "status": status,
+            "error": error or "",
+            "event": event_name or "",
+        }
+        if generation_id:
+            payload["generation_id"] = generation_id
         return cls(
             sender=sender,
             type="STATUS",
-            payload={
-                "status": status,
-                "error": error or "",
-                "event": event_name or "",
-            },
+            payload=payload,
             timestamp=datetime.now(),
         )
 

@@ -443,6 +443,7 @@ class AgentHeartbeatTimerPlugin(PluginProtocol):
                 sender=self._agent.name,
                 status="success",
                 event_name=AgentEvent.AGENT_HEARTBEAT.value,
+                generation_id=self._agent.generation_id,
             )
 
             # Send through agent's send_message method

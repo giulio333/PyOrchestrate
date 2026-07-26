@@ -12,9 +12,9 @@ class TestOMemoryEventLogging(unittest.TestCase):
     def test_event_logging(self):
         memory = OMemory()
         entry = memory.add_agent(DummyAgent, "agent1")
-        entry.initialize_agent()
-        entry.start()
-        entry.join()
+        entry._initialize_instance()
+        entry._start_instance()
+        entry._join_instance()
         events = memory.get_agent_stats("agent1")
         self.assertEqual(len(events), 2)
         self.assertEqual([e["event"] for e in events], ["start", "join"])

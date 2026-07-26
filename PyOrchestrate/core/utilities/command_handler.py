@@ -277,24 +277,27 @@ class CommandHandler:
                     {
                         "agent_name": agent.name,
                         "class_name": agent.agent_class.__name__,
-                        "config": agent.instance.config.to_dict(),
-                        "alive": (
-                            agent.instance.is_alive()
-                            if hasattr(agent, "instance") and agent.instance
-                            else False
+                        "config": (
+                            agent.instance.config.to_dict()
+                            if agent.is_initialized
+                            else (
+                                agent.config.to_dict()
+                                if agent.config is not None
+                                else None
+                            )
                         ),
-                        "started": agent.name
-                        in self.orchestrator.worker_pool._started_agents,
-                        "in_queue": agent.name
-                        in self.orchestrator.worker_pool._waiting_queue,
+                        "alive": agent.is_alive(),
+                        "lifecycle_state": agent.state.value,
+                        "started": self.orchestrator.worker_pool.is_started(agent.name),
+                        "in_queue": self.orchestrator.worker_pool.is_queued(agent.name),
                     }
                 )
 
             return {
                 "agents": agents_info,
-                "running_count": self.orchestrator.worker_pool._running_agents,
+                "running_count": self.orchestrator.worker_pool.running_count,
                 "max_workers": self.orchestrator.config.max_workers,
-                "waiting_count": len(self.orchestrator.worker_pool._waiting_queue),
+                "waiting_count": self.orchestrator.worker_pool.queue_size,
             }
 
         except Exception as e:
@@ -303,7 +306,7 @@ class CommandHandler:
     def _cmd_start_agent(self, agent_name: str) -> dict:
         """Start a specific agent."""
         try:
-            if agent_name in self.orchestrator.worker_pool._started_agents:
+            if self.orchestrator.worker_pool.tracks_agent(agent_name):
                 raise CommandException(
                     message=f"Agent {agent_name} is already started",
                     code=409,
@@ -318,11 +321,15 @@ class CommandHandler:
                 )
 
             # Start the agent using existing logic
-            self.orchestrator.worker_pool.start_agent(agent_name)
+            result = self.orchestrator.worker_pool.start_agent(agent_name)
             return {
                 "message": f"Agent {agent_name} start initiated",
+                "status": result.status.value,
+                "reason": result.reason,
             }
 
+        except CommandException:
+            raise
         except Exception as e:
             raise CommandException(
                 f"Failed to start agent {agent_name}: {str(e)}", code=500
@@ -341,7 +348,7 @@ class CommandHandler:
                     code=404,
                 )
 
-            self.orchestrator.lifecycle_manager.stop_agent(agent_name)
+            self.orchestrator.worker_pool.stop_agent(agent_name)
 
             return {
                 "message": f"Stop requested for agent {agent_name}",
@@ -366,13 +373,10 @@ class CommandHandler:
 
             return {
                 "name": agent.name,
-                "alive": (
-                    agent.instance.is_alive()
-                    if hasattr(agent, "instance") and agent.instance
-                    else False
-                ),
-                "started": agent.name in self.orchestrator.worker_pool._started_agents,
-                "in_queue": agent.name in self.orchestrator.worker_pool._waiting_queue,
+                "alive": agent.is_alive(),
+                "lifecycle_state": agent.state.value,
+                "started": self.orchestrator.worker_pool.is_started(agent.name),
+                "in_queue": self.orchestrator.worker_pool.is_queued(agent.name),
                 "dependencies": self.orchestrator.dependencies.get(agent.name, []),
             }
 
@@ -388,9 +392,9 @@ class CommandHandler:
         try:
             return {
                 "total_agents": len(self.orchestrator.memory.agents),
-                "running_agents": self.orchestrator.worker_pool._running_agents,
+                "running_agents": self.orchestrator.worker_pool.running_count,
                 "max_workers": self.orchestrator.config.max_workers,
-                "waiting_agents": len(self.orchestrator.worker_pool._waiting_queue),
+                "waiting_agents": self.orchestrator.worker_pool.queue_size,
                 "command_interface_enabled": self.orchestrator.config.enable_command_interface,
                 "command_zmq_address": (
                     self.orchestrator.config.command_zmq_address
@@ -425,31 +429,20 @@ class CommandHandler:
                 # Get basic agent info
                 agent_stat = {
                     "name": agent.name,
-                    "alive": (
-                        agent.instance.is_alive()
-                        if hasattr(agent, "instance") and agent.instance
-                        else False
-                    ),
-                    "started": agent.name
-                    in self.orchestrator.worker_pool._started_agents,
-                    "in_queue": agent.name
-                    in self.orchestrator.worker_pool._waiting_queue,
+                    "alive": agent.is_alive(),
+                    "lifecycle_state": agent.state.value,
+                    "started": self.orchestrator.worker_pool.is_started(agent.name),
+                    "in_queue": self.orchestrator.worker_pool.is_queued(agent.name),
                     "pid": (
                         agent.instance.pid
-                        if hasattr(agent, "instance")
-                        and agent.instance
-                        and hasattr(agent.instance, "pid")
+                        if agent.is_initialized and hasattr(agent.instance, "pid")
                         else None
                     ),
                     "uptime": self._get_agent_uptime(agent),
                 }
 
                 # Add process-specific stats if available
-                if (
-                    hasattr(agent, "instance")
-                    and agent.instance
-                    and hasattr(agent.instance, "pid")
-                ):
+                if agent.is_initialized and hasattr(agent.instance, "pid"):
                     try:
                         import psutil
 
@@ -489,9 +482,9 @@ class CommandHandler:
             return {
                 "timestamp": datetime.now().isoformat(),
                 "orchestrator": {
-                    "running_agents": self.orchestrator.worker_pool._running_agents,
+                    "running_agents": self.orchestrator.worker_pool.running_count,
                     "max_workers": self.orchestrator.config.max_workers,
-                    "waiting_agents": len(self.orchestrator.worker_pool._waiting_queue),
+                    "waiting_agents": self.orchestrator.worker_pool.queue_size,
                 },
                 "agents": agents_stats,
             }
@@ -502,11 +495,7 @@ class CommandHandler:
     def _get_agent_uptime(self, agent) -> str:
         """Calculate agent uptime if possible."""
         try:
-            if (
-                hasattr(agent, "instance")
-                and agent.instance
-                and hasattr(agent.instance, "pid")
-            ):
+            if agent.is_initialized and hasattr(agent.instance, "pid"):
                 import psutil
 
                 process = psutil.Process(agent.instance.pid)
