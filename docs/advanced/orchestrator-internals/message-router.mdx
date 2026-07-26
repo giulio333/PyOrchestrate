@@ -14,9 +14,15 @@ title: MessageRouter
 | `agent_ready` | `OrchestratorEvent.AGENT_READY` | `agent_name` |
 | `agent_close` | `OrchestratorEvent.AGENT_TERMINATED` | `agent_name` |
 | `agent_heartbeat` | `OrchestratorEvent.AGENT_HEARTBEAT` | `agent_name` |
-| `ERROR` | `OrchestratorEvent.AGENT_ERROR` | `agent_name`, `error_message` |
+| `agent_error` (or legacy `ERROR`) | `OrchestratorEvent.AGENT_ERROR` | `agent_name`, `error_message` |
 
 Messages whose top-level type is not `STATUS`, and unknown event values, are logged and ignored.
+
+These messages are notifications, not lifecycle control commands. In
+particular, receiving `agent_close` marks the router generation as terminated
+and emits a callback, but worker capacity is released separately after
+`Orchestrator.join()` observes that the concrete thread or process is no longer
+alive.
 
 ## Construction and lifecycle
 
@@ -41,18 +47,27 @@ router.stop(timeout=2.0)
 
 `stop()` signals the internal `ChannelHandler`, waits up to the supplied timeout, then drops the handler reference. The implementation does not promise that every queued message will be processed before return.
 
-## Stale-heartbeat filtering
+## Generation filtering
 
-On `agent_close`, the router records the sender in a thread-safe terminated-agent set. Later heartbeats from that name are ignored:
+Every lifecycle-created instance receives a monotonically increasing
+`generation_id`. Before startup, the lifecycle manager activates the pair
+`(agent_name, generation_id)` in the router. All status messages from an older
+generation are ignored, including late close, ready, error, and heartbeat
+messages.
 
 ```python
-router.mark_agent_terminated("worker")
-router.is_agent_terminated("worker")       # True
-router.reset_termination_state("worker")
+router.activate_generation("worker", 2)
+router.mark_agent_terminated("worker", 2)
+router.is_agent_terminated("worker", 2)    # True
 router.get_terminated_agents()             # returns a copy
 ```
 
-Only stale heartbeats are filtered. Other supported messages from a name already marked terminated still follow their normal mapping.
+Legacy messages without a generation are accepted only when no active
+generation has been registered for that name.
+
+Activating a new generation removes termination records for older generations
+of the same agent name. The router therefore retains only current termination
+state rather than accumulating one tuple for every restart.
 
 ## Event-history limitation
 
@@ -73,10 +88,12 @@ message = ServiceMessage.create_status(
     sender="worker",
     status="ready",
     event_name="agent_ready",
+    generation_id=2,
 )
 ```
 
-The router reads `msg.type`, `msg.sender`, and the `event` and optional `message`/`error` keys in `msg.payload`.
+The router reads `msg.type`, `msg.sender`, and the `event`, `generation_id`, and
+optional `message`/`error` keys in `msg.payload`.
 
 ## Source reference
 

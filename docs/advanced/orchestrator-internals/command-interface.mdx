@@ -70,6 +70,26 @@ The handler recognizes:
 | `history-stats` | Read aggregate event statistics |
 | `shutdown` | Request graceful shutdown |
 
+## Lifecycle command routing
+
+Runtime start and stop commands enter through the scheduler rather than calling
+the concrete agent directly:
+
+```text
+CLI or web client
+    -> ZeroMQ COMMAND ServiceMessage
+    -> CommandInterface
+    -> CommandHandler
+    -> WorkerPoolScheduler
+    -> AgentLifecycleManager
+```
+
+`start` calls `worker_pool.start_agent()`, preserving capacity reservation and
+FIFO queueing. `stop` calls `worker_pool.stop_agent()`, which removes a queued
+request when necessary and then delegates lifecycle cancellation or the
+cooperative stop request. The orchestrator does not send a `COMMAND`
+`ServiceMessage` to the agent for these operations.
+
 <Warning title="Two handlers currently fail">
 The agent-specific `status AGENT_NAME` path and `dependencies` handler still read the removed `orchestrator.dependencies` attribute. Orchestrator-level `status` and `ps` are unaffected. See [Runtime Commands](/cli/runtime-commands) for the operational details.
 </Warning>

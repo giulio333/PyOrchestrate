@@ -35,6 +35,17 @@ command = ServiceMessage.create_command(
 )
 ```
 
+When a `STATUS` message is sent through `BaseAgent.send_message()`, the agent's
+current non-zero `generation_id` is added automatically if the payload does not
+already contain one. An explicit generation is preserved. This keeps custom
+agent and plugin status messages compatible with generation-aware routing.
+
+The orchestrator's process queue carries agent-to-orchestrator status
+notifications. Startup acknowledgement and cooperative stop control use shared
+state/control events instead: `start_event` releases the startup wait and
+`stop_event` requests agent termination. Start and stop are not sent to the
+agent through this queue.
+
 The serialized envelope contains:
 
 | Field | Description |

@@ -15,11 +15,13 @@ The default `Orchestrator.Config.max_workers` value is `5`.
 
 | Responsibility | Current behavior |
 |---|---|
-| Capacity check | Compares `running_count` with `max_workers` |
-| Immediate start | Delegates to `AgentLifecycleManager.start_agent()` |
+| Capacity check | Counts starting, running, and quarantined live-failure reservations |
+| Immediate start | Reserves capacity and prepares a generation attempt under the scheduler lock |
+| Blocking startup | Executes the prepared attempt after releasing the scheduler lock |
 | Queueing | Appends an agent name to a `deque` |
-| Termination | Frees one slot and attempts to start one queued agent |
-| Completion | Reports finished when no agents are running or queued |
+| Termination | Frees one slot and starts the next queued agent that can start successfully |
+| Stop | Cancels a queued start or delegates a running-agent stop |
+| Completion | Reports finished when no agents are starting, running, quarantined, or queued |
 
 The scheduler does not maintain a completed-agent collection and does not
 implement priority classes.
@@ -27,17 +29,20 @@ implement priority classes.
 ## Start or Queue
 
 ```python
-started_now = orchestrator.worker_pool.start_agent("worker-1")
+result = orchestrator.worker_pool.start_agent("worker-1")
 ```
 
-Return values:
-
-- `True`: the lifecycle manager reported a successful immediate start;
-- `False`: the agent was queued, or the immediate start did not complete
-  successfully.
+`result.status` is one of `STARTED`, `QUEUED`, `CANCELLED`, `FAILED_CLEAN`, or
+`FAILED_LIVE`. A live failure is never folded into an ordinary failure.
 
 When the pool is full, the scheduler appends the agent name to
 `_waiting_queue`. Queue operations are FIFO.
+
+When capacity is available, the scheduler records the name in
+`_starting_agents` and calls `AgentLifecycleManager.prepare_start()` before
+releasing its lock. The returned attempt is then passed to
+`execute_start()` outside the lock. This makes a concurrent stop refer to the
+same generation that owns the slot.
 
 ## Termination Flow
 
@@ -50,9 +55,16 @@ orchestrator.worker_pool.on_agent_terminated("worker-1")
 The scheduler then:
 
 1. removes the name from its started set;
-2. decrements the running count;
-3. pops one name from the left of the waiting queue;
-4. asks the lifecycle manager to start that entry.
+2. releases its owned reservation;
+3. pops names from the left of the waiting queue;
+4. prepares each selected entry while the slot reservation is locked;
+5. executes attempts until one succeeds or the queue is empty.
+
+The agent also sends an `agent_close` `STATUS` message from the final block of
+`BaseAgent.run()`. `MessageRouter` uses that message for termination callbacks
+and stale-message filtering, but it does not release the worker slot. Capacity
+is released only after `Orchestrator.join()` observes `is_alive() == False` and
+calls `on_agent_terminated()`.
 
 ```text
 running agent ends
@@ -61,10 +73,11 @@ running agent ends
 free one slot
         |
         v
-pop next queued name
+pop queued names in FIFO order
         |
         v
-attempt one start
+start the first viable entry;
+retain the slot if a failure remains alive
 ```
 
 ## Monitoring
@@ -85,15 +98,18 @@ print(pool.get_stats())
 ```python
 {
     "running": 2,
+    "starting": 1,
     "queued": 3,
+    "quarantined": 0,
     "max_workers": 5,
     "capacity_used": "2/5",
     "started_agents": ["worker-1", "worker-2"],
+    "starting_agents": ["worker-3"],
+    "quarantined_agents": [],
 }
 ```
 
-The order of `started_agents` is not stable because the implementation stores
-those names in a set.
+Agent-name lists are returned in sorted order.
 
 ## Configure Capacity
 
@@ -139,21 +155,26 @@ and queue tracking.
 
 ### No readiness barrier
 
-A slot is counted after `AgentLifecycleManager.start_agent()` returns `True`.
-With caller-supplied state events this can occur after `start_event`; with the
-default internally created events, the lifecycle manager does not wait for an
-event at all. In neither case does it wait for setup or readiness.
+A running slot is counted after the prepared
+`AgentLifecycleManager.execute_start()` attempt returns `STARTED`; a reservation
+is already held during `STARTING`.
+This occurs after `start_event`, for both supplied and default event
+containers. It still does not wait for setup or readiness.
 
-### One queued attempt per termination
+### Synchronization scope
 
-When a slot opens, `_start_next_queued_agent()` removes and attempts exactly one
-queued name. If that queued start returns `False`, the scheduler does not
-continue to the next queued name during the same call.
+Scheduler mutations are protected by an internal re-entrant lock. Blocking
+startup, acknowledgement waits, stop requests, and cleanup happen outside that
+lock, so one slow agent does not block pool statistics or operations on an
+independent agent. Only the non-blocking attempt preparation occurs while the
+lock is held, closing the reservation-to-`STARTING` cancellation window.
 
-### No internal synchronization
+### Quarantined live failures
 
-The scheduler's counters, set, and queue have no internal lock. Treat scheduler
-mutation as orchestrator-owned state rather than a general thread-safe API.
+If startup cleanup cannot terminate an instance, its name remains in
+`quarantined_agents` and continues to occupy capacity. The queue does not
+advance through that slot until termination is observed. Clean startup failures
+release their reservation and the FIFO drain continues.
 
 ### Runtime capacity changes
 

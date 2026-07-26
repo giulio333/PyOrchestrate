@@ -82,9 +82,8 @@ When worker slots are available, all three can still be running concurrently.
 
 `AgentLifecycleManager.start_agent()` never waits for `ready_event`, so a
 dependent may enter its own startup while its dependency is still executing
-`setup()`. It waits for `start_event` only if the caller supplied a
-`StateEvents` object at registration; with default internally created events,
-it returns after starting the thread or process.
+`setup()`. It waits for `start_event` for both caller-supplied and default
+event containers.
 
 When readiness is required, add an explicit application-level barrier, for
 example a shared event or a service health check:

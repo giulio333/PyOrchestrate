@@ -18,11 +18,13 @@ manager is useful mainly for framework integration and testing.
 | Responsibility | Current behavior |
 |---|---|
 | Registration | Stores an `AgentEntry` in `OMemory` and rejects duplicate names |
-| Instantiation | Calls `AgentEntry.initialize_agent()` immediately before a start |
-| Startup | Starts the process or thread; waits for `start_event` only when the entry was registered with an explicit `StateEvents` object |
-| Timeout handling | With explicit state events, requests a stop and returns `False` when `start_event` is not set in time |
-| Individual stop | Calls `AgentEntry.stop()` |
-| Bulk stop | Calls `stop()` for every registered entry |
+| Startup preparation | Allocates an immutable generation attempt and enters `STARTING` without blocking |
+| Instantiation | Creates an instance only for the currently active attempt |
+| Startup execution | Creates and starts the prepared attempt, then waits for its `start_event` |
+| Startup outcome | Returns a typed `LifecycleStartResult`, distinguishing clean failure from a still-live failure |
+| Timeout handling | Requests stop, joins briefly, force-terminates a process when possible, and quarantines an instance that remains alive |
+| Individual stop | Is idempotent and also handles entries that have not been initialized |
+| Bulk stop | Attempts every registered entry and reports collected failures afterward |
 | Lookup | Returns one entry by name or the complete entry list |
 
 Concurrency limiting and queuing belong to
@@ -77,7 +79,22 @@ An entry stores:
 - optional `config` and `plugin` objects;
 - optional `control_events` and `state_events`;
 - extra constructor keyword arguments;
-- the current agent `instance`, after initialization.
+- the current agent `instance`, after initialization;
+- its parent-process `AgentLifecycleState`;
+- the monotonically increasing `generation_id`;
+- the active startup attempt and the generation owning the current instance.
+
+The tracked states are:
+
+```text
+REGISTERED -> STARTING -> RUNNING -> STOPPING -> TERMINATED
+                 |          |
+                 +-> FAILED +-> QUARANTINED
+```
+
+A terminated or failed entry can create a fresh generation. Starting an entry
+that is already starting, running, or stopping raises `RuntimeError`; the live
+instance is never overwritten.
 
 The instance is intentionally created at start time rather than registration
 time:
@@ -91,11 +108,15 @@ AgentEntry stored in OMemory
     v
 start_agent
     |
-    +--> AgentEntry.initialize_agent()
+    +--> prepare_start() -> immutable generation attempt
     |
-    +--> AgentEntry.start()
-    |
-    +--> optionally wait for entry.state_events.start_event
+    +--> execute_start(attempt)
+            |
+            +--> AgentEntry._initialize_instance(attempt)
+            |
+            +--> AgentEntry._start_instance(attempt)
+            |
+            +--> wait for entry.state_events.start_event
 ```
 
 Accessing `entry.instance` before initialization raises an assertion error.
@@ -105,22 +126,22 @@ Accessing `entry.instance` before initialization raises an assertion error.
 The orchestrator starts entries through its worker pool:
 
 ```python
-started_now = orchestrator.worker_pool.start_agent("worker-1")
+result = orchestrator.worker_pool.start_agent("worker-1")
 ```
 
-`started_now` is `True` when the agent starts immediately and `False` when it is
-queued or fails to set `start_event` before `agent_start_timeout`.
+Inspect `result.status`: scheduler results distinguish `STARTED`, `QUEUED`,
+`CANCELLED`, `FAILED_CLEAN`, and `FAILED_LIVE`.
 
-When the entry was registered with an explicit `state_events` object,
-`AgentLifecycleManager.start_agent()` waits for that object's `start_event`,
-which is set near the beginning of `BaseAgent.run()`. It does **not** wait for
-`ready_event`.
+`AgentLifecycleManager.start_agent()` waits for `start_event`, which is set near
+the beginning of `BaseAgent.run()`. This applies both to explicitly supplied
+events and to the default events created by the concrete instance:
+the private instance initializer synchronizes the entry with those event
+containers before startup.
 
-When `state_events` is omitted, `AgentEntry.state_events` remains `None`; the
-agent instance creates its own default events during initialization, but the
-entry is not updated to reference them. In that default path, `start_agent()`
-returns immediately after `Thread.start()` or `Process.start()` and
-`agent_start_timeout` is not applied.
+The worker pool uses the split internal path: `prepare_start()` runs while the
+slot reservation is protected by the scheduler lock, and `execute_start()` runs
+after that lock is released. A stop arriving after reservation therefore
+cancels the exact prepared generation instead of being lost before `STARTING`.
 
 Consequently, a successful return never means that `setup()` has completed.
 
@@ -139,10 +160,19 @@ process or thread has started and before `setup()` and `execute()`.
 
 The current event containers expose:
 
-| Container | Fields |
-|---|---|
-| `StateEvents` | `start_event`, `ready_event`, `close_event` |
-| `ControlEvents` | `setup_event`, `execute_event`, `stop_event` |
+| Event | Direction | Purpose |
+|---|---|---|
+| `state_events.start_event` | Agent to lifecycle manager | Acknowledge entry into `BaseAgent.run()` |
+| `state_events.ready_event` | Agent to application | Report that `setup()` completed |
+| `state_events.close_event` | Agent to parent | Report that the final lifecycle block completed |
+| `control_events.setup_event` | Parent to agent | Allow `setup()` to proceed |
+| `control_events.execute_event` | Parent to agent | Allow `execute()` to proceed |
+| `control_events.stop_event` | Parent to agent | Request cooperative termination |
+
+These shared events control and synchronize the lifecycle. Generation-tagged
+`ServiceMessage` values such as `agent_started`, `agent_ready`, and
+`agent_close` are separate asynchronous notifications consumed by
+`MessageRouter`.
 
 There are no built-in `pause`, `resume`, `error`, `terminated`, or force-shutdown
 event fields.
@@ -152,19 +182,41 @@ event fields.
 Request an individual stop:
 
 ```python
-orchestrator.lifecycle_manager.stop_agent("worker-1")
+orchestrator.worker_pool.stop_agent("worker-1")
 ```
 
 Request a stop for every registered agent:
 
 ```python
-orchestrator.lifecycle_manager.stop_all()
+orchestrator.stop()
 ```
 
-These methods set the agent stop path through `AgentEntry.stop()`. They do not
-take a timeout, join the agents, or force-terminate a process. Use
-`Orchestrator.join()` for the normal orchestrator lifecycle, or call the
-individual entry's `join()` when integrating at a lower level.
+These application-level paths preserve the worker queue before delegating to
+the lifecycle manager. Framework integrations can call
+`lifecycle_manager.stop_agent()` directly only when scheduler accounting is
+handled separately.
+
+For a running entry the lifecycle manager sends the cooperative stop request
+through the lifecycle-owned instance operation. Stop ownership is claimed once
+per generation, so startup cleanup can still join or escalate without invoking
+`BaseAgent.stop()` and application `on_stop()` a second time. Calling stop again
+is harmless. Stopping a registered but not yet initialized entry transitions it
+directly to `TERMINATED`.
+
+Normal stop requests do not join or force-terminate an agent; use
+`Orchestrator.join()` for the normal orchestrator lifecycle. Startup-timeout
+cleanup is stricter: it requests stop, performs a bounded join, and can
+force-terminate a process that remains alive. A thread cannot be forcefully
+terminated. If one remains alive, the result is `FAILED_LIVE`, the entry becomes
+`QUARANTINED`, and the worker pool retains its occupied slot.
+
+Startup waits in short intervals and checks a cancellation signal. A concurrent
+stop can therefore cancel an entry in `STARTING` without waiting for the full
+`agent_start_timeout`.
+
+`WorkerPoolScheduler.stop_agent()` removes a queued start before delegating to
+the lifecycle manager. `Orchestrator.stop()` similarly clears the scheduler
+queue before requesting a stop for every registered entry.
 
 ## Dynamic Starts
 
@@ -178,6 +230,17 @@ orchestrator.worker_pool.start_agent("worker-2")
 
 Calling `lifecycle_manager.start_agent()` directly bypasses the worker count,
 queue, and `_started_agents` tracking used by `Orchestrator.join()` and the CLI.
+
+Before every fresh start, the lifecycle manager activates the entry's new
+`generation_id` in `MessageRouter`. Late messages from older instances with the
+same name are rejected.
+
+`AgentEntry` does not expose public start, stop, join, initialize, or restart
+operations. `restart_agent()` goes through the same timeout, hook, transition,
+and attempt logic as the first start. A dead previous instance is detached when
+the new attempt is prepared, so a constructor failure cannot clean up the old
+generation. Application-level restarts should still enter through
+`WorkerPoolScheduler` so capacity remains coherent.
 
 ## Plugin Lifecycle
 
@@ -194,12 +257,19 @@ queue, and `_started_agents` tracking used by `Orchestrator.join()` and the CLI.
 
 ```text
 register_agent(...)
-start_agent(agent_name) -> bool
+prepare_start(agent_name) -> AgentStartAttempt
+execute_start(agent_name, attempt) -> LifecycleStartResult
+start_agent(agent_name) -> LifecycleStartResult
+restart_agent(agent_name) -> LifecycleStartResult
 stop_agent(agent_name) -> None
 stop_all() -> None
+join_agent(agent_name, timeout=None) -> None
 get_agent(agent_name) -> AgentEntry
 get_all_agents() -> list[AgentEntry]
 ```
+
+`start_agent()` also returns `LifecycleStartResult`, whose status is one of
+`STARTED`, `CANCELLED`, `FAILED_CLEAN`, or `FAILED_LIVE`.
 
 For exact signatures, see the
 [generated API reference](/api/orchestrator).

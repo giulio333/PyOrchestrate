@@ -23,9 +23,10 @@ The managers share an `OMemory` instance whose `agents` attribute is a list of `
 
 1. `Orchestrator.start()` asks `DependencyGraph` for a valid start order.
 2. `WorkerPoolScheduler` starts up to `max_workers` entries and queues the rest.
-3. `AgentLifecycleManager.start_agent()` initializes and starts the thread/process. It waits for `start_event` only when registration supplied an explicit `StateEvents` object.
-4. The agent later sends `STATUS` messages such as `agent_ready`.
-5. `MessageRouter` translates supported messages into `OrchestratorEvent` callbacks.
+3. While reserving a slot, `WorkerPoolScheduler` asks `AgentLifecycleManager` to prepare a numbered startup attempt.
+4. Outside the scheduler lock, the lifecycle manager creates and starts that attempt, then waits for its `start_event` with timeout and cancellation protection.
+5. The agent later sends generation-tagged `STATUS` messages such as `agent_ready`.
+6. `MessageRouter` rejects stale generations and translates supported messages into `OrchestratorEvent` callbacks.
 
 <Warning title="Start order is not readiness">
 A dependency is started before its dependent, but the scheduler does not wait for the dependency's `ready_event`. Independent agents also have no guaranteed relative order.
@@ -42,6 +43,51 @@ flowchart LR
 ```
 
 The router receives the underlying `EventManager`, not the `OrchestratorEventBus`. Consequently, agent lifecycle callbacks run, but those routed lifecycle events are not automatically appended to the event history in the current implementation. Events emitted through `orchestrator.event_bus.emit(...)`, such as `agent_registered`, are recorded.
+
+## Control and notification are separate paths
+
+Lifecycle control does not travel through the agent `STATUS` queue. The parent
+process calls the worker pool and lifecycle manager directly, while shared
+`threading.Event` or `multiprocessing.Event` objects carry acknowledgements and
+cooperative stop signals. `ServiceMessage` objects are asynchronous
+notifications for the router and registered callbacks.
+
+| Signal | Direction | Transport | Current purpose |
+|---|---|---|---|
+| `start_event` | Agent to lifecycle manager | Shared event | Acknowledge that `BaseAgent.run()` has started |
+| `ready_event` | Agent to application | Shared event | Report that `setup()` completed |
+| `close_event` | Agent to parent | Shared event | Report that the agent lifecycle reached its final block |
+| `stop_event` | Parent to agent | Shared event | Request cooperative termination |
+| `agent_started` | Agent to router | `STATUS` message on the process queue | Emit the started callback |
+| `agent_ready` | Agent to router | `STATUS` message on the process queue | Emit the ready callback |
+| `agent_close` | Agent to router | `STATUS` message on the process queue | Emit the terminated callback and update router filtering |
+| CLI/web command | External client to orchestrator | ZeroMQ `COMMAND` message | Invoke `CommandHandler` operations |
+
+The beginning of an agent run therefore uses two signals:
+
+```python
+self._handle_start()                 # queues STATUS / agent_started
+self.state_events.start_event.set()  # releases the lifecycle startup wait
+```
+
+The process queue is asynchronous. `AgentLifecycleManager` waits for
+`start_event`; it does not wait for `MessageRouter` to dispatch the corresponding
+callback. The same distinction applies to `agent_ready`/`ready_event` and
+`agent_close`/`close_event`.
+
+Stopping also follows the direct control path:
+
+```text
+WorkerPoolScheduler.stop_agent()
+    -> AgentLifecycleManager.stop_agent()
+    -> AgentEntry._stop_instance()
+    -> BaseAgent.stop()
+    -> stop_event.set()
+```
+
+`agent_close` is a notification and does not release worker capacity.
+`Orchestrator.join()` releases the slot only after it observes that the current
+thread or process is no longer alive.
 
 ## Minimal public setup
 
