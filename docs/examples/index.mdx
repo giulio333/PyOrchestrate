@@ -1,6 +1,6 @@
 ---
 title: Examples
-description: Ready-to-run examples for PyOrchestrate.
+description: Guided and source examples for PyOrchestrate.
 ---
 
 # Examples
@@ -16,3 +16,19 @@ description: Ready-to-run examples for PyOrchestrate.
     Agent state events and event-driven patterns.
   </Card>
 </CardGroup>
+
+## Source examples
+
+The repository also contains focused Python scripts that complement the guided pages:
+
+| Area | Examples |
+|---|---|
+| Agent lifecycle | [`example_base_agent.py`](https://github.com/giulio333/PyOrchestrate/blob/main/examples/example_base_agent.py), [`example_periodic_agent.py`](https://github.com/giulio333/PyOrchestrate/blob/main/examples/example_periodic_agent.py), [`example_pool_agent.py`](https://github.com/giulio333/PyOrchestrate/blob/main/examples/example_pool_agent.py) |
+| Configuration and callbacks | [`example_simple_validation.py`](https://github.com/giulio333/PyOrchestrate/blob/main/examples/example_simple_validation.py), [`example_agent_callback.py`](https://github.com/giulio333/PyOrchestrate/blob/main/examples/example_agent_callback.py), [`example_agent_events.py`](https://github.com/giulio333/PyOrchestrate/blob/main/examples/example_agent_events.py) |
+| Plugins and heartbeat | [`example_simplified_plugin_pattern.py`](https://github.com/giulio333/PyOrchestrate/blob/main/examples/example_simplified_plugin_pattern.py), [`example_heartbeat_agent.py`](https://github.com/giulio333/PyOrchestrate/blob/main/examples/example_heartbeat_agent.py) |
+| Communication | [PAIR](https://github.com/giulio333/PyOrchestrate/blob/main/examples/communication/example_zmq_pair.py), [PUB/SUB](https://github.com/giulio333/PyOrchestrate/blob/main/examples/communication/example_zmq_pubsub.py), [PUSH/PULL](https://github.com/giulio333/PyOrchestrate/blob/main/examples/communication/example_zmq_pushpull.py), [REQ/REP](https://github.com/giulio333/PyOrchestrate/blob/main/examples/communication/example_zmq_reqrep.py), [ROUTER/DEALER](https://github.com/giulio333/PyOrchestrate/blob/main/examples/communication/example_zmq_routerdealer.py), [polling](https://github.com/giulio333/PyOrchestrate/blob/main/examples/communication/example_zmq_polling.py) |
+| Runtime interfaces | [`example_cli_interface.py`](https://github.com/giulio333/PyOrchestrate/blob/main/examples/cli/example_cli_interface.py), [`web_interface_example.py`](https://github.com/giulio333/PyOrchestrate/blob/main/examples/web_interface_example.py) |
+
+<Note>
+Examples may open local ZeroMQ ports, create files or run until their configured limit is reached. Read each script's configuration before running it. The legacy `examples/cli/py_integration.py` is intentionally not listed because it still uses a removed Unix-socket client API.
+</Note>

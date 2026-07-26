@@ -60,8 +60,9 @@ All **built-in attribute** are well documented. For example, see [LoopingAgent C
 Having a `Config` object is great, but how do you make sure its values are correct?  
 That’s where **validation** comes in.  
 
-Before an Agent or Orchestrator starts, its `Config` is checked.  
-If something looks wrong, validation can **stop the execution** or just **warn** you (depending on how strict you want to be).
+The Orchestrator validates its configuration during `Orchestrator(...)` construction. An Agent validates inside `BaseAgent.run()`, after its thread/process has been started but before plugin initialization, `setup()` and `execute()`.
+
+If something looks wrong, validation can **stop the component's normal execution** or just **warn** you, depending on the validation policy.
 
 ### Custom Validation
 
@@ -119,7 +120,7 @@ Each issue is tagged with a **severity level**:
 | Severity       | Description |
 | -------------- | :---------- |
 | `WARNING`      | The component will still start, but a log message is produced. |
-| `ERROR`        | The component will not start. Used for critical misconfigurations. |
+| `ERROR`        | Normal execution is aborted unless the policy ignores errors. |
 | `CRITICAL`     | Checks that must **never** be ignored. Reserved for essential rules in built-in Agents. |
 
 ---
@@ -127,7 +128,7 @@ Each issue is tagged with a **severity level**:
 ## Why It Matters
 
 Validation gives you **confidence**.  
-You know that when your Orchestrator or Agent starts, it’s running with parameters that make sense.  
+You know that the component reaches setup and execution only after its configuration has passed the active policy.
 
 It saves you from:  
 - hidden bugs caused by typos in configs,  

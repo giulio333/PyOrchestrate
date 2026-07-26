@@ -81,10 +81,16 @@ Available events are stored in the `OrchestratorEvent` class:
 
 | Event Name              | Arguments                     | Description                               |
 |-------------------------|-------------------------------|-------------------------------------------|
+| `AGENT_REGISTERED`      | `event_date`, `event_time`, `agent_name` | Emitted when an agent is registered.      |
 | `AGENT_STARTED`         | `event_date`, `event_time`, `agent_name` | Emitted when an agent starts.             |
 | `AGENT_READY`           | `event_date`, `event_time`, `agent_name` | Emitted when an agent is ready.           |
 | `AGENT_TERMINATED`      | `event_date`, `event_time`, `agent_name` | Emitted when an agent terminates.         |
-| `AGENT_ERROR`           | `event_date`, `event_time`, `agent_name` | Emitted when an agent encounters an error.  |
+| `AGENT_ERROR`           | `event_date`, `event_time`, `agent_name`, `error_message` | Emitted when an agent reports an error. |
+| `AGENT_HEARTBEAT`       | `event_date`, `event_time`, `agent_name` | Emitted when an agent sends a heartbeat. |
+
+<Warning>
+Agent events routed from `MessageChannel` trigger callbacks but currently bypass `EventStore`. The CLI history is therefore not a complete lifecycle log.
+</Warning>
 
 ### Message Channels
 
@@ -96,8 +102,7 @@ The Orchestrator communicates through two `MessageChannel` objects:
 - **`msg_channel`**: an in-memory process channel where agents push lifecycle and service messages. The Orchestrator consumes these messages through its message router.
 - **Command interface**: a ZeroMQ ROUTER channel over TCP used by external clients such as the CLI and web interface. It can be turned off with `enable_command_interface` and is enabled by default.
 
-Both channels are watched by a dedicated thread inside the Orchestrator.  
-This thread continuously checks for new messages and routes them to the **Event Manager** or the proper handler, ensuring that every agent event or external command triggers the right callback.
+Each channel has its own background handler: `MessageRouter` handles agent messages and `CommandInterface` handles external commands.
 
 
 ## Create Orchestrator with custom Config
@@ -135,13 +140,13 @@ The available parameters are:
 | Parameter        | Type            | Description                                                                 |
 |------------------|-----------------|-----------------------------------------------------------------------------|
 | `agent_class`    | Agent Class     | The agent class to be registered.                                           |
-| `name`           | str             | The name of the agent. If not provided, the class name will be used.        |
+| `name`           | str             | Required unique name for the agent.                                         |
 | `custom_config`  | Config          | A custom configuration object for the agent. If not provided, the default config will be used. |
 | `custom_plugin`  | Plugin          | A custom plugin object for the agent. If not provided, the default plugin will be used. |
-| `control_events` | list            | A list of control events to be used by the agent. If not provided, the default events will be used. |
-| `state_events`   | list            | A list of state events to be used by the agent. If not provided, the default events will be used. |
+| `control_events` | `BaseAgent.ControlEvents` | Control-event object. Missing fields are populated with defaults. |
+| `state_events`   | `BaseAgent.StateEvents` | State-event object. Missing fields are populated with defaults. |
 | `msg_channel`    | MessageChannel  | The message channel to be used by the agent. If not provided, the Orchestrator's default message channel will be used. |
-| `kwargs`         | dict            | Additional keyword arguments to be passed to the agent constructor.         |
+| `**kwargs`       | keyword arguments | Additional values stored on the `AgentEntry` and passed to the agent constructor. |
 
 If you don't provide optional parameters, the Orchestrator will use the default values defined in the `Agent` class.
 

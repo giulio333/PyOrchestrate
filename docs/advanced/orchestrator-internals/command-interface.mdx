@@ -70,6 +70,10 @@ The handler recognizes:
 | `history-stats` | Read aggregate event statistics |
 | `shutdown` | Request graceful shutdown |
 
+<Warning title="Two handlers currently fail">
+The agent-specific `status AGENT_NAME` path and `dependencies` handler still read the removed `orchestrator.dependencies` attribute. Orchestrator-level `status` and `ps` are unaffected. See [Runtime Commands](/cli/runtime-commands) for the operational details.
+</Warning>
+
 ## Permission Presets
 
 `CommandPermissions` provides four presets:
@@ -187,6 +191,8 @@ severity: ERROR
 ```
 
 Successful commands are not currently written as dedicated command-audit events.
+
+Agent lifecycle messages routed by `MessageRouter` also bypass the store in the current implementation, so `history` is not a complete lifecycle audit log.
 
 ## Network Security
 

@@ -60,7 +60,7 @@ This section describes how execution proceeds; final liveness depends solely on 
 
 1. **Check dependencies**  
 
-   Before starting any Agent, the Orchestrator verifies that all declared dependencies exist and there are no circular references. It builds a valid startup order so each Agent launches only after its prerequisites.
+   Before starting any Agent, the Orchestrator verifies that all declared dependencies exist and there are no circular references. It builds a valid order for **start requests**. It does not wait for dependencies to become ready.
 
 2. **Start Agents**
 
@@ -68,11 +68,11 @@ This section describes how execution proceeds; final liveness depends solely on 
 
 3. **Monitor running Agents**  
 
-   The Orchestrator keeps track of all active Agents. When one finishes, it emits an `AGENT_TERMINATED` event and starts the next queued Agent, if any.
+   The Orchestrator tracks started Agents. When one finishes, it frees its worker slot and attempts to start one queued Agent. The Agent's `agent_close` status message is what produces the `AGENT_TERMINATED` callback.
 
 4. **Graceful termination vs. daemon behavior**  
 
-   When all Agents have completed and the queue is empty, the Orchestrator emits an `ALL_AGENTS_TERMINATED` event. In `STOP_ON_EMPTY` it then terminates. In `DAEMON` it remains alive until you request shutdown.
+   When no Agents are counted as running and the queue is empty, `STOP_ON_EMPTY` leaves the join loop. `DAEMON` remains alive until shutdown is requested. There is no `ALL_AGENTS_TERMINATED` enum member in the current API.
 
 <Tip>
 You can subclass the `Orchestrator` class to change its behavior and plug in your own logic.
@@ -86,15 +86,9 @@ If the limit is reached, additional Agents are treated as **queued Agents**: the
 
 ### A Simpler Way to Wait
 
-Sometimes you don’t need fine-grained lifecycle control or detailed event tracking.  
-If all you want is to **start the Orchestrator and wait until it finishes**, there’s a shortcut: `simple_join()`.
+`simple_join()` directly calls `join()` on every registered `AgentEntry`. It does not run the worker-pool monitoring loop, react to `RunMode`, start queued agents, stop channel handlers, record orchestrator shutdown, or finalize orchestrator plugins.
 
-Think of it as a **“just run it” button**.  
-
-- In `STOP_ON_EMPTY` mode: the Orchestrator will exit once all Agents have completed.  
-- In `DAEMON` mode: the Orchestrator will keep running until you explicitly shut it down.  
-
-This is ideal for **quick tests, prototypes, or simple automation tasks**, where you don’t need advanced orchestration logic.  
+Use the normal `orchestrator.join()` path for orchestrated applications. Reserve `simple_join()` for low-level cases where every entry has already been started and the missing cleanup/scheduling behavior is intentional.
 
 ## Events and Monitoring
 
@@ -113,9 +107,13 @@ This channel lets external tools interact with the Orchestrator in real time:
 - **Start or stop agents**  
 - **Inspect running agents**  
 - **Collect statistics and performance metrics**  
-- **Query event history for auditing and debugging**  
+- **Query the bounded event store for debugging**
 
 The same data surface is used by a read-only **web interface**, which exposes HTML and JSON monitoring views.
+
+<Warning>
+Routed lifecycle events trigger callbacks but currently bypass the event store, so history is not a complete audit log. Agent-specific status and dependency inspection also have a known runtime handler defect.
+</Warning>
 
 <Tip title="Learn More">
 See the [CLI Documentation](/cli/index) for the full command reference, security notes, and examples of both CLI and web interfaces.
@@ -144,9 +142,9 @@ It ensures that your agents cooperate, remain observable, and can be controlled 
 
 Here are some **typical use cases** where the Orchestrator shines:
 
-- **Data Pipelines**: start data collectors, processors, and writers in sequence or parallel, ensuring each stage runs only when ready.  
+- **Data Pipelines**: submit collectors, processors, and writers in dependency order, adding explicit readiness barriers when a stage must be fully ready.
 - **Monitoring Systems**: keep multiple agents alive as background services, with events feeding into dashboards or alerts.  
 - **Automation Workflows**: coordinate different tasks (file watchers, API pollers, message processors) in a single, unified process.  
-- **Resilient Applications**: recover gracefully when an agent crashes, restart it, and keep the system stable without manual intervention.  
+- **Long-running Applications**: keep a daemon-mode coordinator available for explicit CLI-driven inspection and control.
 
 By abstracting away threads, processes, and low-level synchronization, the Orchestrator lets you focus on **what your agents do**, not on **how they’re coordinated**.

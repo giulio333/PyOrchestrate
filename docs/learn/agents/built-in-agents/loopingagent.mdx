@@ -85,7 +85,7 @@ sequenceDiagram
     ControlEvents-->>Agent: control event triggered
     deactivate ControlEvents
     Agent->>Agent: setup()
-    Agent->>MessageChannel: send(AGENT_SETUP)
+    Agent->>MessageChannel: send(AGENT_READY)
     MessageChannel->>Orchestrator: forward message
     Agent->>StateEvents: ready_event.set()
     Agent->>ControlEvents: execute_event.wait()

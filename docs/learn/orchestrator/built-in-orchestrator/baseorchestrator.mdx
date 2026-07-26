@@ -45,7 +45,7 @@ sequenceDiagram
 |---|---|---|
 | `check_interval` | `1` | Agent status polling interval in seconds |
 | `max_workers` | `5` | Maximum number of concurrently running agents |
-| `agent_start_timeout` | `30.0` | Maximum time to wait for agent startup |
+| `agent_start_timeout` | `30.0` | Timeout for `start_event` only when registration supplied explicit state events |
 | `enable_command_interface` | `True` | Enable external runtime commands |
 | `command_zmq_address` | `"tcp://*:5555"` | ZeroMQ ROUTER bind address |
 | `allowed_commands` | `None` | Preset, explicit set, or all commands |
@@ -86,11 +86,11 @@ See [Config and Validation](/learn/config_and_validation) for the shared configu
 
 ### Event Bus and Store
 
-`OrchestratorEventBus` combines event dispatch with bounded event history.
+`OrchestratorEventBus` combines event dispatch with bounded event history. Agent messages currently reach the underlying `EventManager` directly, so their lifecycle callbacks are not automatically recorded.
 
 ### Message Router
 
-`MessageRouter` consumes agent messages and forwards lifecycle information to the event system.
+`MessageRouter` consumes agent messages and forwards lifecycle information to the callback manager.
 
 ### Command Interface
 

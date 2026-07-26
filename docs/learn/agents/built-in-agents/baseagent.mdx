@@ -86,7 +86,7 @@ sequenceDiagram
     ControlEvents-->>Agent: control event triggered
     deactivate ControlEvents
     Agent->>Agent: setup()
-    Agent->>MessageChannel: send(AGENT_SETUP)
+    Agent->>MessageChannel: send(AGENT_READY)
     MessageChannel->>Orchestrator: forward message
     Agent->>StateEvents: ready_event.set()
     Agent->>ControlEvents: execute_event.wait()
@@ -129,6 +129,7 @@ The `BaseAgent` class defines its own state events object via the `StateEvents` 
 
 | Attribute | Description |
 |-----------|-------------|
+| start_event | Event set after the agent's `run()` method begins. |
 | ready_event | Event to signal that the agent is ready to start. |
 | close_event | Event to signal that the agent is closing. |
 

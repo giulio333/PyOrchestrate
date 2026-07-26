@@ -106,6 +106,10 @@ Show one agent:
 pyorchestrate status AGENT_NAME [--socket ZMQ_ADDRESS] [--format {table,json}]
 ```
 
+<Warning title="Current agent-status limitation">
+The no-argument form is operational. In the current source, the agent-specific handler still reads the removed `orchestrator.dependencies` attribute instead of `orchestrator.dependency_graph.dependencies`, so `status AGENT_NAME` can return an internal error even for a registered agent.
+</Warning>
+
 An orchestrator JSON response has this shape:
 
 ```json
@@ -126,6 +130,10 @@ Show the dependency mapping for all registered agents:
 ```bash
 pyorchestrate dependencies [--socket ZMQ_ADDRESS] [--format {table,json}]
 ```
+
+<Warning title="Current dependencies limitation">
+The current command handler also reads the removed `orchestrator.dependencies` attribute. Until that source defect is corrected, use `orchestrator.dependency_graph.dependencies` from in-process code; the CLI command can return an internal error.
+</Warning>
 
 ## `start`
 
@@ -179,6 +187,12 @@ Options:
 - `--after-seq SEQUENCE`: Return events after a sequence number
 
 Each event returned as JSON includes `seq`, `timestamp`, `t_wall`, `t_mono_ns`, `category`, `event_name`, `agent`, `severity`, and `data`.
+
+Event names are stored as lowercase enum values, for example `agent_registered` and `agent_started`.
+
+<Warning title="History is not a complete lifecycle log">
+The current `MessageRouter` emits agent lifecycle events through the underlying `EventManager`, bypassing `EventStore`. Registration events and explicit `orchestrator.event_bus.emit(...)` calls are recorded, but routed start, ready, heartbeat, error and termination events are not automatically present.
+</Warning>
 
 ## `history-stats`
 

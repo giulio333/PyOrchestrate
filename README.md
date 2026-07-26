@@ -36,7 +36,7 @@ pip install .
 The web interface is an optional extra, since `fastapi`, `uvicorn` and `pydantic` are only needed by it:
 
 ``` bash
-pip install ".[web]"     # adds the pyorchestrate-web command
+pip install ".[web]"     # installs the optional web runtime dependencies
 ```
 
 For development, `uv` reproduces the exact locked environment, dev tools included:
@@ -184,14 +184,14 @@ Foundation classes for custom implementations:
 
 * * *
 
-## Using the `start` Command
+## Using the `create` Command
 
-The PyOrchestrate framework includes a `start` command to create a new project structure. This command initializes a new project with the specified app name, creating the necessary directories and files.
+The PyOrchestrate CLI includes a `create` command that initializes a project directory with a starter file.
 
 ### Command
 
 ``` bash
-pyorchestrate start <app_name>
+pyorchestrate create <app_name>
 ```
 
 ### Options
@@ -201,7 +201,7 @@ pyorchestrate start <app_name>
 
 ### Project Structure
 
-The `start` command creates the following project structure:
+The `create` command creates the following project structure:
 
 ```
 <app_name>/
@@ -220,21 +220,21 @@ The `start` command creates the following project structure:
 To create a new project named `MyApp`, run the following command:
 
 ``` bash
-pyorchestrate start MyApp
+pyorchestrate create MyApp
 ```
 
 This will create a directory named `MyApp` with the necessary subdirectories and a `starter.py` file.
 
 * * *
 
-## Troubleshooting the `start` Command
+## Troubleshooting the `create` Command
 
-If you encounter issues with the `start` command, here are some common problems and their solutions:
+If you encounter issues with the `create` command, here are some common problems and their solutions:
 
 1. **Command not found**: Ensure that the `pyorchestrate` command is available in your PATH. You may need to install the package or adjust your environment variables.
 2. **Permission denied**: Check your file system permissions. You may need to run the command with elevated privileges (e.g., using `sudo` on Unix-based systems).
 3. **Invalid app name**: Ensure that the app name provided is a valid directory name and does not contain any restricted characters.
-4. **Directory already exists**: If the specified app directory already exists, the command will not overwrite it. Choose a different app name or manually delete the existing directory.
+4. **Directory already exists**: The command reuses existing directories and overwrites `<app_name>/starter.py`. Back up that file or choose a new app name before running the command.
 
 For more details, see the CLI documentation in [`docs/cli/`](docs/cli/index.mdx).
 
@@ -349,7 +349,7 @@ if __name__ == "__main__":
     orchestrator.join()
 ```
 
-In this example, agents use the modern `Plugin` inner class pattern. The framework automatically initializes plugins during the agent's setup phase, and you can access them directly via `self.plugin.plugin_name`.
+In this example, agents use the modern `Plugin` inner class pattern. The framework initializes plugins after configuration validation and before `setup()`, and you can access them directly via `self.plugin.plugin_name`.
 
 * * *
 
@@ -385,9 +385,10 @@ class MyAgent(PeriodicProcessAgent):
 
 ### Lifecycle Management
 Agents follow a structured lifecycle:
-1. **Setup**: Initialize resources and plugins
-2. **Runner/Execute**: Core business logic execution  
-3. **On Close**: Cleanup resources and connections
+1. **Validation and plugin initialization**
+2. **Setup**: Initialize agent-owned resources
+3. **Runner/Execute**: Core business logic execution
+4. **On Close and plugin finalization**: Cleanup resources and connections
 
 ### Process vs Thread Selection
 - **ProcessAgent**: CPU-intensive, isolated tasks with memory separation

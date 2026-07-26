@@ -77,6 +77,10 @@ Bearer tokens are not encrypted by HTTP. Keep the server on loopback or place it
 
 The interface does not expose agent start, stop, restart, or shutdown endpoints.
 
+<Warning title="Current backend limitations">
+`/api/agents/{agent_name}` and `/api/orchestrator/dependencies` delegate to the two runtime handlers that still read the removed `orchestrator.dependencies` attribute, so they can return an internal backend error. `/api/agents` and `/api/orchestrator/status` are unaffected.
+</Warning>
+
 ## HTML and JSON
 
 Browser requests render an HTML monitoring view. Request JSON with either `?format=json` or an `Accept` header:
@@ -92,6 +96,8 @@ curl \
 ```
 
 ## History Filters
+
+The history contains stored events only. Agent lifecycle callbacks routed by `MessageRouter` currently bypass the store, so this endpoint is not a complete lifecycle audit log.
 
 The history endpoint accepts:
 

@@ -58,15 +58,16 @@ pyorchestrate-web --socket tcp://127.0.0.1:5560
 # List every registered agent
 pyorchestrate ps
 
-# Inspect one agent
-pyorchestrate status Worker
-
 # Inspect the orchestrator
 pyorchestrate status
 
-# Show dependencies
-pyorchestrate dependencies
+# Agent-specific status and dependency inspection currently have a known
+# handler defect; use `pyorchestrate ps` for operational agent state.
 ```
+
+<Warning>
+`pyorchestrate status Worker` and `pyorchestrate dependencies` currently reference a removed orchestrator attribute and can return an internal error. This is a source limitation, not a connection or permissions problem.
+</Warning>
 
 ## Control Agents
 
@@ -101,8 +102,8 @@ pyorchestrate history --last 20
 # Events for one agent
 pyorchestrate history --agent Worker
 
-# Events with one event name
-pyorchestrate history --type AGENT_STARTED
+# Events with one event name (stored enum value, lowercase)
+pyorchestrate history --type agent_registered
 
 # Events after a known sequence number
 pyorchestrate history --after-seq 100
@@ -113,6 +114,8 @@ pyorchestrate history-stats
 # Aggregated statistics for one agent
 pyorchestrate history-stats --agent Worker
 ```
+
+The current event history is not a complete lifecycle audit log: agent messages routed as start, ready, heartbeat, error and termination callbacks bypass the store. Registration events and events emitted through `orchestrator.event_bus.emit(...)` are recorded.
 
 ## Monitor Resource Usage
 

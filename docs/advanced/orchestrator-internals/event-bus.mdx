@@ -1,344 +1,227 @@
 ---
 title: OrchestratorEventBus
+description: Callback dispatch and bounded event history in the current orchestrator.
 ---
 
 # OrchestratorEventBus
 
-The **OrchestratorEventBus** is a unified facade that combines event management and history tracking into a single, cohesive interface. It serves as the central nervous system for all orchestrator events, bridging real-time event handling with historical data storage.
+`OrchestratorEventBus` combines two components:
 
-## Purpose and Design
+- `EventManager`, which dispatches callbacks asynchronously;
+- `EventStore`, which keeps bounded event history.
 
-Before the refactoring, the Orchestrator managed `EventManager` and `EventStore` separately, requiring developers to interact with both components independently. The `OrchestratorEventBus` unifies these components, providing:
+Calling `OrchestratorEventBus.emit()` performs both operations. Direct calls to
+the underlying `EventManager` dispatch callbacks without writing history.
 
-- **Single Point of Access**: One interface for all event-related operations
-- **Automatic History Recording**: Events are automatically stored when emitted
-- **Simplified API**: Developers work with one component instead of two
-- **Event Policies**: Configurable retention rules for different event types
+## Register Callbacks
 
-## Core Responsibilities
-
-| Responsibility | Description |
-|---------------|-------------|
-| **Callback Management** | Register and execute callbacks for orchestrator events |
-| **Event Emission** | Emit events and notify all registered callbacks |
-| **History Tracking** | Automatically record all emitted events to history |
-| **Query Interface** | Search and retrieve historical events |
-| **Policy Enforcement** | Apply custom retention policies per event type |
-
-## How It Works
-
-The EventBus acts as a coordinator between two internal components:
-
-```
-User Code
-    ↓
-OrchestratorEventBus
-    ├─→ EventManager (handles callbacks)
-    └─→ EventStore (records history)
-```
-
-When you emit an event through the EventBus:
-1. **EventManager** executes all registered callbacks immediately
-2. **EventStore** records the event to history automatically
-3. Both operations happen transparently in a single call
-
-## Basic Usage
-
-### Registering Event Callbacks
-
-Subscribe to orchestrator events to react to system changes:
+Application code can use the high-level orchestrator method:
 
 ```python
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
-def on_agent_started(agent_name, event_date, event_time, **kwargs):
-    print(f"Agent '{agent_name}' started at {event_time}")
 
-# Register callback
+def on_agent_started(agent_name, event_time=None, **kwargs):
+    print(f"{agent_name} started at {event_time}")
+
+
+orchestrator.register_event(
+    OrchestratorEvent.AGENT_STARTED,
+    on_agent_started,
+)
+```
+
+Equivalent low-level registration:
+
+```python
 orchestrator.event_bus.register_callback(
     OrchestratorEvent.AGENT_STARTED,
-    on_agent_started
+    on_agent_started,
 )
 ```
 
-### Emitting Events
+Callbacks run in an `EventManager` thread pool. Parameters are filtered against
+the callback signature, and `event_date`/`event_time` are added when the
+callback accepts them.
 
-Emit events to notify all subscribers and record to history:
+## Emit and Record an Event
 
 ```python
-# Emit event (automatically recorded to history)
 orchestrator.event_bus.emit(
     OrchestratorEvent.AGENT_STARTED,
-    agent_name="worker1",
-    event_date="2025-10-26",
-    event_time="14:30:00"
+    agent_name="worker-1",
 )
 ```
 
-### Querying Event History
+The event is dispatched to callbacks and stored with the enum **value** as its
+name. For example:
 
-Retrieve historical events for analysis or debugging:
+| Enum member | Stored `event_name` |
+|---|---|
+| `OrchestratorEvent.AGENT_STARTED` | `agent_started` |
+| `OrchestratorEvent.AGENT_READY` | `agent_ready` |
+| `OrchestratorEvent.AGENT_TERMINATED` | `agent_terminated` |
+| `OrchestratorEvent.AGENT_ERROR` | `agent_error` |
+| `OrchestratorEvent.AGENT_HEARTBEAT` | `agent_heartbeat` |
+
+Use these lowercase values when filtering event history.
+
+## Query History
+
+Use the event-bus helpers:
 
 ```python
-# Get all agent-related events
-recent_events = orchestrator.event_bus.event_store.query(
-    category="agent",
-    limit=50
+recent = orchestrator.event_bus.get_history(limit=50)
+worker_events = orchestrator.event_bus.get_history(
+    agent_name="worker-1",
+    limit=20,
 )
-
-# Get specific event type
-started_events = orchestrator.event_bus.event_store.query(
-    event_name="AGENT_STARTED",
-    limit=10
+errors = orchestrator.event_bus.get_history(
+    event_type="agent_error",
+    limit=10,
 )
 ```
 
-## Event Types
-
-The EventBus handles all `OrchestratorEvent` types:
-
-| Event | Triggered When | Key Data |
-|-------|---------------|----------|
-| `AGENT_STARTED` | Agent begins execution | `agent_name`, `event_date`, `event_time` |
-| `AGENT_READY` | Agent signals readiness | `agent_name`, `event_date`, `event_time` |
-| `AGENT_TERMINATED` | Agent completes or stops | `agent_name`, `event_date`, `event_time` |
-| `AGENT_ERROR` | Agent encounters error | `agent_name`, `error_message`, timestamps |
-| `AGENT_HEARTBEAT` | Agent sends periodic heartbeat | `agent_name`, timestamps |
-
-## Event History and Storage
-
-### Ring Buffer Architecture
-
-The EventStore uses a **ring buffer** to maintain a fixed-capacity event history:
+Or use `EventStore.last()` directly when `after_seq` is required:
 
 ```python
-config = OrchestratorConfig(
-    history_max_events=1000  # Keep last 1000 events
+events = orchestrator.event_bus.event_store.last(
+    n=50,
+    agent="worker-1",
+    event_name="agent_ready",
+    after_seq=100,
 )
 ```
 
-When the buffer fills up, the oldest events are automatically discarded to make room for new ones.
+`EventStore` exposes `last()`, `latest()`, `latest_all_agents()`, `stats()`, and
+`get_capacity_info()`. It does not expose a `query()` method.
 
-### Event Capacity Configuration
+## Current Lifecycle-History Limitation
 
-Control how much history to retain:
+The current `Orchestrator` gives `MessageRouter` the underlying
+`EventManager`, not the complete `OrchestratorEventBus`. Agent lifecycle
+messages therefore trigger registered callbacks but bypass automatic history
+recording.
+
+Consequences in the current release:
+
+- `register_agent()` is recorded because it calls `event_bus.emit()` directly;
+- messages such as agent started, ready, terminated, error, and heartbeat reach
+  callbacks but are not automatically stored by `MessageRouter`;
+- `history` can contain orchestrator records such as `INIT`, explicit event-bus
+  emissions, and command-interface error records;
+- a lifecycle filter may return no records even though the callback ran.
+
+This is a runtime limitation, not a CLI filter issue. Do not rely on lifecycle
+history for auditing until the router is connected to `OrchestratorEventBus`.
+
+## CLI History
+
+Read recent stored records:
+
+```bash
+pyorchestrate history --last 20
+pyorchestrate history --agent worker-1
+pyorchestrate history --type agent_error
+pyorchestrate history --after-seq 100
+```
+
+Successful JSON records contain:
+
+```text
+seq
+timestamp
+t_wall
+t_mono_ns
+category
+event_name
+agent
+severity
+data
+```
+
+## EventStore Configuration
+
+The orchestrator creates its event store from these configuration fields:
 
 ```python
-# Minimal history (conserve memory)
-config = OrchestratorConfig(
-    history_max_events=100,
-    history_payload_bytes=1000
-)
-
-# Extensive history (debugging/analysis)
-config = OrchestratorConfig(
-    history_max_events=10000,
-    history_payload_bytes=50000
+config = Orchestrator.Config(
+    history_max_events=1000,
+    history_payload_bytes=512,
 )
 ```
 
-## Event Policies
+`history_max_events` controls the default ring-buffer capacity.
+`history_payload_bytes` limits each stored payload value.
 
-Event policies allow you to define **custom retention rules** for specific event types. This is particularly useful for high-frequency events like heartbeats.
-
-### Built-in Policy: BucketRingStore
-
-The `BucketRingStore` policy keeps only the last N events of a specific type:
+The default orchestrator store also uses a per-agent policy for heartbeats:
 
 ```python
-from PyOrchestrate.core.orchestrator import EventStore, BucketRingStore
+from PyOrchestrate.core.orchestrator.event_store import (
+    BucketRingStore,
+    EventStore,
+)
 
-# Keep only the last 2 heartbeats per agent
-event_store = EventStore(
+store = EventStore(
     capacity=1000,
     event_policies={
-        "AGENT_HEARTBEAT": BucketRingStore(capacity=2)
-    }
+        "agent_heartbeat": BucketRingStore(per_agent_capacity=2),
+    },
 )
-
-orchestrator = Orchestrator()
-orchestrator.event_bus = OrchestratorEventBus(event_store)
 ```
 
-**Benefits**:
-- Prevents heartbeat events from flooding the event history
-- Maintains recent heartbeat data for liveness checks
-- Frees space for more important events
+`BucketRingStore` is defined in
+`PyOrchestrate.core.orchestrator.event_store`; it is not re-exported from
+`PyOrchestrate.core.orchestrator`.
 
-### Custom Event Policies
+There is currently no `Orchestrator` constructor parameter for a custom event
+store. Replacing `orchestrator.event_bus.event_store` after construction is not
+equivalent, because `CommandInterface` retains the original store reference.
 
-You can implement custom policies by creating classes that follow the policy interface:
+## Custom Store Policies
+
+A custom policy must implement the `StorePolicy` interface:
 
 ```python
-class CustomPolicy:
-    def should_store(self, event_name: str, event_data: dict) -> bool:
-        """Decide whether to store this event"""
-        # Example: Only store errors from specific agents
-        if event_name == "AGENT_ERROR":
-            return event_data.get("agent_name") in ["critical_agent_1", "critical_agent_2"]
-        return True
-    
-    def get_capacity(self) -> int:
-        """Return max events to store"""
-        return 100
+class StorePolicy:
+    def append(self, event):
+        ...
+
+    def last(
+        self,
+        n=100,
+        *,
+        agent=None,
+        event_name=None,
+        after_seq=None,
+    ):
+        ...
+
+    def stats(self, *, agent=None):
+        ...
+
+    def capacity_info(self):
+        ...
 ```
+
+Policies are selected by the exact stored `event_name`.
 
 ## Thread Safety
 
-The OrchestratorEventBus is **thread-safe** and can be safely accessed from multiple threads:
+- `EventManager` protects lazy thread-pool initialization.
+- `EventStore` serializes reads and writes with a lock.
+- Callback failures are logged without stopping other callbacks.
 
-- Callbacks are executed in a thread pool (non-blocking)
-- Event storage uses locks to prevent race conditions
-- Multiple agents can emit events concurrently without conflicts
-
-## Integration with MessageRouter
-
-The EventBus receives events from the `MessageRouter`, which translates agent messages into orchestrator events:
-
-```
-Agent sends message
-    ↓
-MessageRouter receives and translates
-    ↓
-OrchestratorEventBus.emit()
-    ├─→ Execute callbacks
-    └─→ Record to history
-```
-
-This automatic integration means you don't need to manually emit agent lifecycle events—they're handled by the framework.
-
-## Common Patterns
-
-### Monitoring Agent Health
+Shut down callback execution explicitly when using the event bus outside the
+normal orchestrator lifecycle:
 
 ```python
-def check_agent_health(agent_name, **kwargs):
-    """Monitor agent status"""
-    last_heartbeat = orchestrator.event_bus.event_store.query(
-        event_name="AGENT_HEARTBEAT",
-        limit=1
-    )
-    
-    if not last_heartbeat:
-        logger.warning(f"No heartbeat received from {agent_name}")
-
-orchestrator.event_bus.register_callback(
-    OrchestratorEvent.AGENT_HEARTBEAT,
-    check_agent_health
-)
-```
-
-### Logging All Agent Errors
-
-```python
-def log_error(agent_name, error_message, **kwargs):
-    """Log all agent errors to external system"""
-    external_logger.error(f"Agent {agent_name}: {error_message}")
-
-orchestrator.event_bus.register_callback(
-    OrchestratorEvent.AGENT_ERROR,
-    log_error
-)
-```
-
-### Analytics and Reporting
-
-```python
-def generate_report():
-    """Generate agent execution report"""
-    events = orchestrator.event_bus.event_store.query(
-        category="agent",
-        limit=1000
-    )
-    
-    started = len([e for e in events if e.event_name == "AGENT_STARTED"])
-    completed = len([e for e in events if e.event_name == "AGENT_TERMINATED"])
-    errors = len([e for e in events if e.event_name == "AGENT_ERROR"])
-    
-    print(f"Report: {started} started, {completed} completed, {errors} errors")
-```
-
-## Comparison: Before vs After Refactoring
-
-### Before (Separate Components)
-
-```python
-# Register callback
-orchestrator.event_manager.register_callback(event, callback)
-
-# Emit event
-orchestrator.event_manager.emit(event, **data)
-
-# Query history (separate component!)
-orchestrator.event_store.query(category="agent")
-```
-
-### After (Unified EventBus)
-
-```python
-# Register callback
-orchestrator.event_bus.register_callback(event, callback)
-
-# Emit event (automatically recorded)
-orchestrator.event_bus.emit(event, **data)
-
-# Query history (same component!)
-orchestrator.event_bus.event_store.query(category="agent")
-```
-
-The unified interface reduces cognitive load and ensures events are always recorded to history.
-
-## Best Practices
-
-### 1. Use Specific Event Types
-
-```python
-# Good: Specific event subscription
-orchestrator.event_bus.register_callback(
-    OrchestratorEvent.AGENT_ERROR,
-    handle_errors
-)
-
-# Avoid: Catching all events (performance impact)
-for event_type in OrchestratorEvent:
-    orchestrator.event_bus.register_callback(event_type, handle_all)
-```
-
-### 2. Keep Callbacks Lightweight
-
-```python
-# Good: Quick callback that delegates heavy work
-def on_agent_error(agent_name, error_message, **kwargs):
-    task_queue.put((agent_name, error_message))  # Fast enqueue
-
-# Avoid: Heavy processing in callback (blocks thread pool)
-def on_agent_error(agent_name, error_message, **kwargs):
-    send_email_alert(...)  # Slow operation
-    update_database(...)   # Blocks other callbacks
-```
-
-### 3. Configure Appropriate History Size
-
-```python
-# Development: Small history
-config = OrchestratorConfig(history_max_events=100)
-
-# Production: Larger history for debugging
-config = OrchestratorConfig(history_max_events=5000)
-```
-
-### 4. Use Event Policies for High-Frequency Events
-
-```python
-# Without policy: Heartbeats flood the history
-# With policy: Only keep last 2 heartbeats
-event_policies = {
-    "AGENT_HEARTBEAT": BucketRingStore(capacity=2)
-}
+orchestrator.event_bus.shutdown()
 ```
 
 ## See Also
 
-- [MessageRouter](/advanced/orchestrator-internals/message-router) - Routes agent messages to EventBus
-- [EventManager](/advanced/utilities/event-manager) - Low-level callback system
-- [Orchestrator Internals](/advanced/orchestrator-internals/index) - Architecture overview
+- [Event Manager](/advanced/utilities/event-manager)
+- [MessageRouter](/advanced/orchestrator-internals/message-router)
+- [Runtime commands](/cli/runtime-commands)
+- [Generated API reference](/api/orchestrator)
