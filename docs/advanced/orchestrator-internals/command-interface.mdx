@@ -97,9 +97,10 @@ there, through
 [`worker_pool.shutdown_all()`](/advanced/orchestrator-internals/worker-pool),
 before this very command interface is stopped.
 
-<Warning title="Two handlers currently fail">
-The agent-specific `status AGENT_NAME` path and `dependencies` handler still read the removed `orchestrator.dependencies` attribute. Orchestrator-level `status` and `ps` are unaffected. See [Runtime Commands](/cli/runtime-commands) for the operational details.
-</Warning>
+The `dependencies` handler and the agent-specific `status AGENT_NAME` path read
+`orchestrator.dependency_graph.dependencies`, the same mapping used to compute
+the startup order. See [Runtime Commands](/cli/runtime-commands) for the
+response payloads.
 
 ## Permission Presets
 

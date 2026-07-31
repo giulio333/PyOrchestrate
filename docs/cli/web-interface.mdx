@@ -77,9 +77,7 @@ Bearer tokens are not encrypted by HTTP. Keep the server on loopback or place it
 
 The interface does not expose agent start, stop, restart, or shutdown endpoints.
 
-<Warning title="Current backend limitations">
-`/api/agents/{agent_name}` and `/api/orchestrator/dependencies` delegate to the two runtime handlers that still read the removed `orchestrator.dependencies` attribute, so they can return an internal backend error. `/api/agents` and `/api/orchestrator/status` are unaffected.
-</Warning>
+`/api/agents/{agent_name}` and `/api/orchestrator/dependencies` delegate to the same runtime handlers as the CLI, so they return the payloads documented in [Runtime Commands](/cli/runtime-commands).
 
 ## HTML and JSON
 

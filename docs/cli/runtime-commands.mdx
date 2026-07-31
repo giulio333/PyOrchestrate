@@ -116,9 +116,19 @@ Show one agent:
 pyorchestrate status AGENT_NAME [--socket ZMQ_ADDRESS] [--format {table,json}]
 ```
 
-<Warning title="Current agent-status limitation">
-The no-argument form is operational. In the current source, the agent-specific handler still reads the removed `orchestrator.dependencies` attribute instead of `orchestrator.dependency_graph.dependencies`, so `status AGENT_NAME` can return an internal error even for a registered agent.
-</Warning>
+The agent form returns the name, `alive`, `lifecycle_state`, `started`,
+`in_queue`, and the names the agent depends on:
+
+```json
+{
+  "name": "consumer",
+  "alive": false,
+  "lifecycle_state": "registered",
+  "started": false,
+  "in_queue": false,
+  "dependencies": ["producer"]
+}
+```
 
 An orchestrator JSON response has this shape:
 
@@ -141,9 +151,19 @@ Show the dependency mapping for all registered agents:
 pyorchestrate dependencies [--socket ZMQ_ADDRESS] [--format {table,json}]
 ```
 
-<Warning title="Current dependencies limitation">
-The current command handler also reads the removed `orchestrator.dependencies` attribute. Until that source defect is corrected, use `orchestrator.dependency_graph.dependencies` from in-process code; the CLI command can return an internal error.
-</Warning>
+The command reports the mapping held by `DependencyGraph`, the same one used to
+compute the startup order:
+
+```json
+{
+  "dependencies": {
+    "consumer": ["producer"]
+  }
+}
+```
+
+Agents without dependencies are absent from the mapping. From in-process code
+the same data is available as `orchestrator.dependency_graph.dependencies`.
 
 ## `start`
 
