@@ -25,6 +25,7 @@ manager is useful mainly for framework integration and testing.
 | Timeout handling | Requests stop, joins briefly, force-terminates a process when possible, and quarantines an instance that remains alive |
 | Individual stop | Is idempotent and also handles entries that have not been initialized |
 | Bulk stop | Attempts every registered entry and reports collected failures afterward |
+| Shutdown | Stops, joins within a shared budget, escalates, and reports the agents still alive |
 | Lookup | Returns one entry by name or the complete entry list |
 
 Concurrency limiting and queuing belong to
@@ -86,10 +87,15 @@ An entry stores:
 
 The tracked states are:
 
-```text
-REGISTERED -> STARTING -> RUNNING -> STOPPING -> TERMINATED
-                 |          |
-                 +-> FAILED +-> QUARANTINED
+```mermaid
+stateDiagram-v2
+    direction LR
+    REGISTERED --> STARTING
+    STARTING --> RUNNING
+    RUNNING --> STOPPING
+    STOPPING --> TERMINATED
+    STARTING --> FAILED
+    RUNNING --> QUARANTINED
 ```
 
 A terminated or failed entry can create a fresh generation. Starting an entry
@@ -99,24 +105,16 @@ instance is never overwritten.
 The instance is intentionally created at start time rather than registration
 time:
 
-```text
-register_agent
-    |
-    v
-AgentEntry stored in OMemory
-    |
-    v
-start_agent
-    |
-    +--> prepare_start() -> immutable generation attempt
-    |
-    +--> execute_start(attempt)
-            |
-            +--> AgentEntry._initialize_instance(attempt)
-            |
-            +--> AgentEntry._start_instance(attempt)
-            |
-            +--> wait for entry.state_events.start_event
+```mermaid
+flowchart TD
+    REGISTER["register_agent()"] --> STORE["Store AgentEntry in OMemory"]
+    STORE --> START["start_agent()"]
+    START --> PREPARE["prepare_start()"]
+    PREPARE --> ATTEMPT["Immutable generation attempt"]
+    ATTEMPT --> EXECUTE["execute_start(attempt)"]
+    EXECUTE --> INITIALIZE["AgentEntry._initialize_instance(attempt)"]
+    INITIALIZE --> RUN["AgentEntry._start_instance(attempt)"]
+    RUN --> WAIT["Wait for entry.state_events.start_event"]
 ```
 
 Accessing `entry.instance` before initialization raises an assertion error.
@@ -204,7 +202,8 @@ is harmless. Stopping a registered but not yet initialized entry transitions it
 directly to `TERMINATED`.
 
 Normal stop requests do not join or force-terminate an agent; use
-`Orchestrator.join()` for the normal orchestrator lifecycle. Startup-timeout
+`Orchestrator.join()` for the normal orchestrator lifecycle, whose shutdown
+path is described below. Startup-timeout
 cleanup is stricter: it requests stop, performs a bounded join, and can
 force-terminate a process that remains alive. A thread cannot be forcefully
 terminated. If one remains alive, the result is `FAILED_LIVE`, the entry becomes
@@ -217,6 +216,44 @@ stop can therefore cancel an entry in `STARTING` without waiting for the full
 `WorkerPoolScheduler.stop_agent()` removes a queued start before delegating to
 the lifecycle manager. `Orchestrator.stop()` similarly clears the scheduler
 queue before requesting a stop for every registered entry.
+
+## Orchestrator Shutdown
+
+`stop_all()` requests termination and returns. `shutdown_all()` is its blocking
+counterpart, used by `Orchestrator.join()` once its loop exits, because agents
+must be gone before the message router and the plugins are torn down:
+
+```python
+survivors = orchestrator.worker_pool.shutdown_all(timeout=10.0)
+```
+
+<Steps>
+  <Step title="Request the stop">
+    `stop_all()` runs first. A failed stop request does not abort the shutdown;
+    the entry is still joined and escalated below.
+  </Step>
+  <Step title="Join within the budget">
+    `timeout` is a single budget shared by every agent, not a per-agent one.
+    `None` waits indefinitely.
+  </Step>
+  <Step title="Escalate on survivors">
+    A process agent that is still alive is force-terminated. A thread agent
+    cannot be, so it is quarantined and logged as `CRITICAL`.
+  </Step>
+  <Step title="Record the outcome">
+    Entries that terminated become `TERMINATED`; the returned list names the
+    agents that are still alive.
+  </Step>
+</Steps>
+
+The budget comes from `Orchestrator.Config.agent_stop_timeout`, which defaults
+to `10.0` seconds.
+
+<Warning>
+  `BaseAgent.stop()` invokes application `on_stop()` in the *caller's* thread,
+  which on this path is the orchestrator thread rather than the agent's own.
+  Cleanup code that assumes the agent context runs elsewhere than expected.
+</Warning>
 
 ## Dynamic Starts
 
@@ -263,7 +300,10 @@ start_agent(agent_name) -> LifecycleStartResult
 restart_agent(agent_name) -> LifecycleStartResult
 stop_agent(agent_name) -> None
 stop_all() -> None
+shutdown_all(timeout=None) -> list[str]
 join_agent(agent_name, timeout=None) -> None
+is_attempt_alive(agent_name, attempt) -> bool
+mark_terminated(agent_name) -> None
 get_agent(agent_name) -> AgentEntry
 get_all_agents() -> list[AgentEntry]
 ```

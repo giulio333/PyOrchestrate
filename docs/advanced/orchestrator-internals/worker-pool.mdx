@@ -238,6 +238,22 @@ additionally sets `_accepting_starts = False`, which is a one-way switch: after
 it, `start_agent()` raises `RuntimeError` for the remaining life of the
 scheduler.
 
+## Shutting down
+
+`stop_all()` only *requests* termination and returns immediately. When the
+orchestrator itself is going down, `Orchestrator.join()` calls the blocking
+counterpart instead:
+
+```python
+survivors = orchestrator.worker_pool.shutdown_all(timeout=10.0)
+```
+
+It clears the queue, delegates to
+[`AgentLifecycleManager.shutdown_all()`](/advanced/orchestrator-internals/lifecycle-manager),
+and then releases the slot of every agent that terminated. The return value
+lists the agents that are still alive; each of those retains its slot and is
+quarantined.
+
 ## Monitoring
 
 ```python

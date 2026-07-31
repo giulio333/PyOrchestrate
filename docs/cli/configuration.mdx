@@ -140,6 +140,10 @@ orchestrator.join()
 pyorchestrate shutdown
 ```
 
+`join()` returns once the agents have been stopped and joined. Raise
+`agent_stop_timeout` (default `10.0` seconds) when agents need longer to finish
+the work in flight before shutdown escalates.
+
 ## Validation
 
 Configuration is validated when the orchestrator is created. You can also inspect validation results directly:

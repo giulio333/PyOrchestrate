@@ -90,6 +90,13 @@ request when necessary and then delegates lifecycle cancellation or the
 cooperative stop request. The orchestrator does not send a `COMMAND`
 `ServiceMessage` to the agent for these operations.
 
+`shutdown` touches no agent directly either: it only sets
+`orchestrator._shutdown_requested` and replies immediately. That flag makes
+`Orchestrator.join()` leave its loop, and the shutdown of the agents happens
+there, through
+[`worker_pool.shutdown_all()`](/advanced/orchestrator-internals/worker-pool),
+before this very command interface is stopped.
+
 <Warning title="Two handlers currently fail">
 The agent-specific `status AGENT_NAME` path and `dependencies` handler still read the removed `orchestrator.dependencies` attribute. Orchestrator-level `status` and `ps` are unaffected. See [Runtime Commands](/cli/runtime-commands) for the operational details.
 </Warning>

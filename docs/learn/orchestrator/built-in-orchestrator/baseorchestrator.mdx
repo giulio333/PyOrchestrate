@@ -35,9 +35,16 @@ sequenceDiagram
         Commands->>Orchestrator: request graceful shutdown
     end
 
+    Orchestrator->>Workers: shutdown_all(agent_stop_timeout)
+    Workers-->>Orchestrator: agents terminated
     Orchestrator->>Router: stop()
     Orchestrator->>Commands: stop()
 ```
+
+Agents are always stopped and joined before the router, the command interface,
+and the plugins are shut down. A process agent that ignores the cooperative
+stop request is force-terminated once `agent_stop_timeout` expires; a thread
+agent that ignores it cannot be, so it is quarantined and reported.
 
 ## Configuration
 
@@ -45,7 +52,8 @@ sequenceDiagram
 |---|---|---|
 | `check_interval` | `1` | Agent status polling interval in seconds |
 | `max_workers` | `5` | Maximum number of concurrently running agents |
-| `agent_start_timeout` | `30.0` | Timeout for `start_event` only when registration supplied explicit state events |
+| `agent_start_timeout` | `30.0` | Timeout for the `start_event` acknowledgement, for supplied and default state events alike |
+| `agent_stop_timeout` | `10.0` | Budget shared by all agents while shutdown waits for them to terminate |
 | `enable_command_interface` | `True` | Enable external runtime commands |
 | `command_zmq_address` | `"tcp://*:5555"` | ZeroMQ ROUTER bind address |
 | `allowed_commands` | `None` | Preset, explicit set, or all commands |

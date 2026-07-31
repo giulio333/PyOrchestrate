@@ -92,6 +92,16 @@ pyorchestrate ps [--socket ZMQ_ADDRESS] [--format {table,json}]
 
 Table output includes the agent name, whether it is alive, whether it has been started, and whether it is waiting in the worker queue.
 
+Each entry in the JSON `agents` list also carries `lifecycle_state`, the
+parent-process state tracked for that entry: `registered`, `starting`,
+`running`, `stopping`, `terminated`, `failed`, or `quarantined`. It is more
+precise than `alive`, which only reports whether the thread or process object
+is still running. The same field is present in `status AGENT_NAME` and in
+`stats`.
+
+An agent that is registered but not yet initialized reports its registered
+`config`, or `null` when none was supplied.
+
 ## `status`
 
 Show overall orchestrator status:
@@ -144,6 +154,21 @@ pyorchestrate start AGENT_NAME [--socket ZMQ_ADDRESS] [--format {table,json}]
 ```
 
 The agent name is required for the operation to succeed.
+
+The response reports the scheduler outcome rather than assuming success:
+
+```json
+{
+  "message": "Agent worker-1 start initiated",
+  "status": "queued",
+  "reason": null
+}
+```
+
+`status` is one of `started`, `queued`, `cancelled`, `failed_clean`, or
+`failed_live`; `reason` carries the failure description when there is one. See
+[WorkerPoolScheduler](/advanced/orchestrator-internals/worker-pool) for what
+each outcome means for capacity.
 
 ## `stop`
 
@@ -227,7 +252,21 @@ Request graceful shutdown of the orchestrator:
 pyorchestrate shutdown [--socket ZMQ_ADDRESS] [--format {table,json}]
 ```
 
-The command sets the orchestrator shutdown request and returns immediately.
+The command sets the orchestrator shutdown request and returns immediately: the
+reply confirms that shutdown was *initiated*, not that it completed.
+
+The request makes `Orchestrator.join()` leave its loop, and the orchestrator
+then stops every agent, waits for them within `agent_stop_timeout`
+(`10.0` seconds by default), and force-terminates any process agent that
+ignored the cooperative stop request. Only afterwards are the message router,
+the command interface, and the plugins shut down.
+
+<Warning>
+  A thread agent cannot be force-terminated. One that ignores its `stop_event`
+  survives the timeout, is quarantined, and is logged as `CRITICAL`; being a
+  non-daemon thread, it also keeps the interpreter alive. Always honor
+  `control_events.stop_event` in long-running thread agents.
+</Warning>
 
 ## Connecting to a Different Address
 
