@@ -318,6 +318,90 @@ class AgentLifecycleManager:
         if errors:
             raise ExceptionGroup("Failed to stop one or more agents", errors)
 
+    def shutdown_all(self, timeout: float | None = None) -> list[str]:
+        """Stop every agent, wait for termination, and escalate on survivors.
+
+        Unlike :meth:`stop_all`, which only requests cooperative termination,
+        this is the blocking path used when the orchestrator itself is going
+        down: agents must be gone before channels and plugins are torn down.
+
+        Args:
+            timeout: Overall budget in seconds for the cooperative wait. The
+                budget is shared by all agents. ``None`` waits indefinitely.
+
+        Returns:
+            list[str]: Names of the agents that are still alive afterwards.
+        """
+        try:
+            self.stop_all()
+        except ExceptionGroup:
+            # stop_all() already logged every individual failure. Shutdown must
+            # continue: an agent whose stop request failed is still joined and
+            # escalated below.
+            pass
+
+        deadline = None if timeout is None else time.monotonic() + timeout
+
+        for agent in self.memory.agents:
+            if not agent.is_initialized or not agent.is_alive():
+                continue
+            remaining = (
+                None if deadline is None else max(0.0, deadline - time.monotonic())
+            )
+            try:
+                agent._join_instance(timeout=remaining)
+            except Exception as error:
+                self.logger.error(f"Failed to join agent '{agent.name}': {error}")
+
+        survivors: list[str] = []
+        for agent in self.memory.agents:
+            if agent.is_initialized and agent.is_alive():
+                if not self._escalate_shutdown(agent):
+                    survivors.append(agent.name)
+                    continue
+            self.mark_terminated(agent.name)
+
+        return survivors
+
+    def _escalate_shutdown(self, agent: AgentEntry) -> bool:
+        """Force-terminate a surviving agent and report whether it is gone."""
+        instance = agent.instance
+        terminate = getattr(instance, "terminate", None)
+        if callable(terminate) and instance.a_type == "process":
+            self.logger.warning(
+                f"Force-terminating process agent '{agent.name}' during shutdown."
+            )
+            try:
+                terminate()
+                agent._join_instance(timeout=self._FAILED_START_CLEANUP_TIMEOUT)
+            except Exception as error:
+                self.logger.error(
+                    f"Failed to force-terminate process agent '{agent.name}': {error}"
+                )
+
+        if not agent.is_alive():
+            return True
+
+        self.logger.critical(
+            f"Agent '{agent.name}' did not terminate during shutdown "
+            "and has been quarantined."
+        )
+        try:
+            agent._transition_to(
+                AgentLifecycleState.QUARANTINED,
+                {
+                    AgentLifecycleState.STARTING,
+                    AgentLifecycleState.RUNNING,
+                    AgentLifecycleState.STOPPING,
+                    AgentLifecycleState.QUARANTINED,
+                },
+            )
+        except RuntimeError as error:
+            self.logger.error(
+                f"Could not quarantine surviving agent '{agent.name}': {error}"
+            )
+        return False
+
     def join_agent(self, agent_name: str, timeout: float | None = None) -> None:
         """Join an initialized concrete instance through lifecycle ownership."""
         self.get_agent(agent_name)._join_instance(timeout=timeout)

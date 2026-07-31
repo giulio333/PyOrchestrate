@@ -277,6 +277,29 @@ class WorkerPoolScheduler:
             self._waiting_queue.clear()
         self.lifecycle_manager.stop_all()
 
+    def shutdown_all(self, timeout: float | None = None) -> list[str]:
+        """Cancel queued work and block until every agent has terminated.
+
+        Args:
+            timeout: Overall budget in seconds for the cooperative wait.
+
+        Returns:
+            list[str]: Names of the agents that are still alive afterwards.
+        """
+        with self._lock:
+            self._accepting_starts = False
+            self._waiting_queue.clear()
+
+        survivors = self.lifecycle_manager.shutdown_all(timeout=timeout)
+
+        for agent in self.lifecycle_manager.get_all_agents():
+            if agent.name in survivors:
+                continue
+            if self.tracks_agent(agent.name):
+                self.on_agent_terminated(agent.name)
+
+        return survivors
+
     @property
     def all_finished(self) -> bool:
         with self._lock:

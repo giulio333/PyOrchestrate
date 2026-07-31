@@ -60,6 +60,7 @@ class OrchestratorConfig(BaseClass.Config):
         check_interval (float): The interval to check the agents. Defaults to 1.
         max_workers (int): The maximum number of workers that can run concurrently. Defaults to 5.
         agent_start_timeout (float): Maximum time in seconds to wait for an agent to start. Defaults to 30.0.
+        agent_stop_timeout (float): Maximum time in seconds to wait for agents to terminate during shutdown. Defaults to 10.0.
         enable_command_interface (bool): Enable external command interface via ZeroMQ over TCP. Defaults to True.
         command_zmq_address (str): ZeroMQ address for external commands. Defaults to ``"tcp://*:5555"``.
         logger (LoggerConfig): Logger configuration.
@@ -74,6 +75,8 @@ class OrchestratorConfig(BaseClass.Config):
     """The maximum number of workers that can run concurrently."""
     agent_start_timeout: float = 30.0
     """Maximum time in seconds to wait for an agent to start. Defaults to 30.0."""
+    agent_stop_timeout: float = 10.0
+    """Maximum time in seconds to wait for agents to terminate during shutdown."""
     enable_command_interface: bool = True
     """Enable external command interface via ZeroMQ."""
     command_zmq_address: str = "tcp://*:5555"
@@ -92,6 +95,7 @@ class OrchestratorConfig(BaseClass.Config):
         check_interval: float | None = None,
         max_workers: int | None = None,
         agent_start_timeout: float | None = None,
+        agent_stop_timeout: float | None = None,
         enable_command_interface: bool | None = None,
         command_zmq_address: str | None = None,
         allowed_commands: set[str] | str | None = None,
@@ -107,6 +111,7 @@ class OrchestratorConfig(BaseClass.Config):
             check_interval (float | None, optional): The interval to check the agents. Defaults to None.
             max_workers (int | None, optional): The maximum number of workers that can run concurrently. Defaults to None.
             agent_start_timeout (float | None, optional): Maximum time in seconds to wait for an agent to start. Defaults to None.
+            agent_stop_timeout (float | None, optional): Maximum time in seconds to wait for agents to terminate during shutdown. Defaults to None.
             enable_command_interface (bool | None, optional): Enable external command interface via ZeroMQ. Defaults to None.
             command_zmq_address (str | None, optional): ZeroMQ address for external commands. Defaults to None.
             allowed_commands (set[str] | str | None, optional): Allowed commands for CLI interface. Can be a set of commands, a preset name, or None for all commands. Defaults to None.
@@ -125,6 +130,9 @@ class OrchestratorConfig(BaseClass.Config):
 
         if agent_start_timeout is not None:
             self.agent_start_timeout = agent_start_timeout
+
+        if agent_stop_timeout is not None:
+            self.agent_stop_timeout = agent_stop_timeout
 
         if enable_command_interface is not None:
             self.enable_command_interface = enable_command_interface
@@ -170,6 +178,15 @@ class OrchestratorConfig(BaseClass.Config):
                 ValidationResult(
                     field="agent_start_timeout",
                     message="agent_start_timeout must be greater than 0.",
+                    severity=ValidationSeverity.ERROR,
+                )
+            )
+
+        if self.agent_stop_timeout <= 0:
+            results.append(
+                ValidationResult(
+                    field="agent_stop_timeout",
+                    message="agent_stop_timeout must be greater than 0.",
                     severity=ValidationSeverity.ERROR,
                 )
             )
@@ -527,6 +544,12 @@ class Orchestrator(BaseClass):
             - When agent is terminated, it emits an `OrchestratorEvent.AGENT_TERMINATED` event.
 
             Uses WorkerPoolScheduler to manage agent termination and queue.
+
+            Once the loop exits, every agent is stopped and joined within
+            `agent_stop_timeout` before channel handlers and plugins are shut
+            down. A process agent that ignores the cooperative stop request is
+            force-terminated; a thread agent that ignores it cannot be, so it
+            is quarantined and reported.
         """
 
         all_finished: bool = False
@@ -561,12 +584,25 @@ class Orchestrator(BaseClass):
 
         self.logger.info("Orchestrator is shutting down...")
 
+        # Agents must be gone before the router and the plugins are torn down,
+        # otherwise they keep running against closed channels.
+        survivors = self.worker_pool.shutdown_all(
+            timeout=self.config.agent_stop_timeout
+        )
+        if survivors:
+            self.logger.critical(
+                f"Agents still alive after shutdown: {', '.join(survivors)}"
+            )
+
         # Track orchestrator shutdown
         self.event_bus.event_store.record(
             category="orchestrator",
             event_name="SHUTDOWN",
             severity="INFO",
-            data={"total_agents": str(len(self.memory.agents))},
+            data={
+                "total_agents": str(len(self.memory.agents)),
+                "surviving_agents": str(len(survivors)),
+            },
         )
 
         # Stop all channel handlers

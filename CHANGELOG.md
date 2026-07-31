@@ -47,6 +47,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The `shutdown` command left every agent running. It only set
+  `_shutdown_requested`, which made `Orchestrator.join()` leave its loop and go
+  straight to closing the message router and finalizing plugins: agents
+  survived with their service channel already closed, and non-daemon threads
+  kept the interpreter alive. `join()` now stops every agent, waits for them
+  within `agent_stop_timeout`, force-terminates surviving process agents and
+  reports any thread agent that cannot be terminated, all before the channel
+  handlers and the plugins are shut down.
 - `PoolAgentConfig` declared its class default as `agent_entry` while the rest
   of the class used `agents_entry`. A `PoolAgent` without an explicit
   `agents_entry` raised `AttributeError` inside `setup()` instead of emitting
@@ -57,6 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Orchestrator.Config.agent_stop_timeout` (default `10.0`), the budget shared
+  by all agents while shutdown waits for them to terminate.
+- `WorkerPoolScheduler.shutdown_all()` and `AgentLifecycleManager.shutdown_all()`,
+  the blocking counterparts of `stop_all()` used by the shutdown path. They
+  return the names of the agents that are still alive afterwards.
 - Documentation for `PoolAgent` (`PoolProcessAgent`, `PoolThreadAgent`) and for
   the four previously undocumented ZeroMQ plugins: `ZeroMQPushPull`,
   `ZeroMQRouterDealer`, `ZeroMQPair` and `ZeroMQPoller`.

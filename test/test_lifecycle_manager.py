@@ -82,6 +82,24 @@ class StubbornSilentAgent(SilentAgent):
     stop_succeeds = False
 
 
+class StubbornAgent(StubAgent):
+    """Acknowledges startup but survives the cooperative stop request."""
+
+    stop_succeeds = False
+
+
+class StubbornProcessAgent(StubbornAgent):
+    a_type = "process"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.terminate_calls = 0
+
+    def terminate(self):
+        self.terminate_calls += 1
+        self._alive = False
+
+
 class PartialStartAgent(StubAgent):
     def start(self):
         self._alive = True
@@ -334,6 +352,55 @@ def test_failed_restart_constructor_does_not_cleanup_old_generation(manager):
     assert not entry.is_initialized
     assert old_instance.stop_calls == 0
     assert old_instance.join_calls == 0
+
+
+def test_shutdown_all_stops_and_terminates_every_agent(manager):
+    first = manager.register_agent(StubAgent, "first")
+    second = manager.register_agent(StubAgent, "second")
+    assert manager.start_agent("first").started
+    assert manager.start_agent("second").started
+
+    survivors = manager.shutdown_all(timeout=0.1)
+
+    assert survivors == []
+    assert not first.is_alive() and not second.is_alive()
+    assert first.state is AgentLifecycleState.TERMINATED
+    assert second.state is AgentLifecycleState.TERMINATED
+    assert first.instance.stop_calls == 1
+    assert second.instance.stop_calls == 1
+
+
+def test_shutdown_all_force_terminates_stubborn_process_agent(manager):
+    entry = manager.register_agent(StubbornProcessAgent, "process")
+    assert manager.start_agent("process").started
+
+    survivors = manager.shutdown_all(timeout=0.05)
+
+    assert survivors == []
+    assert entry.instance.terminate_calls == 1
+    assert entry.state is AgentLifecycleState.TERMINATED
+
+
+def test_shutdown_all_quarantines_thread_agent_that_ignores_stop(manager):
+    entry = manager.register_agent(StubbornAgent, "stubborn-thread")
+    assert manager.start_agent("stubborn-thread").started
+
+    survivors = manager.shutdown_all(timeout=0.05)
+
+    assert survivors == ["stubborn-thread"]
+    assert entry.is_alive()
+    assert entry.instance.join_calls == 1
+    assert entry.state is AgentLifecycleState.QUARANTINED
+
+
+def test_shutdown_all_terminates_registered_agent_never_started(manager):
+    entry = manager.register_agent(StubAgent, "never-started")
+
+    survivors = manager.shutdown_all(timeout=0.05)
+
+    assert survivors == []
+    assert not entry.is_initialized
+    assert entry.state is AgentLifecycleState.TERMINATED
 
 
 def test_stop_does_not_wait_for_blocking_agent_constructor(manager):
