@@ -47,6 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `status AGENT_NAME` and `dependencies` returned an internal error for any
+  agent. Both handlers read `orchestrator.dependencies`, an attribute removed
+  when dependency handling moved into `DependencyGraph`; they now read
+  `orchestrator.dependency_graph.dependencies`. The web interface endpoints
+  `/api/agents/{agent_name}` and `/api/orchestrator/dependencies`, which
+  delegate to the same handlers, are fixed with them.
 - The `shutdown` command left every agent running. It only set
   `_shutdown_requested`, which made `Orchestrator.join()` leave its loop and go
   straight to closing the message router and finalizing plugins: agents

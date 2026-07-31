@@ -377,7 +377,9 @@ class CommandHandler:
                 "lifecycle_state": agent.state.value,
                 "started": self.orchestrator.worker_pool.is_started(agent.name),
                 "in_queue": self.orchestrator.worker_pool.is_queued(agent.name),
-                "dependencies": self.orchestrator.dependencies.get(agent.name, []),
+                "dependencies": list(
+                    self.orchestrator.dependency_graph.dependencies.get(agent.name, [])
+                ),
             }
 
         except Exception as e:
@@ -414,7 +416,12 @@ class CommandHandler:
         """Show agent dependencies."""
         try:
             return {
-                "dependencies": dict(self.orchestrator.dependencies),
+                "dependencies": {
+                    name: list(depends_on)
+                    for name, depends_on in (
+                        self.orchestrator.dependency_graph.dependencies.items()
+                    )
+                },
             }
         except Exception as e:
             raise CommandException(f"Failed to show dependencies: {str(e)}", code=500)
