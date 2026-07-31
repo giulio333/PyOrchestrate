@@ -30,7 +30,7 @@ The orchestrator constructs and starts the router automatically:
 
 ```python
 self.message_router = MessageRouter(
-    self.event_bus.event_manager,
+    self.event_bus,
     self.msg_channel,
     self.logger,
 )
@@ -69,13 +69,22 @@ Activating a new generation removes termination records for older generations
 of the same agent name. The router therefore retains only current termination
 state rather than accumulating one tuple for every restart.
 
-## Event-history limitation
+## Event history
 
-The constructor accepts an `EventManager`, and `Orchestrator` passes `event_bus.event_manager`. The router therefore triggers registered callbacks directly rather than calling `OrchestratorEventBus.emit()`.
+The constructor accepts an `OrchestratorEventBus`, and every routed event goes
+through `OrchestratorEventBus.emit()`. Each one therefore reaches both the
+registered callbacks and `EventStore`, so routed start, ready, heartbeat, error
+and termination events appear in CLI `history` and in `get_agent_timeline()`.
 
-<Warning>
-Agent lifecycle events routed here are not automatically recorded in `EventStore` in the current implementation. Do not treat CLI `history` as a complete lifecycle audit log.
-</Warning>
+`agent_error` is recorded with severity `ERROR` and carries the reported
+message under `data.error_message`; the other lifecycle events are recorded as
+`INFO`.
+
+<Note>
+  Passing the bare `event_bus.event_manager` still works — it also exposes
+  `emit()` — but such a router triggers callbacks without recording anything in
+  history. Pass the bus.
+</Note>
 
 ## Message shape
 

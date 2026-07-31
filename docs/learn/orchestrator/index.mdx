@@ -88,9 +88,7 @@ Available events are stored in the `OrchestratorEvent` class:
 | `AGENT_ERROR`           | `event_date`, `event_time`, `agent_name`, `error_message` | Emitted when an agent reports an error. |
 | `AGENT_HEARTBEAT`       | `event_date`, `event_time`, `agent_name` | Emitted when an agent sends a heartbeat. |
 
-<Warning>
-Agent events routed from `MessageChannel` trigger callbacks but currently bypass `EventStore`. The CLI history is therefore not a complete lifecycle log.
-</Warning>
+Agent events routed from `MessageChannel` trigger the registered callbacks and are recorded in `EventStore`, so they appear in the CLI history.
 
 ### Message Channels
 

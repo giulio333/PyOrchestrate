@@ -95,7 +95,7 @@ curl \
 
 ## History Filters
 
-The history contains stored events only. Agent lifecycle callbacks routed by `MessageRouter` currently bypass the store, so this endpoint is not a complete lifecycle audit log.
+The endpoint reads the same store as the CLI `history` command, which includes the agent lifecycle events routed by `MessageRouter`.
 
 The history endpoint accepts:
 

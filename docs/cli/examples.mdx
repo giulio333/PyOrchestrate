@@ -115,7 +115,7 @@ pyorchestrate history-stats
 pyorchestrate history-stats --agent Worker
 ```
 
-The current event history is not a complete lifecycle audit log: agent messages routed as start, ready, heartbeat, error and termination callbacks bypass the store. Registration events and events emitted through `orchestrator.event_bus.emit(...)` are recorded.
+The history holds registration events, the agent messages routed as start, ready, heartbeat, error and termination, and everything emitted through `orchestrator.event_bus.emit(...)`. It is a ring buffer sized by `history_max_events`, so the oldest events are dropped once it is full.
 
 ## Monitor Resource Usage
 

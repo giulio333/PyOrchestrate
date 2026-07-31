@@ -94,11 +94,11 @@ See [Config and Validation](/learn/config_and_validation) for the shared configu
 
 ### Event Bus and Store
 
-`OrchestratorEventBus` combines event dispatch with bounded event history. Agent messages currently reach the underlying `EventManager` directly, so their lifecycle callbacks are not automatically recorded.
+`OrchestratorEventBus` combines event dispatch with bounded event history. Every event emitted through it reaches both the registered callbacks and `EventStore`.
 
 ### Message Router
 
-`MessageRouter` consumes agent messages and forwards lifecycle information to the callback manager.
+`MessageRouter` consumes agent messages and forwards lifecycle information to the event bus, which dispatches the callbacks and records the event in history.
 
 ### Command Interface
 

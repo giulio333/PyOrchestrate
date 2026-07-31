@@ -235,9 +235,16 @@ Each event returned as JSON includes `seq`, `timestamp`, `t_wall`, `t_mono_ns`, 
 
 Event names are stored as lowercase enum values, for example `agent_registered` and `agent_started`.
 
-<Warning title="History is not a complete lifecycle log">
-The current `MessageRouter` emits agent lifecycle events through the underlying `EventManager`, bypassing `EventStore`. Registration events and explicit `orchestrator.event_bus.emit(...)` calls are recorded, but routed start, ready, heartbeat, error and termination events are not automatically present.
-</Warning>
+The history covers registration events, the lifecycle events routed from the
+agents (`agent_started`, `agent_ready`, `agent_heartbeat`, `agent_error`,
+`agent_terminated`), and explicit `orchestrator.event_bus.emit(...)` calls.
+`agent_error` is stored with severity `ERROR` and carries the reported message
+under `data.error_message`.
+
+<Note>
+  The store is a ring buffer sized by `history_max_events` (default `5000`), so
+  a long-running orchestrator eventually drops its oldest events.
+</Note>
 
 ## `history-stats`
 

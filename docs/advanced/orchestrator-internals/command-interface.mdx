@@ -220,7 +220,7 @@ severity: ERROR
 
 Successful commands are not currently written as dedicated command-audit events.
 
-Agent lifecycle messages routed by `MessageRouter` also bypass the store in the current implementation, so `history` is not a complete lifecycle audit log.
+Agent lifecycle messages routed by `MessageRouter` are recorded, so `history` covers start, ready, heartbeat, error and termination alongside the events emitted by the orchestrator itself.
 
 ## Network Security
 
