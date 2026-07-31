@@ -111,9 +111,7 @@ This channel lets external tools interact with the Orchestrator in real time:
 
 The same data surface is used by a read-only **web interface**, which exposes HTML and JSON monitoring views.
 
-<Warning>
-Routed lifecycle events trigger callbacks but currently bypass the event store, so history is not a complete audit log. Agent-specific status and dependency inspection also have a known runtime handler defect.
-</Warning>
+Routed lifecycle events reach both the registered callbacks and the event store, so the history covers the agent lifecycle. The store is bounded: with more than `history_max_events` records, the oldest are dropped.
 
 <Tip title="Learn More">
 See the [CLI Documentation](/cli/index) for the full command reference, security notes, and examples of both CLI and web interfaces.

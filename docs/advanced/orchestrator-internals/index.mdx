@@ -38,11 +38,13 @@ A dependency is started before its dependent, but the scheduler does not wait fo
 flowchart LR
     A["Agent thread or process"] -->|"ServiceMessage (STATUS)"| C["MessageChannel (process queue)"]
     C --> R["MessageRouter"]
-    R --> M["EventManager"]
-    M --> B["Registered callbacks"]
+    R --> B["OrchestratorEventBus"]
+    B --> M["EventManager"]
+    B --> S["EventStore"]
+    M --> K["Registered callbacks"]
 ```
 
-The router receives the underlying `EventManager`, not the `OrchestratorEventBus`. Consequently, agent lifecycle callbacks run, but those routed lifecycle events are not automatically appended to the event history in the current implementation. Events emitted through `orchestrator.event_bus.emit(...)`, such as `agent_registered`, are recorded.
+The router receives the `OrchestratorEventBus`, so every routed lifecycle event both triggers the registered callbacks and is appended to the event history, alongside the events emitted directly through `orchestrator.event_bus.emit(...)` such as `agent_registered`.
 
 ## Control and notification are separate paths
 

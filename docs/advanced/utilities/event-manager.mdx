@@ -65,4 +65,4 @@ There is no `orchestrator.event_manager` public attribute.
 
 ## History is a separate layer
 
-`EventManager` only dispatches callbacks. `OrchestratorEventBus` adds an `EventStore` and records events passed through `event_bus.emit(...)`. See [Event Bus](/advanced/orchestrator-internals/event-bus) for the current lifecycle-history limitation.
+`EventManager` only dispatches callbacks. `OrchestratorEventBus` adds an `EventStore` and records events passed through `event_bus.emit(...)`, which is the path `MessageRouter` uses for routed agent events too. See [Event Bus](/advanced/orchestrator-internals/event-bus) for what the history contains.

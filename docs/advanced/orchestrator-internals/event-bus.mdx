@@ -96,24 +96,22 @@ events = orchestrator.event_bus.event_store.last(
 `EventStore` exposes `last()`, `latest()`, `latest_all_agents()`, `stats()`, and
 `get_capacity_info()`. It does not expose a `query()` method.
 
-## Current Lifecycle-History Limitation
+## What Reaches the History
 
-The current `Orchestrator` gives `MessageRouter` the underlying
-`EventManager`, not the complete `OrchestratorEventBus`. Agent lifecycle
-messages therefore trigger registered callbacks but bypass automatic history
-recording.
+`Orchestrator` gives `MessageRouter` the complete `OrchestratorEventBus`, so
+agent lifecycle messages trigger the registered callbacks *and* are recorded.
 
-Consequences in the current release:
+The history therefore contains:
 
-- `register_agent()` is recorded because it calls `event_bus.emit()` directly;
-- messages such as agent started, ready, terminated, error, and heartbeat reach
-  callbacks but are not automatically stored by `MessageRouter`;
-- `history` can contain orchestrator records such as `INIT`, explicit event-bus
-  emissions, and command-interface error records;
-- a lifecycle filter may return no records even though the callback ran.
+- `register_agent()`, which calls `event_bus.emit()` directly;
+- the messages routed from the agents: started, ready, terminated, error, and
+  heartbeat;
+- orchestrator records such as `INIT` and `SHUTDOWN`, explicit event-bus
+  emissions, and command-interface error records.
 
-This is a runtime limitation, not a CLI filter issue. Do not rely on lifecycle
-history for auditing until the router is connected to `OrchestratorEventBus`.
+Filtering by a lifecycle event name therefore returns the same events the
+callbacks received. The store remains a bounded ring buffer: with more than
+`history_max_events` records, the oldest are dropped.
 
 ## CLI History
 

@@ -25,7 +25,7 @@ flowchart TD
     A --> M
 ```
 
-`MessageRouter` receives the `EventManager` directly, so its lifecycle callbacks do not currently pass through the event-store recording path.
+`MessageRouter` receives the `OrchestratorEventBus`, so its lifecycle events pass through both the callback dispatch and the event-store recording path.
 
 ## Application-facing examples
 
