@@ -119,6 +119,51 @@ class TestOrchestrator(unittest.TestCase):
                 expected_event, agent_name="agent1"
             )
 
+    def test_routed_agent_events_reach_the_event_store(self):
+        """
+        Routed lifecycle events must be recorded in history, not only delivered
+        to the registered callbacks.
+        """
+        for payload in (
+            AgentEvent.AGENT_START.value,
+            AgentEvent.AGENT_READY.value,
+            AgentEvent.AGENT_CLOSE.value,
+        ):
+            msg = ServiceMessage.create_status(
+                sender="agent1",
+                status="success",
+                event_name=payload,
+            )
+            self.orch.message_router.route_agent_message(msg)
+
+        recorded = [
+            record.event_name
+            for record in self.orch.event_bus.get_history(agent_name="agent1")
+        ]
+        self.assertEqual(
+            recorded,
+            [
+                OrchestratorEvent.AGENT_STARTED.value,
+                OrchestratorEvent.AGENT_READY.value,
+                OrchestratorEvent.AGENT_TERMINATED.value,
+            ],
+        )
+
+    def test_routed_agent_error_is_recorded_with_error_severity(self):
+        msg = ServiceMessage.create_status(
+            sender="agent1",
+            status="error",
+            event_name=AgentEvent.AGENT_ERROR.value,
+            error="boom",
+        )
+
+        self.orch.message_router.route_agent_message(msg)
+
+        record = self.orch.event_bus.get_history(agent_name="agent1")[-1]
+        self.assertEqual(record.event_name, OrchestratorEvent.AGENT_ERROR.value)
+        self.assertEqual(record.severity, "ERROR")
+        self.assertEqual(record.data["error_message"], "boom")
+
     def test_join_does_not_release_slot_while_generation_is_starting(self):
         entry = self.orch.register_agent(DummyAgent, "starting-agent")
         entry._initialize_instance()

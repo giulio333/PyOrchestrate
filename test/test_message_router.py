@@ -20,12 +20,10 @@ class TestMessageRouter(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.event_manager = MagicMock()
+        self.event_bus = MagicMock()
         self.message_channel = MessageChannel("process")
         self.logger = MagicMock()
-        self.router = MessageRouter(
-            self.event_manager, self.message_channel, self.logger
-        )
+        self.router = MessageRouter(self.event_bus, self.message_channel, self.logger)
 
     def tearDown(self):
         """Clean up test fixtures."""
@@ -35,7 +33,7 @@ class TestMessageRouter(unittest.TestCase):
 
     def test_initialization(self):
         """Test MessageRouter initialization."""
-        self.assertIsNotNone(self.router.event_manager)
+        self.assertIsNotNone(self.router.event_bus)
         self.assertIsNotNone(self.router.message_channel)
         self.assertIsNotNone(self.router.logger)
         self.assertEqual(len(self.router.get_terminated_agents()), 0)
@@ -51,7 +49,7 @@ class TestMessageRouter(unittest.TestCase):
 
         self.router.route_agent_message(msg)
 
-        self.event_manager.emit.assert_called_once_with(
+        self.event_bus.emit.assert_called_once_with(
             OrchestratorEvent.AGENT_STARTED, agent_name="test_agent"
         )
 
@@ -63,7 +61,7 @@ class TestMessageRouter(unittest.TestCase):
 
         self.router.route_agent_message(msg)
 
-        self.event_manager.emit.assert_called_once_with(
+        self.event_bus.emit.assert_called_once_with(
             OrchestratorEvent.AGENT_READY, agent_name="test_agent"
         )
 
@@ -78,7 +76,7 @@ class TestMessageRouter(unittest.TestCase):
         self.router.route_agent_message(msg)
 
         # Should emit AGENT_TERMINATED event
-        self.event_manager.emit.assert_called_once_with(
+        self.event_bus.emit.assert_called_once_with(
             OrchestratorEvent.AGENT_TERMINATED, agent_name="test_agent"
         )
 
@@ -95,7 +93,7 @@ class TestMessageRouter(unittest.TestCase):
 
         self.router.route_agent_message(msg)
 
-        self.event_manager.emit.assert_called_once_with(
+        self.event_bus.emit.assert_called_once_with(
             OrchestratorEvent.AGENT_HEARTBEAT, agent_name="test_agent"
         )
 
@@ -114,7 +112,7 @@ class TestMessageRouter(unittest.TestCase):
         self.router.route_agent_message(msg)
 
         # Should NOT emit heartbeat event
-        self.event_manager.emit.assert_not_called()
+        self.event_bus.emit.assert_not_called()
 
         # Should log debug message about filtering
         self.logger.debug.assert_called()
@@ -130,7 +128,7 @@ class TestMessageRouter(unittest.TestCase):
 
         self.router.route_agent_message(msg)
 
-        self.event_manager.emit.assert_called_once_with(
+        self.event_bus.emit.assert_called_once_with(
             OrchestratorEvent.AGENT_ERROR,
             agent_name="test_agent",
             error_message="Test error",
@@ -148,7 +146,7 @@ class TestMessageRouter(unittest.TestCase):
 
         self.router.route_agent_message(msg)
 
-        self.event_manager.emit.assert_called_once_with(
+        self.event_bus.emit.assert_called_once_with(
             OrchestratorEvent.AGENT_ERROR,
             agent_name="test_agent",
             error_message="Legacy error",
@@ -163,7 +161,7 @@ class TestMessageRouter(unittest.TestCase):
         self.router.route_agent_message(msg)
 
         # Should not emit any events
-        self.event_manager.emit.assert_not_called()
+        self.event_bus.emit.assert_not_called()
 
         # Should log warning
         self.logger.warning.assert_called_once()
@@ -177,7 +175,7 @@ class TestMessageRouter(unittest.TestCase):
         self.router.route_agent_message(msg)
 
         # Should not emit any events
-        self.event_manager.emit.assert_not_called()
+        self.event_bus.emit.assert_not_called()
 
         # Should log warning about unknown event
         self.logger.warning.assert_called()
@@ -291,14 +289,14 @@ class TestMessageRouter(unittest.TestCase):
             event_name=AgentEvent.AGENT_HEARTBEAT.value,
         )
         self.router.route_agent_message(msg1)
-        self.assertEqual(self.event_manager.emit.call_count, 1)
+        self.assertEqual(self.event_bus.emit.call_count, 1)
 
         # Agent closes - should mark as terminated
         msg2 = ServiceMessage.create_status(
             sender="agent1", status="closed", event_name=AgentEvent.AGENT_CLOSE.value
         )
         self.router.route_agent_message(msg2)
-        self.assertEqual(self.event_manager.emit.call_count, 2)
+        self.assertEqual(self.event_bus.emit.call_count, 2)
 
         # Stale heartbeat arrives - should be filtered
         msg3 = ServiceMessage.create_status(
@@ -307,7 +305,7 @@ class TestMessageRouter(unittest.TestCase):
             event_name=AgentEvent.AGENT_HEARTBEAT.value,
         )
         self.router.route_agent_message(msg3)
-        self.assertEqual(self.event_manager.emit.call_count, 2)
+        self.assertEqual(self.event_bus.emit.call_count, 2)
 
     def test_late_messages_from_old_generation_are_ignored(self):
         """A restarted name cannot be corrupted by its previous instance."""
@@ -328,7 +326,7 @@ class TestMessageRouter(unittest.TestCase):
         self.router.route_agent_message(old_close)
         self.router.route_agent_message(old_heartbeat)
 
-        self.event_manager.emit.assert_not_called()
+        self.event_bus.emit.assert_not_called()
         self.assertFalse(self.router.is_agent_terminated("agent1", 2))
 
     def test_active_generation_is_accepted_after_restart(self):
@@ -342,7 +340,7 @@ class TestMessageRouter(unittest.TestCase):
 
         self.router.route_agent_message(heartbeat)
 
-        self.event_manager.emit.assert_called_once_with(
+        self.event_bus.emit.assert_called_once_with(
             OrchestratorEvent.AGENT_HEARTBEAT, agent_name="agent1"
         )
 

@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** `MessageRouter` takes an `OrchestratorEventBus` as its first
+  argument instead of an `EventManager`, and exposes it as `router.event_bus`
+  rather than `router.event_manager`. Framework integrations that build a
+  router by hand must pass `orchestrator.event_bus`; passing the bare event
+  manager still dispatches callbacks but records nothing in history.
 - **Breaking:** `fastapi`, `uvicorn` and `pydantic` are no longer core
   dependencies. They are only used by the web interface and now live in the
   `web` extra: install with `pip install "PyOrchestrate[web]"` to keep
@@ -47,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Agent lifecycle events never reached the event store. `MessageRouter` was
+  built on the bare `EventManager`, so routed `agent_started`, `agent_ready`,
+  `agent_heartbeat`, `agent_error` and `agent_terminated` triggered the
+  registered callbacks but bypassed `OrchestratorEventBus.emit()` and therefore
+  `EventStore`: CLI `history`, `history-stats`, `get_agent_timeline()` and the
+  web history endpoint saw none of them. The router now receives the bus.
 - `status AGENT_NAME` and `dependencies` returned an internal error for any
   agent. Both handlers read `orchestrator.dependencies`, an attribute removed
   when dependency handling moved into `DependencyGraph`; they now read

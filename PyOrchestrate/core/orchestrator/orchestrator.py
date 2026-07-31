@@ -324,7 +324,7 @@ class Orchestrator(BaseClass):
 
         # Message router for agent message handling (manages its own ChannelHandler)
         self.message_router = MessageRouter(
-            self.event_bus.event_manager, self.msg_channel, self.logger
+            self.event_bus, self.msg_channel, self.logger
         )
         self.lifecycle_manager.before_start = self.message_router.activate_generation
 

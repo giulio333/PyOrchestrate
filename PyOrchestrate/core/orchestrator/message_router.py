@@ -4,13 +4,13 @@ import threading
 from typing import TYPE_CHECKING, Optional, Set
 
 from PyOrchestrate.core.utilities.event import AgentEvent, OrchestratorEvent
-from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 
 if TYPE_CHECKING:
     from loguru import Logger
 
     from PyOrchestrate.core.orchestrator.channel_handler import ChannelHandler
+    from PyOrchestrate.core.orchestrator.event_bus import OrchestratorEventBus
 
 
 class MessageRouter:
@@ -18,11 +18,13 @@ class MessageRouter:
 
     def __init__(
         self,
-        event_manager: EventManager,
+        event_bus: "OrchestratorEventBus",
         message_channel: MessageChannel,
         logger: "Logger",
     ):
-        self.event_manager = event_manager
+        # The bus, not the bare EventManager: routed lifecycle events must
+        # reach EventStore as well as the registered callbacks.
+        self.event_bus = event_bus
         self.message_channel = message_channel
         self.logger = logger
         self._active_generations: dict[str, int] = {}
@@ -94,20 +96,16 @@ class MessageRouter:
         event = msg.payload.get("event")
         if event == AgentEvent.AGENT_CLOSE.value:
             self.mark_agent_terminated(msg.sender, generation_id)
-            self.event_manager.emit(
+            self.event_bus.emit(
                 OrchestratorEvent.AGENT_TERMINATED, agent_name=msg.sender
             )
         elif event == AgentEvent.AGENT_START.value:
-            self.event_manager.emit(
-                OrchestratorEvent.AGENT_STARTED, agent_name=msg.sender
-            )
+            self.event_bus.emit(OrchestratorEvent.AGENT_STARTED, agent_name=msg.sender)
         elif event == AgentEvent.AGENT_READY.value:
-            self.event_manager.emit(
-                OrchestratorEvent.AGENT_READY, agent_name=msg.sender
-            )
+            self.event_bus.emit(OrchestratorEvent.AGENT_READY, agent_name=msg.sender)
         elif event == AgentEvent.AGENT_HEARTBEAT.value:
             if not self.is_agent_terminated(msg.sender, generation_id):
-                self.event_manager.emit(
+                self.event_bus.emit(
                     OrchestratorEvent.AGENT_HEARTBEAT, agent_name=msg.sender
                 )
         elif event in {AgentEvent.AGENT_ERROR.value, "ERROR"}:
@@ -115,7 +113,7 @@ class MessageRouter:
                 "error", "Unknown error"
             )
             self.logger.error(f"Agent {msg.sender} reported error: {error_msg}")
-            self.event_manager.emit(
+            self.event_bus.emit(
                 OrchestratorEvent.AGENT_ERROR,
                 agent_name=msg.sender,
                 error_message=error_msg,
