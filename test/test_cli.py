@@ -8,6 +8,7 @@ from PyOrchestrate.cli import (
     CLIConstants,
     OrchestratorCommand,
     OutputFormatter,
+    StatsCommand,
 )
 from PyOrchestrate.core.agent import BaseThreadAgent
 from PyOrchestrate.core.orchestrator.event_store import EventStore
@@ -21,10 +22,21 @@ class Worker(BaseThreadAgent):
         super().execute()
 
 
+class StubClient:
+    """Answers `stats` with a payload built by a real command handler."""
+
+    zmq_address = "tcp://127.0.0.1:5555"
+
+    def __init__(self, handler: CommandHandler):
+        self._handler = handler
+
+    def send_command(self, command: str, args=None) -> dict:
+        return {"status": "success", "data": self._handler.execute_command(command, [])}
+
+
 @pytest.fixture
-def cli_response():
-    """Answer commands the way the CLI sees them: as the response payload."""
-    orchestrator = Orchestrator(
+def orchestrator():
+    result = Orchestrator(
         config=Orchestrator.Config(
             run_mode=RunMode.STOP_ON_EMPTY,
             enable_command_interface=False,
@@ -32,8 +44,17 @@ def cli_response():
         ),
         name="cli_orchestrator",
     )
-    orchestrator.register_agent(Worker, "worker")
-    orchestrator.register_agent(Worker, "spare")
+    result.register_agent(Worker, "worker")
+    result.register_agent(Worker, "spare")
+
+    yield result
+
+    result.worker_pool.shutdown_all(timeout=2.0)
+
+
+@pytest.fixture
+def cli_response(orchestrator):
+    """Answer commands the way the CLI sees them: as the response payload."""
     handler = CommandHandler(orchestrator)
 
     def run(command: str, args: list | None = None) -> dict:
@@ -42,9 +63,12 @@ def cli_response():
         )
         return handler.execute_command_msg(request).payload
 
-    yield run
+    return run
 
-    orchestrator.worker_pool.shutdown_all(timeout=2.0)
+
+@pytest.fixture
+def stats_command(orchestrator):
+    return StatsCommand(StubClient(CommandHandler(orchestrator)), OutputFormatter())
 
 
 def test_starter_template_uses_current_command_interface_config():
@@ -138,6 +162,16 @@ def test_ps_counts_the_registered_agents_not_the_worker_slots(cli_response):
     output = OutputFormatter.format_response("ps", cli_response("ps"))
 
     assert output.startswith("Orchestrator Status: 0/2 agents running (5 worker slots)")
+
+
+def test_stats_does_not_clear_redirected_output(stats_command, capfd):
+    stats_command._display_stats_iteration()
+
+    output = capfd.readouterr().out
+
+    assert "\x1b[" not in output  # no clear-screen escapes in a pipe
+    assert "AGENT STATS" in output
+    assert "worker" in output
 
 
 def test_orchestrator_status_formats_zmq_address():
