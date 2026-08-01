@@ -459,14 +459,32 @@ class OutputFormatter:
             return OutputFormatter._format_dependencies(data)
         elif command == "commands":
             return OutputFormatter._format_allowed_commands(data)
-        elif command in ["start", "stop"]:
-            return response_data.get("message", "Operation completed")
+        elif command in ["start", "stop", "shutdown"]:
+            return OutputFormatter._format_operation(data)
         elif command == "history":
             return OutputFormatter._format_history(data)
         elif command == "history-stats":
             return OutputFormatter._format_history_stats(data)
         else:
             return json.dumps(response_data, indent=2)
+
+    @staticmethod
+    def _format_operation(data: Dict[str, Any]) -> str:
+        """Format the outcome of start, stop and shutdown.
+
+        These commands answer with a message and, for ``start``, with how the
+        worker pool handled the request: an agent can be queued instead of
+        started right away, which the message alone does not say.
+        """
+        message = data.get("message", "Operation completed")
+        details = [
+            str(detail) for detail in (data.get("status"), data.get("reason")) if detail
+        ]
+
+        if details:
+            return f"{message} ({', '.join(details)})"
+
+        return message
 
     @staticmethod
     def _format_agent_list(data: Dict[str, Any]) -> str:
