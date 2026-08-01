@@ -32,6 +32,40 @@ class TestDependencyGraph(unittest.TestCase):
         self.assertIn("agent_b", deps)
         self.assertIn("agent_c", deps)
 
+    def test_add_duplicate_dependency_repeated_call(self):
+        """Test the same edge declared by two calls is stored once."""
+        self.graph.add_dependency("agent_a", ["agent_b"])
+        self.graph.add_dependency("agent_a", ["agent_b"])
+
+        self.assertEqual(self.graph.get_dependencies("agent_a"), ["agent_b"])
+
+    def test_add_duplicate_dependency_repeated_element(self):
+        """Test a name repeated inside depends_on is stored once."""
+        self.graph.add_dependency("agent_a", ["agent_b", "agent_b"])
+
+        self.assertEqual(self.graph.get_dependencies("agent_a"), ["agent_b"])
+
+    def test_topological_sort_with_duplicate_dependency(self):
+        """Test a duplicate edge is not mistaken for a cycle."""
+        self.graph.add_dependency("agent_a", ["agent_b"])
+        self.graph.add_dependency("agent_a", ["agent_b"])
+        valid_agents = {"agent_a", "agent_b"}
+        self.graph.validate(valid_agents)
+
+        order = self.graph.topological_sort(valid_agents)
+
+        self.assertEqual(order, ["agent_b", "agent_a"])
+
+    def test_topological_sort_with_duplicate_in_depends_on(self):
+        """Test a repeated element in depends_on is not mistaken for a cycle."""
+        self.graph.add_dependency("agent_a", ["agent_b", "agent_b"])
+        valid_agents = {"agent_a", "agent_b"}
+        self.graph.validate(valid_agents)
+
+        order = self.graph.topological_sort(valid_agents)
+
+        self.assertEqual(order, ["agent_b", "agent_a"])
+
     def test_validate_success(self):
         """Test validation succeeds with valid graph."""
         self.graph.add_dependency("agent_a", ["agent_b"])

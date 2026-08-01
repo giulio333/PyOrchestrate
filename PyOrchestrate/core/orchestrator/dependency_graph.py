@@ -29,11 +29,18 @@ class DependencyGraph:
         """
         Add dependency: agent_name depends on depends_on agents.
 
+        Duplicate edges are ignored: declaring the same dependency twice (either
+        by calling this method again or by repeating a name in ``depends_on``)
+        leaves the graph unchanged.
+
         Args:
             agent_name: Name of the dependent agent
             depends_on: List of agent names that must start before agent_name
         """
-        self.dependencies[agent_name].extend(depends_on)
+        existing = self.dependencies[agent_name]
+        for dep in depends_on:
+            if dep not in existing:
+                existing.append(dep)
         self._validated = False  # Invalidate cached validation
 
     def validate(self, valid_agent_names: set[str]) -> None:
