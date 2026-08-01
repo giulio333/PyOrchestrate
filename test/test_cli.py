@@ -7,6 +7,7 @@ from PyOrchestrate.cli import (
     OrchestratorCommand,
     OutputFormatter,
 )
+from PyOrchestrate.core.orchestrator.event_store import EventStore
 
 
 def test_starter_template_uses_current_command_interface_config():
@@ -28,17 +29,53 @@ def test_history_type_option_is_forwarded_as_event_name():
     assert params["last"] == 5
 
 
+def _capacity_info_with(event_count: int, capacity: int = 100) -> dict:
+    """Build a capacity payload from a real store, as the orchestrator does."""
+    store = EventStore(capacity=capacity)
+    for index in range(event_count):
+        store.record(category="orchestrator", event_name=f"event_{index}")
+
+    return store.get_capacity_info()
+
+
 def test_history_table_formats_event_name_filter():
     output = OutputFormatter._format_history(
         {
             "events": [],
             "count": 0,
             "filters": {"event_name": "AGENT_STARTED"},
-            "capacity_info": {"current_size": 0, "capacity": 100},
+            "capacity_info": _capacity_info_with(0),
         }
     )
 
     assert "Filters: type=AGENT_STARTED" in output
+
+
+def test_history_table_reports_default_store_usage():
+    output = OutputFormatter._format_history(
+        {
+            "events": [],
+            "count": 0,
+            "filters": {},
+            "capacity_info": _capacity_info_with(3),
+        }
+    )
+
+    assert "Buffer: 3/100 events" in output
+
+
+def test_history_stats_table_reports_stored_event_counts():
+    output = OutputFormatter._format_history_stats(
+        {
+            "statistics": {},
+            "capacity_info": _capacity_info_with(3),
+            "agent_filter": None,
+            "timestamp": "2026-01-01T00:00:00",
+        }
+    )
+
+    assert "Buffer: 3/100 events" in output
+    assert "Total Events: 3" in output
 
 
 def test_orchestrator_status_formats_zmq_address():
