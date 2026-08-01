@@ -622,7 +622,7 @@ class EventStore:
               - event-specific stores (e.g., "agent_heartbeat"): Custom store capacity info
             - "summary": High-level aggregated information
               - "total_stores": Total number of configured stores
-              - "total_events": Approximate total events across all stores
+              - "total_events_approx": Approximate total events across all stores
 
         Useful for monitoring memory usage and detecting storage issues.
 

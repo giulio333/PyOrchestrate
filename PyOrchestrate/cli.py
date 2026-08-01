@@ -568,6 +568,21 @@ class OutputFormatter:
         return "\n".join(output)
 
     @staticmethod
+    def _default_store_usage(capacity_info: Dict[str, Any]) -> str:
+        """Render the default event store usage as ``<used>/<capacity> events``.
+
+        ``EventStore.get_capacity_info`` reports one entry per storage policy,
+        so the figures live under ``stores.__default__`` rather than at the top
+        level of the payload.
+        """
+        default_store = capacity_info.get("stores", {}).get("__default__", {})
+
+        return (
+            f"{default_store.get('current_size', 0)}/"
+            f"{default_store.get('capacity', 0)} events"
+        )
+
+    @staticmethod
     def _format_history(data: Dict[str, Any]) -> str:
         """Format history output."""
         output = []
@@ -592,9 +607,7 @@ class OutputFormatter:
             if filter_parts:
                 output.append(f"Filters: {', '.join(filter_parts)}")
 
-        output.append(
-            f"Buffer: {capacity_info.get('current_size', 0)}/{capacity_info.get('capacity', 0)} events"
-        )
+        output.append(f"Buffer: {OutputFormatter._default_store_usage(capacity_info)}")
         output.append("")
 
         if events:
@@ -631,10 +644,11 @@ class OutputFormatter:
         output.append(f"Timestamp: {timestamp}")
         if agent_filter:
             output.append(f"Agent Filter: {agent_filter}")
+        output.append(f"Buffer: {OutputFormatter._default_store_usage(capacity_info)}")
         output.append(
-            f"Buffer: {capacity_info.get('current_size', 0)}/{capacity_info.get('capacity', 0)} events"
+            f"Total Events: "
+            f"{capacity_info.get('summary', {}).get('total_events_approx', 0)}"
         )
-        output.append(f"Total Events: {capacity_info.get('total_events', 0)}")
         output.append("")
 
         by_type = statistics.get("by_type", {})
