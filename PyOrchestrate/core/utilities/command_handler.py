@@ -9,7 +9,7 @@ core Orchestrator functionality.
 import json
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 from enum import Enum
 
 from PyOrchestrate.core.orchestrator.event_store import EventRecord
@@ -151,6 +151,12 @@ class CommandHandler:
         """
         self.orchestrator = orchestrator
         self.logger = orchestrator.logger
+
+        # psutil derives CPU usage from the delta between two consecutive
+        # cpu_percent() calls on the same Process object, so a freshly built
+        # one always answers 0.0. Keeping the objects alive across `stats`
+        # requests is what makes the percentage meaningful.
+        self._process_cache: Dict[int, Any] = {}
 
         # Process allowed_commands
         if allowed_commands is None:
@@ -451,9 +457,7 @@ class CommandHandler:
                 # Add process-specific stats if available
                 if agent.is_initialized and hasattr(agent.instance, "pid"):
                     try:
-                        import psutil
-
-                        process = psutil.Process(agent.instance.pid)
+                        process = self._process_for(agent.instance.pid)
                         agent_stat.update(
                             {
                                 "cpu_percent": process.cpu_percent(),
@@ -486,6 +490,10 @@ class CommandHandler:
 
                 agents_stats.append(agent_stat)
 
+            self._prune_process_cache(
+                {stat["pid"] for stat in agents_stats if stat["pid"] is not None}
+            )
+
             return {
                 "timestamp": datetime.now().isoformat(),
                 "orchestrator": {
@@ -499,13 +507,43 @@ class CommandHandler:
         except Exception as e:
             raise CommandException(f"Failed to get statistics: {str(e)}", code=500)
 
+    def _process_for(self, pid: int):
+        """Return the cached psutil.Process for `pid`, building it if needed.
+
+        A process is rebuilt when the cached one is gone, which also covers a
+        recycled pid: psutil compares the creation time, so a new agent reusing
+        the pid of a dead one does not inherit its measurements.
+
+        Args:
+            pid: Process id of a running agent.
+
+        Returns:
+            psutil.Process: The process handle bound to `pid`.
+        """
+        import psutil
+
+        process = self._process_cache.get(pid)
+
+        if process is None or not process.is_running():
+            process = psutil.Process(pid)
+            self._process_cache[pid] = process
+
+        return process
+
+    def _prune_process_cache(self, live_pids: Set[int]) -> None:
+        """Forget the cached processes of agents that are no longer running.
+
+        Args:
+            live_pids: Pids the orchestrator currently tracks.
+        """
+        for pid in set(self._process_cache) - live_pids:
+            del self._process_cache[pid]
+
     def _get_agent_uptime(self, agent) -> str:
         """Calculate agent uptime if possible."""
         try:
             if agent.is_initialized and hasattr(agent.instance, "pid"):
-                import psutil
-
-                process = psutil.Process(agent.instance.pid)
+                process = self._process_for(agent.instance.pid)
                 create_time = process.create_time()
                 uptime_seconds = time.time() - create_time
 
