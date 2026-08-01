@@ -198,9 +198,6 @@ class StatsCommand(BaseCommand):
         # Set up signal handler for graceful exit
         signal.signal(signal.SIGINT, signal_handler)
 
-        print("AGENT STATS - Press Ctrl+C to stop")
-        print("=" * 80)
-
         try:
             while True:
                 self._display_stats_iteration()
@@ -209,9 +206,13 @@ class StatsCommand(BaseCommand):
             print("\n\nMonitoring stopped.")
 
     def _display_stats_iteration(self) -> None:
-        """Display one iteration of stats."""
-        # Clear screen
-        os.system("clear" if os.name == "posix" else "cls")
+        """Display one iteration of stats.
+
+        Redirected output keeps every refresh instead of overwriting it:
+        clearing a pipe or a file would only write escape sequences into it.
+        """
+        if sys.stdout.isatty():
+            os.system("clear" if os.name == "posix" else "cls")
 
         print("AGENT STATS - Press Ctrl+C to stop")
         print("=" * 80)
@@ -233,6 +234,10 @@ class StatsCommand(BaseCommand):
 
         except Exception as e:
             print(f"Error: {e}")
+
+        # Output to a pipe is block-buffered: without this the refreshes only
+        # surface when the buffer fills up, or never if the command is killed.
+        sys.stdout.flush()
 
 
 class CommandRouter:
