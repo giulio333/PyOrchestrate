@@ -492,8 +492,11 @@ class OutputFormatter:
         output = []
         agents = data.get("agents", [])
 
+        # The denominator counts the registered agents, not the worker slots:
+        # "2/5" with two agents registered reads as three of them being down.
         output.append(
-            f"Orchestrator Status: {data.get('running_count', 0)}/{data.get('max_workers', 0)} agents running"
+            f"Orchestrator Status: {data.get('running_count', 0)}/{len(agents)} "
+            f"agents running ({data.get('max_workers', 0)} worker slots)"
         )
 
         if data.get("waiting_count", 0) > 0:

@@ -28,10 +28,12 @@ def cli_response():
         config=Orchestrator.Config(
             run_mode=RunMode.STOP_ON_EMPTY,
             enable_command_interface=False,
+            max_workers=5,
         ),
         name="cli_orchestrator",
     )
     orchestrator.register_agent(Worker, "worker")
+    orchestrator.register_agent(Worker, "spare")
     handler = CommandHandler(orchestrator)
 
     def run(command: str, args: list | None = None) -> dict:
@@ -130,6 +132,12 @@ def test_shutdown_is_reported_as_a_message_not_as_raw_json(cli_response):
     output = OutputFormatter.format_response("shutdown", cli_response("shutdown"))
 
     assert output == "Orchestrator shutdown initiated"
+
+
+def test_ps_counts_the_registered_agents_not_the_worker_slots(cli_response):
+    output = OutputFormatter.format_response("ps", cli_response("ps"))
+
+    assert output.startswith("Orchestrator Status: 0/2 agents running (5 worker slots)")
 
 
 def test_orchestrator_status_formats_zmq_address():
