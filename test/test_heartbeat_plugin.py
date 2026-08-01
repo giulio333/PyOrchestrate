@@ -34,9 +34,7 @@ class TestHeartbeatTimeoutReporting(unittest.TestCase):
         """Test a detected timeout reaches the orchestrator event store."""
         self._simulate_timeout()
 
-        events = self.orch.event_bus.event_store.last(
-            n=10, event_name="AGENT_TIMEOUT"
-        )
+        events = self.orch.event_bus.event_store.last(n=10, event_name="AGENT_TIMEOUT")
 
         self.assertEqual(len(events), 1)
         record = events[0]
@@ -50,9 +48,7 @@ class TestHeartbeatTimeoutReporting(unittest.TestCase):
         self._simulate_timeout()
         self.heartbeat._check_heartbeat_timeouts()
 
-        events = self.orch.event_bus.event_store.last(
-            n=10, event_name="AGENT_TIMEOUT"
-        )
+        events = self.orch.event_bus.event_store.last(n=10, event_name="AGENT_TIMEOUT")
 
         self.assertEqual(len(events), 1)
 
@@ -64,9 +60,7 @@ class TestHeartbeatTimeoutReporting(unittest.TestCase):
         self.heartbeat._on_agent_heartbeat("ghost")
         self._simulate_timeout()
 
-        events = self.orch.event_bus.event_store.last(
-            n=10, event_name="AGENT_TIMEOUT"
-        )
+        events = self.orch.event_bus.event_store.last(n=10, event_name="AGENT_TIMEOUT")
 
         self.assertEqual(len(events), 2)
 
