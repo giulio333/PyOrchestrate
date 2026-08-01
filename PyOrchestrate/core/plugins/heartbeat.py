@@ -202,7 +202,7 @@ class OrchestratorHeartbeatPlugin(PluginProtocol):
         )
 
         # Record event in event store
-        self.orchestrator.event_store.record(
+        self.orchestrator.event_bus.event_store.record(
             category="heartbeat",
             event_name="AGENT_TIMEOUT",
             agent=agent_name,
