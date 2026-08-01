@@ -5,6 +5,9 @@ handlers kept reading the removed `orchestrator.dependencies` unnoticed. These
 tests therefore use a real instance.
 """
 
+import os
+import time
+
 import pytest
 
 from PyOrchestrate.core.agent import BaseThreadAgent
@@ -60,3 +63,28 @@ def test_ps_reports_lifecycle_state_for_registered_agents(handler):
         agent["agent_name"]: agent["lifecycle_state"] for agent in result["agents"]
     }
     assert states == {"consumer": "registered", "producer": "registered"}
+
+
+def test_stats_reuses_the_same_process_handle_across_calls(handler):
+    pid = os.getpid()
+
+    assert handler._process_for(pid) is handler._process_for(pid)
+
+
+def test_a_reused_process_handle_measures_cpu_usage(handler):
+    pid = os.getpid()
+    handler._process_for(pid).cpu_percent()  # first call only sets the baseline
+
+    deadline = time.monotonic() + 0.2
+    while time.monotonic() < deadline:  # burn measurable cpu time
+        pass
+
+    assert handler._process_for(pid).cpu_percent() > 0
+
+
+def test_stats_forgets_the_processes_of_agents_that_are_gone(handler):
+    handler._process_for(os.getpid())
+
+    handler.execute_command("stats", [])
+
+    assert handler._process_cache == {}
