@@ -14,11 +14,11 @@ __pycache__/
 
 *.egg-info/
 
-# ambienti virtuali
+# virtual environments
 .venv/
 venv/
 
-# cache di tool e output di CI
+# tool caches and CI output
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -27,7 +27,7 @@ junit/
 .coverage
 htmlcov/
 
-# configurazione locale
+# local configuration
 .env
 .idea/
 
