@@ -91,17 +91,76 @@ dependent may enter its own startup while its dependency is still executing
 event containers.
 
 When readiness is required, add an explicit application-level barrier, for
-example a shared event or a service health check:
+example a shared event or a service health check. The dependency below still
+orders the two start requests; the event is what makes the API wait:
 
 ```python
-class ApiAgent(PeriodicProcessAgent):
+import multiprocessing
+
+class Database(PeriodicProcessAgent):
+    def setup(self):
+        super().setup()
+        time.sleep(2)                 # whatever makes it slow to become usable
+        self.database_ready.set()     # releases everyone waiting on the barrier
+
+class Api(PeriodicProcessAgent):
     def setup(self):
         super().setup()
         if not self.database_ready.wait(timeout=30):
             raise RuntimeError("database did not become ready")
+
+database_ready = multiprocessing.Event()
+
+orchestrator.register_agent(Database, "database", database_ready=database_ready)
+orchestrator.register_agent(Api, "api", database_ready=database_ready)
+orchestrator.add_dependency("api", ["database"])
 ```
 
-Pass the shared synchronization primitive when registering the agent.
+Its log shows both halves of the distinction. The API is started 80 milliseconds
+after the database, long before the database is usable — that is the ordering.
+It then sits on the barrier for two seconds and resumes on the very timestamp of
+the `set()` — that is the readiness:
+
+```text
+10:13:39.343 | INFO | Orchestrator | Agent 'database' started successfully.
+10:13:39.422 | INFO | Orchestrator | Agent 'api' started successfully.
+10:13:39.430 | INFO | api          | waiting for the database
+10:13:41.368 | INFO | database     | ready, other agents may proceed
+10:13:41.369 | INFO | api          | database is ready, starting to serve
+```
+
+Three things about this pattern are worth knowing before you write your own.
+
+**The keyword argument becomes an attribute on its own.** Extra keyword
+arguments to `register_agent()` reach `BaseAgent.__init__()` and are stored as
+instance attributes, which is why `database_ready=database_ready` is readable as
+`self.database_ready` inside the agent. The name of the argument is the name of
+the attribute.
+
+**Blocking in `setup()` does not trip `agent_start_timeout`.** The agent sets
+`state_events.start_event` before calling `setup()`, and
+`AgentLifecycleManager.start_agent()` waits for exactly that event: the
+orchestrator has already logged the agent as started while it sits on the
+barrier. The 30 seconds above are therefore unrelated to the orchestrator's own
+start timeout. When the barrier does expire, raising is handled like any other
+failure in `setup()` — the agent terminates with a `critical` status and emits
+`AGENT_ERROR`.
+
+<Warning title="Match the primitive to the agent type">
+Process agents need a `multiprocessing.Event`; a `threading.Event` cannot be
+pickled into them and the failure names neither the event nor the agent that
+holds it:
+
+```text
+ERROR | Orchestrator | Failed to start agent 'database': cannot pickle '_thread.lock' object
+```
+
+Thread agents are the other way round: a `threading.Event` is enough, and a
+`multiprocessing.Event` costs a system semaphore for nothing.
+</Warning>
+
+A runnable version of this example lives in
+[`examples/example_readiness_barrier.py`](https://github.com/giulio333/PyOrchestrate/blob/main/examples/example_readiness_barrier.py).
 
 ## Interaction with WorkerPoolScheduler
 

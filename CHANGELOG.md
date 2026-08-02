@@ -103,6 +103,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PoolAgentConfig.orchestrator_config`, the configuration of the orchestrator
   a pool creates for its children — use it to give the inner orchestrator a
   command port of its own.
+- `examples/example_readiness_barrier.py`, the runnable version of the
+  readiness barrier documented under "Ordering Is Not Readiness": a dependent
+  agent waiting on an event its dependency sets. The page previously showed a
+  single class, without the registration that shares the event.
 
 - `Orchestrator.Config.agent_stop_timeout` (default `10.0`), the budget shared
   by all agents while shutdown waits for them to terminate.
