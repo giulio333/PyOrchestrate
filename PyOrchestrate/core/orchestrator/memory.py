@@ -473,16 +473,16 @@ class OMemory:
     Attributes:
         _agents (Dict[str, AgentEntry]): Map from agent name to `AgentEntry` object.
         _groups (Dict[str, Group]): Map from group name to `Group` object.
-        _agent_stats (Dict[str, List[Dict[str, Any]]]): mappa dell’agente con una lista di eventi registrati.
+        _agents_history (Dict[str, List[Dict[str, Any]]]): Map from agent name to a list of recorded events.
 
     """
 
     def __init__(self) -> None:
-        # Mappa dal nome dell’agente all’oggetto `AgentEntry`
+        # Map from agent name to its `AgentEntry` object
         self._agents: Dict[str, AgentEntry] = {}
-        # Mappa dal nome del gruppo all’oggetto `Group`
+        # Map from group name to its `Group` object
         self._groups: Dict[str, Group] = {}
-        # Mappa dal nome dell’agente a una lista di eventi con timestamp
+        # Map from agent name to a list of timestamped events
         self._agents_history: Dict[str, List[Dict[str, Any]]] = {}
 
     @property

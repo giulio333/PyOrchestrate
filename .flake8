@@ -1,0 +1,7 @@
+[flake8]
+# CI runs `flake8 .` from the repository root, where `uv` also creates .venv.
+# Without this the local run reports around 60 findings from third-party
+# sources and none of them are yours, so the command documented in
+# CONTRIBUTING.md does not reproduce CI. `extend-exclude` adds to flake8's
+# default list rather than replacing it.
+extend-exclude = .venv,venv,build,dist

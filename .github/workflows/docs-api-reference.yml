@@ -56,8 +56,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ -n "$(git status --porcelain docs/sdk-artifacts)" ]; then
             git add docs/sdk-artifacts
-            git commit -m "docs: rigenera l'API reference dalle docstring"
+            git commit -m "docs: regenerate the API reference from the docstrings"
             git push
           else
-            echo "Nessuna modifica all'API reference."
+            echo "No changes to the API reference."
           fi
