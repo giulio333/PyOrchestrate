@@ -86,6 +86,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   child. The inner orchestrator is now built from
   `PoolAgentConfig.orchestrator_config`, and without one its command interface
   is disabled.
+- `DependencyGraph.topological_sort()` wrote an empty list into
+  `self.dependencies` for every agent it was asked to order. Since
+  `Orchestrator.start()` sorts, from that point on the `dependencies` command
+  (and `/api/orchestrator/dependencies`) reported every registered agent,
+  against the documented payload, and `has_dependencies()` answered `True` for
+  a graph holding no edge at all. Sorting now reads the graph through a local
+  view, and `add_dependency()` with an empty list adds no node.
 - `PoolAgent.setup()` passed its entries to `register_agent()` positionally, so
   each child's `ControlEvents` arrived as `custom_plugin`, its `StateEvents` as
   `control_events`, the real `state_events` was dropped and `AgentEntry.plugin`

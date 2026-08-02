@@ -66,6 +66,11 @@ Every dependency appears before its dependent. Independent agents can appear in
 any valid order because the orchestrator supplies registered names as a set.
 Do not use registration order as a priority mechanism.
 
+Sorting reads the graph without modifying it: an agent that declares no
+dependency stays out of `dependency_graph.dependencies`, before and after
+`Orchestrator.start()`. That is the mapping the [`dependencies`](/cli/runtime-commands#dependencies)
+command reports, and what `has_dependencies()` answers about.
+
 ## Ordering Is Not Readiness
 
 The dependency graph orders **start requests**. It does not wait until a
