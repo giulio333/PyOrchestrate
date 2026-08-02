@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `dockerComposeFile` — and therefore never defined a usable environment. Use
   `uv sync --extra web && uv run pytest`.
 - The Copilot guidance under `.github/` (`copilot-instructions.md`,
-  `instructions/`, `context/`, `chatmodes/`). Nothing kept those 3,671 lines in
+  `instructions/`, `context/`, `chatmodes/`). Nothing kept those 3,672 lines in
   sync with the code: they ended up offering copy-paste snippets importing
   `HeartbeatPlugin`, which does not exist, and importing
   `AgentTerminationStatus`, `OrchestratorEvent` and `RunMode` from
