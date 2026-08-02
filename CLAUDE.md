@@ -1,142 +1,181 @@
 # PyOrchestrate
 
-Framework Python per orchestrare applicazioni multi-processo e multi-thread
-composte da agenti. Il package è `PyOrchestrate/`, la documentazione `docs/`.
+Python framework for orchestrating multi-process and multi-thread applications
+built out of agents. The package is `PyOrchestrate/`, the test suite `test/`,
+the documentation site `docs/`, the Sphinx sources behind the API reference
+`sphinx/`.
 
-## Documentazione
+Version 0.2.0, alpha. Requires Python >= 3.11; development happens on the
+version in `.python-version` (3.13) and CI runs the suite on 3.11, 3.12 and
+3.13 — so no syntax newer than 3.11.
 
-La documentazione è un sito [Mintlify](https://mintlify.com) che vive in
-`docs/`, nello stesso repo del codice. Il deploy è automatico via GitHub App a
-ogni push su `main`: sul dashboard Mintlify il repo è configurato in modalità
-monorepo con path `/docs`, quindi `docs.json` sta in `docs/docs.json` e tutti i
-path nella navigation sono relativi a `docs/` (`learn/agents/index`, non
-`docs/learn/agents/index`).
+## Language
 
-### Anteprima locale
+**Everything in this repository is in English**: code, comments, docstrings,
+documentation pages, commit messages, changelog entries, issue and pull request
+text. This applies to what you write too, whatever language the conversation is
+being held in. `CONTRIBUTING.md` states the policy for humans — contributions
+in other languages are sent back for translation — and it applies to you
+without exception.
 
-```bash
-rm -rf docs/.mint          # vedi nota sulla cache, qui sotto
-cd docs
-npx mint dev               # anteprima su http://localhost:3000
-npx mint broken-links      # verifica dei link interni
-```
+## Code and documentation ship together
 
-Da lanciare sempre prima di pushare modifiche alla documentazione.
+**A behaviour change is not finished until its documentation is updated in the
+same change.** Whatever the trigger — an issue, a pull request, a drive-by fix
+— anything that touches `PyOrchestrate/` carries with it:
 
-> **Se il tab API Reference è vuoto in locale, è la CLI vecchia, non la
-> configurazione.** Serve `mint` >= 4.2.742: con la 4.2.507 il dev server non
-> renderizzava la feature SDK reference — il tab compariva nella barra ma era
-> vuoto e ogni `/api/...` rispondeva 404. Attenzione che `npx mint` preferisce
-> il binario installato globalmente e **non** scarica da sé la versione nuova:
->
-> ```bash
-> npm install -g mint@latest    # poi verifica con: mint --version
-> ```
->
-> Non toccare `docs.json` per inseguire questo sintomo: la config è valida
-> contro lo schema Mintlify (`mint validate` passa) e l'artifact viene letto
-> nonostante `sdk-artifacts/` sia in `.mintignore`. Verificato entrambi.
+1. the narrative pages under `docs/` that describe that behaviour. Grep the
+   docs for the class, method or CLI command you touched rather than assuming
+   nothing covers it;
+2. an entry in `CHANGELOG.md` under `[Unreleased]`, marked **Breaking** when it
+   breaks code a user already wrote;
+3. the updated docstrings and the regenerated `docs/sdk-artifacts/` (see
+   [Documentation](#documentation));
+4. tests in `test/`.
 
-> **`mint broken-links` segnala come rotti tutti i link `/api/...`: sono falsi
-> positivi.** Il checker guarda solo le pagine con un file `.mdx` alle spalle e
-> non conosce quelle generate dall'artifact SDK, quindi continua a riportarli
-> anche con la CLI aggiornata e con il dev server che le serve a 200. Prima di
-> "correggere" uno di quei link, provalo su `http://localhost:3000/api/...`.
-> Gli slug corretti sono `/api/<nome-del-rst>`, come da `directory: "api"`.
+Deferring the documentation "to a follow-up PR" is how the site came to
+describe `OMemory` methods that did not exist. The recent history is the
+standard to match: a fix commit touches the source, the test, the page and the
+changelog in one go.
 
-> **Svuota sempre `docs/.mint` prima di avviare `mint dev`.** Il dev server vi
-> tiene la cache della build precedente e non rilegge da zero tutto il
-> contenuto — in particolare l'artifact Sphinx. Senza questo passaggio continui
-> a vedere la versione vecchia e ti convinci che una modifica non abbia avuto
-> effetto: è già successo sia con le pagine dell'API reference sia con gli slug
-> `/api/...` dopo aver spostato i `.rst`. Se una modifica "non si vede",
-> sospetta la cache prima di sospettare la configurazione.
+When a change removes or renames something, search `docs/` for the old name.
+Stale mentions and warnings that are no longer true on otherwise unrelated
+pages are the usual leftovers — several commits exist for no other reason than
+cleaning those up afterwards.
 
-### Regole di scrittura delle pagine
+## Architecture
 
-- **Le pagine sono `.mdx`, mai `.md`.** In `.md` Mintlify non renderizza i
-  componenti: `<Tip>`, `<Warning>`, `<Card>` finirebbero come testo grezzo o
-  sparirebbero del tutto, e il problema si nota solo a deploy fatto.
-- **Ogni pagina ha `title` nel frontmatter.**
-- **Link e immagini vanno in path assoluti dalla docs root, senza estensione:**
-  `/learn/agents/index`, non `./index.mdx` né `../agents/index.md`.
-- **Ogni pagina va inserita in `docs.json`**, altrimenti esiste ma è
-  irraggiungibile dalla navigazione.
-- I diagrammi esistono in coppia light/dark e si alternano con
-  `className="block dark:hidden"` / `"hidden dark:block"`.
+An `Orchestrator` owns the lifecycle of isolated execution units (`Agent`s),
+each running in its own process or thread. Its internals live in
+`PyOrchestrate/core/orchestrator/` and are wired together in `Orchestrator`:
 
-### API Reference
+| Component | Role |
+| --- | --- |
+| `DependencyGraph` | declared inter-agent dependencies and their start order |
+| `AgentLifecycleManager` | start, stop and restart of the individual agent |
+| `WorkerPoolScheduler` | the worker slots the agents actually run in |
+| `OrchestratorEventBus` + `EventStore` | emission and history of the events |
+| `MessageRouter` | inbound agent messages routed onto the bus |
+| `CommandInterface` | the ZeroMQ endpoint the CLI and the web interface talk to |
+| `PluginManager` | orchestrator-level plugins |
+| `OMemory` | registry of the agent entries, their groups and lifecycle state |
 
-Il tab API Reference non è scritto a mano: è generato dalle docstring dei
-sorgenti. Sphinx produce un artifact JSON che Mintlify consuma tramite la sua
-feature *SDK reference* (`"sdk": {"format": "sphinx"}` in `docs.json`).
+Agents live in `PyOrchestrate/core/agent/`, each in a `Process` and a `Thread`
+flavour: `BaseAgent` (`setup` / `execute` / `on_stop`), `LoopingAgent`
+(`execute`, continuous), `PeriodicAgent` (`runner`, on a schedule), `PoolAgent`
+(`runner`, work distributed over a pool). `PoolProcessAgent` and
+`PoolThreadAgent` are resolved lazily via PEP 562 in
+`core/agent/__init__.py`: `pool_agent` imports `Orchestrator`, which imports
+`base_agent`, so an eager import would hit a partially initialised module.
 
-```bash
-./scripts/build_api_reference.sh   # richiede sphinx, da eseguire con Python 3.13
-```
+Communication plugins (`ZeroMQPubSub`, `ZeroMQReqRep`, `ZeroMQPushPull`,
+`ZeroMQRouterDealer`, `ZeroMQPair`, `ZeroMQPoller`) and the heartbeat plugins
+live in `PyOrchestrate/core/plugins/`.
 
-> **Rigenera sempre con la versione di Python indicata da `.python-version`
-> (3.13), la stessa del workflow.** Autodoc rende anche le firme ereditate
-> dalla stdlib, che cambiano tra versioni: generando con un Python diverso
-> l'artifact rimbalza avanti e indietro a ogni build — la firma di `enum.Enum`
-> è cambiata nella 3.12 — e la CI produce commit di rigenerazione che non
-> corrispondono a nessuna modifica delle docstring. Se il diff dell'artifact
-> mostra cambiamenti nelle firme senza che tu abbia toccato le docstring,
-> stai usando l'interprete sbagliato.
+Conventions that silently break things when ignored:
 
-- `sphinx/conf.py` — configurazione (autodoc + napoleon, docstring Google)
-- `sphinx/*.rst` — un file per sezione (`agent`, `orchestrator`, `plugins`,
-  `utilities`, `base`, `cli`, `web`); **aggiungere qui i moduli nuovi** e
-  inserirli nel toctree di `sphinx/index.rst`, altrimenti non compaiono nella
-  reference
-- Le pagine narrative **rimandano alla reference per firme e parametri**
-  (`/api/plugins`, `/api/agent`, …) invece di ricopiarli: una firma scritta a
-  mano in un `.mdx` è un secondo posto da cui può divergere dal codice, ed è il
-  meccanismo che ha prodotto i metodi fantasma di `OMemory`.
-- `docs/sdk-artifacts/` — output generato, committato perché Mintlify lo legge
-  dal repo; escluso dalla pubblicazione via `docs/.mintignore`
+- **Call `super()` first in every lifecycle hook.** `setup`, `execute` and
+  `runner` do bookkeeping in the base class (counters, limits, plugin
+  wiring); skipping the call, or making it last, breaks it.
+- **Configuration goes in the inner `Config` class, plugins in the inner
+  `Plugin` class**, both re-declared with their type annotation
+  (`config: Config`, `plugin: Plugin`). This is the framework's public shape,
+  not a stylistic preference.
+- **The version number has one source**, `pyproject.toml`, exposed as
+  `PyOrchestrate.__version__`. Never write the literal anywhere else.
 
-I `.rst` stanno nella root di `sphinx/`, non in una sottocartella: Mintlify
-somma il percorso interno a `directory` di `docs.json` e si otterrebbero URL
-tipo `/api/api/agent`.
+The CLI (`pyorchestrate`, `PyOrchestrate/cli.py`) exposes `create`, `ps`,
+`status`, `dependencies`, `start`, `stop`, `commands`, `shutdown`, `history`,
+`history-stats` and `stats`, all speaking to `CommandInterface` over ZeroMQ.
+`pyorchestrate-web` serves the FastAPI interface in
+`PyOrchestrate/web_interface/`.
 
-L'artifact si rigenera da solo su `main` quando cambiano i sorgenti Python,
-tramite `.github/workflows/docs-api-reference.yml`. In locale va rigenerato a
-mano dopo aver modificato le docstring.
-
-Dopo ogni rigenerazione dell'artifact riavvia `mint dev` svuotando la cache,
-come descritto nella nota sull'anteprima locale: altrimenti continui a vedere
-la reference precedente.
-
-## Test
+## Working on the code
 
 ```bash
-uv sync --extra web      # crea .venv con dipendenze, extra web e gruppo dev
+uv sync --extra web      # dependencies, web extra and dev group into .venv
 uv run pytest
 ```
 
-**Questo repo non ha un devcontainer, e la regola globale «i test girano nel
-devcontainer» qui non si applica.** `.devcontainer/devcontainer.json` è stato
-rimosso: conteneva solo `tasks`, senza `image` né `build`, quindi non definiva
-nessun ambiente e non era avviabile — chi lo seguiva alla lettera restava
-bloccato. L'isolamento lo dà `uv`, che ricrea `.venv` da `uv.lock` senza
-toccare l'interprete di sistema.
+Before pushing, run what CI runs — the three of them, in this order:
 
-Non installare le dipendenze con `pip` sull'host: `uv run` lo fa da sé nella
-venv del progetto.
+```bash
+uv run black --check --diff .    # CI verifies formatting, it does not fix it
+uv run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+uv run pytest
+```
 
-### Dipendenze
+`black --check` fails the build; the style is pinned in `[tool.black]` (line
+length 88, target py311) so it does not depend on the version installed on the
+machine. `flake8` reads `.flake8`, which excludes `.venv` — `uv` creates it
+inside the project, and without the exclude a local `flake8 .` reports some
+sixty findings from third-party sources while CI, which has no `.venv`, reports
+none.
 
-- **Core** (`[project.dependencies]`): solo ciò che il package importa —
-  `loguru`, `psutil`, `pyzmq`.
-- **Extra `web`**: `fastapi`, `uvicorn`, `pydantic`, usati unicamente da
-  `PyOrchestrate/web_interface/server.py`. Senza l'extra la web interface non
-  è importabile: se aggiungi un test o un modulo che la tocca, ricordati che
-  la CI installa `pip install -e ".[web]"`.
-- **Gruppo `dev`** (`[dependency-groups]`, PEP 735): pytest, black, flake8,
-  pylint, coverage, sphinx. `uv` lo installa di default, quindi `uv run pytest`
-  basta. Ha sostituito `requirements-dev.txt`.
-- `requirements.txt` è **generato**, non scritto a mano: rigeneralo con il
-  comando annotato nella sua prima riga dopo ogni `uv lock`. È uno dei due file
-  che Dependabot legge (l'altro è `uv.lock`), quindi un lock aggiornato ma un
-  export vecchio lascia gli alert aperti.
+**This repo has no devcontainer, and the global "run the tests in the
+devcontainer" rule does not apply here.** `.devcontainer/devcontainer.json` was
+removed: it declared only `tasks`, with no `image` or `build`, so it defined no
+environment and could not be started — following it literally left you stuck.
+The isolation comes from `uv`, which rebuilds `.venv` from `uv.lock` without
+touching the system interpreter. Do not install dependencies with `pip` on the
+host: `uv run` does it by itself in the project venv.
+
+Prefer integration tests over mocks: start a real orchestrator with real agents
+and assert on the observable outcome.
+
+## Documentation
+
+The docs are a [Mintlify](https://mintlify.com) site in `docs/`, deployed
+automatically on every push to `main`, plus an API Reference tab generated from
+the docstrings by Sphinx. **Load the `documentation` skill before editing
+anything under `docs/`, `sphinx/` or the docstrings** — it carries the build
+and preview commands and the failure modes that cost hours when rediscovered
+from scratch (stale `.mint` cache, `mint` CLI version, `broken-links` false
+positives).
+
+The four rules that are worth having in mind at all times:
+
+- **Pages are `.mdx`, never `.md`.** In `.md`, Mintlify does not render
+  components: `<Tip>`, `<Warning>` and `<Card>` come out as raw text or vanish,
+  and it is only visible once deployed.
+- **Every page has a `title` in the frontmatter and an entry in
+  `docs/docs.json`**, otherwise it exists but is unreachable.
+- **Links and images use absolute paths from the docs root, without the
+  extension:** `/learn/agents/index`, not `./index.mdx`.
+- **Narrative pages link to the API reference for signatures and parameters**
+  (`/api/agent`, `/api/plugins`, …) instead of restating them. A signature
+  copied by hand into an `.mdx` is a second place it can drift from the code.
+
+After changing docstrings, regenerate the artifact with
+`./scripts/build_api_reference.sh` using Python 3.13 and commit
+`docs/sdk-artifacts/` alongside the change. New modules must be added to a
+`.rst` in `sphinx/` or they will not show up at all. The Sphinx build must stay
+at zero warnings.
+
+## Dependencies
+
+- **Core** (`[project.dependencies]`): only what the package actually imports —
+  `loguru`, `psutil`, `pyzmq`. Before adding one, check whether it belongs in
+  an extra instead.
+- **Extra `web`**: `fastapi`, `uvicorn`, `pydantic`, used solely by
+  `PyOrchestrate/web_interface/`. Without the extra the web interface is not
+  importable: if you add a test or a module touching it, remember CI installs
+  `pip install -e ".[web]"`.
+- **Group `dev`** (`[dependency-groups]`, PEP 735): pytest, black, flake8,
+  pylint, coverage, sphinx. `uv` installs it by default, so `uv run pytest`
+  needs no flags. It replaced `requirements-dev.txt`.
+- `requirements.txt` is **generated**, never hand-edited. Regenerate it after
+  every `uv lock` with the command annotated on its first line. It is one of
+  the two files Dependabot reads (the other is `uv.lock`), so an updated lock
+  with a stale export leaves alerts open.
+
+## One place for the conventions
+
+This file and the skills under `.claude/skills/` are the only guidance for
+assistants in this repo. A parallel set of Copilot files under `.github/`
+(`copilot-instructions.md`, `instructions/`, `context/`, `chatmodes/`, 3,671
+lines) was removed for a reason worth remembering: nothing kept it in sync, and
+by the end it taught four imports that raise `ImportError` — including a
+`HeartbeatPlugin` that never existed — in snippets written to be copied. Do not
+recreate a second copy of these conventions. If a tool needs its own file, make
+it point here rather than restate.
