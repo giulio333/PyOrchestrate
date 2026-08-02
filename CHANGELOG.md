@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.devcontainer/`, which declared only `tasks` — no `image`, `build` or
   `dockerComposeFile` — and therefore never defined a usable environment. Use
   `uv sync --extra web && uv run pytest`.
+- The Copilot guidance under `.github/` (`copilot-instructions.md`,
+  `instructions/`, `context/`, `chatmodes/`). Nothing kept those 3,671 lines in
+  sync with the code: they ended up offering copy-paste snippets importing
+  `HeartbeatPlugin`, which does not exist, and importing
+  `AgentTerminationStatus`, `OrchestratorEvent` and `RunMode` from
+  `PyOrchestrate.core.utilities`, which exports none of them. `CLAUDE.md` and
+  `.claude/skills/` are now the single place where the conventions live.
 
 ### Changed
 
