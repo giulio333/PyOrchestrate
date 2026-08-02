@@ -33,10 +33,16 @@ class DependencyGraph:
         by calling this method again or by repeating a name in ``depends_on``)
         leaves the graph unchanged.
 
+        An empty ``depends_on`` adds nothing: the agent would otherwise become a
+        node of the graph without having declared a single dependency.
+
         Args:
             agent_name: Name of the dependent agent
             depends_on: List of agent names that must start before agent_name
         """
+        if not depends_on:
+            return
+
         existing = self.dependencies[agent_name]
         for dep in depends_on:
             if dep not in existing:
@@ -105,6 +111,10 @@ class DependencyGraph:
         Uses Kahn's algorithm (BFS) to compute the ordering.
         Agents with no dependencies come first, followed by their dependents.
 
+        Notes:
+            The graph is left untouched: sorting reads it through a local view of
+            the agents it was asked to order.
+
         Args:
             agent_names: Set of all agent names to order
 
@@ -117,14 +127,16 @@ class DependencyGraph:
         if not self._validated:
             raise ValueError("Graph must be validated before sorting")
 
-        # Ensure all agents are in the graph (even with no dependencies)
-        for agent in agent_names:
-            if agent not in self.dependencies:
-                self.dependencies[agent] = []
+        # Local view of the agents to order, including those with no
+        # dependencies. Writing them into self.dependencies instead made a
+        # query report every registered agent as a node of the graph.
+        dependencies = {
+            agent: self.dependencies.get(agent, []) for agent in agent_names
+        }
 
         # Compute in-degree for each agent
         in_degree = {agent: 0 for agent in agent_names}
-        for agent, deps in self.dependencies.items():
+        for agent, deps in dependencies.items():
             for dep in deps:
                 in_degree[agent] += 1
 
@@ -137,7 +149,7 @@ class DependencyGraph:
             topo_order.append(node)
 
             # Reduce in-degree for dependents
-            for child, deps in self.dependencies.items():
+            for child, deps in dependencies.items():
                 if node in deps:
                     in_degree[child] -= 1
                     if in_degree[child] == 0:
@@ -167,4 +179,6 @@ class DependencyGraph:
         Returns:
             bool: True if at least one dependency exists, False otherwise
         """
-        return bool(self.dependencies)
+        # An agent mapped to an empty list is not a dependency: reading the
+        # keys alone answered True for a graph that holds no edge at all.
+        return any(self.dependencies.values())

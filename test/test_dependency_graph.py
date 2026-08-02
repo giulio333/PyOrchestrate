@@ -222,6 +222,50 @@ class TestDependencyGraph(unittest.TestCase):
         self.assertLess(idx_b, idx_d, "B before D")
         self.assertLess(idx_c, idx_d, "C before D")
 
+    def test_topological_sort_leaves_the_graph_untouched(self):
+        """Sorting used to add an empty entry for every agent it ordered."""
+        self.graph.add_dependency("agent_a", ["agent_b"])
+        valid_agents = {"agent_a", "agent_b", "agent_c"}
+        self.graph.validate(valid_agents)
+
+        self.graph.topological_sort(valid_agents)
+
+        self.assertEqual(dict(self.graph.dependencies), {"agent_a": ["agent_b"]})
+
+    def test_sorting_an_independent_graph_declares_no_dependency(self):
+        """has_dependencies() used to answer True after any sort."""
+        valid_agents = {"agent_a", "agent_b"}
+        self.graph.validate(valid_agents)
+
+        self.graph.topological_sort(valid_agents)
+
+        self.assertFalse(self.graph.has_dependencies())
+        self.assertEqual(dict(self.graph.dependencies), {})
+
+    def test_repeated_sorts_return_the_same_order(self):
+        """The sort reads the graph, so it cannot drift between calls."""
+        self.graph.add_dependency("agent_b", ["agent_a"])
+        self.graph.add_dependency("agent_c", ["agent_b"])
+        valid_agents = {"agent_a", "agent_b", "agent_c"}
+        self.graph.validate(valid_agents)
+
+        first = self.graph.topological_sort(valid_agents)
+        second = self.graph.topological_sort(valid_agents)
+
+        self.assertEqual(first, ["agent_a", "agent_b", "agent_c"])
+        self.assertEqual(first, second)
+
+    def test_adding_an_empty_dependency_list_adds_no_node(self):
+        self.graph.add_dependency("agent_a", [])
+
+        self.assertEqual(dict(self.graph.dependencies), {})
+        self.assertFalse(self.graph.has_dependencies())
+
+    def test_a_graph_holding_only_empty_lists_has_no_dependencies(self):
+        self.graph.dependencies["agent_a"] = []
+
+        self.assertFalse(self.graph.has_dependencies())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -41,6 +41,15 @@ def test_dependencies_command_reads_the_dependency_graph(handler):
     assert result == {"dependencies": {"consumer": ["producer"]}}
 
 
+def test_dependencies_command_still_omits_independent_agents_after_start(handler):
+    """Starting the orchestrator used to add `"producer": []` to the payload."""
+    handler.orchestrator.start()
+
+    result = handler.execute_command("dependencies", [])
+
+    assert result == {"dependencies": {"consumer": ["producer"]}}
+
+
 def test_agent_status_reports_dependencies_and_lifecycle_state(handler):
     result = handler.execute_command("status", ["consumer"])
 
