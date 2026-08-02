@@ -173,7 +173,7 @@ at zero warnings.
 
 This file and the skills under `.claude/skills/` are the only guidance for
 assistants in this repo. A parallel set of Copilot files under `.github/`
-(`copilot-instructions.md`, `instructions/`, `context/`, `chatmodes/`, 3,671
+(`copilot-instructions.md`, `instructions/`, `context/`, `chatmodes/`, 3,672
 lines) was removed for a reason worth remembering: nothing kept it in sync, and
 by the end it taught four imports that raise `ImportError` — including a
 `HeartbeatPlugin` that never existed — in snippets written to be copied. Do not
