@@ -4,7 +4,10 @@ import threading
 import multiprocessing
 
 from PyOrchestrate.core.agent.periodic_agent import PeriodicAgent
-from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
+from PyOrchestrate.core.orchestrator.orchestrator import (
+    Orchestrator,
+    OrchestratorConfig,
+)
 from PyOrchestrate.core.orchestrator.memory import AgentEntry
 from PyOrchestrate.core.utilities.validation import ValidationResult, ValidationSeverity
 
@@ -16,6 +19,10 @@ class PoolAgentConfig(PeriodicAgent.Config):
     Attributes:
         auto_reboot (bool): Flag to enable automatic reboot of agents.
         agents_entry (list[AgentEntry]): List of agents to be registered.
+        orchestrator_config (OrchestratorConfig | None): Configuration of the inner
+            orchestrator that runs the pool's agents. When omitted, the pool builds
+            one with the command interface disabled, so that it does not compete for
+            the parent orchestrator's command port.
         execution_interval (float): The interval of checking the agents.
         delay_compensation (bool): Compensate the delay in the execution.
         logger (LoggerConfig): Logger configuration.
@@ -46,6 +53,15 @@ class PoolAgentConfig(PeriodicAgent.Config):
         ...     execution_interval=1,
         ...     delay_compensation=False
         ... )
+
+        Exposing the inner orchestrator on its own command port:
+
+        >>> pool_config = PoolAgentConfig(
+        ...     agents_entry=[AgentEntry(...)],
+        ...     orchestrator_config=OrchestratorConfig(
+        ...         command_zmq_address="tcp://*:5556"
+        ...     ),
+        ... )
     """
 
     # Plural, matching __init__, validate and setup: a singular name here left
@@ -53,11 +69,13 @@ class PoolAgentConfig(PeriodicAgent.Config):
     # agents_entry raised AttributeError instead of the validation warning.
     agents_entry: list[AgentEntry] | None = None
     auto_reboot: bool = False
+    orchestrator_config: OrchestratorConfig | None = None
 
     def __init__(
         self,
         agents_entry: list[AgentEntry] | None = None,
         auto_reboot: bool | None = None,
+        orchestrator_config: OrchestratorConfig | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -67,6 +85,9 @@ class PoolAgentConfig(PeriodicAgent.Config):
 
         if agents_entry is not None:
             self.agents_entry = agents_entry
+
+        if orchestrator_config is not None:
+            self.orchestrator_config = orchestrator_config
 
     def validate(self) -> List[ValidationResult]:
         """
@@ -84,6 +105,17 @@ class PoolAgentConfig(PeriodicAgent.Config):
                     field="agents_entry",
                     message="No agents to register.",
                     severity=ValidationSeverity.WARNING,
+                )
+            )
+
+        if self.orchestrator_config is not None and not isinstance(
+            self.orchestrator_config, OrchestratorConfig
+        ):
+            results.append(
+                ValidationResult(
+                    field="orchestrator_config",
+                    message="orchestrator_config must be an OrchestratorConfig instance.",
+                    severity=ValidationSeverity.ERROR,
                 )
             )
 
@@ -116,25 +148,38 @@ class PoolAgent(PeriodicAgent):
             The PoolAgent act as an orchestrator for the agents. All agents found in the configuration are registered
             and started.
 
+            The inner orchestrator is built from ``config.orchestrator_config``. Without
+            one, the command interface is disabled: its default address is the same the
+            parent orchestrator already binds, and every pool would die on startup with
+            "Address already in use".
+
         Warnings:
             You can override this method to add custom setup logic but remember to call super().setup() to ensure the
             agent is correctly initialized.
         """
         super().setup()
 
-        self._orchestrator = Orchestrator(name=self.name)
+        self._orchestrator = Orchestrator(
+            name=self.name,
+            config=self.config.orchestrator_config
+            or OrchestratorConfig(enable_command_interface=False),
+        )
 
         if not self.config.agents_entry:
             self.logger.warning("No agents for current pool agent.")
             return
 
         for agent in self.config.agents_entry:
+            # By keyword: passed positionally, control_events landed on
+            # custom_plugin, state_events on control_events, and the entry's
+            # own plugin was never forwarded.
             self.orchestrator.register_agent(
                 agent.agent_class,
                 agent.name,
-                agent.config,
-                agent.control_events,
-                agent.state_events,
+                custom_config=agent.config,
+                custom_plugin=agent.plugin,
+                control_events=agent.control_events,
+                state_events=agent.state_events,
                 **agent.kwargs,
             )
         self.orchestrator.start()
@@ -179,6 +224,9 @@ class PoolAgent(PeriodicAgent):
         super()._info()
         self.logger.debug(f"Config: auto_reboot: {self.config.auto_reboot}")
         self.logger.debug(f"Config: agents_entry: {self.config.agents_entry}")
+        self.logger.debug(
+            f"Config: orchestrator_config: {self.config.orchestrator_config}"
+        )
 
 
 class PoolProcessAgent(PoolAgent, multiprocessing.Process, ABC):

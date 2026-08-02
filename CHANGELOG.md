@@ -79,8 +79,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ZeroMQPair.finalize()` had an empty body and never released its socket or
   context, unlike the other four ZeroMQ plugins. Each agent shutdown leaked a
   file descriptor and an I/O thread.
+- No `PoolAgent` could run under an orchestrator with the command interface
+  enabled, which is the default. `setup()` built its inner `Orchestrator` with
+  the default configuration, so every pool tried to bind the parent's
+  `tcp://*:5555` and died with `Address already in use` before registering any
+  child. The inner orchestrator is now built from
+  `PoolAgentConfig.orchestrator_config`, and without one its command interface
+  is disabled.
+- `PoolAgent.setup()` passed its entries to `register_agent()` positionally, so
+  each child's `ControlEvents` arrived as `custom_plugin`, its `StateEvents` as
+  `control_events`, the real `state_events` was dropped and `AgentEntry.plugin`
+  was never forwarded. The arguments are now passed by keyword.
 
 ### Added
+
+- `PoolAgentConfig.orchestrator_config`, the configuration of the orchestrator
+  a pool creates for its children — use it to give the inner orchestrator a
+  command port of its own.
 
 - `Orchestrator.Config.agent_stop_timeout` (default `10.0`), the budget shared
   by all agents while shutdown waits for them to terminate.
