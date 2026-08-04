@@ -51,7 +51,7 @@ orchestrator = Orchestrator(config=config)
 | `command_zmq_address` | `"tcp://*:5555"` | ROUTER bind address |
 | `allowed_commands` | `None` | Preset name, explicit command set, or all commands |
 
-The command interface starts during `Orchestrator` initialization and stops during orchestrator shutdown.
+The command interface starts during `Orchestrator` initialization and stops during orchestrator shutdown. `stop()` ends the polling thread before closing the ROUTER socket, and the same [shutdown rules as the router's handler](/advanced/orchestrator-internals/message-router#shutdown-of-the-polling-thread) apply to an interface nobody stopped.
 
 ## Commands
 

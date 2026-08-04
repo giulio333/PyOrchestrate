@@ -5,10 +5,67 @@ This module provides the ChannelHandler class for managing message channel
 communication in separate threads, encapsulating thread lifecycle management.
 """
 
+import atexit
+import sys
 import threading
+import weakref
 from typing import Callable, Optional
 
+import zmq
+
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
+
+# Time each orphaned handler is given to leave its loop during the atexit
+# backstop. Handlers are signalled first and joined afterwards, so the waits
+# overlap instead of adding up.
+_ATEXIT_JOIN_TIMEOUT = 2.0
+
+# ZeroMQ errors that mean the socket or its context is gone for good, as
+# opposed to a poll that happened to fail.
+_TERMINAL_ZMQ_ERRNOS = frozenset({zmq.ENOTSOCK, zmq.ETERM})
+
+_live_handlers: "weakref.WeakSet[ChannelHandler]" = weakref.WeakSet()
+_live_handlers_lock = threading.Lock()
+
+
+def _channel_is_gone(error: BaseException) -> bool:
+    """
+    Tell a dead channel from a failed poll.
+
+    A closed queue raises ``OSError`` ("handle is closed") or ``ValueError``,
+    an exhausted pipe raises ``EOFError``, and a closed ZeroMQ socket or a
+    terminated context raises ``zmq.ZMQError`` with ``ENOTSOCK`` or ``ETERM``.
+    None of them can be recovered from by polling again.
+
+    Args:
+        error (BaseException): Exception raised by ``MessageChannel.receive()``.
+
+    Returns:
+        bool: True if the channel can no longer produce messages.
+    """
+    if isinstance(error, (OSError, ValueError, EOFError)):
+        return True
+    return isinstance(error, zmq.ZMQError) and error.errno in _TERMINAL_ZMQ_ERRNOS
+
+
+def _stop_live_handlers() -> None:
+    """
+    Stop every handler still running when the interpreter starts exiting.
+
+    Registered with :mod:`atexit`, which runs before the runtime begins
+    finalizing: a handler nobody stopped leaves its loop here, while joining
+    and logging are still safe.
+    """
+    with _live_handlers_lock:
+        handlers = list(_live_handlers)
+
+    for handler in handlers:
+        handler._signal_stop()
+    for handler in handlers:
+        handler.stop(timeout=_ATEXIT_JOIN_TIMEOUT)
+
+
+atexit.register(_stop_live_handlers)
 
 
 class ChannelHandler:
@@ -22,6 +79,12 @@ class ChannelHandler:
     This class follows the Single Responsibility Principle by managing
     only the thread lifecycle and message polling, delegating message
     processing to a provided callback function.
+
+    The polling thread is a daemon, so it never keeps the interpreter alive.
+    Two guarantees keep it from aborting the process on the way out: a channel
+    closed underneath the loop ends the loop instead of being logged once per
+    poll, and an :mod:`atexit` hook signals and joins any handler still running
+    when the interpreter starts exiting.
 
     Attributes:
         channel (MessageChannel): The message channel to monitor.
@@ -85,20 +148,22 @@ class ChannelHandler:
             - If the handler is already running, this method logs a warning and returns.
             - The thread is created as a daemon to allow graceful application shutdown.
             - Uses the configured name for easy identification in thread dumps.
+            - The handler is registered for the atexit backstop, which stops it
+              even if nobody calls :meth:`stop`.
         """
         if self._running:
-            if self.logger:
-                self.logger.warning(f"{self.name} already running")
+            self._log("warning", f"{self.name} already running")
             return
 
         self._running = True
         self._thread = threading.Thread(
             target=self._run_loop, daemon=True, name=self.name
         )
+        with _live_handlers_lock:
+            _live_handlers.add(self)
         self._thread.start()
 
-        if self.logger:
-            self.logger.debug(f"{self.name} started successfully")
+        self._log("debug", f"{self.name} started successfully")
 
     def stop(self, timeout: float = 2.0) -> None:
         """
@@ -116,23 +181,34 @@ class ChannelHandler:
             - The thread will complete processing the current message before stopping.
             - If the thread is stuck, it will be left as a daemon and eventually
               terminated when the application exits.
+            - A thread that already left its loop on its own, because the channel
+              was closed, is still joined and cleared here.
         """
-        if not self._running:
+        if not self._running and self._thread is None:
             return
 
-        self._running = False
+        self._signal_stop()
 
         if self._thread:
             self._thread.join(timeout=timeout)
 
             if self._thread.is_alive():
-                if self.logger:
-                    self.logger.warning(f"{self.name} did not stop properly")
+                self._log("warning", f"{self.name} did not stop properly")
             else:
-                if self.logger:
-                    self.logger.trace(f"{self.name} stopped successfully")
+                self._log("trace", f"{self.name} stopped successfully")
 
             self._thread = None
+
+    def _signal_stop(self) -> None:
+        """
+        Ask the loop to leave without waiting for it.
+
+        Separate from :meth:`stop` so several handlers can be signalled first
+        and joined afterwards, which is what the atexit backstop does.
+        """
+        self._running = False
+        with _live_handlers_lock:
+            _live_handlers.discard(self)
 
     def is_running(self) -> bool:
         """
@@ -143,6 +219,23 @@ class ChannelHandler:
         """
         return self._running
 
+    def _log(self, level: str, message: str) -> None:
+        """
+        Log a message unless the interpreter is finalizing.
+
+        The loop runs in a daemon thread that can outlive the code that started
+        it. Writing to ``stderr`` while the runtime tears down its buffers
+        aborts the process with ``_enter_buffered_busy``, so during finalization
+        the message is dropped instead.
+
+        Args:
+            level (str): Name of the logger method to call ("debug", "error", ...).
+            message (str): Message to log.
+        """
+        if self.logger is None or sys.is_finalizing():
+            return
+        getattr(self.logger, level)(message)
+
     def _run_loop(self) -> None:
         """
         Internal thread loop for processing messages.
@@ -151,18 +244,31 @@ class ChannelHandler:
         the message channel for incoming messages. When a message is received,
         it invokes the configured message handler callback.
 
-        The loop continues until the _running flag is set to False by the stop() method.
+        The loop continues until the _running flag is set to False by the stop()
+        method, or until the channel is closed underneath it.
 
         Notes:
-            - All exceptions in message handling are caught and logged to prevent
-              thread termination.
+            - A closed channel ends the loop instead of being logged: retrying
+              would only produce the same error, once per poll.
+            - Every other exception, from the poll or from the message handler,
+              is caught and logged so that the thread survives it.
             - Uses the configured poll_timeout to balance responsiveness and CPU usage.
         """
         while self._running:
             try:
                 msg = self.channel.receive(timeout=self.poll_timeout)
-                if msg:
-                    self.message_handler(msg)
             except Exception as e:
-                if self.logger:
-                    self.logger.error(f"Error in {self.name}: {e}")
+                if _channel_is_gone(e):
+                    self._signal_stop()
+                    self._log("debug", f"{self.name} stopping: channel closed ({e})")
+                    return
+                self._log("error", f"Error in {self.name}: {e}")
+                continue
+
+            if not msg:
+                continue
+
+            try:
+                self.message_handler(msg)
+            except Exception as e:
+                self._log("error", f"Error in {self.name}: {e}")

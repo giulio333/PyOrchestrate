@@ -68,6 +68,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A `ChannelHandler` nobody stopped could abort the process at exit instead of
+  letting it end. Its polling thread is a daemon, so nothing waits for it: when
+  the interpreter closed the channel underneath it, `receive()` raised
+  `OSError: handle is closed`, the loop logged the error, and writing to
+  `stderr` while the runtime was finalizing hit
+  `_enter_buffered_busy: could not acquire lock` and killed the process with
+  `SIGABRT`. That is what turned four of the last twelve CI runs red with the
+  whole suite already passed, and it reaches any application embedding an
+  orchestrator. A closed channel now ends the loop instead of being logged once
+  per poll, an `atexit` hook signals and joins the handlers still running, and
+  nothing is written to the log while the interpreter is finalizing.
 - Agent lifecycle events never reached the event store. `MessageRouter` was
   built on the bare `EventManager`, so routed `agent_started`, `agent_ready`,
   `agent_heartbeat`, `agent_error` and `agent_terminated` triggered the
