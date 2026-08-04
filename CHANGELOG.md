@@ -16,8 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or the agent's `logger_config` instead.
 - `PyOrchestrate/web_interface/static.js`, referenced by nothing and not
   shipped in the wheel.
-- The `if __name__ == "__main__"` demo blocks in
-  `PyOrchestrate/core/utilities/scheduler.py` and
+- **Breaking:** `PyOrchestrate/core/utilities/scheduler.py` and its `Scheduler`
+  class. Nothing in the package, the tests or the examples imported it, yet it
+  was listed in `sphinx/utilities.rst` and therefore published in the API
+  reference as if it were supported. Use `PeriodicAgent` for scheduled work, or
+  `PyOrchestrate.utilities.periodic_timer.PeriodicTimer` for a bare timer.
+- The `if __name__ == "__main__"` demo block in
   `PyOrchestrate/utilities/logguru.py`. Examples belong in `examples/`.
 - `requirements-dev.txt` and `requirements-web.txt`, replaced by the `dev`
   dependency group and the `web` extra in `pyproject.toml`.
@@ -45,8 +49,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `pyorchestrate-web` working.
 - **Breaking:** `requests` is no longer a dependency. The package never
   imported it; only the examples do. Install it yourself to run those.
-- **Breaking:** `Scheduler` uses English identifiers. `funzione` is now `func`
-  and `calcola_ritardo_iniziale` is now `compute_initial_delay`.
+- **Breaking:** `EventManager` keys its listeners by the enum member instead of
+  by `event.name`. `AgentEvent` and `OrchestratorEvent` overlap on
+  `AGENT_READY`, `AGENT_TERMINATED`, `AGENT_ERROR` and `AGENT_HEARTBEAT`, and
+  those members used to share a single listener list: a callback registered for
+  `AgentEvent.AGENT_ERROR` was invoked when the orchestrator emitted
+  `OrchestratorEvent.AGENT_ERROR`. Code that relied on that collision must now
+  register the member the source actually emits.
 - The version number has a single source of truth. It is declared only in
   `pyproject.toml` and exposed as `PyOrchestrate.__version__`, read from the
   distribution metadata. `CLIConstants.VERSION` and the FastAPI `version` now
@@ -55,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   repository, including `starlette` 1.3.1 (via `fastapi` 0.140.0) and
   `urllib3` 2.7.0.
 - Docstrings, comments and error messages translated to English across
-  `scheduler.py`, `logguru.py`, `memory.py` and the Sphinx configuration.
+  `logguru.py`, `memory.py` and the Sphinx configuration.
 
 ### Fixed
 
@@ -104,6 +113,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each child's `ControlEvents` arrived as `custom_plugin`, its `StateEvents` as
   `control_events`, the real `state_events` was dropped and `AgentEntry.plugin`
   was never forwarded. The arguments are now passed by keyword.
+- An agent killed by an invalid configuration left no trace beyond a log line.
+  `BaseAgent.run()` caught `ConfigValidationError` without sending the
+  `AGENT_ERROR` status its generic error branch sends, so the failure produced
+  no `agent_error` record in the event store, no `OrchestratorEvent.AGENT_ERROR`
+  callback and nothing in `history`. The validation message is now reported as
+  `error_message`, and the log line finally includes it instead of dropping the
+  exception.
+- `ZeroMQPubSub`, `ZeroMQReqRep`, `ZeroMQPushPull` and `ZeroMQRouterDealer`
+  raised `RuntimeError` from `finalize()` when `initialize()` had never run or
+  had failed, since the `socket` property rejects an uninitialized socket. They
+  now return early like `ZeroMQPair`. `PluginManager.finalize_plugins()` logs
+  and swallows plugin exceptions, so the visible effect was log noise on
+  shutdown rather than a crash.
+- The two comments in `PeriodicTimer.wait()` described each other's branch:
+  resetting the timer is what *drops* the accumulated delay, and keeping the
+  absolute schedule is what compensates for it. The behaviour was always
+  correct and is now covered by `test/test_periodic_timer.py`.
 
 ### Added
 

@@ -64,6 +64,7 @@ class MyAgent(BaseProcessAgent):
 - You must call `initialize()` on the plugin before using it.
 - You must call `finalize()` on the plugin when the agent is shutting down.
 - Resource management is your responsibility.
+- Both calls are idempotent: `initialize()` returns immediately when the plugin is already initialized, and `finalize()` does nothing when `initialize()` never ran or failed.
 
 ---
 

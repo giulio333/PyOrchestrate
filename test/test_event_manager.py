@@ -18,6 +18,12 @@ class TestEvents(Enum):
     STRESS_TEST = "stress_test"
 
 
+class OtherTestEvents(Enum):
+    """Second enum sharing a member name with TestEvents."""
+
+    EVENT_A = "other_event_a"
+
+
 class TestEventManager(unittest.TestCase):
     """Test cases for EventManager functionality."""
 
@@ -48,11 +54,9 @@ class TestEventManager(unittest.TestCase):
         self.event_manager.register_event(TestEvents.EVENT_A, callback)
 
         # Check that the event is registered
-        self.assertIn(TestEvents.EVENT_A.name, self.event_manager._listeners)
-        self.assertEqual(len(self.event_manager._listeners[TestEvents.EVENT_A.name]), 1)
-        self.assertEqual(
-            self.event_manager._listeners[TestEvents.EVENT_A.name][0], callback
-        )
+        self.assertIn(TestEvents.EVENT_A, self.event_manager._listeners)
+        self.assertEqual(len(self.event_manager._listeners[TestEvents.EVENT_A]), 1)
+        self.assertEqual(self.event_manager._listeners[TestEvents.EVENT_A][0], callback)
 
     def test_register_event_multiple_callbacks(self):
         """Test registering multiple callbacks to the same event."""
@@ -65,11 +69,32 @@ class TestEventManager(unittest.TestCase):
         self.event_manager.register_event(TestEvents.EVENT_A, callback3)
 
         # Check that all callbacks are registered in order
-        listeners = self.event_manager._listeners[TestEvents.EVENT_A.name]
+        listeners = self.event_manager._listeners[TestEvents.EVENT_A]
         self.assertEqual(len(listeners), 3)
         self.assertEqual(listeners[0], callback1)
         self.assertEqual(listeners[1], callback2)
         self.assertEqual(listeners[2], callback3)
+
+    def test_same_member_name_in_different_enums_stays_independent(self):
+        """Members sharing a name across enums must not share listeners."""
+        fired = []
+
+        self.event_manager.register_event(
+            TestEvents.EVENT_A, lambda: fired.append(TestEvents.EVENT_A)
+        )
+        self.event_manager.register_event(
+            OtherTestEvents.EVENT_A, lambda: fired.append(OtherTestEvents.EVENT_A)
+        )
+
+        self.assertIn(TestEvents.EVENT_A, self.event_manager._listeners)
+        self.assertIn(OtherTestEvents.EVENT_A, self.event_manager._listeners)
+
+        self.event_manager.emit(TestEvents.EVENT_A)
+
+        # shutdown drains the pool, so no sleep is needed to see every callback
+        self.event_manager.shutdown(wait=True)
+
+        self.assertEqual(fired, [TestEvents.EVENT_A])
 
     def test_emit_no_listeners(self):
         """Test emitting an event with no registered listeners."""
@@ -272,7 +297,7 @@ class TestEventManager(unittest.TestCase):
 
         # Since the callback accepts **kwargs, default data will be created
         # So we test a different scenario: no callbacks at all
-        self.event_manager._listeners[TestEvents.EVENT_A.name] = []
+        self.event_manager._listeners[TestEvents.EVENT_A] = []
 
         # Mock datetime to ensure it's not called when no listeners
         with patch(
@@ -331,7 +356,7 @@ class TestEventManagerThreadSafety(unittest.TestCase):
         self.assertEqual(self.error_count, 0)
 
         # Check that all callbacks were registered
-        listeners = self.event_manager._listeners.get(TestEvents.STRESS_TEST.name, [])
+        listeners = self.event_manager._listeners.get(TestEvents.STRESS_TEST, [])
         self.assertEqual(len(listeners), 50)  # 5 threads * 10 callbacks each
 
     def test_concurrent_emissions(self):

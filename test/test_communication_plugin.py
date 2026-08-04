@@ -355,5 +355,47 @@ class TestEnhancedNonBlockingOperations(unittest.TestCase):
         pull.finalize()
 
 
+class TestFinalizeWithoutInitialize(unittest.TestCase):
+    """finalize() must be a no-op when initialize() never ran or failed."""
+
+    def _uninitialized_plugins(self):
+        address = "tcp://127.0.0.1:5599"
+        return [
+            ZeroMQPubSub(address, SocketType.PUB),
+            ZeroMQReqRep(address, SocketType.REQ),
+            ZeroMQPushPull(address, SocketType.PUSH),
+            ZeroMQRouterDealer(address, SocketType.ROUTER),
+            ZeroMQPair(address),
+            ZeroMQPoller(),
+        ]
+
+    def test_finalize_without_initialize_does_not_raise(self):
+        # The socket property raises when _socket is None, so an unguarded
+        # finalize() turned a plugin that never started into a RuntimeError.
+        for plugin in self._uninitialized_plugins():
+            with self.subTest(plugin=type(plugin).__name__):
+                plugin.finalize()
+                self.assertFalse(plugin._initialized)
+                plugin.context.term()
+
+    def test_finalize_after_failed_initialize_does_not_raise(self):
+        plugin = ZeroMQPubSub("tcp://127.0.0.1:5599", SocketType.REQ)
+
+        with self.assertRaises(ValueError):
+            plugin.initialize()
+
+        plugin.finalize()
+        plugin.context.term()
+
+    def test_finalize_is_idempotent(self):
+        plugin = ZeroMQPubSub("tcp://127.0.0.1:5598", SocketType.PUB)
+        plugin.initialize()
+
+        plugin.finalize()
+        plugin.finalize()
+
+        self.assertFalse(plugin._initialized)
+
+
 if __name__ == "__main__":
     unittest.main()

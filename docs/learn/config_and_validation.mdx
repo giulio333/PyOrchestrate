@@ -64,6 +64,8 @@ The Orchestrator validates its configuration during `Orchestrator(...)` construc
 
 If something looks wrong, validation can **stop the component's normal execution** or just **warn** you, depending on the validation policy.
 
+An agent stopped by a blocking error does not fail silently: before terminating with an `ERROR` status it reports the failure to the orchestrator like any other agent error. The message reaches the event history (`pyorchestrate history --type agent_error`) and triggers the callbacks registered for `OrchestratorEvent.AGENT_ERROR`, carrying the validation message as `error_message`. See [Event Bus](/advanced/orchestrator-internals/event-bus).
+
 ### Custom Validation
 
 Every `Config` has a `validate` method you can override.  

@@ -36,7 +36,12 @@ The supported orchestrator events are:
 - the default maximum is 10 callback workers;
 - keyword arguments are filtered to the callback signature unless it accepts `**kwargs`;
 - callback exceptions are logged and isolated from the remaining listeners;
-- callbacks for the same event are submitted in registration order, but completion order is not guaranteed.
+- callbacks for the same event are submitted in registration order, but completion order is not guaranteed;
+- listeners are keyed by the enum member itself, so members that happen to share a name in different enums stay independent.
+
+<Note>
+`AgentEvent` and `OrchestratorEvent` overlap on `AGENT_READY`, `AGENT_TERMINATED`, `AGENT_ERROR` and `AGENT_HEARTBEAT`. A callback registered for `AgentEvent.AGENT_ERROR` is never invoked when the orchestrator emits `OrchestratorEvent.AGENT_ERROR`: register the member of the enum the source actually emits.
+</Note>
 
 ## Direct use
 
