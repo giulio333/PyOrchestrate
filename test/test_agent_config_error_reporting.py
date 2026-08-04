@@ -50,7 +50,11 @@ def orchestrator():
         name="config_error_orchestrator",
     )
     yield result
+    # Agents first, then the router, in the order join() uses: a handler left
+    # polling after the test keeps a daemon thread on a channel that only the
+    # interpreter shutdown closes.
     result.worker_pool.shutdown_all(timeout=2.0)
+    result.message_router.stop()
 
 
 def wait_for(predicate, timeout: float = 5.0):
