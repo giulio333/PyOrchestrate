@@ -21,11 +21,6 @@ PyOrchestrate.core.utilities.command_handler
 
 .. automodule:: PyOrchestrate.core.utilities.command_handler
 
-PyOrchestrate.core.utilities.scheduler
---------------------------------------
-
-.. automodule:: PyOrchestrate.core.utilities.scheduler
-
 PyOrchestrate.core.utilities.validation
 ---------------------------------------
 

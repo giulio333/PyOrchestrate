@@ -310,8 +310,22 @@ class BaseAgent(BaseClass, ABC):
             self.execute()
 
         except ConfigValidationError as e:
-            self.logger.error(f"Agent cannot start due to configuration error.")
+            self.logger.error(
+                f"[{self.name}] Agent cannot start due to configuration error: {e}"
+            )
             self.termination_status = AgentTerminationStatus.ERROR
+
+            # Same reporting path as the generic branch below: without it the
+            # failure exists only in the log, with no agent_error in the event
+            # store and no AGENT_ERROR callback.
+            error_message = ServiceMessage.create_status(
+                sender=self.name,
+                status="error",
+                event_name=AgentEvent.AGENT_ERROR.value,
+                error=str(e),
+                generation_id=self.generation_id,
+            )
+            self.send_message(error_message)
 
         except Exception as ex:
             self.logger.exception(f"[{self.name}] Error during execution: {ex}")

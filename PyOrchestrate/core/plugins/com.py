@@ -113,7 +113,13 @@ class ZeroMQPubSub(PluginProtocol):
     def finalize(self):
         """
         Finalizes the ZeroMQ plugin.
+
+        Closes the socket and terminates the context. Does nothing when
+        `initialize()` never ran or failed, since `socket` would raise.
         """
+        if not self._initialized:
+            return
+
         self.socket.close()
         self.context.term()
         self._initialized = False
@@ -285,7 +291,13 @@ class ZeroMQReqRep(PluginProtocol):
     def finalize(self):
         """
         Finalizes the ZeroMQ plugin.
+
+        Closes the socket and terminates the context. Does nothing when
+        `initialize()` never ran or failed, since `socket` would raise.
         """
+        if not self._initialized:
+            return
+
         self.socket.close()
         self.context.term()
         self._initialized = False
@@ -431,7 +443,13 @@ class ZeroMQPushPull(PluginProtocol):
     def finalize(self):
         """
         Finalizes the ZeroMQ plugin.
+
+        Closes the socket and terminates the context. Does nothing when
+        `initialize()` never ran or failed, since `socket` would raise.
         """
+        if not self._initialized:
+            return
+
         self.socket.close()
         self.context.term()
         self._initialized = False
@@ -626,7 +644,13 @@ class ZeroMQRouterDealer(PluginProtocol):
     def finalize(self):
         """
         Finalizes the ZeroMQ plugin.
+
+        Closes the socket and terminates the context. Does nothing when
+        `initialize()` never ran or failed, since `socket` would raise.
         """
+        if not self._initialized:
+            return
+
         self.socket.close()
         self.context.term()
         self._initialized = False
@@ -882,7 +906,6 @@ class ZeroMQPoller(PluginProtocol):
         if self._poller:
             # Note: zmq.Poller doesn't have a close method, just clear registered sockets
             self._poller = None
-        self._initialized = False
         self._initialized = False
 
     def set_owner(self, owner):

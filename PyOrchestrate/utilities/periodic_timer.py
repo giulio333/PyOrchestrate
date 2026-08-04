@@ -114,9 +114,11 @@ class PeriodicTimer:
             return stop_event.wait(timeout=sleep_time)
         else:
             if not self.compensate_delay:
-                # Adjust the next_time to the current time to compensate for delay
+                # Not compensating: realign next_time to now, so the delay just
+                # accumulated is dropped instead of shortening the next waits
                 self.reset()
-            # If not compensating, allow next_time to continue accumulating delays
+            # Compensating: keep the absolute schedule, so the following
+            # iterations recover the delay and the average rate is preserved
             return False
 
     def reset(self):

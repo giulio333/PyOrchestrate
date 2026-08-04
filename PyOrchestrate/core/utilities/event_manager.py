@@ -1,7 +1,7 @@
 """
 event_manager module.
 This module implements the EventManager class for centralized event handling within the application.
-EventManager keeps a dictionary of callbacks (listeners) associated with events identified by their name.
+EventManager keeps a dictionary of callbacks (listeners) associated with events identified by their enum member.
 Use this class to:
 - Register unique events and attach callback functions to them.
 - Emit events passing specific parameters and default data (event date and time).
@@ -28,7 +28,7 @@ class EventManager:
     Manages the registration, attachment, and emission of events.
 
     Attributes:
-        _listeners (dict): A dictionary mapping event names to lists of callback functions.
+        _listeners (dict): A dictionary mapping enum members to lists of callback functions.
         _executor (ThreadPoolExecutor): Thread pool for executing callbacks asynchronously.
         _shutdown (bool): Flag indicating if the event manager is shutting down.
 
@@ -83,7 +83,7 @@ class EventManager:
         Args:
             max_workers (int): Maximum number of worker threads in the thread pool.
         """
-        self._listeners: Dict[str, List[Callable]] = {}
+        self._listeners: Dict[Enum, List[Callable]] = {}
         self._shutdown: bool = False
         self._max_workers: int = max_workers
         self._executor: Optional[ThreadPoolExecutor] = None
@@ -100,18 +100,23 @@ class EventManager:
         Callbacks are stored in the order they are added.
         Exceptions raised by one callback do not prevent others from executing.
 
+        The listeners are keyed by the enum member itself, so members sharing a
+        name across different enums stay independent: a callback registered for
+        `AgentEvent.AGENT_ERROR` is not invoked when
+        `OrchestratorEvent.AGENT_ERROR` is emitted.
+
         Args:
-            event (Enum): An Enum instance identifying the event by its 'name' attribute.
+            event (Enum): The Enum member identifying the event.
             callback (Callable): The function to be invoked when the event is emitted.
 
         Example:
             >>> event_manager.register_event(AgentEvent.AGENT_START, on_agent_started)
         """
         # register the event if it doesn't exist
-        if event.name not in self._listeners:
-            self._listeners[event.name] = []
+        if event not in self._listeners:
+            self._listeners[event] = []
         # add the callback to the list
-        self._listeners[event.name].append(callback)
+        self._listeners[event].append(callback)
 
     def emit(self, event: Enum, *args, **kwargs):
         """
@@ -123,8 +128,10 @@ class EventManager:
         Only the parameters accepted by each callback are passed, via filtering based on the function signature.
         Exceptions raised by a callback are caught to avoid interrupting the execution of the others.
 
+        Only the callbacks registered for this exact enum member are invoked.
+
         Args:
-            event (Enum): The event to be emitted, identified by its 'name' attribute.
+            event (Enum): The Enum member identifying the event to be emitted.
             *args: Positional arguments passed to the callbacks.
             **kwargs: Keyword arguments passed to the callbacks.
 
@@ -133,7 +140,7 @@ class EventManager:
         """
         if self._shutdown:
             logger.warning(
-                "EventManager is shutting down, ignoring event emission: %s", event.name
+                "EventManager is shutting down, ignoring event emission: %s", event
             )
             return
 
@@ -146,13 +153,13 @@ class EventManager:
                 elif self._shutdown:
                     logger.warning(
                         "EventManager shutdown during executor initialization, ignoring event: %s",
-                        event.name,
+                        event,
                     )
                     return
 
         listeners = []
-        if event.name in self._listeners:
-            listeners = self._listeners[event.name].copy()
+        if event in self._listeners:
+            listeners = self._listeners[event].copy()
 
         if not listeners:
             return
