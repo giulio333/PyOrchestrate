@@ -47,6 +47,32 @@ router.stop(timeout=2.0)
 
 `stop()` signals the internal `ChannelHandler`, waits up to the supplied timeout, then drops the handler reference. The implementation does not promise that every queued message will be processed before return.
 
+## Shutdown of the polling thread
+
+The `ChannelHandler` polls in a daemon thread, so it never keeps the
+interpreter alive. Two rules keep that thread from turning a normal exit into a
+crash — they apply to every handler, including the one the
+[CommandInterface](/advanced/orchestrator-internals/command-interface) owns:
+
+- **A closed channel ends the loop.** When `receive()` raises because the queue
+  handle or the ZeroMQ socket is gone, the handler leaves the loop and logs a
+  single `debug` line. It does not log an error and try again, which would
+  repeat the same failure once per poll.
+- **`atexit` stops whatever is left.** A handler still running when the
+  interpreter starts exiting is signalled and joined by an `atexit` hook,
+  registered when the handler starts. Applications that never call
+  `Orchestrator.join()` or `router.stop()` therefore still shut down cleanly.
+
+Nothing is written to the log while the interpreter is finalizing: at that
+point `stderr` may be half torn down, and writing to it aborts the process
+instead of ending it.
+
+<Note>
+  Calling `stop()` is still the way to end a router: the `atexit` hook is a
+  backstop, and a handler that reaches it has been polling a channel nobody
+  reads for as long as the application ran.
+</Note>
+
 ## Generation filtering
 
 Every lifecycle-created instance receives a monotonically increasing
