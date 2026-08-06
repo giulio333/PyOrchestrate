@@ -21,8 +21,8 @@ Advanced commands for real-time control of running orchestrators:
 
 - **Agent monitoring**: `ps` - View status and statistics of running agents
 - **Dynamic control**: `start`/`stop` - Start, stop, and manage agents on-demand
-- **System inspection**: `status` - Get an orchestrator report (the agent-specific path has a current handler defect)
-- **Dependencies**: `dependencies` - Intended to show the dependency graph; currently affected by the same handler defect
+- **System inspection**: `status` - Get an orchestrator report, or the report of a single agent with `status AGENT_NAME`
+- **Dependencies**: `dependencies` - Show the dependency graph
 - **Command permissions**: `commands` - Show which runtime commands are allowed
 - **Event tracking**: `history`/`history-stats` - Get event history and statistics
 - **Real-time monitoring**: `stats` - Continuous monitoring like `docker stats`
@@ -47,10 +47,6 @@ Runtime commands support two output formats, except `stats`, which uses a contin
 <Tip title="Real-time Control">
 The runtime commands enable DevOps workflows, monitoring integration, and dynamic agent management without stopping your orchestrator.
 </Tip>
-
-<Warning title="Current inspection limitations">
-`status AGENT_NAME` and `dependencies` still reference a removed source attribute and can return an internal error. Web endpoints backed by those two commands have the same limitation. Also, routed lifecycle callbacks are not automatically present in event history. See [Runtime Commands](/cli/runtime-commands) for details.
-</Warning>
 
 ## Installation
 

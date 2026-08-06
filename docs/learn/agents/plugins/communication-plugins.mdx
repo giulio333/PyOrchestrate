@@ -46,8 +46,8 @@ from PyOrchestrate.core.plugins import ZeroMQPubSub
 import zmq
 
 class MyAgent(BaseProcessAgent):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
         self.zmq.initialize()  # Manual initialization
 
