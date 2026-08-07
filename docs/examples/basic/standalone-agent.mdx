@@ -127,4 +127,5 @@ if __name__ == "__main__":
     print("Agent terminated.")
 ```
 
-This setup imports and registers the `WeatherCollector` agent with the orchestrator, which then manages its execution.
+The agent runs on its own: `start()` launches its process and `join()` waits for
+it to reach the `limit` configured in `Config`. No orchestrator is involved.
