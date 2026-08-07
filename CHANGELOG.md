@@ -68,6 +68,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Asking the event store for zero events returned the whole ring buffer. Every
+  `last()` implementation ended in `return items[-n:]`, and `items[-0:]` is
+  `items[0:]`: `pyorchestrate history --last 0`, `GET /api/history?last=0` and
+  `event_bus.get_history(limit=0)` all answered with up to `history_max_events`
+  records — 5000 by default — pushed over ZeroMQ and rendered into the CLI
+  table. A negative `n` was worse still, returning a slice counted from the
+  front of the buffer. A non-positive `n` now returns an empty list, in
+  `RingBufferStore`, `BucketRingStore` and `EventStore` alike.
+- `history-stats` never counted heartbeats, and printed a total that
+  contradicted its own breakdown. `EventStore.stats()` read only the default
+  ring buffer, but `record()` routes each event to its configured policy store
+  and every orchestrator installs a `BucketRingStore` for `agent_heartbeat`
+  (`Orchestrator.__init__`), so those events were counted nowhere:
+  `history-stats` reported `Total Events: 8` above a breakdown summing to 4.
+  The root cause was `BucketRingStore.stats()`, which raised
+  `NotImplementedError` — the framework's own policy did not satisfy the
+  `StorePolicy` interface documented for custom ones. It now keeps the same
+  counters as `RingBufferStore`, and `EventStore.stats()` sums every store,
+  skipping a custom policy that still raises rather than failing the query.
+  The CLI labels the two figures for what they measure, since they legitimately
+  diverge once a buffer evicts: `Default buffer` and `Retained in all buffers`
+  count what is still held, `Event Type Breakdown (recorded since start)` counts
+  everything recorded.
 - A `ChannelHandler` nobody stopped could abort the process at exit instead of
   letting it end. Its polling thread is a daemon, so nothing waits for it: when
   the interpreter closed the channel underneath it, `receive()` raised

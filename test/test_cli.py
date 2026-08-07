@@ -11,7 +11,7 @@ from PyOrchestrate.cli import (
     StatsCommand,
 )
 from PyOrchestrate.core.agent import BaseThreadAgent
-from PyOrchestrate.core.orchestrator.event_store import EventStore
+from PyOrchestrate.core.orchestrator.event_store import BucketRingStore, EventStore
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.utilities.command_handler import CommandHandler
 from PyOrchestrate.core.utilities.messaging import ServiceMessage
@@ -135,8 +135,43 @@ def test_history_stats_table_reports_stored_event_counts():
         }
     )
 
-    assert "Buffer: 3/100 events" in output
-    assert "Total Events: 3" in output
+    assert "Default buffer: 3/100 events" in output
+    assert "Retained in all buffers: 3 events" in output
+
+
+def test_history_stats_table_counts_events_kept_in_a_policy_store():
+    """Heartbeats live in their own store; the breakdown must still show them."""
+    store = EventStore(
+        capacity=100, event_policies={"agent_heartbeat": BucketRingStore(2)}
+    )
+    for index in range(4):
+        store.record(category="orchestrator", event_name="agent_started")
+    for index in range(6):
+        store.record(
+            category="agent", event_name="agent_heartbeat", agent=f"worker-{index % 2}"
+        )
+
+    output = OutputFormatter._format_history_stats(
+        {
+            "statistics": store.stats(),
+            "capacity_info": store.get_capacity_info(),
+            "agent_filter": None,
+            "timestamp": "2026-01-01T00:00:00",
+        }
+    )
+
+    # The default buffer holds only the 4 non-heartbeat events...
+    assert "Default buffer: 4/100 events" in output
+    # ...while the breakdown accounts for every event recorded, heartbeats
+    # included, even though the bucket store evicted two of them.
+    assert "agent_started" in output and "agent_heartbeat" in output
+    assert "recorded since start" in output
+    breakdown = dict(
+        (line.split()[0], int(line.split()[1]))
+        for line in output.splitlines()
+        if line.startswith("  ")
+    )
+    assert breakdown == {"agent_started": 4, "agent_heartbeat": 6}
 
 
 def test_stop_reports_the_message_of_the_orchestrator(cli_response):

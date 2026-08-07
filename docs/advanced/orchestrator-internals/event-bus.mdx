@@ -96,6 +96,28 @@ events = orchestrator.event_bus.event_store.last(
 `EventStore` exposes `last()`, `latest()`, `latest_all_agents()`, `stats()`, and
 `get_capacity_info()`. It does not expose a `query()` method.
 
+A `limit`/`n` of `0` or less returns an empty list, on the event-bus helpers and
+on `EventStore.last()` alike.
+
+## Statistics
+
+`stats()` returns `{"by_type": {event_name: count}}`, aggregated over every
+configured store, so events routed to a policy store are counted alongside the
+ones in the default ring buffer:
+
+```python
+by_type = orchestrator.event_bus.get_stats()["by_type"]
+heartbeats = by_type.get("agent_heartbeat", 0)
+
+worker_stats = orchestrator.event_bus.get_stats(agent_name="worker-1")
+```
+
+The counters are cumulative since the store was created and do not decrease when
+a buffer evicts its oldest records: they answer *how many events were recorded*,
+while `get_capacity_info()` reports how many are *still retained*. On a
+long-running orchestrator the two diverge, which is why the CLI labels them
+separately — see [Runtime Commands](/cli/runtime-commands).
+
 ## What Reaches the History
 
 `Orchestrator` gives `MessageRouter` the complete `OrchestratorEventBus`, so
@@ -203,6 +225,13 @@ class StorePolicy:
 ```
 
 Policies are selected by the exact stored `event_name`.
+
+`last()` must return an empty list for a non-positive `n`, and `stats()` must
+return `{event_name: count}` for the events the policy received —
+`EventStore.stats()` sums those counts across every store. Both built-in
+policies implement the full interface; a custom policy whose `stats()` raises is
+skipped instead of failing the whole query, so its events are simply missing
+from the totals.
 
 ## Thread Safety
 
