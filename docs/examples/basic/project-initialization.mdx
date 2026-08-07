@@ -15,7 +15,7 @@ Imagine you require an agent that fetches weather information every 10 seconds. 
 Start by creating a new PyOrchestrate project with the following command:
 
 ```bash
-PyOrchestrate.cli start weather_collector
+pyorchestrate create weather_collector
 ```
 
 After execution, your project structure should look like this:
@@ -23,13 +23,13 @@ After execution, your project structure should look like this:
 ```plaintext
 weather_collector/
 ├── models/
-├── config/
+├── configurations/
 ├── starter.py
 ```
 
 ## Configuration Setup
 
-In the `models` directory, create a configuration class named `WCConfig`:
+In the `configurations` directory, create `weather_config.py` with a configuration class named `WCConfig`:
 
 ```python
 from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
@@ -44,7 +44,7 @@ Here, `WCConfig` inherits from `PeriodicProcessAgent.Config`. The properties `li
 
 ## Agent Implementation
 
-Next, in the `models` directory, create an agent called `WeatherCollector`:
+Next, in the `models` directory, create `weathercollector.py` with an agent called `WeatherCollector`:
 
 ```python
 import requests
@@ -53,16 +53,18 @@ from PyOrchestrate.core.base.exceptions import RecoverableException
 
 from configurations.weather_config import WCConfig
 
-class WeatherCollector(PeriodicProcessAgent[WCConfig]):
+class WeatherCollector(PeriodicProcessAgent):
 
-    config = WCConfig  # Associate the configuration class with the agent
-    config: Config # Type hint for the config attribute
+    Config = WCConfig  # Associate the configuration class with the agent
+    config: Config  # Type hint for the config attribute
 
     def setup(self):
         super().setup()
         self.logger.info("Initializing WeatherCollector configuration...")
 
     def runner(self):
+        super().runner()
+
         self.logger.info(f"Requesting data from {self.config.url}...")
 
         try:

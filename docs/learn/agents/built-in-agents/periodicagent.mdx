@@ -160,14 +160,14 @@ Be sure to call the parent method if you override it.
 ### execute
 
 ```python
-@abstractmethod
+@final
 ```
 
-This method is called by the `run()` method to execute the core logic of the agent. It must be overridden by the derived class to define the agent's behavior.
+This method is called by the `run()` method and drives the loop, calling [cycle](#cycle) on each iteration until the configured `limit` is reached.
 
-<Tip>
-Be sure to call the parent method.
-</Tip>
+<Warning title="Do not override">
+Marked as `@final` to prevent overriding in derived class. Implement the [runner](#runner) method instead.
+</Warning>
 
 ### cycle
 

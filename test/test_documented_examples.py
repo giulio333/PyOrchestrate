@@ -1,0 +1,178 @@
+"""
+Regression tests for the agents shown in the documentation.
+
+Every class here mirrors a snippet a reader can copy off the site. The point is
+not to exercise the framework — other modules do that — but to make the docs
+fail in CI instead of on the reader's machine: each of these examples used to
+raise ``TypeError`` when instantiated or registered.
+
+Issues #87 and #88.
+"""
+
+import unittest
+
+from PyOrchestrate.core.agent import (
+    BaseProcessAgent,
+    LoopingProcessAgent,
+    PeriodicProcessAgent,
+)
+from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
+
+
+def _orchestrator() -> Orchestrator:
+    """An orchestrator that does not bind the command port."""
+    return Orchestrator(config=Orchestrator.Config(enable_command_interface=False))
+
+
+class TestLoopingAgentExample(unittest.TestCase):
+    """docs/learn/agents/built-in-agents/loopingagent.mdx"""
+
+    def test_log_monitor_agent_is_instantiable(self):
+        """
+        The documented LogMonitorAgent must implement ``cycle``.
+
+        It used to override ``execute``, which is ``@final`` on LoopingAgent,
+        leaving the ``cycle`` abstract method unimplemented.
+        """
+
+        class LogMonitorAgent(LoopingProcessAgent):
+            class Config(LoopingProcessAgent.Config):
+                log_file: str = "app.log"
+                keyword: str = "ERROR"
+
+            config: Config
+
+            def cycle(self):
+                super().cycle()
+
+        agent = LogMonitorAgent(name="log_monitor")
+
+        self.assertEqual(agent.name, "log_monitor")
+        self.assertEqual(agent.config.keyword, "ERROR")
+
+    def test_overriding_execute_alone_is_not_enough(self):
+        """
+        Overriding ``execute`` does not satisfy the abstract ``cycle``.
+
+        This is the exact failure the documented example produced.
+        """
+
+        class BrokenAgent(LoopingProcessAgent):
+            def execute(self):
+                super().execute()
+
+        with self.assertRaises(TypeError) as ctx:
+            BrokenAgent(name="broken")
+
+        self.assertIn("cycle", str(ctx.exception))
+
+
+class TestPeriodicAgentExample(unittest.TestCase):
+    """docs/examples/basic/project-initialization.mdx"""
+
+    def test_weather_collector_uses_its_own_config(self):
+        """
+        ``Config = WCConfig`` is what binds a config class to an agent.
+
+        The page used to write ``config = WCConfig`` (lowercase), which
+        ``__init__`` overwrites, so the custom config was silently ignored.
+        """
+
+        class WCConfig(PeriodicProcessAgent.Config):
+            limit: int = 2
+            execution_interval: float = 2
+            url: str = "https://catfact.ninja/fact"
+
+        class WeatherCollector(PeriodicProcessAgent):
+            Config = WCConfig
+
+            config: Config
+
+            def runner(self):
+                super().runner()
+
+        agent = WeatherCollector(name="weather_collector")
+
+        self.assertIsInstance(agent.config, WCConfig)
+        self.assertEqual(agent.config.url, "https://catfact.ninja/fact")
+        self.assertEqual(agent.config.limit, 2)
+
+    def test_lowercase_config_does_not_bind_the_class(self):
+        """The pattern the page used to show leaves the base config in place."""
+
+        class WCConfig(PeriodicProcessAgent.Config):
+            url: str = "https://catfact.ninja/fact"
+
+        class WeatherCollector(PeriodicProcessAgent):
+            config = WCConfig
+
+            def runner(self):
+                super().runner()
+
+        agent = WeatherCollector(name="weather_collector")
+
+        self.assertNotIsInstance(agent.config, WCConfig)
+        self.assertFalse(hasattr(agent.config, "url"))
+
+    def test_agent_classes_are_not_subscriptable(self):
+        """
+        The agent classes are not generic.
+
+        ``PeriodicProcessAgent[WCConfig]`` raised ``TypeError`` at class
+        definition time, which is why the annotation was removed from the page.
+        """
+        for agent_class in (
+            PeriodicProcessAgent,
+            LoopingProcessAgent,
+            BaseProcessAgent,
+        ):
+            with self.subTest(agent_class=agent_class.__name__):
+                with self.assertRaises(TypeError):
+                    agent_class[PeriodicProcessAgent.Config]
+
+
+class TestCommunicationPluginExample(unittest.TestCase):
+    """docs/learn/agents/plugins/communication-plugins.mdx"""
+
+    def test_manual_agent_can_be_registered(self):
+        """
+        An agent that declares ``__init__`` must forward ``**kwargs``.
+
+        ``register_agent`` constructs agents with ``name``, ``config``,
+        ``plugin``, ``control_events``, ``state_events`` and ``generation_id``;
+        the documented ``def __init__(self)`` rejected every one of them.
+        """
+
+        class MyAgent(BaseProcessAgent):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.initialized = True
+
+            def execute(self):
+                super().execute()
+
+        entry = _orchestrator().register_agent(MyAgent, "my_agent")
+        entry._initialize_instance()
+
+        self.assertIsInstance(entry.instance, MyAgent)
+        self.assertTrue(entry.instance.initialized)
+        self.assertEqual(entry.instance.name, "my_agent")
+
+    def test_init_without_kwargs_cannot_be_registered(self):
+        """The signature the page used to show, and the error it produced."""
+
+        class MyAgent(BaseProcessAgent):
+            def __init__(self):
+                super().__init__()
+
+            def execute(self):
+                super().execute()
+
+        entry = _orchestrator().register_agent(MyAgent, "my_agent")
+
+        with self.assertRaises(TypeError):
+            entry._initialize_instance()
+
+
+if __name__ == "__main__":
+    unittest.main()
