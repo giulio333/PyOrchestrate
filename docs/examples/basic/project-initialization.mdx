@@ -69,6 +69,8 @@ class WeatherCollector(PeriodicProcessAgent):
         self.logger.info("Initializing WeatherCollector configuration...")
 
     def runner(self):
+        super().runner()
+
         self.logger.info(f"Requesting data from {self.config.url}...")
 
         try:

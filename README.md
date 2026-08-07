@@ -148,9 +148,9 @@ Execute tasks in continuous loops:
 - **LoopingThreadAgent**: For continuous processing with shared memory
 
 ### Pool Agents
-Manage worker pools for parallel processing:
-- **PoolProcessAgent**: Manages a pool of worker processes
-- **PoolThreadAgent**: Manages a pool of worker threads
+Supervise a declared group of child agents through an inner orchestrator:
+- **PoolProcessAgent**: The pool itself runs in its own process; its children share that process and are best declared as thread agents
+- **PoolThreadAgent**: The pool itself runs in a thread of the parent process
 
 ### Base Agents
 Foundation classes for custom implementations:
@@ -165,8 +165,8 @@ Foundation classes for custom implementations:
 2. **Real-time Processing**  
    Use `LoopingThreadAgent` for continuous data stream processing with low latency.
 
-3. **Batch Processing**  
-   Use `PoolProcessAgent` to distribute heavy computational tasks across multiple worker processes.
+3. **Grouped Workloads**  
+   Use `PoolProcessAgent` when a unit of work is a *group* of collaborating agents: the children start and stop together, and inside one process they can share large objects through a plain `Queue` without paying the serialisation cost of a process boundary.
 
 4. **Event Monitoring**  
    Use `PeriodicThreadAgent` to monitor file system changes or API endpoints.
