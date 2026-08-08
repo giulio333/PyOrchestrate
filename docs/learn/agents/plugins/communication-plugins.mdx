@@ -46,8 +46,8 @@ from PyOrchestrate.core.plugins import ZeroMQPubSub
 import zmq
 
 class MyAgent(BaseProcessAgent):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.zmq = ZeroMQPubSub("tcp://localhost:5555", zmq.PUB)
         self.zmq.initialize()  # Manual initialization
 
@@ -61,6 +61,13 @@ class MyAgent(BaseProcessAgent):
 ```
 
 **Notes:**
+- Overriding `__init__` must keep `**kwargs` and forward them to `super()`. The
+  orchestrator constructs the agent when it *starts* it, passing `name`,
+  `config`, `plugin`, `control_events`, `state_events` and `generation_id`. With
+  a bare `def __init__(self)`, `register_agent` still succeeds and the failure
+  only appears at startup, as a logged
+  `Failed to start agent 'my_agent': MyAgent.__init__() got an unexpected keyword argument 'name'` —
+  the agent never runs.
 - You must call `initialize()` on the plugin before using it.
 - You must call `finalize()` on the plugin when the agent is shutting down.
 - Resource management is your responsibility.

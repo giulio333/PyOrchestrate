@@ -23,7 +23,7 @@ from PyOrchestrate.core.agent.base_agent import (
     BaseProcessAgent,
     BaseThreadAgent,
 )
-from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
+from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.orchestrator.memory import OMemory, AgentEntry
 from PyOrchestrate.core.utilities.messaging import MessageChannel
 
@@ -540,6 +540,102 @@ class TestAgentInitializationParameters(unittest.TestCase):
             self.assertIs(call_kwargs["control_events"], custom_control_events)
             self.assertIs(call_kwargs["state_events"], custom_state_events)
             self.assertEqual(call_kwargs["extra_kwarg"], "extra_value")
+
+
+class TestDocumentedAgentPatterns(unittest.TestCase):
+    """
+    Lock in the two patterns the documentation teaches for writing an agent.
+
+    Both were shown wrong on the site: an `__init__` override without
+    `**kwargs`, and a custom configuration assigned to the lowercase `config`
+    attribute. Neither raises where a reader would look for the mistake, which
+    is why they survived.
+    """
+
+    @staticmethod
+    def _orchestrator(name):
+        return Orchestrator(
+            config=Orchestrator.Config(
+                run_mode=RunMode.STOP_ON_EMPTY,
+                enable_command_interface=False,
+            ),
+            name=name,
+        )
+
+    def test_an_init_override_forwarding_kwargs_can_be_started(self):
+        """The documented `def __init__(self, **kwargs)` form."""
+        executed = threading.Event()
+
+        class Documented(BaseThreadAgent):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+            def execute(self):
+                super().execute()
+                executed.set()
+
+        orchestrator = self._orchestrator("documented")
+        orchestrator.register_agent(Documented, "documented")
+        orchestrator.start()
+        orchestrator.join()
+
+        self.assertTrue(executed.is_set())
+
+    def test_a_bare_init_override_never_reaches_execute(self):
+        """`def __init__(self)` registers fine, then fails at startup."""
+        executed = threading.Event()
+
+        class Broken(BaseThreadAgent):
+            def __init__(self):
+                super().__init__()
+
+            def execute(self):
+                super().execute()
+                executed.set()
+
+        orchestrator = self._orchestrator("broken")
+        # Registration succeeds: the agent is only constructed when started.
+        orchestrator.register_agent(Broken, "broken")
+        orchestrator.start()
+        orchestrator.join()
+
+        self.assertFalse(executed.is_set())
+
+    def test_the_inner_config_class_selects_the_custom_configuration(self):
+        """The documented `Config = CustomConfig` form."""
+
+        class CustomConfig(BaseThreadAgent.Config):
+            url: str = "https://example.invalid/fact"
+
+        class Documented(BaseThreadAgent):
+            Config = CustomConfig
+            config: CustomConfig
+
+            def execute(self):
+                super().execute()
+
+        agent = Documented(name="documented")
+
+        self.assertIsInstance(agent.config, CustomConfig)
+        self.assertEqual(agent.config.url, "https://example.invalid/fact")
+
+    def test_assigning_the_lowercase_config_attribute_is_silently_ignored(self):
+        """`config = CustomConfig` leaves the agent on the base configuration."""
+
+        class CustomConfig(BaseThreadAgent.Config):
+            url: str = "https://example.invalid/fact"
+
+        class Broken(BaseThreadAgent):
+            config = CustomConfig
+
+            def execute(self):
+                super().execute()
+
+        agent = Broken(name="broken")
+
+        # __init__ overwrites it with `self.config = config if config else self.Config()`
+        self.assertNotIsInstance(agent.config, CustomConfig)
+        self.assertFalse(hasattr(agent.config, "url"))
 
 
 if __name__ == "__main__":

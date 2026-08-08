@@ -52,14 +52,14 @@ classDiagram
         +cycle()
     }
 
-    class BaseProcessAgent {
+    class LoopingProcessAgent {
     }
-    class BaseThreadAgent {
+    class LoopingThreadAgent {
     }
 
     BaseAgent <|-- LoopingAgent
-    LoopingAgent <|-- BaseProcessAgent
-    LoopingAgent <|-- BaseThreadAgent
+    LoopingAgent <|-- LoopingProcessAgent
+    LoopingAgent <|-- LoopingThreadAgent
 ```
 
 To learn more about `BaseAgent` click [here](/learn/agents/built-in-agents/baseagent).
@@ -254,11 +254,11 @@ class LogMonitorAgent(LoopingProcessAgent):
             self.logger.error(f"Log file {self.config.log_file} does not exist.")
             raise
 
-    def execute(self):
+    def cycle(self):
         """
         Monitor the log file for the specified keyword.
         """
-        super().execute()
+        super().cycle()
 
         self.logger.info(f"Monitoring for keyword: '{self.config.keyword}'")
         try:

@@ -61,13 +61,12 @@ pyorchestrate ps
 # Inspect the orchestrator
 pyorchestrate status
 
-# Agent-specific status and dependency inspection currently have a known
-# handler defect; use `pyorchestrate ps` for operational agent state.
-```
+# Inspect a single agent
+pyorchestrate status Worker
 
-<Warning>
-`pyorchestrate status Worker` and `pyorchestrate dependencies` currently reference a removed orchestrator attribute and can return an internal error. This is a source limitation, not a connection or permissions problem.
-</Warning>
+# Show the dependency graph
+pyorchestrate dependencies
+```
 
 ## Control Agents
 

@@ -91,6 +91,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   diverge once a buffer evicts: `Default buffer` and `Retained in all buffers`
   count what is still held, `Event Type Breakdown (recorded since start)` counts
   everything recorded.
+- Documented examples that raised `TypeError` when copied off the site. The
+  `LogMonitorAgent` of `loopingagent.mdx` overrode `execute()`, which is
+  `@final` on `LoopingAgent`, and never implemented the abstract `cycle()`, so
+  it could not be instantiated; it now implements `cycle()`. The
+  `WeatherCollector` of `project-initialization.mdx` subclassed
+  `PeriodicProcessAgent[WCConfig]`, but the agent classes are not generic, and
+  bound its configuration with `config = WCConfig`, which `__init__` overwrites
+  — the custom config was silently ignored. It now uses `Config = WCConfig`.
+  The manual `MyAgent` of `communication-plugins.mdx` declared
+  `def __init__(self)`, which rejects every keyword `register_agent` passes;
+  it now forwards `**kwargs`. `test/test_documented_examples.py` covers all
+  three, and asserts the broken forms still fail.
+- `project-initialization.mdx` told the reader to scaffold with
+  `PyOrchestrate.cli start weather_collector`. `start` is a runtime command
+  against a running orchestrator; the scaffolding command is
+  `pyorchestrate create`. The page also showed a `config/` directory that the
+  CLI never creates — it creates `models/` and `configurations/` — and placed
+  `WCConfig` in `models/` while importing it from `configurations`.
+- The `LoopingAgent` class diagram derived `BaseProcessAgent` and
+  `BaseThreadAgent` from `LoopingAgent`. They derive from `BaseAgent`; the
+  subclasses of `LoopingAgent` are `LoopingProcessAgent` and
+  `LoopingThreadAgent`.
+- `periodicagent.mdx` documented `execute` as `@abstractmethod` "to be
+  overridden by the derived class", contradicting the section below it and the
+  `@final` on `LoopingAgent.execute()`. `runner` is the method to implement.
+- The `OrchestratorEvent.AGENT_HEARTBEAT` docstring said the event takes no
+  arguments. `MessageRouter` emits it with `agent_name`, as the narrative pages
+  already documented. `AgentEvent.AGENT_HEARTBEAT`, the agent-side event, does
+  take no arguments and is unchanged.
+- Two `#validation` links pointed at `/learn/agents/index#validation`, a
+  heading that does not exist on that page. They now point at
+  `/learn/config_and_validation#validation`.
+- `README.md` described `PoolProcessAgent` and `PoolThreadAgent` as pools of
+  worker processes and threads, and recommended `PoolProcessAgent` for
+  distributing computation across processes — the opposite of what
+  `poolagent.mdx` says. A `PoolAgent` supervises a declared group of child
+  agents through an inner orchestrator; `process`/`thread` describes how the
+  pool itself runs, not its children.
+- The CLI pages still warned that `status AGENT_NAME` and `dependencies`
+  "reference a removed source attribute and can return an internal error", and
+  that routed lifecycle callbacks are missing from the event history. Both were
+  fixed in 385e4db and 917cee1; `runtime-commands.mdx` had already been
+  updated, `cli/index.mdx` and `cli/examples.mdx` had not.
+- `validation.mdx` claimed the orchestrator starts only the agents that pass
+  validation. All of them are started; the invalid one fails inside
+  `BaseAgent.run()`, with its process already up, and terminates with
+  `AgentTerminationStatus.ERROR`.
+- `standalone-agent.mdx` ended by describing how the page registers a
+  `WeatherCollector` with an orchestrator. The page defines a
+  `SimpleCounterAgent` and demonstrates running without an orchestrator.
 - A `ChannelHandler` nobody stopped could abort the process at exit instead of
   letting it end. Its polling thread is a daemon, so nothing waits for it: when
   the interpreter closed the channel underneath it, `receive()` raised

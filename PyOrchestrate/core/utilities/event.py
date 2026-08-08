@@ -17,7 +17,7 @@ class OrchestratorEvent(Enum):
     AGENT_ERROR = "agent_error"
     """Event emitted when an agent reports an error. Take the agent name and error message as arguments (`agent_name`, `error_message`)."""
     AGENT_HEARTBEAT = "agent_heartbeat"
-    """Event emitted when an agent sends a heartbeat signal. Take no arguments."""
+    """Event emitted when an agent sends a heartbeat signal. Take the agent name as argument (`agent_name`)."""
 
 
 class AgentEvent(Enum):
