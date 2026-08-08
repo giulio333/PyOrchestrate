@@ -226,7 +226,8 @@ pyorchestrate history \
 
 Options:
 
-- `--last N`: Maximum number of recent events. The backend default is `100`
+- `--last N`: Maximum number of recent events. The backend default is `100`, and
+  a value of `0` or less returns no events
 - `--agent AGENT_NAME`: Return events for one agent
 - `--type EVENT_NAME`: Return events with one event name
 - `--after-seq SEQUENCE`: Return events after a sequence number
@@ -258,6 +259,19 @@ pyorchestrate history-stats \
 ```
 
 Use `--agent` to limit the statistics to one agent.
+
+The output separates two figures that measure different things:
+
+- **Default buffer** and **Retained in all buffers** count the events still held
+  in memory. They shrink back as the ring buffers evict their oldest records,
+  and they always cover the whole orchestrator, even with `--agent`.
+- **Event Type Breakdown** counts every event *recorded since the orchestrator
+  started*, per event name, and honours `--agent`. Its counters never decrease,
+  so they exceed the retained figures on a long-running orchestrator.
+
+The breakdown covers every store, including the per-agent one the orchestrator
+installs for `agent_heartbeat` — see
+[Event Bus](/advanced/orchestrator-internals/event-bus).
 
 ## `stats`
 

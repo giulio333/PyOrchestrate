@@ -670,16 +670,21 @@ class OutputFormatter:
         output.append(f"Timestamp: {timestamp}")
         if agent_filter:
             output.append(f"Agent Filter: {agent_filter}")
-        output.append(f"Buffer: {OutputFormatter._default_store_usage(capacity_info)}")
+        # The two figures below measure different things and are expected to
+        # diverge: the buffers report what is still retained, the breakdown
+        # counts everything recorded since start. Label them accordingly.
         output.append(
-            f"Total Events: "
-            f"{capacity_info.get('summary', {}).get('total_events_approx', 0)}"
+            f"Default buffer: {OutputFormatter._default_store_usage(capacity_info)}"
+        )
+        output.append(
+            f"Retained in all buffers: "
+            f"{capacity_info.get('summary', {}).get('total_events_approx', 0)} events"
         )
         output.append("")
 
         by_type = statistics.get("by_type", {})
         if by_type:
-            output.append("Event Type Breakdown:")
+            output.append("Event Type Breakdown (recorded since start):")
             sorted_events = sorted(by_type.items(), key=lambda x: x[1], reverse=True)
             for event_type, count in sorted_events:
                 output.append(f"  {event_type:<25} {count:>6}")

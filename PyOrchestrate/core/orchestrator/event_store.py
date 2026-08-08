@@ -86,11 +86,19 @@ class StorePolicy(Protocol):
         event_name: Optional[str] = None,
         after_seq: Optional[int] = None,
     ) -> List["EventRecord"]:
-        """Retrieve the last N events with optional filtering."""
+        """Retrieve the last N events with optional filtering.
+
+        A non-positive `n` must return an empty list.
+        """
         ...
 
     def stats(self, *, agent: Optional[str] = None) -> Dict[str, int]:
-        """Get event count statistics, optionally for a specific agent."""
+        """Get event count statistics, optionally for a specific agent.
+
+        EventStore.stats() sums these counts across every configured store; an
+        implementation that raises instead is skipped rather than failing the
+        query.
+        """
         ...
 
     def capacity_info(self) -> Dict[str, int]:
@@ -149,7 +157,8 @@ class RingBufferStore(StorePolicy):
         Retrieve the most recent events from the ring buffer.
 
         Args:
-            n: Maximum number of events to return
+            n: Maximum number of events to return. Non-positive values return
+                an empty list.
             agent: Filter by specific agent name
             event_name: Filter by specific event type
             after_seq: Only return events with sequence number > after_seq
@@ -157,6 +166,8 @@ class RingBufferStore(StorePolicy):
         Returns:
             List of EventRecord objects, most recent last
         """
+        if n <= 0:
+            return []
         items = list(self._buf)
         if after_seq is not None:
             items = [x for x in items if x.seq > after_seq]
@@ -169,6 +180,11 @@ class RingBufferStore(StorePolicy):
     def stats(self, *, agent: Optional[str] = None) -> Dict[str, int]:
         """
         Get event count statistics with O(1) complexity.
+
+        Counters track every appended event, so they keep growing after the
+        buffer starts evicting: they answer "how many events were recorded",
+        not "how many are still retained". Use capacity_info() for the
+        retained size.
 
         Args:
             agent: If provided, return stats only for this agent
@@ -219,6 +235,10 @@ class BucketRingStore(StorePolicy):
         self._buckets: Dict[str, deque[EventRecord]] = defaultdict(
             lambda: deque(maxlen=self._per_agent_capacity)
         )
+        self._count_by_type: Dict[str, int] = defaultdict(int)
+        self._count_by_agent_type: Dict[str, Dict[str, int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
 
     def _bucket_key(self, agent: Optional[str]) -> str:
         """Convert agent name to bucket key, using '_none' for None agents."""
@@ -235,6 +255,9 @@ class BucketRingStore(StorePolicy):
             e: Event record to store
         """
         self._buckets[self._bucket_key(e.agent)].append(e)
+        self._count_by_type[e.event_name] += 1
+        if e.agent:
+            self._count_by_agent_type[e.agent][e.event_name] += 1
 
     def last(
         self,
@@ -248,7 +271,8 @@ class BucketRingStore(StorePolicy):
         Retrieve recent events from per-agent buckets.
 
         Args:
-            n: Maximum number of events to return
+            n: Maximum number of events to return. Non-positive values return
+                an empty list.
             agent: If specified, only return events from this agent's bucket
             event_name: Filter by specific event type
             after_seq: Only return events with sequence number > after_seq
@@ -256,6 +280,8 @@ class BucketRingStore(StorePolicy):
         Returns:
             List of EventRecord objects, sorted by sequence number (most recent last)
         """
+        if n <= 0:
+            return []
         if agent is not None:
             items = list(self._buckets[self._bucket_key(agent)])
         else:
@@ -274,18 +300,22 @@ class BucketRingStore(StorePolicy):
 
     def stats(self, *, agent: Optional[str] = None) -> Dict[str, int]:
         """
-        Get event count statistics.
+        Get event count statistics with O(1) complexity.
 
-        Note: Currently not implemented for BucketRingStore.
-        Use capacity_info() for basic usage statistics instead.
+        Counters track every appended event, so they keep growing after the
+        per-agent buckets start evicting: they answer "how many events were
+        recorded", not "how many are still retained". Use capacity_info() for
+        the retained sizes.
 
         Args:
-            agent: Agent to get stats for (ignored)
+            agent: If provided, return stats only for this agent
 
-        Raises:
-            NotImplementedError: Always raised
+        Returns:
+            Dictionary with event_name -> count mappings
         """
-        raise NotImplementedError("BucketRingStore stats are not implemented.")
+        if agent is None:
+            return dict(self._count_by_type)
+        return dict(self._count_by_agent_type.get(agent, {}))
 
     def capacity_info(self) -> Dict[str, int]:
         """
@@ -441,7 +471,8 @@ class EventStore:
         backward compatibility for general queries.
 
         Args:
-            n: Maximum number of events to return
+            n: Maximum number of events to return. Non-positive values return
+                an empty list.
             agent: Filter by agent name (only events from this agent)
             event_name: Filter by event type (single event name only).
                        If None, searches in the default store containing all events.
@@ -465,6 +496,9 @@ class EventStore:
             agent_heartbeats = store.last(5, agent="worker1", event_name="agent_heartbeat")
             ```
         """
+        if n <= 0:
+            return []
+
         with self._lock:
             if event_name is None:
                 merged: List[EventRecord] = []
@@ -591,8 +625,14 @@ class EventStore:
         """
         Get aggregated event count statistics with O(1) complexity.
 
-        Note: Currently only provides statistics from the default ring buffer store.
-        Event-specific stores may not implement stats collection.
+        Counts are summed across every configured store, so events routed to an
+        event-specific policy are reported alongside the ones in the default
+        ring buffer. A custom StorePolicy whose stats() raises is skipped rather
+        than failing the whole query.
+
+        The counters are cumulative since the store was created: they do not
+        shrink when a buffer evicts its oldest events. Use get_capacity_info()
+        for the number of events currently retained.
 
         Args:
             agent: Get stats for specific agent, or global stats if None
@@ -607,9 +647,16 @@ class EventStore:
             ```
         """
         with self._lock:
-            if agent is None:
-                return {"by_type": dict(self._stores["__default__"].stats())}
-            return {"by_type": dict(self._stores["__default__"].stats(agent=agent))}
+            by_type: Dict[str, int] = defaultdict(int)
+            for store in self._stores.values():
+                try:
+                    counts = store.stats(agent=agent)
+                except Exception:
+                    # Be resilient: a custom store may not collect statistics
+                    continue
+                for event_name, count in counts.items():
+                    by_type[event_name] += count
+            return {"by_type": dict(by_type)}
 
     def get_capacity_info(self) -> Dict[str, Dict[str, Dict[str, int]]]:
         """

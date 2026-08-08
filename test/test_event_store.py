@@ -9,7 +9,12 @@ import time
 import threading
 from unittest.mock import Mock, patch
 
-from PyOrchestrate.core.orchestrator.event_store import EventStore, EventRecord
+from PyOrchestrate.core.orchestrator.event_store import (
+    BucketRingStore,
+    EventRecord,
+    EventStore,
+    RingBufferStore,
+)
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.agent import PeriodicProcessAgent
 
@@ -223,6 +228,82 @@ class TestEventStore(unittest.TestCase):
         self.assertEqual(agent2_stats["by_type"]["TYPE_A"], 4)
         self.assertNotIn("TYPE_B", agent2_stats["by_type"])
 
+    def test_last_with_non_positive_n_returns_nothing(self):
+        """A request for zero or fewer events must not return the whole buffer."""
+        store = EventStore()
+
+        for _ in range(10):
+            store.record(category="test", event_name="TYPE_A", agent="agent-1")
+
+        # Merged path (no event_name filter)
+        self.assertEqual(store.last(n=0), [])
+        self.assertEqual(store.last(n=-3), [])
+        # Filtered paths
+        self.assertEqual(store.last(n=0, event_name="TYPE_A"), [])
+        self.assertEqual(store.last(n=0, agent="agent-1"), [])
+        # A positive request is unaffected
+        self.assertEqual(len(store.last(n=4)), 4)
+
+    def test_last_with_non_positive_n_returns_nothing_for_policy_store(self):
+        """The clamp also applies to events routed to an event-specific store."""
+        store = EventStore(event_policies={"agent_heartbeat": BucketRingStore(2)})
+
+        for _ in range(6):
+            store.record(category="agent", event_name="agent_heartbeat", agent="w1")
+
+        self.assertEqual(store.last(n=0, event_name="agent_heartbeat"), [])
+        self.assertEqual(store.last(n=-1, event_name="agent_heartbeat"), [])
+        self.assertEqual(store.last(n=0), [])
+        self.assertEqual(len(store.last(n=1, event_name="agent_heartbeat")), 1)
+
+    def test_stats_include_event_specific_stores(self):
+        """Events routed to a policy store are counted, not silently dropped."""
+        store = EventStore(event_policies={"agent_heartbeat": BucketRingStore(2)})
+
+        for _ in range(4):
+            store.record(category="orchestrator", event_name="agent_started")
+        for _ in range(6):
+            store.record(category="agent", event_name="agent_heartbeat", agent="w1")
+
+        by_type = store.stats()["by_type"]
+        self.assertEqual(by_type["agent_started"], 4)
+        self.assertEqual(by_type["agent_heartbeat"], 6)
+
+    def test_stats_by_agent_include_event_specific_stores(self):
+        """The agent filter reaches the policy stores too."""
+        store = EventStore(event_policies={"agent_heartbeat": BucketRingStore(2)})
+
+        for _ in range(3):
+            store.record(category="agent", event_name="agent_heartbeat", agent="w1")
+        for _ in range(5):
+            store.record(category="agent", event_name="agent_heartbeat", agent="w2")
+        store.record(category="orchestrator", event_name="agent_started", agent="w1")
+
+        w1_stats = store.stats(agent="w1")["by_type"]
+        self.assertEqual(w1_stats["agent_heartbeat"], 3)
+        self.assertEqual(w1_stats["agent_started"], 1)
+
+        w2_stats = store.stats(agent="w2")["by_type"]
+        self.assertEqual(w2_stats["agent_heartbeat"], 5)
+        self.assertNotIn("agent_started", w2_stats)
+
+    def test_stats_skip_a_policy_that_does_not_collect_them(self):
+        """A custom policy whose stats() raises must not fail the whole query."""
+
+        class NoStatsStore(RingBufferStore):
+            def stats(self, *, agent=None):
+                raise NotImplementedError
+
+        store = EventStore(event_policies={"custom": NoStatsStore(10)})
+
+        store.record(category="test", event_name="custom")
+        for _ in range(2):
+            store.record(category="test", event_name="TYPE_A")
+
+        by_type = store.stats()["by_type"]
+        self.assertEqual(by_type["TYPE_A"], 2)
+        self.assertNotIn("custom", by_type)
+
     def test_capacity_info(self):
         """Test capacity information."""
         store = EventStore(capacity=100)
@@ -281,6 +362,67 @@ class TestEventStore(unittest.TestCase):
         # Check all events are properly recorded (default capacity is 5000, so all should be there)
         events = store.last(500)
         self.assertEqual(len(events), 500)
+
+
+class TestStorePolicies(unittest.TestCase):
+    """Test the built-in StorePolicy implementations directly."""
+
+    @staticmethod
+    def _record(seq: int, event_name: str = "TYPE_A", agent: str = "w1") -> EventRecord:
+        return EventRecord(
+            seq=seq,
+            t_wall=0.0,
+            t_mono_ns=seq,
+            category="test",
+            event_name=event_name,
+            agent=agent,
+            severity="INFO",
+            data=None,
+        )
+
+    def test_ring_buffer_store_last_with_non_positive_n(self):
+        """RingBufferStore returns nothing when asked for zero or fewer events."""
+        store = RingBufferStore(capacity=10)
+        for seq in range(1, 6):
+            store.append(self._record(seq))
+
+        self.assertEqual(store.last(n=0), [])
+        self.assertEqual(store.last(n=-2), [])
+        self.assertEqual(len(store.last(n=3)), 3)
+
+    def test_bucket_ring_store_last_with_non_positive_n(self):
+        """BucketRingStore returns nothing when asked for zero or fewer events."""
+        store = BucketRingStore(per_agent_capacity=3)
+        for seq in range(1, 6):
+            store.append(self._record(seq))
+
+        self.assertEqual(store.last(n=0), [])
+        self.assertEqual(store.last(n=-2), [])
+        self.assertEqual(store.last(n=0, agent="w1"), [])
+        self.assertEqual(len(store.last(n=2)), 2)
+
+    def test_bucket_ring_store_stats_count_recorded_not_retained(self):
+        """Counters keep rising once the per-agent buckets start evicting."""
+        store = BucketRingStore(per_agent_capacity=2)
+        for seq in range(1, 8):
+            store.append(self._record(seq))
+
+        # Only 2 events survive in the bucket, but all 7 were recorded.
+        self.assertEqual(store.capacity_info()["current_size"], 2)
+        self.assertEqual(store.stats()["TYPE_A"], 7)
+        self.assertEqual(store.stats(agent="w1")["TYPE_A"], 7)
+
+    def test_bucket_ring_store_stats_are_per_agent(self):
+        """Each agent gets its own counters."""
+        store = BucketRingStore(per_agent_capacity=2)
+        store.append(self._record(1, agent="w1"))
+        store.append(self._record(2, agent="w1"))
+        store.append(self._record(3, agent="w2", event_name="TYPE_B"))
+
+        self.assertEqual(store.stats(), {"TYPE_A": 2, "TYPE_B": 1})
+        self.assertEqual(store.stats(agent="w1"), {"TYPE_A": 2})
+        self.assertEqual(store.stats(agent="w2"), {"TYPE_B": 1})
+        self.assertEqual(store.stats(agent="unknown"), {})
 
 
 class TestOrchestratorEventIntegration(unittest.TestCase):

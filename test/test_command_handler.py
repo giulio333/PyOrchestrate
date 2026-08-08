@@ -5,6 +5,7 @@ handlers kept reading the removed `orchestrator.dependencies` unnoticed. These
 tests therefore use a real instance.
 """
 
+import json
 import os
 import time
 
@@ -13,6 +14,7 @@ import pytest
 from PyOrchestrate.core.agent import BaseThreadAgent
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.utilities.command_handler import CommandHandler
+from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
 
 class Worker(BaseThreadAgent):
@@ -97,3 +99,32 @@ def test_stats_forgets_the_processes_of_agents_that_are_gone(handler):
     handler.execute_command("stats", [])
 
     assert handler._process_cache == {}
+
+
+def test_history_with_last_zero_returns_no_events(handler):
+    """`--last 0` used to answer with the whole ring buffer."""
+    assert handler.execute_command("history", [])["count"] > 0
+
+    result = handler.execute_command("history", [json.dumps({"last": 0})])
+
+    assert result["count"] == 0
+    assert result["events"] == []
+
+
+def test_history_with_a_negative_last_returns_no_events(handler):
+    result = handler.execute_command("history", [json.dumps({"last": -5})])
+
+    assert result["count"] == 0
+
+
+def test_history_stats_count_the_events_kept_in_the_heartbeat_store(handler):
+    """Heartbeats are routed to a BucketRingStore and used to be uncounted."""
+    for _ in range(3):
+        handler.orchestrator.event_bus.emit(
+            OrchestratorEvent.AGENT_HEARTBEAT, agent_name="consumer"
+        )
+
+    by_type = handler.execute_command("history-stats", [])["statistics"]["by_type"]
+
+    assert by_type[OrchestratorEvent.AGENT_HEARTBEAT.value] == 3
+    assert by_type[OrchestratorEvent.AGENT_REGISTERED.value] == 2
