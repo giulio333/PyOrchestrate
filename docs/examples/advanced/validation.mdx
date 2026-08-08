@@ -118,9 +118,7 @@ def run_validation_example():
         SimpleAgent.Config(threshold=10, debug=False),
     )
     
-    # Start all agents. The one that fails validation is started too: it
-    # fails inside BaseAgent.run(), once its process is already up, and
-    # terminates with AgentTerminationStatus.ERROR.
+    # Start all three agents: validation runs inside each agent, after start
     orchestrator.start()
     
     # Wait for all agents to complete
@@ -130,6 +128,19 @@ def run_validation_example():
 if __name__ == "__main__":
     run_validation_example()
 ```
+
+All three agents are started. Registration does not validate anything: an agent
+validates inside `BaseAgent.run()`, after its process has already been started
+and before plugin initialization, `setup()` and `execute()`. So
+`simple_agent_error` starts like the others, fails validation on
+`threshold=150`, and terminates with `AgentTerminationStatus.ERROR` without ever
+reaching `execute()`. It also reports the failure to the orchestrator, so the
+message reaches `pyorchestrate history --type agent_error` and the callbacks
+registered for `OrchestratorEvent.AGENT_ERROR`.
+
+`simple_agent_warning` passes with a warning and runs normally. See
+[Configuration and Validation](/learn/config_and_validation) for the full
+policy.
 
 ## Complete Example
 

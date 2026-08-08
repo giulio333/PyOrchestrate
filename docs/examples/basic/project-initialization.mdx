@@ -18,6 +18,10 @@ Start by creating a new PyOrchestrate project with the following command:
 pyorchestrate create weather_collector
 ```
 
+`create` scaffolds a project. It is not to be confused with `start`, which is a
+runtime command that starts an already registered agent on a running
+orchestrator — see [Runtime Commands](/cli/runtime-commands).
+
 After execution, your project structure should look like this:
 
 ```plaintext
@@ -29,7 +33,8 @@ weather_collector/
 
 ## Configuration Setup
 
-In the `configurations` directory, create `weather_config.py` with a configuration class named `WCConfig`:
+In the `configurations` directory, create `weather_config.py` with a
+configuration class named `WCConfig`:
 
 ```python
 from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
@@ -44,7 +49,8 @@ Here, `WCConfig` inherits from `PeriodicProcessAgent.Config`. The properties `li
 
 ## Agent Implementation
 
-Next, in the `models` directory, create `weathercollector.py` with an agent called `WeatherCollector`:
+Next, in the `models` directory, create `weathercollector.py` with an agent
+called `WeatherCollector`:
 
 ```python
 import requests
@@ -56,7 +62,7 @@ from configurations.weather_config import WCConfig
 class WeatherCollector(PeriodicProcessAgent):
 
     Config = WCConfig  # Associate the configuration class with the agent
-    config: Config  # Type hint for the config attribute
+    config: Config     # Type hint for the config attribute
 
     def setup(self):
         super().setup()
@@ -78,8 +84,17 @@ class WeatherCollector(PeriodicProcessAgent):
 
 The `runner` method executes periodically and logs the response. If any request fails, it raises a `RecoverableException` which prevents the agent from stopping.
 
+<Note title="This example needs `requests`">
+`requests` is not a PyOrchestrate dependency — only the examples use it. Install
+it with `pip install requests` before running this project.
+</Note>
+
 <Tip title="Configuration Tip">
-When adding a new agent, you can override the `Config` attribute to use a custom configuration class, as shown with `WCConfig`.
+When adding a new agent, override the inner `Config` attribute — capital `C` —
+to use a custom configuration class, as shown with `WCConfig`. Assigning the
+lowercase `config` instead has no effect: `__init__` overwrites it with
+`self.config = config if config else self.Config()`, so the agent silently runs
+on the base configuration and `self.config.url` does not exist.
 </Tip>
 
 ## Orchestrator Integration

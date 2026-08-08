@@ -127,4 +127,5 @@ if __name__ == "__main__":
     print("Agent terminated.")
 ```
 
-Run this file directly and the agent counts to `limit` on its own: no orchestrator is registered, started or joined anywhere in the example.
+The agent runs on its own: `start()` launches its process and `join()` waits for
+it to reach the `limit` configured in `Config`. No orchestrator is involved.
