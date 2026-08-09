@@ -2,8 +2,13 @@
 
 import unittest
 
+from PyOrchestrate.core.agent import PeriodicThreadAgent
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
-from PyOrchestrate.core.plugins.heartbeat import OrchestratorHeartbeatPlugin
+from PyOrchestrate.core.plugins.heartbeat import (
+    AgentHeartbeatTimerPlugin,
+    OrchestratorHeartbeatPlugin,
+)
+from PyOrchestrate.core.plugins.plugin_protocols import PluginProtocol
 
 
 class TestHeartbeatTimeoutReporting(unittest.TestCase):
@@ -63,6 +68,91 @@ class TestHeartbeatTimeoutReporting(unittest.TestCase):
         events = self.orch.event_bus.event_store.last(n=10, event_name="AGENT_TIMEOUT")
 
         self.assertEqual(len(events), 2)
+
+
+class MarkerPlugin(PluginProtocol):
+    """Minimal plugin standing in for one an agent declares itself."""
+
+    def __init__(self):
+        self.owner = None
+
+    def set_owner(self, owner):
+        self.owner = owner
+
+    def initialize(self):
+        pass
+
+    def finalize(self):
+        pass
+
+
+class PluggedAgent(PeriodicThreadAgent):
+    """Agent that declares a plugin of its own on its inner Plugin class."""
+
+    class Config(PeriodicThreadAgent.Config):
+        execution_interval = 0.05
+        limit = 1
+
+    class Plugin(PeriodicThreadAgent.Plugin):
+        marker = MarkerPlugin()
+
+    config: Config
+    plugin: Plugin
+
+    def runner(self):
+        pass
+
+
+class TestHeartbeatInjectionKeepsAgentPlugins(unittest.TestCase):
+    """Test auto-injection adds a heartbeat without dropping the agent's plugins."""
+
+    def setUp(self):
+        """Set up an orchestrator whose heartbeat plugin auto-injects."""
+        self.orch = Orchestrator(
+            config=Orchestrator.Config(enable_command_interface=False),
+            plugin=Orchestrator.Plugin(heartbeat=OrchestratorHeartbeatPlugin()),
+            name="test_heartbeat_injection",
+        )
+
+    def _plugin_names(self, entry) -> set[str]:
+        """Return the plugins the concrete instance would manage."""
+        entry._initialize_instance()
+        instance = entry.instance
+        return {name for name, _ in instance.plugin_manager._extract_plugin_instances()}
+
+    def test_agent_declared_plugin_survives_injection(self):
+        """Test a plugin on the agent's Plugin class is not replaced."""
+        entry = self.orch.register_agent(PluggedAgent, "plugged")
+
+        names = self._plugin_names(entry)
+
+        self.assertIn("marker", names)
+        self.assertIn("heartbeat", names)
+
+    def test_registration_plugin_survives_injection(self):
+        """Test a container passed at registration keeps its own plugins."""
+        container = PluggedAgent.Plugin()
+
+        entry = self.orch.register_agent(
+            PluggedAgent, "explicit", custom_plugin=container
+        )
+
+        names = self._plugin_names(entry)
+        self.assertIn("marker", names)
+        self.assertIn("heartbeat", names)
+
+    def test_agent_declared_heartbeat_is_not_overwritten(self):
+        """Test an agent configuring its own heartbeat keeps that instance."""
+        own = AgentHeartbeatTimerPlugin(enabled=True, send_every=1.5)
+
+        entry = self.orch.register_agent(
+            PluggedAgent,
+            "own_heartbeat",
+            custom_plugin=PluggedAgent.Plugin(heartbeat=own),
+        )
+        entry._initialize_instance()
+
+        self.assertIs(entry.instance.plugin.heartbeat, own)
 
 
 if __name__ == "__main__":

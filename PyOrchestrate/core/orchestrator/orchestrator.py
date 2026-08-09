@@ -436,7 +436,7 @@ class Orchestrator(BaseClass):
             if heartbeat_plugin:
                 assert isinstance(heartbeat_plugin, OrchestratorHeartbeatPlugin)
                 custom_plugin = heartbeat_plugin.inject_agent_heartbeat_plugin(
-                    custom_plugin
+                    custom_plugin, agent_class
                 )
 
             # Register via lifecycle manager

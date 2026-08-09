@@ -68,6 +68,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Enabling heartbeat monitoring silently deleted every plugin an agent
+  declared. `OrchestratorHeartbeatPlugin.inject_agent_heartbeat_plugin()` did
+  not inject: it built a fresh `AgentPlugin(heartbeat=...)` and returned that,
+  discarding whatever it was given. Because `register_agent` passes the result
+  to the agent constructor as `plugin=`, which takes precedence over the
+  agent's own inner `Plugin` class, an agent declaring a `ZeroMQPubSub` started
+  with no socket at all as soon as an `OrchestratorHeartbeatPlugin` was added
+  to the orchestrator — and the warning it logged only fired when
+  `custom_plugin` had been passed explicitly, so the usual case was silent. The
+  heartbeat is now attached to the container the agent would have used, and an
+  agent that declares its own `heartbeat` keeps that instance.
 - Asking the event store for zero events returned the whole ring buffer. Every
   `last()` implementation ended in `return items[-n:]`, and `items[-0:]` is
   `items[0:]`: `pyorchestrate history --last 0`, `GET /api/history?last=0` and
