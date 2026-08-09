@@ -233,6 +233,15 @@ policies implement the full interface; a custom policy whose `stats()` raises is
 skipped instead of failing the whole query, so its events are simply missing
 from the totals.
 
+<Warning title="Queries must not allocate">
+`agent` reaches `last()` straight from the request — `pyorchestrate history
+--agent NAME` and `GET /api/history?agent=NAME` both pass it through unchecked.
+A policy that keeps per-agent state must treat an unknown name as empty rather
+than creating an entry for it, or a caller can grow the store without bound just
+by asking about names that do not exist. `BucketRingStore` used to index its
+`defaultdict` here; only `append()` creates a bucket now.
+</Warning>
+
 ## Thread Safety
 
 - `EventManager` protects lazy thread-pool initialization.

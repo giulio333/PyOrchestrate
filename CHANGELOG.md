@@ -48,6 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `join()` loop does per tick: an agent that has finished gives its worker slot
   back, which is what starts the next queued agent. Needed by any driver other
   than `join()`.
+- `OrchestratorConfig` and `OrchestratorPlugin` are exported from
+  `PyOrchestrate.core.orchestrator`. The package advertised twenty names,
+  including internals such as `WorkerStartStatus`, but not the two classes
+  needed to configure an orchestrator: they had to be imported from
+  `PyOrchestrate.core.orchestrator.orchestrator`, which is what the
+  documented examples were doing.
 
 ### Changed
 
@@ -81,6 +87,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Asking the event store for the history of an agent that had never sent a
+  heartbeat allocated a bucket for it, permanently. `BucketRingStore.last()`
+  indexed its `defaultdict`, and the agent name arrives straight from the
+  request — `pyorchestrate history --agent NAME --type agent_heartbeat`, or the
+  same query over HTTP — so the one component whose premise is constant memory
+  had an unbounded growth path reachable from the command interface, and
+  `capacity_info()` counted the phantom agents in `agents_known`. Only
+  `append()` creates a bucket now.
+- `Config.to_dict()` reported only the settings defined on the leaf class. It
+  read `self.__class__.__dict__` instead of the MRO, so every inherited default
+  was missing, and it skipped underscore keys, so the user-defined values in
+  `_custom_attr` were missing too — a `PeriodicAgent` config subclass reported
+  `execution_interval` and nothing else. This is what `pyorchestrate ps` and
+  `GET /api/agents` print as the agent's configuration. Values are now also
+  rendered JSON-encodable: an agent registered with an explicit `logger_config`
+  used to fail the whole `ps` response with
+  `TypeError: Object of type LoggerConfig is not JSON serializable`.
+- `AgentEntry.instance` guarded with `assert`, which `python -O` strips: the
+  property then returned `None` and the failure surfaced later as an
+  `AttributeError`. It raises `RuntimeError` now. `OMemory.get_group_agents()`
+  went through it for every member of a group and therefore raised for any
+  agent that was registered but not started; it skips them instead.
 - A `PoolAgent` abandoned its inner orchestrator. `setup()` builds one,
   registers the pool's agents and starts it, and nothing ever stopped it: a
   pool that reached its limit or was stopped from the outside left its children

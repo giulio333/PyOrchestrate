@@ -63,8 +63,10 @@ class TestOrchestrator(unittest.TestCase):
         self.assertEqual(entry.name, "agent1")
         self.assertEqual(entry.kwargs["extra_param"], "value")
 
-        with self.assertRaises(AssertionError):
-            instance = entry.instance
+        # A registered entry has no instance until a startup attempt builds one.
+        # RuntimeError, not AssertionError: python -O strips assertions.
+        with self.assertRaises(RuntimeError):
+            entry.instance
 
     def test_register_agent_duplicate_name(self):
         """

@@ -188,6 +188,12 @@ To implement custom logic during the agent’s shutdown, override the [on_stop](
 
 This method is called when the agent is stopped. It can be overridden to implement custom logic during the agent’s shutdown.
 
+<Warning title="It does not run inside the agent">
+`on_stop()` is called by whoever calls `stop()`, which on the orchestrator path is the orchestrator itself — a different **thread** for a thread agent, and a different **process** for a process agent. In the process case it runs against a copy: closing a handle or setting an attribute on `self` there has no effect on the agent that is actually running.
+
+Put cleanup that must happen inside the agent in [on_close](#on-close), which runs in the agent's own context at the end of its lifecycle, or have the agent react to `control_events.stop_event` itself.
+</Warning>
+
 ### on_close
 
 ```python

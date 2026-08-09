@@ -20,5 +20,31 @@ class TestOMemoryEventLogging(unittest.TestCase):
         self.assertEqual([e["event"] for e in events], ["start", "join"])
 
 
+class TestUninitializedEntry(unittest.TestCase):
+    """An entry only has an instance once a startup attempt built one."""
+
+    def test_instance_raises_a_real_exception(self):
+        """The guard was an assert, which python -O strips."""
+        memory = OMemory()
+        entry = memory.add_agent(DummyAgent, "registered")
+
+        with self.assertRaises(RuntimeError):
+            entry.instance
+
+    def test_group_agents_skips_members_without_an_instance(self):
+        """Reading the group used to raise for any member not yet started."""
+        memory = OMemory()
+        started = memory.add_agent(DummyAgent, "started")
+        memory.add_agent(DummyAgent, "registered")
+        memory.create_group("group")
+        memory.add_agent_to_group("started", "group")
+        memory.add_agent_to_group("registered", "group")
+        started._initialize_instance()
+
+        instances = memory.get_group_agents("group")
+
+        self.assertEqual([instance.name for instance in instances], ["started"])
+
+
 if __name__ == "__main__":
     unittest.main()
