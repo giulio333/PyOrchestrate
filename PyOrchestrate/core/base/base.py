@@ -1,4 +1,7 @@
+import inspect
 import logging
+from dataclasses import asdict, is_dataclass
+from enum import Enum
 from typing import Any, List, final
 
 from PyOrchestrate.utilities.logguru import LoggerFactory
@@ -9,6 +12,82 @@ from PyOrchestrate.core.utilities.validation import (
     ConfigValidationError,
     ConfigValidationWarning,
 )
+
+# Deep enough for a config holding a config holding a value, and a hard stop
+# for anything self-referential.
+_MAX_SERIALIZATION_DEPTH = 5
+
+
+def _is_setting(value: Any) -> bool:
+    """
+    Tell a configuration value from something merely defined on the class.
+
+    Methods, descriptors and nested classes live in the same `__dict__` as the
+    settings and are not part of the configuration.
+    """
+    if inspect.isroutine(value) or inspect.isclass(value):
+        return False
+    return not isinstance(value, (classmethod, staticmethod, property))
+
+
+def _as_serializable(value: Any, depth: int = 0) -> Any:
+    """
+    Render a configuration value in a form `json.dumps` can handle.
+
+    `to_dict()` is sent over ZeroMQ to the CLI and serialized into the web
+    interface's JSON, so a value it cannot encode fails the whole `ps` response,
+    not just its own field.
+
+    Args:
+        value: Configuration value to render.
+        depth: Current nesting level, to stop on a self-referential value.
+
+    Returns:
+        A JSON-encodable rendering of `value`, falling back to `str()`.
+    """
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+
+    if isinstance(value, Enum):
+        return _as_serializable(value.value, depth + 1)
+
+    if depth >= _MAX_SERIALIZATION_DEPTH:
+        return str(value)
+
+    if is_dataclass(value) and not isinstance(value, type):
+        return {
+            key: _as_serializable(item, depth + 1)
+            for key, item in asdict(value).items()
+        }
+
+    if isinstance(value, dict):
+        return {
+            str(key): _as_serializable(item, depth + 1) for key, item in value.items()
+        }
+
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [_as_serializable(item, depth + 1) for item in value]
+
+    to_dict = getattr(value, "to_dict", None)
+    if callable(to_dict):
+        try:
+            return _as_serializable(to_dict(), depth + 1)
+        except Exception:
+            return str(value)
+
+    # A plain settings object, such as ValidationPolicy: its public attributes
+    # say more than the default repr, which is only a memory address.
+    attributes = getattr(value, "__dict__", None)
+    if attributes:
+        public = {
+            key: _as_serializable(item, depth + 1)
+            for key, item in attributes.items()
+            if not key.startswith("_")
+        }
+        if public:
+            return public
+
+    return str(value)
 
 
 class BaseClassConfig:
@@ -99,23 +178,42 @@ class BaseClassConfig:
 
     def to_dict(self) -> dict:
         """
-        Convert the agent configuration to a dictionary.
+        Convert the configuration to a dictionary.
+
+        Notes:
+            The result is built in the order attributes actually resolve:
+            inherited class defaults first, then the ones the leaf class
+            overrides, then instance attributes, then the user-defined values
+            passed to the constructor.
+
+            Reading only `self.__class__.__dict__` left out every inherited
+            default, and skipping every underscore key left out the contents of
+            `_custom_attr` — the user-defined settings `__getattribute__` goes
+            out of its way to expose. `pyorchestrate ps` and `GET /api/agents`
+            print this, and reported neither.
+
+            Values are rendered JSON-encodable, because that is what both
+            consumers do with them.
 
         Returns:
-            dict: Dictionary representation of the agent configuration.
+            dict: Dictionary representation of the configuration.
         """
-        instance_attrs = {}
+        result: dict[str, Any] = {}
+
+        # Reversed MRO, so a subclass default overrides the base one.
+        for klass in reversed(type(self).__mro__):
+            for key, value in vars(klass).items():
+                if not key.startswith("_") and _is_setting(value):
+                    result[key] = value
+
         for key, value in self.__dict__.items():
             if not key.startswith("_"):
-                instance_attrs[key] = value
+                result[key] = value
 
-        class_attrs = {}
-        for key, value in self.__class__.__dict__.items():
-            if not key.startswith("_"):
-                class_attrs[key] = value
+        # Constructor kwargs win over everything, as they do on attribute access.
+        result.update(self._custom_attr)
 
-        # instance attributes take precedence over class attributes
-        return {**class_attrs, **instance_attrs}
+        return {key: _as_serializable(value) for key, value in result.items()}
 
     def __getattribute__(self, key: str) -> Any:
         try:

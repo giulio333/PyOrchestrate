@@ -36,6 +36,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PyOrchestrate.core.utilities`, which exports none of them. `CLAUDE.md` and
   `.claude/skills/` are now the single place where the conventions live.
 
+### Added
+
+- `Orchestrator.shutdown()`, the complete teardown `join()` performs when its
+  loop exits, callable on its own for an orchestrator nothing drives with
+  `join()`. It stops and joins the agents, records the `SHUTDOWN` event, stops
+  the channel handlers, finalizes the plugins and releases the event bus and the
+  message channel, returning the names of any agents still alive. Calling it
+  twice is a no-op.
+- `Orchestrator.reap_terminated_agents()`, one pass of the bookkeeping the
+  `join()` loop does per tick: an agent that has finished gives its worker slot
+  back, which is what starts the next queued agent. Needed by any driver other
+  than `join()`.
+- `OrchestratorConfig` and `OrchestratorPlugin` are exported from
+  `PyOrchestrate.core.orchestrator`. The package advertised twenty names,
+  including internals such as `WorkerStartStatus`, but not the two classes
+  needed to configure an orchestrator: they had to be imported from
+  `PyOrchestrate.core.orchestrator.orchestrator`, which is what the
+  documented examples were doing.
+
 ### Changed
 
 - **Breaking:** `MessageRouter` takes an `OrchestratorEventBus` as its first
@@ -68,6 +87,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Asking the event store for the history of an agent that had never sent a
+  heartbeat allocated a bucket for it, permanently. `BucketRingStore.last()`
+  indexed its `defaultdict`, and the agent name arrives straight from the
+  request — `pyorchestrate history --agent NAME --type agent_heartbeat`, or the
+  same query over HTTP — so the one component whose premise is constant memory
+  had an unbounded growth path reachable from the command interface, and
+  `capacity_info()` counted the phantom agents in `agents_known`. Only
+  `append()` creates a bucket now.
+- `Config.to_dict()` reported only the settings defined on the leaf class. It
+  read `self.__class__.__dict__` instead of the MRO, so every inherited default
+  was missing, and it skipped underscore keys, so the user-defined values in
+  `_custom_attr` were missing too — a `PeriodicAgent` config subclass reported
+  `execution_interval` and nothing else. This is what `pyorchestrate ps` and
+  `GET /api/agents` print as the agent's configuration. Values are now also
+  rendered JSON-encodable: an agent registered with an explicit `logger_config`
+  used to fail the whole `ps` response with
+  `TypeError: Object of type LoggerConfig is not JSON serializable`.
+- `AgentEntry.instance` guarded with `assert`, which `python -O` strips: the
+  property then returned `None` and the failure surfaced later as an
+  `AttributeError`. It raises `RuntimeError` now. `OMemory.get_group_agents()`
+  went through it for every member of a group and therefore raised for any
+  agent that was registered but not started; it skips them instead.
+- A `PoolAgent` abandoned its inner orchestrator. `setup()` builds one,
+  registers the pool's agents and starts it, and nothing ever stopped it: a
+  pool that reached its limit or was stopped from the outside left its children
+  running. For a `PoolThreadAgent` those are non-daemon threads in the same
+  process, so they outlived the whole application. `on_close()` now shuts the
+  inner orchestrator down.
+- A `PoolAgent` holding more agents than the inner `max_workers` never started
+  the ones beyond the limit. Reclaiming the slot of a finished agent — which is
+  what starts the next queued one — happens in the `Orchestrator.join()` loop,
+  and the pool never calls `join()` on its inner orchestrator. That pass is now
+  `Orchestrator.reap_terminated_agents()` and `PoolAgent.runner()` calls it on
+  every supervision cycle. The liveness check that ends the pool also went
+  through `AgentEntry.instance`, which raises `AssertionError` for an agent
+  still waiting in the queue.
+- `Orchestrator.stop()` could not end a `RunMode.DAEMON` `join()`, although the
+  `RunMode.DAEMON` documentation offers it as one of the two ways to shut the
+  orchestrator down. The loop runs until `_shutdown_requested` is set, and only
+  the CLI `shutdown` command set it, so a program that called `stop()` and
+  waited on `join()` hung until someone poked a private attribute. `stop()` now
+  raises the flag.
+- Nothing released the resources the orchestrator itself owns.
+  `OrchestratorEventBus.shutdown()` existed, documented as "call this method
+  during orchestrator shutdown", and had no caller anywhere in the package, so
+  the `EventManager`'s `ThreadPoolExecutor` stayed up after `join()` returned;
+  the agent `MessageChannel` was never closed either, keeping a queue feeder
+  thread and a pipe per orchestrator. Both are now released, and
+  `EventManager` registers its `atexit` backstop through a `weakref` instead of
+  a bound method, which used to keep every manager — and through its listeners
+  the whole orchestrator — reachable until the process exited.
+- `Orchestrator.join()` and `simple_join()` raised
+  `AttributeError: 'Orchestrator' object has no attribute 'start_time'` when
+  called without `start()`, after the shutdown had already run: `start_time`
+  was only assigned in `start()`. It is now initialized in `__init__`.
+- Enabling heartbeat monitoring silently deleted every plugin an agent
+  declared. `OrchestratorHeartbeatPlugin.inject_agent_heartbeat_plugin()` did
+  not inject: it built a fresh `AgentPlugin(heartbeat=...)` and returned that,
+  discarding whatever it was given. Because `register_agent` passes the result
+  to the agent constructor as `plugin=`, which takes precedence over the
+  agent's own inner `Plugin` class, an agent declaring a `ZeroMQPubSub` started
+  with no socket at all as soon as an `OrchestratorHeartbeatPlugin` was added
+  to the orchestrator — and the warning it logged only fired when
+  `custom_plugin` had been passed explicitly, so the usual case was silent. The
+  heartbeat is now attached to the container the agent would have used, and an
+  agent that declares its own `heartbeat` keeps that instance.
 - Asking the event store for zero events returned the whole ring buffer. Every
   `last()` implementation ended in `return items[-n:]`, and `items[-0:]` is
   `items[0:]`: `pyorchestrate history --last 0`, `GET /api/history?last=0` and

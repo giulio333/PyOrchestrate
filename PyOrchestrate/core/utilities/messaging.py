@@ -250,6 +250,7 @@ class MessageChannel:
         self.zmq_address = zmq_address
         self._zmq_context: Optional[zmq.Context] = None
         self._zmq_socket: Optional[zmq.Socket] = None
+        self._closed = False
 
         if a_type == "thread":
             self._queue = queue.Queue()
@@ -330,8 +331,13 @@ class MessageChannel:
     def close(self):
         """Close the message channel and cleanup resources.
 
-        For ZMQ channels, closes the socket and terminates the context.
-        For thread/process queues, no cleanup is necessary.
+        For ZMQ channels, closes the socket and terminates the context. For a
+        process channel, closes the `multiprocessing.Queue` and joins its feeder
+        thread: leaving it open kept a thread and a pipe alive for the life of
+        the process. A thread channel holds a plain `queue.Queue`, which owns
+        nothing to release.
+
+        Calling this more than once is safe.
         """
         if self.a_type in ["zmq_router", "zmq_dealer"]:
             if self._zmq_socket:
@@ -340,6 +346,15 @@ class MessageChannel:
             if self._zmq_context:
                 self._zmq_context.term()
                 self._zmq_context = None
+        elif self.a_type == "process" and not self._closed:
+            self._closed = True
+            self._queue.close()
+            # Only messages this process queued are still buffered, and the
+            # orchestrator process never sends on this channel, so the feeder
+            # has nothing left to flush. The queue object is kept: sending or
+            # receiving on it now raises ValueError, which ChannelHandler
+            # already reads as "this channel is gone".
+            self._queue.join_thread()
 
     def _setup_zmq_router(self):
         """Setup ZMQ ROUTER socket (server mode for orchestrator)."""

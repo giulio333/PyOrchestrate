@@ -14,6 +14,7 @@ from PyOrchestrate.core.agent import BaseProcessAgent, LoopingThreadAgent
 from PyOrchestrate.core.orchestrator.memory import AgentLifecycleState
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.utilities.command_handler import CommandHandler
+from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
 
 class CooperativeWorker(LoopingThreadAgent):
@@ -84,6 +85,62 @@ def test_daemon_shutdown_force_terminates_stubborn_process_agent(orchestrator):
 
     assert not entry.is_alive()
     assert entry.state is AgentLifecycleState.TERMINATED
+
+
+def test_stop_ends_a_daemon_join(orchestrator):
+    """RunMode.DAEMON documents stop() as a way out; it used to hang forever."""
+    entry = orchestrator.register_agent(CooperativeWorker, "stopped")
+    orchestrator.start()
+
+    joined = threading.Thread(target=orchestrator.join)
+    joined.start()
+    time.sleep(0.2)
+    orchestrator.stop()
+    joined.join(timeout=10)
+
+    assert not joined.is_alive()
+    assert not entry.is_alive()
+    assert entry.state is AgentLifecycleState.TERMINATED
+
+
+def test_join_without_start_does_not_raise(orchestrator):
+    """start_time is set at construction, so the closing log line has one."""
+    orchestrator._shutdown_requested = True
+
+    orchestrator.join()
+
+    assert orchestrator._shutdown_completed
+
+
+def test_shutdown_releases_the_orchestrator_resources(orchestrator):
+    """The event executor and the queue feeder used to outlive every run."""
+    orchestrator.register_event(
+        OrchestratorEvent.AGENT_STARTED, lambda agent_name: None
+    )
+    before = {thread.name for thread in threading.enumerate()}
+    entry = orchestrator.register_agent(CooperativeWorker, "released")
+    orchestrator.start()
+    orchestrator.stop()
+
+    orchestrator.shutdown()
+
+    assert not entry.is_alive()
+    assert orchestrator.event_bus.event_manager._executor is None
+    leaked = {
+        thread.name
+        for thread in threading.enumerate()
+        if thread.is_alive() and thread.name not in before
+    }
+    assert not [name for name in leaked if "ThreadPoolExecutor" in name], leaked
+
+
+def test_shutdown_is_idempotent(orchestrator):
+    """PoolAgent.on_close() and join() can both reach it for one orchestrator."""
+    orchestrator.register_agent(CooperativeWorker, "twice")
+    orchestrator.start()
+
+    assert orchestrator.shutdown() == []
+    assert orchestrator.shutdown() == []
 
 
 def test_cli_shutdown_command_terminates_agents(orchestrator):

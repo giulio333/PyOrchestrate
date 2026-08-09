@@ -219,10 +219,26 @@ class AgentEntry:
         """
         Get the agent instance.
 
+        Notes:
+            An entry only has an instance once a startup attempt created one, so
+            a registered or queued agent has none. Use `is_initialized` to check
+            before reading this.
+
+            The guard used to be an `assert`, which `python -O` strips: the
+            property then returned `None`, turning a clear failure here into an
+            `AttributeError` somewhere further away.
+
         Returns:
             BaseAgent: The agent instance.
+
+        Raises:
+            RuntimeError: If the agent has no instance yet.
         """
-        assert self._instance is not None, "Agent instance not initialized yet."
+        if self._instance is None:
+            raise RuntimeError(
+                f"Agent '{self.name}' has no instance yet: it is "
+                f"'{self.state.value}' and has not been started."
+            )
         return self._instance
 
     def _start_instance(self, attempt: AgentStartAttempt | None = None) -> bool:
@@ -586,6 +602,12 @@ class OMemory:
     def get_group_agents(self, group_name: str) -> List[AgentProtocol]:
         """
         Returns the list of agent instances belonging to the group.
+
+        Notes:
+            Only agents that have been started have an instance. A member that
+            is merely registered, or still waiting in the worker queue, is
+            skipped: reading `entry.instance` for it used to raise instead of
+            returning the group's running agents.
         """
         group = self._groups.get(group_name)
         if not group:
@@ -593,7 +615,7 @@ class OMemory:
         instances: List[AgentProtocol] = []
         for agent_name in group.agent_names:
             entry = self._agents.get(agent_name)
-            if entry is not None:
+            if entry is not None and entry.is_initialized:
                 instances.append(entry.instance)
         return instances
 

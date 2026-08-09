@@ -19,6 +19,32 @@ directory:
 4. The heartbeat plugin emits periodic STATUS messages and provides a small API for collecting
 	 runtime statistics (used in `on_close` in the example).
 
+## Auto-injection and your own plugins
+
+An orchestrator carrying an `OrchestratorHeartbeatPlugin` gives every agent it registers an
+`AgentHeartbeatTimerPlugin`, which is why `self.plugin.heartbeat` is available in the agent
+without declaring anything.
+
+The heartbeat is added to the plugin container the agent would have used anyway, so the plugins
+you declare on the agent's inner `Plugin` class — or pass as `custom_plugin` — are kept next to
+it:
+
+```python
+class CollectorAgent(PeriodicProcessAgent):
+	class Plugin(PeriodicProcessAgent.Plugin):
+		publisher = ZeroMQPubSub("tcp://*:5556", SocketType.PUB)
+
+	plugin: Plugin
+```
+
+`CollectorAgent` runs with both `plugin.publisher` and `plugin.heartbeat`.
+
+<Tip>
+	To control the heartbeat of one specific agent, declare an `AgentHeartbeatTimerPlugin` yourself
+	on its `Plugin` class. An agent that already has a `heartbeat` keeps the instance it declared,
+	and auto-injection leaves it alone.
+</Tip>
+
 ## Agent implementation
 
 The `CriticalAgent` in the example is a tiny `PeriodicProcessAgent` used to demonstrate

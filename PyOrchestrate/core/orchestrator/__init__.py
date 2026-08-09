@@ -1,5 +1,7 @@
 __all__ = [
     "Orchestrator",
+    "OrchestratorConfig",
+    "OrchestratorPlugin",
     "AgentEntry",
     "AgentLifecycleState",
     "AgentStartAttempt",
@@ -20,7 +22,12 @@ __all__ = [
     "CommandInterface",
 ]
 
-from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
+from PyOrchestrate.core.orchestrator.orchestrator import (
+    Orchestrator,
+    OrchestratorConfig,
+    OrchestratorPlugin,
+    RunMode,
+)
 from PyOrchestrate.core.orchestrator.memory import (
     AgentEntry,
     AgentLifecycleState,

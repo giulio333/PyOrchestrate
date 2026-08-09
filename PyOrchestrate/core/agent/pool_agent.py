@@ -190,13 +190,45 @@ class PoolAgent(PeriodicAgent):
         Check the status of the agents and restart them if necessary.
         """
         self.pre_runner()
-        if all(
-            not agent.instance.is_alive() for agent in self.orchestrator.memory.agents
-        ):
+
+        # Nothing else drives the inner orchestrator: without this the
+        # scheduler never reclaims a finished agent's slot, and a pool with
+        # more agents than max_workers left the rest queued forever.
+        self.orchestrator.reap_terminated_agents()
+
+        if self.orchestrator.worker_pool.all_finished:
             self.logger.info("All agents are stopped.")
             self.stop()
             return
         self.post_runner()
+
+    def on_close(self):
+        """
+        Shut the inner orchestrator down when the pool itself is closing.
+
+        Notes:
+            `setup()` starts an orchestrator of its own; nothing used to stop
+            it. A pool that reached its limit, or was stopped from the outside,
+            therefore left its agents running: for a `PoolThreadAgent` they are
+            non-daemon threads in the same process, so they outlived the whole
+            application, and the inner message router, event executor and
+            message queue were never released either.
+
+        Warnings:
+            When overriding, call `super().on_close()` or the pool's agents are
+            left behind.
+        """
+        super().on_close()
+
+        if self._orchestrator is None:
+            # setup() never got far enough to build one.
+            return
+
+        survivors = self._orchestrator.shutdown()
+        if survivors:
+            self.logger.critical(
+                f"Pool agents still alive after shutdown: {', '.join(survivors)}"
+            )
 
     def pre_runner(self):
         """

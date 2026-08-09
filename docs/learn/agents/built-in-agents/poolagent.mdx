@@ -161,11 +161,15 @@ Creates the inner `Orchestrator` from `config.orchestrator_config`, registers ev
 @final
 ```
 
-The supervision step. It calls `pre_runner`, checks whether every child has stopped — and if so stops the pool — otherwise calls `post_runner`.
+The supervision step. It calls `pre_runner`, reclaims the worker slots of children that have finished — which is what starts the next child waiting in the queue — checks whether every child has stopped, and if so stops the pool; otherwise it calls `post_runner`.
 
 <Warning title="Do not override">
 Marked as `@final`. Implement [pre_runner](#pre-runner) or [post_runner](#post-runner) instead.
 </Warning>
+
+<Note>
+Reclaiming those slots is the pool's job because nothing else does it: the inner orchestrator's `join()` is never called, and that loop is what normally drains the worker queue. A pool with more children than the inner `max_workers` (`5` by default) depends on this to start the ones beyond the limit.
+</Note>
 
 ### pre_runner
 
@@ -182,6 +186,18 @@ Called at the beginning of every supervision cycle, before the liveness check.
 ```
 
 Called at the end of every supervision cycle, but **only while at least one child is still running**. When the last child stops, the pool stops instead and this method is skipped for that final cycle — so it is not the right place for teardown logic. Use [on_close](#on-close) for that.
+
+### on_close
+
+```python
+@optional
+```
+
+Shuts the inner orchestrator down: the children are stopped and joined, then the inner message router, plugins, event bus and message channel are released. Without it the children outlive the pool — for a `PoolThreadAgent` they are non-daemon threads in the same process, so they outlive the whole application.
+
+<Warning>
+When overriding, call `super().on_close()`, or the pool's children are left running.
+</Warning>
 
 ## Attributes
 
@@ -235,6 +251,9 @@ class Collector(PoolProcessAgent):
     config: Config
 
     def on_close(self):
+        # Stops the children first: without it they keep running
+        super().on_close()
+
         while not self.config.queue.empty():
             self.config.queue.get()
             self.logger.info("Draining the queue")

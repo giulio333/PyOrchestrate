@@ -283,7 +283,14 @@ class BucketRingStore(StorePolicy):
         if n <= 0:
             return []
         if agent is not None:
-            items = list(self._buckets[self._bucket_key(agent)])
+            # Read through get(): _buckets is a defaultdict, and indexing it
+            # here created a permanent bucket for every agent name asked
+            # about. The name comes straight from the request -- `pyorchestrate
+            # history --agent X --type agent_heartbeat`, or the same query over
+            # HTTP -- so a store whose whole premise is constant memory grew
+            # without bound, and capacity_info() reported those phantom agents
+            # in `agents_known`. Only append() creates a bucket.
+            items = list(self._buckets.get(self._bucket_key(agent), ()))
         else:
             # merge across all agents and take the most recent globally
             merged: List[EventRecord] = []

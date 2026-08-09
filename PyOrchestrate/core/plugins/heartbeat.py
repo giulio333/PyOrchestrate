@@ -281,38 +281,62 @@ class OrchestratorHeartbeatPlugin(PluginProtocol):
         """Get set of agents that have timed out."""
         return self._timeout_detected.copy()
 
-    def inject_agent_heartbeat_plugin(self, custom_plugin):
+    def inject_agent_heartbeat_plugin(self, custom_plugin, agent_class=None):
         """
-        Inject heartbeat plugin configuration into agent custom_plugin if auto_inject is enabled.
+        Add an agent heartbeat plugin to the container the agent will actually use.
+
+        The heartbeat is attached to the existing plugin container instead of
+        replacing it. Returning a fresh ``AgentPlugin`` here used to discard
+        every plugin the agent declared: the result is passed to the agent
+        constructor as ``plugin=``, which also takes precedence over the agent's
+        own inner ``Plugin`` class, so enabling heartbeat monitoring silently
+        left agents without their communication plugins.
 
         Args:
-            custom_plugin: The custom_plugin object to modify or None
+            custom_plugin: Plugin container passed at registration, or None.
+            agent_class: Class being registered. When ``custom_plugin`` is None
+                its inner ``Plugin`` class is instantiated, so the plugins the
+                agent declares are preserved alongside the heartbeat.
 
         Returns:
-            Modified custom_plugin with heartbeat plugin injected if auto_inject is enabled
+            The plugin container the agent should be built with, carrying a
+            heartbeat plugin. An agent that already declares its own heartbeat
+            keeps it.
         """
-        # Create a heartbeat plugin instance for the agent
+        from PyOrchestrate.core.agent.base_agent import AgentPlugin
+
+        container = custom_plugin
+        if container is None:
+            # Rebuild what BaseAgent would have built on its own, so that the
+            # plugins declared on the agent's inner Plugin class survive.
+            container = getattr(agent_class, "Plugin", AgentPlugin)()
+
+        if getattr(container, "heartbeat", None) is not None:
+            self.orchestrator.logger.debug(
+                "Agent declares its own heartbeat plugin; leaving it untouched"
+            )
+            return container
+
         heartbeat_plugin = AgentHeartbeatTimerPlugin(
             enabled=True,
             send_every=self.agent_send_interval,
             jitter=self.agent_jitter,
         )
 
-        # TODO: don't override custom_plugin if already exists
-        if custom_plugin is not None:
-            self.orchestrator.logger.warning(
-                "Overriding existing custom_plugin when auto-injecting heartbeat plugin"
-            )
-
-        from PyOrchestrate.core.agent.base_agent import AgentPlugin
-
-        custom_plugin = AgentPlugin(heartbeat=heartbeat_plugin)
+        # Constructor kwargs land in _custom_attr and win over everything else
+        # in BaseClassPlugin.__getattribute__, so a plain setattr would be
+        # invisible on a container built as Plugin(heartbeat=None).
+        overrides = getattr(container, "_custom_attr", None)
+        if isinstance(overrides, dict):
+            overrides["heartbeat"] = heartbeat_plugin
+        else:
+            setattr(container, "heartbeat", heartbeat_plugin)
 
         self.orchestrator.logger.debug(
             f"Auto-injected heartbeat plugin into agent with interval={self.agent_send_interval}s"
         )
 
-        return custom_plugin
+        return container
 
 
 class AgentHeartbeatTimerPlugin(PluginProtocol):

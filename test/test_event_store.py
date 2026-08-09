@@ -424,6 +424,31 @@ class TestStorePolicies(unittest.TestCase):
         self.assertEqual(store.stats(agent="w2"), {"TYPE_B": 1})
         self.assertEqual(store.stats(agent="unknown"), {})
 
+    def test_bucket_ring_store_query_does_not_create_a_bucket(self):
+        """Reading the history of an unknown agent must not allocate for it."""
+        store = BucketRingStore(per_agent_capacity=2)
+        store.append(self._record(1, agent="w1"))
+
+        for index in range(50):
+            self.assertEqual(store.last(n=5, agent=f"ghost-{index}"), [])
+
+        self.assertEqual(store.capacity_info()["agents_known"], 1)
+
+    def test_event_store_query_does_not_create_a_bucket(self):
+        """The same, through the query path the CLI and the web API use."""
+        store = EventStore(
+            capacity=10,
+            event_policies={"agent_heartbeat": BucketRingStore(per_agent_capacity=2)},
+        )
+        store.record(category="agent", event_name="agent_heartbeat", agent="w1")
+
+        for index in range(50):
+            store.last(n=5, agent=f"ghost-{index}", event_name="agent_heartbeat")
+            store.latest("agent_heartbeat", agent=f"ghost-{index}")
+
+        heartbeats = store.get_capacity_info()["stores"]["agent_heartbeat"]
+        self.assertEqual(heartbeats["agents_known"], 1)
+
 
 class TestOrchestratorEventIntegration(unittest.TestCase):
     """Test EventStore integration with Orchestrator."""
