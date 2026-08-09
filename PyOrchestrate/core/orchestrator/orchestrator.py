@@ -350,6 +350,12 @@ class Orchestrator(BaseClass):
         self._shutdown_requested = False
         """Flag for graceful shutdown via CLI"""
 
+        self._shutdown_completed = False
+        """Whether shutdown() has already released everything."""
+
+        self.start_time = time.time()
+        """Set again by start(); initialized here so join() never reads it unset."""
+
         # Record orchestrator initialization event
         self.event_bus.event_store.record(
             category="orchestrator",
@@ -523,12 +529,107 @@ class Orchestrator(BaseClass):
 
     def stop(self):
         """
-        Terminates all registered agents.
+        Terminates all registered agents and ends a running `join()`.
 
         Cancels queued starts and delegates running-agent stops to
         AgentLifecycleManager through WorkerPoolScheduler.
+
+        Notes:
+            The worker pool stops accepting new starts, so this is a one-way
+            transition. It also raises the shutdown flag, which is what makes
+            `RunMode.DAEMON` honour the programmatic stop its documentation
+            promises: without it a `join()` running in another thread waited
+            forever for the CLI `shutdown` command.
+
+            This method only requests termination. Use `shutdown()` to wait for
+            the agents and release the orchestrator's own resources, or let
+            `join()` do it when its loop exits.
         """
+        self._shutdown_requested = True
         self.worker_pool.stop_all()
+
+    def shutdown(self, timeout: float | None = None) -> List[str]:
+        """
+        Stop every agent and release everything the orchestrator owns.
+
+        This is the teardown half of `join()`, callable on its own for an
+        orchestrator that is not being driven by the main join loop — an inner
+        orchestrator inside a `PoolAgent`, for instance.
+
+        Notes:
+            Agents are stopped and joined first: they must be gone before the
+            message router and the plugins are torn down, otherwise they keep
+            running against closed channels. A process agent that ignores the
+            cooperative stop is force-terminated; a thread agent that ignores it
+            cannot be, so it is quarantined and reported.
+
+            Then the channel handlers are stopped, the plugins finalized, the
+            event bus shut down and the agent message channel closed. Skipping
+            the last two left an executor thread and a queue feeder thread per
+            orchestrator alive for the life of the process.
+
+            Calling this more than once is a no-op.
+
+        Args:
+            timeout: Budget in seconds for the cooperative wait, shared by all
+                agents. Defaults to `Config.agent_stop_timeout`.
+
+        Returns:
+            List[str]: Names of the agents still alive afterwards.
+        """
+        if self._shutdown_completed:
+            return []
+        self._shutdown_completed = True
+        self._shutdown_requested = True
+
+        self.logger.info("Orchestrator is shutting down...")
+
+        if timeout is None:
+            timeout = self.config.agent_stop_timeout
+
+        survivors = self.worker_pool.shutdown_all(timeout=timeout)
+        if survivors:
+            self.logger.critical(
+                f"Agents still alive after shutdown: {', '.join(survivors)}"
+            )
+
+        # Track orchestrator shutdown
+        self.event_bus.event_store.record(
+            category="orchestrator",
+            event_name="SHUTDOWN",
+            severity="INFO",
+            data={
+                "total_agents": str(len(self.memory.agents)),
+                "surviving_agents": str(len(survivors)),
+            },
+        )
+
+        # Stop all channel handlers
+        self._shutdown_channel_handlers()
+
+        # Finalize plugins
+        self.plugin_manager.finalize_plugins()
+
+        self._release_resources()
+
+        return survivors
+
+    def _release_resources(self) -> None:
+        """
+        Release the threads and handles the orchestrator itself owns.
+
+        Runs after the channel handlers are stopped, so nothing can emit an
+        event or push a message into a closed channel afterwards.
+        """
+        try:
+            self.event_bus.shutdown()
+        except Exception as error:
+            self.logger.error(f"Failed to shut the event bus down: {error}")
+
+        try:
+            self.msg_channel.close()
+        except Exception as error:
+            self.logger.error(f"Failed to close the agent message channel: {error}")
 
     def join(self) -> None:
         """
@@ -555,63 +656,48 @@ class Orchestrator(BaseClass):
         all_finished: bool = False
 
         while self._should_continue_running(all_finished):
-            alive_count = 0
-
-            for agent in self.memory.agents:
-                # A prepared generation may already have an instance but not
-                # have called Thread/Process.start() yet. Startup owns the slot
-                # until it publishes its typed result.
-                if self.worker_pool.is_starting(agent.name):
-                    continue
-
-                if not agent.is_initialized:
-                    continue
-
-                if not agent.is_alive():
-                    if self.worker_pool.tracks_agent(agent.name):
-                        self.logger.info(f"Agent '{agent.name}' ended.")
-                        self.worker_pool.on_agent_terminated(agent.name)
-                        self.message_router.mark_agent_terminated(
-                            agent.name, agent.generation_id
-                        )
-                else:
-                    alive_count += 1
+            self.reap_terminated_agents()
 
             # Check if all agents finished via worker pool
             all_finished = self.worker_pool.all_finished
 
             time.sleep(self.config.check_interval)
 
-        self.logger.info("Orchestrator is shutting down...")
-
-        # Agents must be gone before the router and the plugins are torn down,
-        # otherwise they keep running against closed channels.
-        survivors = self.worker_pool.shutdown_all(
-            timeout=self.config.agent_stop_timeout
-        )
-        if survivors:
-            self.logger.critical(
-                f"Agents still alive after shutdown: {', '.join(survivors)}"
-            )
-
-        # Track orchestrator shutdown
-        self.event_bus.event_store.record(
-            category="orchestrator",
-            event_name="SHUTDOWN",
-            severity="INFO",
-            data={
-                "total_agents": str(len(self.memory.agents)),
-                "surviving_agents": str(len(survivors)),
-            },
-        )
-
-        # Stop all channel handlers
-        self._shutdown_channel_handlers()
-
-        # Finalize plugins
-        self.plugin_manager.finalize_plugins()
+        self.shutdown()
 
         self.logger.debug(f"elapsed: {time.time() - self.start_time}")
+
+    def reap_terminated_agents(self) -> None:
+        """
+        Release the worker slot of every agent that has finished.
+
+        One pass of what the `join()` loop does on each tick: an agent that is
+        no longer alive gives its slot back to the scheduler, which starts the
+        next queued agent, and its generation is marked terminated so late
+        messages from it are ignored.
+
+        Notes:
+            A driver other than `join()` has to call this itself. `PoolAgent`
+            does it from `runner()`: without it, nothing released the inner
+            scheduler's slots, so a pool holding more agents than `max_workers`
+            never started the ones left in the queue.
+        """
+        for agent in self.memory.agents:
+            # A prepared generation may already have an instance but not
+            # have called Thread/Process.start() yet. Startup owns the slot
+            # until it publishes its typed result.
+            if self.worker_pool.is_starting(agent.name):
+                continue
+
+            if not agent.is_initialized:
+                continue
+
+            if not agent.is_alive() and self.worker_pool.tracks_agent(agent.name):
+                self.logger.info(f"Agent '{agent.name}' ended.")
+                self.worker_pool.on_agent_terminated(agent.name)
+                self.message_router.mark_agent_terminated(
+                    agent.name, agent.generation_id
+                )
 
     def _should_continue_running(self, all_finished: bool) -> bool:
         """Decide whether the main join loop should continue based on run_mode.

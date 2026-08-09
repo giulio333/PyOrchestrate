@@ -144,6 +144,36 @@ pyorchestrate shutdown
 `agent_stop_timeout` (default `10.0` seconds) when agents need longer to finish
 the work in flight before shutdown escalates.
 
+### Shutting Down From Code
+
+The CLI is not the only way out of a `DAEMON` loop. `Orchestrator.stop()` also
+ends it, so a signal handler or a supervising thread can bring the service down
+without a command socket:
+
+```python
+import signal
+
+signal.signal(signal.SIGTERM, lambda *_: orchestrator.stop())
+
+orchestrator.start()
+orchestrator.join()   # returns once stop() is called
+```
+
+`stop()` only *requests* termination. When there is no `join()` running to
+follow it — an orchestrator embedded in something else, for instance — call
+[`shutdown()`](/api/orchestrator) instead: it stops the agents, waits for them,
+then releases everything the orchestrator owns, and returns the names of any
+agents still alive.
+
+```python
+survivors = orchestrator.shutdown()
+```
+
+<Warning>
+  Both are one-way. The worker pool stops accepting starts, so an orchestrator
+  that has been stopped cannot be restarted — build a new one.
+</Warning>
+
 ## Validation
 
 Configuration is validated when the orchestrator is created. You can also inspect validation results directly:

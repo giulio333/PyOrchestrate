@@ -36,6 +36,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PyOrchestrate.core.utilities`, which exports none of them. `CLAUDE.md` and
   `.claude/skills/` are now the single place where the conventions live.
 
+### Added
+
+- `Orchestrator.shutdown()`, the complete teardown `join()` performs when its
+  loop exits, callable on its own for an orchestrator nothing drives with
+  `join()`. It stops and joins the agents, records the `SHUTDOWN` event, stops
+  the channel handlers, finalizes the plugins and releases the event bus and the
+  message channel, returning the names of any agents still alive. Calling it
+  twice is a no-op.
+- `Orchestrator.reap_terminated_agents()`, one pass of the bookkeeping the
+  `join()` loop does per tick: an agent that has finished gives its worker slot
+  back, which is what starts the next queued agent. Needed by any driver other
+  than `join()`.
+
 ### Changed
 
 - **Breaking:** `MessageRouter` takes an `OrchestratorEventBus` as its first
@@ -68,6 +81,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A `PoolAgent` abandoned its inner orchestrator. `setup()` builds one,
+  registers the pool's agents and starts it, and nothing ever stopped it: a
+  pool that reached its limit or was stopped from the outside left its children
+  running. For a `PoolThreadAgent` those are non-daemon threads in the same
+  process, so they outlived the whole application. `on_close()` now shuts the
+  inner orchestrator down.
+- A `PoolAgent` holding more agents than the inner `max_workers` never started
+  the ones beyond the limit. Reclaiming the slot of a finished agent — which is
+  what starts the next queued one — happens in the `Orchestrator.join()` loop,
+  and the pool never calls `join()` on its inner orchestrator. That pass is now
+  `Orchestrator.reap_terminated_agents()` and `PoolAgent.runner()` calls it on
+  every supervision cycle. The liveness check that ends the pool also went
+  through `AgentEntry.instance`, which raises `AssertionError` for an agent
+  still waiting in the queue.
+- `Orchestrator.stop()` could not end a `RunMode.DAEMON` `join()`, although the
+  `RunMode.DAEMON` documentation offers it as one of the two ways to shut the
+  orchestrator down. The loop runs until `_shutdown_requested` is set, and only
+  the CLI `shutdown` command set it, so a program that called `stop()` and
+  waited on `join()` hung until someone poked a private attribute. `stop()` now
+  raises the flag.
+- Nothing released the resources the orchestrator itself owns.
+  `OrchestratorEventBus.shutdown()` existed, documented as "call this method
+  during orchestrator shutdown", and had no caller anywhere in the package, so
+  the `EventManager`'s `ThreadPoolExecutor` stayed up after `join()` returned;
+  the agent `MessageChannel` was never closed either, keeping a queue feeder
+  thread and a pipe per orchestrator. Both are now released, and
+  `EventManager` registers its `atexit` backstop through a `weakref` instead of
+  a bound method, which used to keep every manager — and through its listeners
+  the whole orchestrator — reachable until the process exited.
+- `Orchestrator.join()` and `simple_join()` raised
+  `AttributeError: 'Orchestrator' object has no attribute 'start_time'` when
+  called without `start()`, after the shutdown had already run: `start_time`
+  was only assigned in `start()`. It is now initialized in `__init__`.
 - Enabling heartbeat monitoring silently deleted every plugin an agent
   declared. `OrchestratorHeartbeatPlugin.inject_agent_heartbeat_plugin()` did
   not inject: it built a fresh `AgentPlugin(heartbeat=...)` and returned that,

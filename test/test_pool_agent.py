@@ -6,6 +6,7 @@ configured, and how the entries of ``agents_entry`` are registered on it.
 """
 
 import threading
+import time
 import unittest
 
 from PyOrchestrate.core.agent.looping_agent import LoopingThreadAgent
@@ -90,13 +91,7 @@ class TestPoolAgentSetup(unittest.TestCase):
             orchestrator = pool._orchestrator
             if orchestrator is None:
                 continue
-            orchestrator.stop()
-            if orchestrator.memory.agents:
-                orchestrator.join()
-            else:
-                # Without agents setup() returns before start(), and join()
-                # would trip over the start_time that start() sets.
-                orchestrator._shutdown_channel_handlers()
+            orchestrator.shutdown()
 
     def make_pool(self, name: str, **config_kwargs) -> PoolThreadAgent:
         pool = PoolThreadAgent(
@@ -179,6 +174,81 @@ class TestPoolAgentSetup(unittest.TestCase):
         pool.setup()
 
         self.assertEqual(pool.orchestrator.memory.agents, [])
+
+
+class LongLivedChild(LoopingThreadAgent):
+    """Thread agent that keeps cycling until it is asked to stop."""
+
+    def cycle(self):
+        time.sleep(0.01)
+
+
+class TestPoolAgentTeardown(unittest.TestCase):
+    """Covers what happens to the inner orchestrator when the pool closes."""
+
+    def make_pool(self, names: list[str], limit: int) -> PoolThreadAgent:
+        entries = [AgentEntry(LongLivedChild, name) for name in names]
+
+        class Pool(PoolThreadAgent):
+            class Config(PoolThreadAgent.Config):
+                execution_interval = 0.05
+                agents_entry = entries
+
+            config: Config
+
+        return Pool(name="pool", config=Pool.Config(limit=limit))
+
+    def test_on_close_stops_the_inner_agents(self):
+        """Test the pool's agents do not outlive the pool itself."""
+        pool = self.make_pool(["a", "b"], limit=2)
+        pool.start()
+        pool.join(timeout=10)
+
+        self.assertFalse(pool.is_alive())
+        for entry in pool.orchestrator.memory.agents:
+            self.assertFalse(entry.is_alive(), f"{entry.name} outlived the pool")
+
+    def test_on_close_releases_the_inner_orchestrator(self):
+        """Test the inner message router is stopped, not left polling."""
+        pool = self.make_pool(["a"], limit=2)
+        pool.start()
+        pool.join(timeout=10)
+
+        self.assertFalse(pool.orchestrator.message_router.is_running())
+
+    def test_on_close_without_setup_is_harmless(self):
+        """Test closing a pool whose setup never ran does not raise."""
+        pool = self.make_pool(["a"], limit=1)
+
+        pool.on_close()  # no inner orchestrator was ever built
+
+    def test_queued_agents_start_when_a_slot_is_released(self):
+        """Test a pool larger than max_workers does not strand its queue."""
+        names = [f"w{index}" for index in range(4)]
+        entries = [AgentEntry(ChildAgent, name) for name in names]
+
+        class Pool(PoolThreadAgent):
+            class Config(PoolThreadAgent.Config):
+                execution_interval = 0.05
+                agents_entry = entries
+                orchestrator_config = OrchestratorConfig(
+                    enable_command_interface=False,
+                    max_workers=2,  # half the pool has to wait in the queue
+                )
+
+            config: Config
+
+        pool = Pool(name="pool", config=Pool.Config(limit=40))
+        pool.start()
+        pool.join(timeout=20)
+
+        started = {
+            entry.name
+            for entry in pool.orchestrator.memory.agents
+            if entry.is_initialized
+        }
+        self.assertEqual(started, set(names))
+        self.assertEqual(pool.orchestrator.worker_pool.queue_size, 0)
 
 
 if __name__ == "__main__":

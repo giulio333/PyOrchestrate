@@ -13,12 +13,27 @@ import inspect
 import logging
 import atexit
 import threading
+import weakref
 from datetime import datetime
 from typing import Callable, Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 
 # Thread-safe logger configuration
 logger = logging.getLogger(__name__)
+
+
+def _shutdown_on_exit(manager_ref: "weakref.ref[EventManager]") -> None:
+    """
+    Shut a manager down at interpreter exit, unless it is already collected.
+
+    Registering the bound method instead kept every EventManager — and through
+    its listeners the whole orchestrator — reachable for the life of the
+    process. The weak reference makes this a backstop for a manager nobody shut
+    down, not an owner.
+    """
+    manager = manager_ref()
+    if manager is not None:
+        manager.shutdown()
 
 
 class EventManager:
@@ -89,8 +104,9 @@ class EventManager:
         self._executor: Optional[ThreadPoolExecutor] = None
         self._executor_lock: threading.Lock = threading.Lock()
 
-        # Register executor shutdown when the application terminates
-        atexit.register(self.shutdown)
+        # Backstop for a manager nobody shuts down explicitly. Weak, so that
+        # registering it does not keep this manager alive until exit.
+        atexit.register(_shutdown_on_exit, weakref.ref(self))
 
     def register_event(self, event: Enum, callback: Callable):
         """

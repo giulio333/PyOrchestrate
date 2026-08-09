@@ -250,10 +250,52 @@ The budget comes from `Orchestrator.Config.agent_stop_timeout`, which defaults
 to `10.0` seconds.
 
 <Warning>
-  `BaseAgent.stop()` invokes application `on_stop()` in the *caller's* thread,
-  which on this path is the orchestrator thread rather than the agent's own.
-  Cleanup code that assumes the agent context runs elsewhere than expected.
+  `BaseAgent.stop()` invokes application `on_stop()` in the *caller's* thread —
+  on this path the orchestrator's, not the agent's own. For a process agent that
+  is a different *process*, so the hook runs against a copy and anything it
+  changes on `self` is invisible to the agent that is actually running. Put
+  cleanup that must run inside the agent in `on_close()`, or have the agent react
+  to `control_events.stop_event`.
 </Warning>
+
+### The Whole Teardown
+
+`shutdown_all()` only covers the agents. `Orchestrator.shutdown()` is the
+complete teardown, and the same one `join()` performs when its loop exits:
+
+<Steps>
+  <Step title="Stop and join every agent">
+    Through `worker_pool.shutdown_all()`, exactly as above.
+  </Step>
+  <Step title="Record the SHUTDOWN event">
+    With the agent total and the number of survivors.
+  </Step>
+  <Step title="Stop the channel handlers">
+    The message router first, then the command interface.
+  </Step>
+  <Step title="Finalize the plugins">
+    Through the orchestrator's `PluginManager`.
+  </Step>
+  <Step title="Release the orchestrator's own resources">
+    The event bus is shut down and the agent message channel closed. Skipping
+    this left a `ThreadPoolExecutor` thread and a queue feeder thread alive for
+    every orchestrator ever built.
+  </Step>
+</Steps>
+
+Calling it twice is a no-op, so a driver that also runs `join()` cannot tear the
+same orchestrator down twice.
+
+An orchestrator that nothing drives with `join()` has one more obligation:
+reclaiming the worker slots of agents that have finished, which is what starts
+whatever is waiting in the queue. `join()` does it on every tick; anything else
+has to call it:
+
+```python
+orchestrator.reap_terminated_agents()
+```
+
+This is how `PoolAgent` supervises its inner orchestrator from `runner()`.
 
 ## Dynamic Starts
 
