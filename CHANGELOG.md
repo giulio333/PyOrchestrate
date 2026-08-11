@@ -87,6 +87,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The three ways a runtime command can report why it failed all threw the
+  reason away, each in its own place. `pyorchestrate stats` printed
+  `Error: Unknown error` for every failure: it read the reason from `message`,
+  while `ServiceMessage.create_command_response()` carries it under `error`, so
+  a `stats` left out of `allowed_commands` never told the user which commands
+  were allowed. `status AGENT_NAME` answered `500 Failed to get status for X:
+  Agent X not found` for an unregistered agent, because the `404` it raises is
+  caught by its own `except Exception`; `start` and `stop` re-raise
+  `CommandException` and report `404` as they should. And the web interface
+  answered `500 Communication error: 503: Cannot connect to orchestrator at
+  ...` when the orchestrator was not running, its `503` being raised inside the
+  `try` that turns anything into a `500`: an orchestrator that is simply down
+  looked like a fault of the web server. The reason now survives all three
+  paths, and `OutputFormatter.format_error()` is the single place the CLI
+  renders it.
 - Asking the event store for the history of an agent that had never sent a
   heartbeat allocated a bucket for it, permanently. `BucketRingStore.last()`
   indexed its `defaultdict`, and the agent name arrives straight from the

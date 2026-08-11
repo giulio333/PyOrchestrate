@@ -65,7 +65,46 @@ Successful JSON responses contain the command data directly, without an outer `s
 }
 ```
 
-Errors retain their structured error response.
+Errors retain their structured error response, described in
+[Error Responses](#error-responses).
+
+## Error Responses
+
+A command that fails answers with a structured payload instead of the command
+data. `--format json` prints it unchanged:
+
+```json
+{
+  "status": "error",
+  "error": "Agent ghost not found",
+  "code": 404,
+  "data": {},
+  "request_id": "0e5a6e0e-1d1e-4f39-9a2f-2d9a2e5f7c31",
+  "timestamp": "2026-01-01T00:00:00",
+  "protocol_version": "1.0"
+}
+```
+
+Table output renders the same payload as a single line, `stats` included:
+
+```text
+Error: Agent ghost not found
+```
+
+The reason is always carried by `error`, and `code` classifies it:
+
+| Code | Meaning |
+|---|---|
+| `400` | The command is not recognised, or an agent command arrived without an agent name: `pyorchestrate start` with no argument answers `Unknown command: start` |
+| `403` | The command is not in `allowed_commands` — see [`commands`](#commands) |
+| `404` | The agent named in the request is not registered |
+| `409` | The agent is already active, for `start` |
+| `500` | The command failed unexpectedly |
+
+<Note>
+  The CLI prints the error and still exits with status `0`. When scripting,
+  read `status` from the `--format json` payload rather than the exit status.
+</Note>
 
 ## Available Commands
 
@@ -285,6 +324,14 @@ The default refresh interval is `2.0` seconds. Press `Ctrl+C` to stop monitoring
 
 Unlike the other runtime commands, `stats` does not expose `--format`; it renders a continuously refreshed table.
 
+A refresh that fails prints the reason reported by the orchestrator, in the
+form described in [Error Responses](#error-responses), and the next refresh
+tries again. This is what a `stats` left out of `allowed_commands` looks like:
+
+```text
+Error: Command 'stats' is not allowed. Allowed commands: ps, status
+```
+
 ## `shutdown`
 
 Request graceful shutdown of the orchestrator:
@@ -368,6 +415,12 @@ lsof -nP -iTCP:5555 -sTCP:LISTEN
 ```
 
 ### Command rejected
+
+A rejection answers with code `403` and already lists what is permitted:
+
+```text
+Error: Command 'shutdown' is not allowed. Allowed commands: commands, ps, status
+```
 
 Inspect the active permissions:
 

@@ -13,7 +13,10 @@ import pytest
 
 from PyOrchestrate.core.agent import BaseThreadAgent
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
-from PyOrchestrate.core.utilities.command_handler import CommandHandler
+from PyOrchestrate.core.utilities.command_handler import (
+    CommandException,
+    CommandHandler,
+)
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
 
@@ -65,6 +68,25 @@ def test_agent_status_reports_no_dependencies_for_an_independent_agent(handler):
     result = handler.execute_command("status", ["producer"])
 
     assert result["dependencies"] == []
+
+
+def test_agent_status_reports_an_unknown_agent_as_not_found(handler):
+    """The 404 used to be re-wrapped as `500 Failed to get status for ...`."""
+    with pytest.raises(CommandException) as error:
+        handler.execute_command("status", ["ghost"])
+
+    assert error.value.code == 404
+    assert str(error.value) == "Agent ghost not found"
+
+
+def test_every_agent_command_reports_an_unknown_agent_with_the_same_code(handler):
+    codes = {}
+    for command in ("status", "start", "stop"):
+        with pytest.raises(CommandException) as error:
+            handler.execute_command(command, ["ghost"])
+        codes[command] = error.value.code
+
+    assert codes == {"status": 404, "start": 404, "stop": 404}
 
 
 def test_ps_reports_lifecycle_state_for_registered_agents(handler):

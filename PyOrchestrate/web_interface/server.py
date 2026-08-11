@@ -41,7 +41,22 @@ class OrchestratorClient:
     def send_command(
         self, command: str, args: Optional[List[str]] = None
     ) -> Dict[str, Any]:
-        """Send a command to the orchestrator and return the response."""
+        """Send a command to the orchestrator and return the response.
+
+        The command may still have failed on the orchestrator: this returns the
+        response payload as it is, error responses included.
+
+        Args:
+            command: Runtime command name, as accepted by the CLI.
+            args: Optional command arguments.
+
+        Returns:
+            Dict[str, Any]: The response payload sent by the orchestrator.
+
+        Raises:
+            HTTPException: ``503`` when the orchestrator does not answer within
+                the timeout, ``500`` when the request could not be sent at all.
+        """
         try:
             client = MessageChannel("zmq_dealer", self.zmq_address)
 
@@ -53,18 +68,22 @@ class OrchestratorClient:
 
             response_msg = client.send_and_receive(msg, timeout=5.0)
 
-            if response_msg:
-                return response_msg.payload
-            else:
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Cannot connect to orchestrator at {self.zmq_address}",
-                )
-
         except Exception as e:
             raise HTTPException(
                 status_code=500, detail=f"Communication error: {str(e)}"
             )
+
+        if response_msg is None:
+            # Raised outside the try on purpose: as a sibling of the clause
+            # above, this 503 was caught by it and reported as
+            # `500 Communication error: 503: Cannot connect to ...`, so an
+            # unreachable orchestrator looked like a server fault.
+            raise HTTPException(
+                status_code=503,
+                detail=f"Cannot connect to orchestrator at {self.zmq_address}",
+            )
+
+        return response_msg.payload
 
 
 def create_pretty_json_response(data: Dict[str, Any]) -> JSONResponse:
