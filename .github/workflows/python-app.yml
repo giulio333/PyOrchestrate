@@ -40,8 +40,12 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          # Stop the build on syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Stop the build on syntax errors or undefined names, and on the dead
+          # code this select used to let through: unused imports (F401),
+          # shadowed imports (F811) and assigned-but-unused locals (F841). The
+          # narrower select accumulated fourteen unused imports, a module
+          # imported twice and a discarded local before anyone noticed.
+          flake8 . --count --select=E9,F63,F7,F82,F401,F811,F841 --show-source --statistics
           # exit-zero treats every error as a warning. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 

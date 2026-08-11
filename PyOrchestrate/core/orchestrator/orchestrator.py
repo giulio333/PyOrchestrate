@@ -1,5 +1,5 @@
 import time
-from typing import List, final, Optional
+from typing import List, Optional
 from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
@@ -15,11 +15,10 @@ from PyOrchestrate.core.utilities.event import OrchestratorEvent
 from PyOrchestrate.core.utilities.validation import (
     ValidationResult,
     ValidationSeverity,
-    ConfigValidationError,
 )
 
 from PyOrchestrate.core.base.base import BaseClass
-from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
+from PyOrchestrate.core.utilities.messaging import MessageChannel
 from PyOrchestrate.core.plugins.plugin_manager import PluginManager
 from PyOrchestrate.core.plugins.heartbeat import (
     OrchestratorHeartbeatPlugin,

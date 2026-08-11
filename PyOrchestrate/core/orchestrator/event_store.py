@@ -10,9 +10,7 @@ import threading
 from datetime import datetime
 import json
 from collections import deque, defaultdict
-from typing import NamedTuple, Optional, List, Dict, Protocol, Iterable
-
-from PyOrchestrate.core.utilities.event import OrchestratorEvent
+from typing import NamedTuple, Optional, List, Dict, Protocol
 
 
 class EventRecord(NamedTuple):

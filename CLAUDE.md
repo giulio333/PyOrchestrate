@@ -101,7 +101,7 @@ Before pushing, run what CI runs — the three of them, in this order:
 
 ```bash
 uv run black --check --diff .    # CI verifies formatting, it does not fix it
-uv run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+uv run flake8 . --count --select=E9,F63,F7,F82,F401,F811,F841 --show-source --statistics
 uv run pytest
 ```
 

@@ -4,7 +4,7 @@ import subprocess
 import sys
 import unittest
 import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 from datetime import datetime
 
 from PyOrchestrate.core.orchestrator import channel_handler as channel_handler_module

@@ -12,10 +12,7 @@ The Push/Pull pattern is useful for:
 Run multiple instances of this script with --worker to create multiple workers.
 """
 
-import argparse
-import random
 import time
-from threading import Thread
 
 from PyOrchestrate.core.plugins.com import ZeroMQPushPull, SocketType
 from PyOrchestrate.core.orchestrator import Orchestrator

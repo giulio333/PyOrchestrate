@@ -22,10 +22,11 @@ class PluginProtocol(ABC):
     - initialize: Prepares the plugin by allocating resources or setting up the initial state.
     - finalize: Handles cleanup and resource release.
 
-    Developers must implement these methods to ensure proper integration with the system.
+    `initialize` and `finalize` are abstract and must be implemented.
+    `set_owner` has a no-op default, so only the plugins that actually use the
+    owner need to override it.
     """
 
-    @abstractmethod
     def set_owner(self, owner):
         """
         Set the owner (agent/orchestrator) reference for the plugin.
@@ -33,10 +34,15 @@ class PluginProtocol(ABC):
         This method is called by the agent or orchestrator during initialization to provide
         the plugin with access to the owner instance.
 
+        The default implementation ignores the owner: a plugin that never needs
+        to reach back to the agent or the orchestrator does not have to override
+        it. Requiring an override produced six copies of
+        ``return super().set_owner(owner)`` across the ZeroMQ plugins, all of
+        them delegating to a method whose body was ``pass``.
+
         Args:
             owner: The agent or orchestrator instance that owns this plugin
         """
-        pass
 
     @abstractmethod
     def initialize(self):

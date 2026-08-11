@@ -5,9 +5,7 @@ Tests the EventStore class and integration with Orchestrator.
 """
 
 import unittest
-import time
 import threading
-from unittest.mock import Mock, patch
 
 from PyOrchestrate.core.orchestrator.event_store import (
     BucketRingStore,
@@ -16,7 +14,6 @@ from PyOrchestrate.core.orchestrator.event_store import (
     RingBufferStore,
 )
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
-from PyOrchestrate.core.agent import PeriodicProcessAgent
 
 
 class TestEventStore(unittest.TestCase):

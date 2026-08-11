@@ -1,6 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, call
-from datetime import datetime
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from PyOrchestrate.core.orchestrator.orchestrator import (
@@ -9,7 +8,6 @@ from PyOrchestrate.core.orchestrator.orchestrator import (
     RunMode,
 )
 from PyOrchestrate.core.agent import BaseProcessAgent
-from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.utilities.event import AgentEvent
 from PyOrchestrate.core.utilities.messaging import ServiceMessage
 
