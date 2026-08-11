@@ -361,7 +361,7 @@ class BaseClass:
             raise e
         except ConfigValidationWarning as w:
             self.logger.warning(w)
-        self.logger.debug(f"Self configuration validated.")
+        self.logger.debug("Self configuration validated.")
 
     def __getattr__(self, key: str) -> Any:
         try:

@@ -4,15 +4,13 @@ Simple example of custom validation and usage of Orchestrator.
 """
 
 from typing import List
-from datetime import datetime
-import time
 from PyOrchestrate.core.utilities.validation import (
     ValidationResult,
     ValidationSeverity,
     ValidationPolicy,
 )
 from PyOrchestrate.core.base import BaseClassConfig
-from PyOrchestrate.core.agent.base_agent import BaseProcessAgent, ServiceMessage
+from PyOrchestrate.core.agent.base_agent import BaseProcessAgent
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
 
 

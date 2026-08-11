@@ -1,4 +1,4 @@
-from PyOrchestrate.core.orchestrator import Orchestrator, RunMode, CommandPermissions
+from PyOrchestrate.core.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
 
 

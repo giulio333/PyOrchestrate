@@ -84,6 +84,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `urllib3` 2.7.0.
 - Docstrings, comments and error messages translated to English across
   `logguru.py`, `memory.py` and the Sphinx configuration.
+- CI's blocking `flake8` run also selects `F401`, `F811` and `F841`. The
+  previous `E9,F63,F7,F82` let dead code through: fourteen unused imports
+  across six modules, `heartbeat.py` importing `Optional` twice in one
+  statement and `core.utilities.event` twice in two, and a discarded local in
+  the web interface all passed a green build.
+- `PyOrchestrate.core.plugins` declares an `__all__` and imports
+  `PyOrchestrate.core.plugins.heartbeat` once instead of in two consecutive
+  statements, matching the other packages' layout.
+
+### Removed (internal)
+
+- Dead code that the narrower `flake8` select never reported: the unused
+  imports above, the `if unknown_commands:` block in
+  `CommandPermissions.validate_commands` whose whole body was `pass`, six
+  f-strings with no placeholders, and four `except Exception as e` clauses in
+  the tests that never read `e`. No behaviour change.
+- The web interface's `create_pretty_json_response` is now
+  `create_json_response`. It built a `pretty_json` string, discarded it and
+  returned the compact `JSONResponse` its name denied — the responses are
+  unchanged, the name now matches them. The helper is internal to
+  `web_interface/server.py`.
 
 ### Fixed
 

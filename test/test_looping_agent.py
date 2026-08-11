@@ -1,6 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch
-import sys, os
+from unittest.mock import MagicMock
 
 from PyOrchestrate.core.utilities.event_manager import EventManager
 from PyOrchestrate.core.agent.looping_agent import (

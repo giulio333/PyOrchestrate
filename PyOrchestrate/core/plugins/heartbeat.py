@@ -8,12 +8,11 @@ messages to the orchestrator for monitoring purposes.
 import random
 import threading
 import time
-from typing import Optional, TYPE_CHECKING, Set, Dict, Optional
+from typing import Optional, TYPE_CHECKING, Set, Dict
 
 from PyOrchestrate.core.plugins.plugin_protocols import PluginProtocol
-from PyOrchestrate.core.utilities.event import AgentEvent
+from PyOrchestrate.core.utilities.event import AgentEvent, OrchestratorEvent
 from PyOrchestrate.core.utilities.messaging import ServiceMessage
-from PyOrchestrate.core.utilities.event import OrchestratorEvent
 
 if TYPE_CHECKING:
     from PyOrchestrate.core.agent.base_agent import BaseAgent

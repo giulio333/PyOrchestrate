@@ -1,9 +1,8 @@
 import unittest
 import threading
 import time
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from enum import Enum
-from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 from PyOrchestrate.core.utilities.event_manager import EventManager
@@ -337,7 +336,7 @@ class TestEventManagerThreadSafety(unittest.TestCase):
                 for i in range(10):
                     callback = MagicMock()
                     self.event_manager.register_event(TestEvents.STRESS_TEST, callback)
-            except Exception as e:
+            except Exception:
                 with self.error_lock:
                     self.error_count += 1
 
@@ -378,7 +377,7 @@ class TestEventManagerThreadSafety(unittest.TestCase):
                     self.event_manager.emit(
                         TestEvents.STRESS_TEST, thread_id=thread_id, event_count=i
                     )
-            except Exception as e:
+            except Exception:
                 with self.error_lock:
                     self.error_count += 1
 
@@ -414,7 +413,7 @@ class TestEventManagerThreadSafety(unittest.TestCase):
                 callback = MagicMock()
                 self.event_manager.register_event(TestEvents.EVENT_A, callback)
                 self.event_manager.emit(TestEvents.EVENT_A, arg="test")
-            except Exception as e:
+            except Exception:
                 with self.error_lock:
                     self.error_count += 1
 
@@ -493,7 +492,7 @@ class TestEventManagerThreadSafety(unittest.TestCase):
                     self.event_manager.emit(
                         TestEvents.EVENT_C, worker_id=worker_id, operation=f"op_{op}"
                     )
-            except Exception as e:
+            except Exception:
                 with self.error_lock:
                     self.error_count += 1
 

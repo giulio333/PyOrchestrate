@@ -6,7 +6,7 @@ automatic history tracking, and query operations.
 """
 
 import unittest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from PyOrchestrate.core.orchestrator.event_bus import OrchestratorEventBus
 from PyOrchestrate.core.orchestrator.event_store import EventStore

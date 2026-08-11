@@ -6,7 +6,7 @@ command handling, error handling, and event tracking.
 """
 
 import unittest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock
 import time
 
 from PyOrchestrate.core.orchestrator.command_interface import CommandInterface
