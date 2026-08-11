@@ -1,5 +1,7 @@
 __all__ = [
+    "PluginProtocol",
     "SocketType",
+    "ZeroMQSocketPlugin",
     "ZeroMQPubSub",
     "ZeroMQReqRep",
     "ZeroMQPushPull",
@@ -10,7 +12,10 @@ __all__ = [
     "OrchestratorHeartbeatPlugin",
 ]
 
+from PyOrchestrate.core.plugins.plugin_protocols import PluginProtocol
+
 from PyOrchestrate.core.plugins.com import (
+    ZeroMQSocketPlugin,
     ZeroMQPubSub,
     ZeroMQReqRep,
     ZeroMQPushPull,

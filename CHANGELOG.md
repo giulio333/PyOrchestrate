@@ -54,6 +54,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   needed to configure an orchestrator: they had to be imported from
   `PyOrchestrate.core.orchestrator.orchestrator`, which is what the
   documented examples were doing.
+- `ZeroMQSocketPlugin`, the base the five socket plugins now derive from,
+  exported from `PyOrchestrate.core.plugins`. It carries the `socket` property,
+  `send()`, `recv()`, `setsockopt()` and `finalize()`; `initialize()` is its
+  only abstract method. Subclass it to wrap a ZeroMQ socket type this module
+  does not cover; the "Communication Plugins" page walks through one.
+- `setsockopt()` on every socket plugin. It existed only on `ZeroMQPubSub`,
+  although the underlying socket is the same on all of them.
+- `PluginProtocol` is exported from `PyOrchestrate.core.plugins`, next to the
+  plugins that implement it, instead of only from
+  `PyOrchestrate.core.plugins.plugin_protocols`.
 
 ### Changed
 
@@ -84,6 +94,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `urllib3` 2.7.0.
 - Docstrings, comments and error messages translated to English across
   `logguru.py`, `memory.py` and the Sphinx configuration.
+- `ZeroMQPubSub`, `ZeroMQReqRep`, `ZeroMQPushPull`, `ZeroMQRouterDealer` and
+  `ZeroMQPair` derive from `ZeroMQSocketPlugin` and implement only
+  `initialize()` plus what is genuinely theirs — PubSub's topic frame,
+  PushPull's direction guards, RouterDealer's multipart pair, Pair's `bind`.
+  339 of `com.py`'s 912 lines sat in methods with a byte-identical twin
+  elsewhere in the same file: `finalize()` in five copies, the `socket`
+  property in five, `send()` and `recv()` in three each. No behaviour change,
+  and the constructors keep their signatures.
+- `PluginProtocol.set_owner` is no longer abstract. Its body was already `pass`,
+  so every plugin that ignores the owner had to write
+  `return super().set_owner(owner)` to become instantiable — six copies in
+  `com.py` alone. Plugins that override it are unaffected.
+- `ZeroMQPubSub` raises the same "Socket not initialized. Did you forget to
+  call initialize?" message as the other four when the socket is used before
+  `initialize()`. Its copy of the guard said "call initialize method?".
+- The `com` module's API reference entry is generated with
+  `:inherited-members:`. Without it, autodoc would list each plugin with only
+  its constructor and `initialize()`, dropping the `send()`/`recv()`/
+  `finalize()` users actually call now that they live on the base.
 - CI's blocking `flake8` run also selects `F401`, `F811` and `F841`. The
   previous `E9,F63,F7,F82` let dead code through: fourteen unused imports
   across six modules, `heartbeat.py` importing `Optional` twice in one

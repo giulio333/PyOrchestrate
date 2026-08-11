@@ -8,6 +8,7 @@ from PyOrchestrate.core.plugins.com import (
     ZeroMQRouterDealer,
     ZeroMQPair,
     ZeroMQPoller,
+    ZeroMQSocketPlugin,
     SocketType,
 )
 
@@ -395,6 +396,86 @@ class TestFinalizeWithoutInitialize(unittest.TestCase):
         plugin.finalize()
 
         self.assertFalse(plugin._initialized)
+
+
+class TestZeroMQSocketPlugin(unittest.TestCase):
+    """The base the socket plugins share, and what a subclass has to provide."""
+
+    def test_socket_property_raises_before_initialize(self):
+        # Every plugin used to carry its own copy of this guard, and
+        # ZeroMQPubSub's copy worded the message differently from the others.
+        address = "tcp://127.0.0.1:5601"
+        plugins = [
+            ZeroMQPubSub(address, SocketType.PUB),
+            ZeroMQReqRep(address, SocketType.REQ),
+            ZeroMQPushPull(address, SocketType.PUSH),
+            ZeroMQRouterDealer(address, SocketType.ROUTER),
+            ZeroMQPair(address),
+        ]
+
+        for plugin in plugins:
+            with self.subTest(plugin=type(plugin).__name__):
+                with self.assertRaises(RuntimeError) as ctx:
+                    plugin.socket
+                self.assertEqual(
+                    str(ctx.exception),
+                    "Socket not initialized. Did you forget to call initialize?",
+                )
+                plugin.context.term()
+
+    def test_initialize_is_the_only_required_override(self):
+        # A subclass that implements initialize() inherits a working socket,
+        # send, recv, finalize and set_owner.
+        class ZeroMQPairSubclass(ZeroMQSocketPlugin):
+
+            def initialize(self):
+                if self._initialized:
+                    return
+                self._socket = self.context.socket(SocketType.PAIR)
+                self._socket.bind(self.address)
+                self._initialized = True
+
+        context = zmq.Context()
+        server = ZeroMQPairSubclass("tcp://127.0.0.1:5602", context=context)
+        server.initialize()
+
+        client = context.socket(zmq.PAIR)
+        client.connect("tcp://127.0.0.1:5602")
+        time.sleep(0.2)
+
+        server.send(b"from the subclass")
+        self.assertEqual(client.recv(), b"from the subclass")
+
+        client.send(b"to the subclass")
+        self.assertEqual(server.recv(), b"to the subclass")
+
+        client.close()
+        server.finalize()
+        self.assertFalse(server._initialized)
+
+    def test_subclass_without_initialize_cannot_be_instantiated(self):
+        class Incomplete(ZeroMQSocketPlugin):
+            pass
+
+        with self.assertRaises(TypeError):
+            Incomplete("tcp://127.0.0.1:5603")
+
+    def test_set_owner_defaults_to_a_no_op(self):
+        # PluginProtocol.set_owner is no longer abstract: the plugins that
+        # ignore the owner do not have to restate it.
+        plugin = ZeroMQPair("tcp://127.0.0.1:5604")
+
+        self.assertIsNone(plugin.set_owner(object()))
+
+        plugin.context.term()
+
+    def test_setsockopt_is_available_on_every_socket_plugin(self):
+        plugin = ZeroMQPubSub("tcp://127.0.0.1:5605", SocketType.SUB)
+        plugin.initialize()
+
+        plugin.setsockopt(zmq.SUBSCRIBE, b"topic")
+
+        plugin.finalize()
 
 
 if __name__ == "__main__":

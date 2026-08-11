@@ -11,12 +11,15 @@ Issues #87 and #88.
 
 import unittest
 
+import zmq
+
 from PyOrchestrate.core.agent import (
     BaseProcessAgent,
     LoopingProcessAgent,
     PeriodicProcessAgent,
 )
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
+from PyOrchestrate.core.plugins import ZeroMQSocketPlugin
 
 
 def _orchestrator() -> Orchestrator:
@@ -172,6 +175,38 @@ class TestCommunicationPluginExample(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             entry._initialize_instance()
+
+
+class TestCustomSocketPluginExample(unittest.TestCase):
+    """docs/learn/agents/plugins/communication-plugins.mdx"""
+
+    def test_subclassing_zeromqsocketplugin_needs_only_initialize(self):
+        """
+        The page tells the reader that ``initialize()`` is the only method a
+        custom socket plugin has to write. This is that snippet, verbatim.
+        """
+
+        class ZeroMQXPubXSub(ZeroMQSocketPlugin):
+
+            def initialize(self):
+                if self._initialized:
+                    return
+
+                self._socket = self.context.socket(zmq.XPUB)
+                self._socket.bind(self.address)
+
+                self._initialized = True
+
+        plugin = ZeroMQXPubXSub("tcp://127.0.0.1:5701")
+        plugin.initialize()
+
+        # Inherited, and never declared by the subclass.
+        self.assertIsNotNone(plugin.socket)
+        plugin.setsockopt(zmq.LINGER, 0)
+        self.assertIsNone(plugin.set_owner(object()))
+
+        plugin.finalize()
+        self.assertFalse(plugin._initialized)
 
 
 if __name__ == "__main__":

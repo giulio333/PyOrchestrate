@@ -78,3 +78,52 @@ class MyAgent(BaseProcessAgent):
 <Tip>
 Automatic management via the `Plugin` class is recommended for most scenarios. Manual management is useful for advanced or custom setups where you need more control over plugin lifecycle.
 </Tip>
+
+---
+
+## What the plugins share
+
+[PubSub](/learn/agents/plugins/zeromqpubsub/zeromqpubsub), [ReqRep](/learn/agents/plugins/zeromqreqrep/zeromqreqrep), [PushPull](/learn/agents/plugins/zeromqpushpull/zeromqpushpull), [RouterDealer](/learn/agents/plugins/zeromqrouterdealer/zeromqrouterdealer) and [Pair](/learn/agents/plugins/zeromqpair/zeromqpair) all own exactly one ZeroMQ socket, and they inherit that behaviour from `ZeroMQSocketPlugin`: the `socket` property that raises until `initialize()` has run, `send()` and `recv()` with their `blocking` flag, `setsockopt()`, and the `finalize()` that closes the socket and terminates the context.
+
+What each one adds is the part that is genuinely its own:
+
+| Plugin | On top of the shared base |
+| --- | --- |
+| `ZeroMQPubSub` | binds PUB / connects SUB, and moves the topic in a separate frame — `send()` takes a `topic`, `recv()` drops it |
+| `ZeroMQReqRep` | connects REQ / binds REP |
+| `ZeroMQPushPull` | binds PUSH / connects PULL, and refuses the direction the socket cannot serve |
+| `ZeroMQRouterDealer` | binds ROUTER / connects DEALER, plus `send_multipart()` and `recv_multipart()` for the identity frame |
+| `ZeroMQPair` | binds or connects a PAIR socket according to `bind` |
+
+[ZeroMQPoller](/learn/agents/plugins/zeromqpoller/zeromqpoller) is not in the table because it owns no socket of its own: it watches the sockets the others expose.
+
+See [/api/plugins](/api/plugins) for the full signatures.
+
+## Writing your own socket plugin
+
+ZeroMQ has socket types this module does not wrap. Subclass `ZeroMQSocketPlugin` and implement `initialize()` — that is the only abstract method, and everything above comes with it:
+
+```python
+import zmq
+from PyOrchestrate.core.plugins import ZeroMQSocketPlugin
+
+
+class ZeroMQXPubXSub(ZeroMQSocketPlugin):
+
+    def initialize(self):
+        if self._initialized:
+            return
+
+        self._socket = self.context.socket(zmq.XPUB)
+        self._socket.bind(self.address)
+
+        self._initialized = True
+```
+
+The constructor you inherit takes `address`, an optional `context` and an optional `hwm`, and creates no socket: building the plugin in a parent process that will fork is safe, because the socket only comes into existence when `initialize()` runs.
+
+<Warning title="Return early when already initialized">
+`initialize()` is called for you by the plugin manager, and may be called again by your own code. Without the `if self._initialized: return` guard a second call leaks the first socket.
+</Warning>
+
+A plugin that never needs to reach back to its agent does not have to define `set_owner()`: the default implementation ignores the owner. Override it when you want the reference, as the [heartbeat plugin](/examples/advanced/heartbeat-plugin) does.
