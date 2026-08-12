@@ -83,7 +83,7 @@ Automatic management via the `Plugin` class is recommended for most scenarios. M
 
 ## What the plugins share
 
-[PubSub](/learn/agents/plugins/zeromqpubsub/zeromqpubsub), [ReqRep](/learn/agents/plugins/zeromqreqrep/zeromqreqrep), [PushPull](/learn/agents/plugins/zeromqpushpull/zeromqpushpull), [RouterDealer](/learn/agents/plugins/zeromqrouterdealer/zeromqrouterdealer) and [Pair](/learn/agents/plugins/zeromqpair/zeromqpair) all own exactly one ZeroMQ socket, and they inherit that behaviour from `ZeroMQSocketPlugin`: the `socket` property that raises until `initialize()` has run, `send()` and `recv()` with their `blocking` flag, `setsockopt()`, and the `finalize()` that closes the socket and terminates the context.
+[PubSub](/learn/agents/plugins/zeromqpubsub/zeromqpubsub), [ReqRep](/learn/agents/plugins/zeromqreqrep/zeromqreqrep), [PushPull](/learn/agents/plugins/zeromqpushpull/zeromqpushpull), [RouterDealer](/learn/agents/plugins/zeromqrouterdealer/zeromqrouterdealer) and [Pair](/learn/agents/plugins/zeromqpair/zeromqpair) all own exactly one ZeroMQ socket, and they inherit that behaviour from `ZeroMQSocketPlugin`: the `socket` property that raises until `initialize()` has run, `send()` and `recv()` with their `blocking` flag, `setsockopt()`, and the `finalize()` that closes the socket.
 
 What each one adds is the part that is genuinely its own:
 
@@ -98,6 +98,40 @@ What each one adds is the part that is genuinely its own:
 [ZeroMQPoller](/learn/agents/plugins/zeromqpoller/zeromqpoller) is not in the table because it owns no socket of its own: it watches the sockets the others expose.
 
 See [/api/plugins](/api/plugins) for the full signatures.
+
+## Who owns the ZeroMQ context
+
+Every plugin takes an optional `context`, and that argument decides who is responsible for tearing it down:
+
+| You pass | The plugin does | You do |
+| --- | --- | --- |
+| nothing | creates a context, and `finalize()` terminates it | nothing |
+| a `context` | uses it, and `finalize()` closes only the socket | terminate it yourself, once every plugin sharing it is finalized |
+
+Sharing one context across a process is the recommended arrangement — it is what the constructor's own warning asks for — so create it yourself and hand it to each plugin:
+
+```python
+import zmq
+from PyOrchestrate.core.plugins import ZeroMQPair, ZeroMQPubSub, SocketType
+
+context = zmq.Context()
+
+inbox = ZeroMQPair("tcp://127.0.0.1:5555", context=context)
+events = ZeroMQPubSub("tcp://127.0.0.1:5556", SocketType.PUB, context=context)
+
+inbox.initialize()
+events.initialize()
+
+# ... work ...
+
+inbox.finalize()      # closes inbox's socket, leaves the context alone
+events.finalize()     # closes events' socket
+context.term()        # yours to terminate, and only once both are closed
+```
+
+<Warning title="Terminating a context with a socket still open blocks">
+`zmq.Context.term()` does not return until every socket on that context is closed. Call it before finalizing the plugins that share it and it will wait forever. This is why a plugin never terminates a context you handed it: doing so used to hang teardown as soon as a second plugin was still holding a socket on the same context.
+</Warning>
 
 ## Writing your own socket plugin
 

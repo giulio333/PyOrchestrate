@@ -137,6 +137,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Breaking:** a ZeroMQ plugin no longer terminates a `zmq.Context` it was
+  given. `finalize()` called `self.context.term()` unconditionally, and
+  `term()` blocks until every socket on the context is closed — so the moment
+  two plugins shared one, finalizing the first did not merely close the context
+  early, it never returned. Teardown hung. The trap was in the arrangement the
+  constructor's own warning recommends ("ensure that one process has only one
+  zmq.Context instance"), and no test caught it because every test lets the
+  plugin create its own context, where `term()` has just the one closed socket
+  to wait for.
+
+  A context passed to the constructor now belongs to the caller: `finalize()`
+  closes the socket and leaves it alone. A context the plugin created is still
+  terminated. Code that supplies its own context and relied on the plugin
+  terminating it must now call `context.term()` itself, after finalizing every
+  plugin sharing it — which is the only order that ever worked.
+- `ZeroMQPoller` releases the context it creates. It built one in `__init__`,
+  never used it — `zmq.Poller` takes no context — and never terminated it, so
+  every poller leaked one. It now follows the same ownership rule as the socket
+  plugins, and its `finalize()` is a no-op when `initialize()` never ran, as
+  theirs already were.
 - Asking the event store for the history of an agent that had never sent a
   heartbeat allocated a bucket for it, permanently. `BucketRingStore.last()`
   indexed its `defaultdict`, and the agent name arrives straight from the

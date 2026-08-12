@@ -78,16 +78,22 @@ class ZeroMQSocketPlugin(PluginProtocol):
         No socket exists until `initialize()` is called, so building a plugin is
         safe in a parent process that will fork.
 
+        Passing a `context` makes it yours: `finalize()` closes the socket but
+        leaves the context alone, and terminating it is up to you once every
+        plugin sharing it has been finalized. Omitting it gives the plugin a
+        context of its own, which `finalize()` terminates.
+
         Warning:
             Ensure that one process has only one zmq.Context instance.
 
         Args:
             address (str): The address to bind/connect the socket.
             context (zmq.Context, optional): The ZeroMQ context. Defaults to None,
-                which creates one.
+                which creates one owned by this plugin.
             hwm (int, optional): The high water mark for the socket. Defaults to None.
         """
         self.address = address
+        self._owns_context = context is None
         self.context = context if context is not None else zmq.Context()
         self.hwm = hwm
 
@@ -168,14 +174,22 @@ class ZeroMQSocketPlugin(PluginProtocol):
         """
         Finalizes the ZeroMQ plugin.
 
-        Closes the socket and terminates the context. Does nothing when
-        `initialize()` never ran or failed, since `socket` would raise.
+        Closes the socket, and terminates the context only when the plugin
+        created it. A context passed to the constructor belongs to the caller
+        and may still be in use by other plugins: `zmq.Context.term()` blocks
+        until every socket on it is closed, so terminating it here does not
+        merely close it early — it hangs for as long as a sibling plugin holds
+        one open.
+
+        Does nothing when `initialize()` never ran or failed, since `socket`
+        would raise.
         """
         if not self._initialized:
             return
 
         self.socket.close()
-        self.context.term()
+        if self._owns_context:
+            self.context.term()
         self._initialized = False
 
 
@@ -716,9 +730,16 @@ class ZeroMQPoller(PluginProtocol):
         """
         Initializes the ZeroMQ Poller.
 
+        A poller needs no context of its own — `zmq.Poller` takes none, and the
+        sockets it watches carry theirs. The attribute is kept so the poller
+        can be handed the process context alongside the other plugins, and it
+        follows the same ownership rule they do.
+
         Args:
-            context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
+            context (zmq.Context, optional): The ZeroMQ context. Defaults to None,
+                which creates one owned by this plugin.
         """
+        self._owns_context = context is None
         self.context = context if context is not None else zmq.Context()
         self._poller: zmq.Poller | None = None
         self._initialized = False
@@ -779,8 +800,19 @@ class ZeroMQPoller(PluginProtocol):
     def finalize(self):
         """
         Finalizes the ZeroMQ poller.
+
+        Drops the poller and terminates the context only when the poller
+        created it, matching `ZeroMQSocketPlugin.finalize()`. A context passed
+        to the constructor belongs to the caller.
+
+        Does nothing when `initialize()` never ran, so a poller that was built
+        and never started is left exactly as the socket plugins leave it.
         """
-        if self._poller:
-            # Note: zmq.Poller doesn't have a close method, just clear registered sockets
-            self._poller = None
+        if not self._initialized:
+            return
+
+        # Note: zmq.Poller doesn't have a close method, just clear registered sockets
+        self._poller = None
+        if self._owns_context:
+            self.context.term()
         self._initialized = False

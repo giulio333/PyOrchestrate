@@ -19,7 +19,12 @@ from PyOrchestrate.core.agent import (
     PeriodicProcessAgent,
 )
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
-from PyOrchestrate.core.plugins import ZeroMQSocketPlugin
+from PyOrchestrate.core.plugins import (
+    SocketType,
+    ZeroMQPair,
+    ZeroMQPubSub,
+    ZeroMQSocketPlugin,
+)
 
 
 def _orchestrator() -> Orchestrator:
@@ -207,6 +212,28 @@ class TestCustomSocketPluginExample(unittest.TestCase):
 
         plugin.finalize()
         self.assertFalse(plugin._initialized)
+
+    def test_shared_context_teardown_order(self):
+        """
+        The page hands one context to two plugins and terminates it last. If a
+        plugin terminated a context it was given, this sequence would block on
+        the sibling's open socket instead of finishing.
+        """
+        context = zmq.Context()
+
+        inbox = ZeroMQPair("tcp://127.0.0.1:5711", context=context)
+        events = ZeroMQPubSub("tcp://127.0.0.1:5712", SocketType.PUB, context=context)
+
+        inbox.initialize()
+        events.initialize()
+
+        inbox.finalize()
+        self.assertFalse(context.closed)
+
+        events.finalize()
+        context.term()
+
+        self.assertTrue(context.closed)
 
 
 if __name__ == "__main__":

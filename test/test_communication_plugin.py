@@ -1,4 +1,5 @@
 import unittest
+import threading
 import zmq
 import time
 from PyOrchestrate.core.plugins.com import (
@@ -396,6 +397,95 @@ class TestFinalizeWithoutInitialize(unittest.TestCase):
         plugin.finalize()
 
         self.assertFalse(plugin._initialized)
+
+
+class TestContextOwnership(unittest.TestCase):
+    """
+    finalize() must only terminate a context the plugin created itself.
+
+    `zmq.Context.term()` blocks until every socket in the context is closed, so
+    terminating a context the caller supplied does not merely close it early:
+    with a second plugin still holding a socket on it, finalize() never returns.
+    """
+
+    def _finalize_within(self, plugin, seconds=5.0):
+        """Runs finalize() off-thread so a regression fails instead of hanging."""
+        finished = threading.Event()
+        errors = []
+
+        def run():
+            try:
+                plugin.finalize()
+            except BaseException as exc:  # pragma: no cover - regression only
+                errors.append(exc)
+            finally:
+                finished.set()
+
+        threading.Thread(target=run, daemon=True).start()
+        returned = finished.wait(seconds)
+
+        if errors:
+            raise errors[0]
+        return returned
+
+    def test_finalize_leaves_a_supplied_context_open(self):
+        context = zmq.Context()
+        plugin = ZeroMQPair("tcp://127.0.0.1:5611", bind=True, context=context)
+        plugin.initialize()
+
+        self.assertTrue(
+            self._finalize_within(plugin),
+            "finalize() blocked on a context the caller owns",
+        )
+        self.assertFalse(context.closed)
+
+        context.term()
+
+    def test_finalize_does_not_break_a_plugin_sharing_the_context(self):
+        # The pattern the constructor's own warning recommends: one context per
+        # process, handed to every plugin. Finalizing one used to terminate it
+        # for all of them — in practice it deadlocked, because the sibling
+        # socket was still open.
+        context = zmq.Context()
+        first = ZeroMQPair("tcp://127.0.0.1:5612", bind=True, context=context)
+        second = ZeroMQPair("tcp://127.0.0.1:5613", bind=True, context=context)
+        first.initialize()
+        second.initialize()
+
+        self.assertTrue(
+            self._finalize_within(first),
+            "finalize() blocked on the sibling plugin's open socket",
+        )
+
+        # The survivor is still usable.
+        second.setsockopt(zmq.LINGER, 0)
+        self.assertFalse(context.closed)
+
+        second.finalize()
+        context.term()
+
+    def test_finalize_terminates_a_context_the_plugin_created(self):
+        plugin = ZeroMQPair("tcp://127.0.0.1:5614", bind=True)
+        plugin.initialize()
+
+        self.assertTrue(self._finalize_within(plugin))
+        self.assertTrue(plugin.context.closed)
+
+    def test_poller_follows_the_same_rule(self):
+        # ZeroMQPoller needs no context of its own — zmq.Poller() takes none —
+        # but it builds one, and used to leak it on finalize().
+        owned = ZeroMQPoller()
+        owned.initialize()
+        owned.finalize()
+        self.assertTrue(owned.context.closed)
+
+        context = zmq.Context()
+        borrowed = ZeroMQPoller(context=context)
+        borrowed.initialize()
+        borrowed.finalize()
+        self.assertFalse(context.closed)
+
+        context.term()
 
 
 class TestZeroMQSocketPlugin(unittest.TestCase):
