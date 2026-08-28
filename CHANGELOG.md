@@ -67,6 +67,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The README is a tour of the framework that links to the documentation site
+  instead of a second copy of it: 424 lines down to 245. The `create`
+  troubleshooting list, the "Modern Architecture" section that restated the
+  `Config` and `Plugin` sections a second time, and the documentation build
+  commands duplicated from `CONTRIBUTING.md` are gone. Both remaining snippets
+  were executed before being committed. Links that pointed at `.mdx` files in
+  the repository, which GitHub serves as plain text, now point at the rendered
+  pages on https://pyorchestrate.mintlify.app.
+- The README documents the runtime CLI commands (`ps`, `status`,
+  `dependencies`, `start`, `stop`, `history`, `history-stats`, `stats`,
+  `commands`, `shutdown`) and `pyorchestrate-web`. It described `create` alone,
+  which is the only one of the eleven that does not talk to a running
+  orchestrator.
+- The documentation site links to GitHub once, from the navbar. The same link
+  was also declared as a global anchor in `docs.json`, so it appeared a second
+  time at the top of the sidebar on every page. The footer social link is
+  unchanged.
 - **Breaking:** `MessageRouter` takes an `OrchestratorEventBus` as its first
   argument instead of an `EventManager`, and exposes it as `router.event_bus`
   rather than `router.event_manager`. Framework integrations that build a
@@ -137,6 +154,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The README's ZeroMQ example never delivered a message. It bound the publisher
+  to `tcp://*:5555`, which is the orchestrator's own default
+  `command_zmq_address`, so the socket collided with `CommandInterface` and the
+  subscriber received nothing — for 50 seconds of runtime, 2 messages published
+  and 0 received. Both `except:` clauses in the snippet were bare, so the
+  `zmq.Again` this raised on every cycle was reported as "No weather data
+  available" and read as normal operation. The README now shows the pattern
+  from `examples/communication/example_zmq_pubsub.py`, which runs to
+  completion, and states explicitly that port 5555 is reserved.
 - Asking the event store for the history of an agent that had never sent a
   heartbeat allocated a bucket for it, permanently. `BucketRingStore.last()`
   indexed its `defaultdict`, and the agent name arrives straight from the
