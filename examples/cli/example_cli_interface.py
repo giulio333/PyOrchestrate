@@ -33,7 +33,7 @@ if __name__ == "__main__":
     # Configure orchestrator
     config = Orchestrator.Config(
         enable_command_interface=True,
-        command_zmq_address="tcp://*:5555",
+        command_zmq_address="tcp://127.0.0.1:5555",
         run_mode=RunMode.DAEMON,
         allowed_commands={"ps", "shutdown"},
     )

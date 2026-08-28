@@ -38,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `PyOrchestrate.core.utilities.messaging.is_local_only()`, which tells whether a
+  socket bound to a ZeroMQ endpoint can be reached from another host. `tcp://`
+  on loopback, `ipc://` and `inproc://` cannot; a wildcard, a routable address
+  and a host name that cannot be resolved to loopback can. `CommandInterface`
+  uses it to decide whether binding deserves a warning.
+
 - `Orchestrator.shutdown()`, the complete teardown `join()` performs when its
   loop exits, callable on its own for an orchestrator nothing drives with
   `join()`. It stops and joins the agents, records the `SHUTDOWN` event, stops
@@ -66,6 +72,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PyOrchestrate.core.plugins.plugin_protocols`.
 
 ### Changed
+
+- **Breaking:** `OrchestratorConfig.command_zmq_address` defaults to
+  `"tcp://127.0.0.1:5555"` instead of `"tcp://*:5555"`. The command interface is
+  enabled by default and authenticates nobody, so the old default put an
+  unauthenticated control port on every network interface of every orchestrator:
+  whoever reached port 5555 could `shutdown` it, `start` and `stop` its agents,
+  and read the agent configurations `ps` serializes — user-defined `Config`
+  fields included. Loopback is what the rest of the framework already assumed:
+  the CLI connects to `tcp://127.0.0.1:5555`, `WebServerConfig.host` is
+  `127.0.0.1`, and the documentation told readers to override the default in
+  four different places. Deployments that need remote CLI or web clients must
+  now set `command_zmq_address="tcp://*:5555"` explicitly, and should pair it
+  with a restrictive `allowed_commands`.
+
+- `CommandInterface` logs a warning when the address it binds is reachable from
+  other hosts, naming the address and what an unauthenticated client can do with
+  it. Deliberately a log line and not a `ValidationResult`: with the default
+  `ValidationPolicy(ignore_warnings=True)` a WARNING result makes
+  `BaseClassConfig._validate` raise `ConfigValidationWarning`, which would break
+  every intentional wildcard bind rather than inform it.
+
+- The `pyorchestrate create` scaffold (`CLIConstants.STARTER_TEMPLATE`) and
+  `examples/cli/example_cli_interface.py` bind `tcp://127.0.0.1:5555`. The
+  scaffold used to write out `tcp://*:5555` explicitly, so the first file a new
+  user ran opened the port to the network.
 
 - The README is a tour of the framework that links to the documentation site
   instead of a second copy of it: 424 lines down to 245. The `create`

@@ -55,7 +55,7 @@ agent that ignores it cannot be, so it is quarantined and reported.
 | `agent_start_timeout` | `30.0` | Timeout for the `start_event` acknowledgement, for supplied and default state events alike |
 | `agent_stop_timeout` | `10.0` | Budget shared by all agents while shutdown waits for them to terminate |
 | `enable_command_interface` | `True` | Enable external runtime commands |
-| `command_zmq_address` | `"tcp://*:5555"` | ZeroMQ ROUTER bind address |
+| `command_zmq_address` | `"tcp://127.0.0.1:5555"` | ZeroMQ ROUTER bind address, loopback-only by default |
 | `allowed_commands` | `None` | Preset, explicit set, or all commands |
 | `run_mode` | `RunMode.STOP_ON_EMPTY` | Orchestrator lifecycle policy |
 | `history_max_events` | `5000` | Event history capacity |

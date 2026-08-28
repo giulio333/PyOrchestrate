@@ -108,7 +108,7 @@ orchestrator.start()
 orchestrator.join()
 ```
 
-The default `max_workers` is `5`. The command interface is enabled by default and binds to `tcp://*:5555`; disable it when runtime CLI/web control is not needed, or bind it explicitly to `tcp://127.0.0.1:5555` for local-only access.
+The default `max_workers` is `5`. The command interface is enabled by default and binds to `tcp://127.0.0.1:5555`, so it answers local CLI and web clients and nobody else; disable it when runtime CLI/web control is not needed, and bind it to `tcp://*:5555` only when remote clients must reach it — it authenticates nobody.
 
 ## Dependencies
 

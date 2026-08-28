@@ -131,14 +131,14 @@ If `agents_entry` is left empty the pool validates with a warning, logs `No agen
 Each child is described by an `AgentEntry`, which carries the agent class, its name, its configuration and any extra keyword arguments to forward to the constructor. For the exact signature see the [API reference](/api/orchestrator).
 
 <Warning title="The inner orchestrator must not take the parent's command port">
-The default `command_zmq_address` is `tcp://*:5555` for every orchestrator, and the top-level one has already bound it. A pool that enabled the command interface on that address would die on startup with `Address already in use`. That is why the inner orchestrator runs without a command interface unless you provide an `orchestrator_config` of your own — and if you do, give it an address nobody else uses:
+The default `command_zmq_address` is `tcp://127.0.0.1:5555` for every orchestrator, and the top-level one has already bound it. A pool that enabled the command interface on that address would die on startup with `Address already in use`. That is why the inner orchestrator runs without a command interface unless you provide an `orchestrator_config` of your own — and if you do, give it an address nobody else uses:
 
 ```python
 class Collector(PoolProcessAgent):
     class Config(PoolProcessAgent.Config):
         agents_entry = [AgentEntry(Producer, "Producer")]
         orchestrator_config = Orchestrator.Config(
-            command_zmq_address="tcp://*:5556"
+            command_zmq_address="tcp://127.0.0.1:5556"
         )
 ```
 </Warning>
