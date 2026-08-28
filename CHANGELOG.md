@@ -84,6 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was also declared as a global anchor in `docs.json`, so it appeared a second
   time at the top of the sidebar on every page. The footer social link is
   unchanged.
+- The Weather Collector example callouts now show their headings and render the
+  `requests` installation command as a separate code block.
 - **Breaking:** `MessageRouter` takes an `OrchestratorEventBus` as its first
   argument instead of an `EventManager`, and exposes it as `router.event_bus`
   rather than `router.event_manager`. Framework integrations that build a
