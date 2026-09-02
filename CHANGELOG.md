@@ -156,6 +156,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The API Reference workflow could not publish anything. It committed the
+  regenerated Sphinx artifact straight to `main`, which no longer accepts a
+  direct push: every attempt ended in
+  `GH013: Repository rule violations found for refs/heads/main`. The breakage
+  was silent for weeks because a run with nothing to commit never reaches the
+  push and passes, so it only surfaced once a change finally left the artifact
+  stale — meaning the published API reference had been frozen at the last
+  successful run. The artifact now arrives as a pull request, which is what the
+  rule asks for, on a branch the job owns and force-pushes so an open pull
+  request is updated in place instead of one piling up per docstring change.
 - A ZeroMQ plugin terminated a context it did not own. `finalize()` called
   `zmq.Context.term()` unconditionally, but `term()` blocks until every socket
   in the context is closed: an agent whose `Plugin` class declared two socket
