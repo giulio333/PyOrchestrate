@@ -110,6 +110,8 @@ Ownership follows that argument, and it decides what `finalize()` tears down:
 | omitted | the plugin | closes the socket, then terminates the context |
 | a context you pass | you | closes the socket, and leaves the context running |
 
+[ZeroMQPoller](/learn/agents/plugins/zeromqpoller/zeromqpoller) takes the same argument, so it can be declared next to the others, but it is not in the table: it owns no socket and needs no context of its own. It stores what you pass and creates nothing when you leave the argument out, so `poller.context` is `None` there — and it never terminates a context either way.
+
 ```python
 import zmq
 from PyOrchestrate.core.plugins import ZeroMQPubSub, ZeroMQPushPull

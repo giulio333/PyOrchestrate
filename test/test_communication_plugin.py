@@ -1,5 +1,6 @@
 import threading
 import unittest
+import psutil
 import zmq
 import time
 from PyOrchestrate.core.plugins.com import (
@@ -378,7 +379,9 @@ class TestFinalizeWithoutInitialize(unittest.TestCase):
             with self.subTest(plugin=type(plugin).__name__):
                 plugin.finalize()
                 self.assertFalse(plugin._initialized)
-                plugin.context.term()
+                if plugin.context is not None:
+                    # The poller holds no context of its own to release.
+                    plugin.context.term()
 
     def test_finalize_after_failed_initialize_does_not_raise(self):
         plugin = ZeroMQPubSub("tcp://127.0.0.1:5599", SocketType.REQ)
@@ -460,6 +463,45 @@ class TestContextOwnership(unittest.TestCase):
         )
 
         sibling.finalize()
+        context.term()
+
+    def test_poller_creates_no_context(self):
+        # The poller allocated a context nothing read: initialize() only
+        # builds a zmq.Poller, which needs none, and finalize() never
+        # terminated it.
+        poller = ZeroMQPoller()
+
+        self.assertIsNone(poller.context)
+
+    def test_poller_leaks_no_file_descriptor(self):
+        # What the unused context cost: one live zmq.Context, and the
+        # descriptor it opens, per poller. A poller declared in a Plugin class
+        # is held for the lifetime of the process, so nothing ever collected
+        # them.
+        process = psutil.Process()
+        before = process.num_fds()
+
+        pollers = [ZeroMQPoller() for _ in range(32)]
+        for poller in pollers:
+            poller.initialize()
+            poller.finalize()
+
+        # A descriptor from an earlier test being reaped shifts the count
+        # either way, so the assertion is on the order of magnitude rather
+        # than on equality: the leak grew it by one per poller.
+        self.assertLess(process.num_fds() - before, len(pollers) // 4)
+
+    def test_poller_context_survives_finalize(self):
+        # A context handed to the poller is the caller's, exactly as it is for
+        # a socket plugin: the poller stores it and touches nothing else.
+        context = zmq.Context()
+        poller = ZeroMQPoller(context=context)
+        poller.initialize()
+
+        poller.finalize()
+
+        self.assertIs(poller.context, context)
+        self.assertFalse(context.closed)
         context.term()
 
 
