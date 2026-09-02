@@ -83,7 +83,7 @@ Automatic management via the `Plugin` class is recommended for most scenarios. M
 
 ## What the plugins share
 
-[PubSub](/learn/agents/plugins/zeromqpubsub/zeromqpubsub), [ReqRep](/learn/agents/plugins/zeromqreqrep/zeromqreqrep), [PushPull](/learn/agents/plugins/zeromqpushpull/zeromqpushpull), [RouterDealer](/learn/agents/plugins/zeromqrouterdealer/zeromqrouterdealer) and [Pair](/learn/agents/plugins/zeromqpair/zeromqpair) all own exactly one ZeroMQ socket, and they inherit that behaviour from `ZeroMQSocketPlugin`: the `socket` property that raises until `initialize()` has run, `send()` and `recv()` with their `blocking` flag, `setsockopt()`, and the `finalize()` that closes the socket and terminates the context.
+[PubSub](/learn/agents/plugins/zeromqpubsub/zeromqpubsub), [ReqRep](/learn/agents/plugins/zeromqreqrep/zeromqreqrep), [PushPull](/learn/agents/plugins/zeromqpushpull/zeromqpushpull), [RouterDealer](/learn/agents/plugins/zeromqrouterdealer/zeromqrouterdealer) and [Pair](/learn/agents/plugins/zeromqpair/zeromqpair) all own exactly one ZeroMQ socket, and they inherit that behaviour from `ZeroMQSocketPlugin`: the `socket` property that raises until `initialize()` has run, `send()` and `recv()` with their `blocking` flag, `setsockopt()`, and the `finalize()` that closes the socket and terminates the context it created.
 
 What each one adds is the part that is genuinely its own:
 
@@ -98,6 +98,35 @@ What each one adds is the part that is genuinely its own:
 [ZeroMQPoller](/learn/agents/plugins/zeromqpoller/zeromqpoller) is not in the table because it owns no socket of its own: it watches the sockets the others expose.
 
 See [/api/plugins](/api/plugins) for the full signatures.
+
+## Sharing one context
+
+ZeroMQ expects a single `zmq.Context` per process, and every socket plugin takes one as its optional `context` argument. Pass the same context to all of them and they share it; leave the argument out and each plugin builds one of its own.
+
+Ownership follows that argument, and it decides what `finalize()` tears down:
+
+| `context` argument | Who owns the context | What `finalize()` does |
+| --- | --- | --- |
+| omitted | the plugin | closes the socket, then terminates the context |
+| a context you pass | you | closes the socket, and leaves the context running |
+
+```python
+import zmq
+from PyOrchestrate.core.plugins import ZeroMQPubSub, ZeroMQPushPull
+
+context = zmq.Context()
+
+publisher = ZeroMQPubSub("tcp://*:5556", zmq.PUB, context=context)
+results = ZeroMQPushPull("tcp://*:5557", zmq.PUSH, context=context)
+
+# ... initialize(), use, then finalize() both plugins ...
+
+context.term()  # yours to terminate, once every socket on it is closed
+```
+
+<Warning title="Terminate a shared context last">
+`zmq.Context.term()` blocks until every socket in the context is closed. Call it once, after finalizing every plugin that uses it — the plugins of a `Plugin` class are finalized one attribute at a time, so terminating it earlier would wait on the sockets the remaining plugins still hold.
+</Warning>
 
 ## Writing your own socket plugin
 
