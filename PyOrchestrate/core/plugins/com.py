@@ -696,6 +696,9 @@ class ZeroMQPoller(PluginProtocol):
 
     It owns no socket of its own, which is why it does not build on
     `ZeroMQSocketPlugin`: it watches the sockets the other plugins expose.
+    It owns no context either — a `zmq.Poller` needs none — so the `context`
+    it is given is only kept for the caller to reach, never created and never
+    terminated.
 
     Example:
         >>> # Create multiple sockets
@@ -721,18 +724,34 @@ class ZeroMQPoller(PluginProtocol):
         >>>         socket.send(b"Hello", zmq.NOBLOCK)
 
     Attributes:
+        context (zmq.Context | None): The context passed to the constructor,
+            or None when none was. Nothing in this class reads it.
         poller (zmq.Poller): The ZeroMQ poller instance.
 
     """
 
     def __init__(self, context: zmq.Context | None = None):
         """
-        Initializes the ZeroMQ Poller.
+        Stores the given context, without ever creating one.
+
+        A `zmq.Poller` takes no context: it watches sockets, and each of them
+        already carries the context of the plugin that owns it. Building a
+        context here allocated one that nothing used and nothing terminated,
+        so every poller left a live `zmq.Context` — and the file descriptor it
+        opens — behind for the lifetime of the process.
+
+        The argument is kept so a poller can be declared next to the socket
+        plugins from the same shared context, and so that context stays
+        reachable through `self.context`.
 
         Args:
-            context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
+            context (zmq.Context, optional): The context the polled sockets
+                belong to, stored as `self.context` and left otherwise
+                untouched. Defaults to None, which leaves the attribute None:
+                the poller never owns a context, so a context given to it
+                stays the caller's to terminate.
         """
-        self.context = context if context is not None else zmq.Context()
+        self.context = context
         self._poller: zmq.Poller | None = None
         self._initialized = False
 
@@ -792,6 +811,10 @@ class ZeroMQPoller(PluginProtocol):
     def finalize(self):
         """
         Finalizes the ZeroMQ poller.
+
+        Drops the poller and its registrations. There is no context to
+        terminate: the poller never creates one, and one handed to it belongs
+        to the caller, exactly as it does for `ZeroMQSocketPlugin`.
         """
         if self._poller:
             # Note: zmq.Poller doesn't have a close method, just clear registered sockets

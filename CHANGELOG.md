@@ -169,6 +169,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ZMQError: Context was terminated`. `finalize()` now closes its socket and
   terminates only a context the plugin itself created; one received from the
   caller belongs to the caller.
+- **Breaking:** `ZeroMQPoller` allocated a `zmq.Context` nothing ever used.
+  `initialize()` only builds a `zmq.Poller`, which takes no context, and
+  `finalize()` never terminated the one the constructor had created, so every
+  poller built without an explicit `context` left a live context — and the
+  file descriptor it opens — behind for as long as the poller was referenced:
+  for a poller declared in a `Plugin` class, the lifetime of the process. The
+  constructor now stores the context it is given and creates none, which is
+  the breaking part: `poller.context` is `None` when the argument is omitted,
+  where it used to be a fresh context. The argument itself stays, so a poller
+  can still be declared next to the socket plugins from the one context they
+  share, and the ownership rule holds for it as it does for them — a context
+  passed to the poller is never terminated by it and remains the caller's.
 - The README's ZeroMQ example never delivered a message. It bound the publisher
   to `tcp://*:5555`, which is the orchestrator's own default
   `command_zmq_address`, so the socket collided with `CommandInterface` and the

@@ -99,6 +99,22 @@ The returned events are bitmasks too, which is why the example tests them with `
 
 For the exact signatures of `register`, `unregister` and `poll`, see the [API reference](/api/plugins).
 
+### The context argument
+
+The constructor accepts an optional `context`, so a poller can be declared next to the socket plugins from the one context they share:
+
+```python
+import zmq
+from PyOrchestrate.core.plugins import ZeroMQPoller, ZeroMQPubSub, SocketType
+
+context = zmq.Context()
+
+sub_socket = ZeroMQPubSub("tcp://localhost:5555", SocketType.SUB, context=context)
+poller = ZeroMQPoller(context=context)
+```
+
+The poller only stores it. A `zmq.Poller` needs no context — it watches sockets, and each of those already carries the context of the plugin that owns it — so the poller creates none when you omit the argument, leaving `poller.context` at `None`, and `finalize()` never terminates one you pass. Terminating a shared context stays [your job](/learn/agents/plugins/communication-plugins#sharing-one-context), once every plugin using it has been finalized.
+
 ## Error Handling
 
 ### Reading without NOBLOCK
