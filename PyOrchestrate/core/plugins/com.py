@@ -78,19 +78,24 @@ class ZeroMQSocketPlugin(PluginProtocol):
         No socket exists until `initialize()` is called, so building a plugin is
         safe in a parent process that will fork.
 
+        A context passed in belongs to the caller: `finalize()` closes the
+        socket but leaves that context running, so several plugins can share
+        the single context per process the warning below asks for.
+
         Warning:
             Ensure that one process has only one zmq.Context instance.
 
         Args:
             address (str): The address to bind/connect the socket.
             context (zmq.Context, optional): The ZeroMQ context. Defaults to None,
-                which creates one.
+                which creates one owned by the plugin.
             hwm (int, optional): The high water mark for the socket. Defaults to None.
         """
         self.address = address
         self.context = context if context is not None else zmq.Context()
         self.hwm = hwm
 
+        self._owns_context = context is None
         self._socket: zmq.Socket | None = None
         self._initialized = False
 
@@ -168,14 +173,22 @@ class ZeroMQSocketPlugin(PluginProtocol):
         """
         Finalizes the ZeroMQ plugin.
 
-        Closes the socket and terminates the context. Does nothing when
-        `initialize()` never ran or failed, since `socket` would raise.
+        Closes the socket, and terminates the context only when the plugin
+        created it. A context received from the caller is left alone:
+        `zmq.Context.term()` blocks until every socket in the context is
+        closed, so terminating a shared one hung the first plugin to finalize
+        on the sockets its siblings still held, and poisoned the context for
+        them in the meantime.
+
+        Does nothing when `initialize()` never ran or failed, since `socket`
+        would raise.
         """
         if not self._initialized:
             return
 
         self.socket.close()
-        self.context.term()
+        if self._owns_context:
+            self.context.term()
         self._initialized = False
 
 

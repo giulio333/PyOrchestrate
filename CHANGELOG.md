@@ -156,6 +156,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A ZeroMQ plugin terminated a context it did not own. `finalize()` called
+  `zmq.Context.term()` unconditionally, but `term()` blocks until every socket
+  in the context is closed: an agent whose `Plugin` class declared two socket
+  plugins over one shared context — the single context per process the
+  plugins' own warning asks for — hung forever in the first `finalize()`, on
+  the socket its sibling still held. `PluginManager.finalize_plugins()` runs
+  from the `finally` of `BaseAgent.run()`, so the agent never reached
+  `close_event`: a process agent had to be force-terminated at shutdown, a
+  thread agent could not be terminated at all. Terminating the context also
+  poisoned it for the siblings still using it, which failed with
+  `ZMQError: Context was terminated`. `finalize()` now closes its socket and
+  terminates only a context the plugin itself created; one received from the
+  caller belongs to the caller.
 - The README's ZeroMQ example never delivered a message. It bound the publisher
   to `tcp://*:5555`, which is the orchestrator's own default
   `command_zmq_address`, so the socket collided with `CommandInterface` and the

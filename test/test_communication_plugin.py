@@ -1,3 +1,4 @@
+import threading
 import unittest
 import zmq
 import time
@@ -398,6 +399,70 @@ class TestFinalizeWithoutInitialize(unittest.TestCase):
         self.assertFalse(plugin._initialized)
 
 
+class TestContextOwnership(unittest.TestCase):
+    """finalize() terminates the context only when the plugin created it."""
+
+    def test_own_context_is_terminated(self):
+        # A plugin that built its own context is the only one that can free it.
+        plugin = ZeroMQPair("tcp://127.0.0.1:5606")
+        plugin.initialize()
+
+        plugin.finalize()
+
+        self.assertTrue(plugin.context.closed)
+
+    def test_caller_context_survives_finalize(self):
+        # Terminating a context the caller owns left every sibling plugin with
+        # a dead context: the next socket raised "Context was terminated".
+        address = "tcp://127.0.0.1:5607"
+        context = zmq.Context()
+        plugins = [
+            ZeroMQPubSub(address, SocketType.PUB, context=context),
+            ZeroMQReqRep(address, SocketType.REP, context=context),
+            ZeroMQPushPull(address, SocketType.PUSH, context=context),
+            ZeroMQRouterDealer(address, SocketType.ROUTER, context=context),
+            ZeroMQPair(address, context=context),
+        ]
+
+        for plugin in plugins:
+            with self.subTest(plugin=type(plugin).__name__):
+                plugin.initialize()
+                plugin.finalize()
+
+                self.assertFalse(context.closed)
+                sibling = context.socket(zmq.PAIR)
+                sibling.close()
+
+        context.term()
+
+    def test_finalize_does_not_wait_on_a_sibling_socket(self):
+        # zmq.Context.term() blocks until every socket in the context is
+        # closed, so terminating a shared context hung the first plugin to
+        # finalize for as long as its sibling held a socket open.
+        context = zmq.Context()
+        first = ZeroMQPair("tcp://127.0.0.1:5608", context=context)
+        sibling = ZeroMQPair("tcp://127.0.0.1:5609", context=context)
+        first.initialize()
+        sibling.initialize()
+
+        finalized = threading.Event()
+
+        def finalize_first():
+            first.finalize()
+            finalized.set()
+
+        worker = threading.Thread(target=finalize_first, daemon=True)
+        worker.start()
+
+        self.assertTrue(
+            finalized.wait(timeout=5),
+            "finalize() blocked on the socket still held by the sibling plugin",
+        )
+
+        sibling.finalize()
+        context.term()
+
+
 class TestZeroMQSocketPlugin(unittest.TestCase):
     """The base the socket plugins share, and what a subclass has to provide."""
 
@@ -452,6 +517,7 @@ class TestZeroMQSocketPlugin(unittest.TestCase):
         client.close()
         server.finalize()
         self.assertFalse(server._initialized)
+        context.term()
 
     def test_subclass_without_initialize_cannot_be_instantiated(self):
         class Incomplete(ZeroMQSocketPlugin):
