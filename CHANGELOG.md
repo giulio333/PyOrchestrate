@@ -197,6 +197,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   successful run. The artifact now arrives as a pull request, which is what the
   rule asks for, on a branch the job owns and force-pushes so an open pull
   request is updated in place instead of one piling up per docstring change.
+- The pull request that workflow opens was unmergeable. GitHub does not start
+  workflow runs for events raised with `GITHUB_TOKEN`, and `pull_request` is
+  one of them, so the test run was filed as `action_required` and never
+  executed; with the checks required on `main`, the generated pull request
+  stayed blocked forever and the published API reference stayed stale anyway —
+  the previous fix moved the breakage one step down rather than removing it.
+  The job now dispatches the test workflow against its own branch as its last
+  action. `workflow_dispatch` is the one event GitHub exempts from that rule,
+  and the run reports against the branch head — the pull request head — under
+  the same `build (3.x)` job names, which is what the required checks match on.
+  `PyOrchestrate Test` gained the `workflow_dispatch` trigger this needs.
 - A ZeroMQ plugin terminated a context it did not own. `finalize()` called
   `zmq.Context.term()` unconditionally, but `term()` blocks until every socket
   in the context is closed: an agent whose `Plugin` class declared two socket
