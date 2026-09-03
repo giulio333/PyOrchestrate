@@ -5,6 +5,13 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  # The API Reference workflow dispatches this one against its own branch.
+  # A pull request opened with GITHUB_TOKEN gets no checks of its own —
+  # `workflow_dispatch` is the one event GitHub exempts from that rule — and
+  # the run it starts reports against the branch head, which is the pull
+  # request head, so the required checks are satisfied. See
+  # docs-api-reference.yml.
+  workflow_dispatch:
 
 permissions:
   contents: read
