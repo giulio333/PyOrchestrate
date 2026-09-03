@@ -34,6 +34,25 @@ class StubClient:
         return {"status": "success", "data": self._handler.execute_command(command, [])}
 
 
+class ProtocolClient:
+    """Answers with the payload the orchestrator really puts on the wire.
+
+    Unlike `StubClient` it goes through `execute_command_msg`, so a rejected
+    command comes back as the structured error response instead of raising.
+    """
+
+    zmq_address = "tcp://127.0.0.1:5555"
+
+    def __init__(self, handler: CommandHandler):
+        self._handler = handler
+
+    def send_command(self, command: str, args=None) -> dict:
+        request = ServiceMessage.create_command(
+            sender="cli", command=command, args=args or []
+        )
+        return self._handler.execute_command_msg(request).payload
+
+
 @pytest.fixture
 def orchestrator():
     result = Orchestrator(
@@ -197,6 +216,31 @@ def test_ps_counts_the_registered_agents_not_the_worker_slots(cli_response):
     output = OutputFormatter.format_response("ps", cli_response("ps"))
 
     assert output.startswith("Orchestrator Status: 0/2 agents running (5 worker slots)")
+
+
+def test_table_output_reports_why_a_command_failed(cli_response):
+    output = OutputFormatter.format_response(
+        "status", cli_response("status", ["ghost"])
+    )
+
+    assert output == "Error: Agent ghost not found"
+
+
+def test_stats_reports_why_the_orchestrator_refused_the_command(orchestrator, capfd):
+    """Every `stats` failure printed `Error: Unknown error`: it read `message`.
+
+    The reason travels under `error`, so the one thing the user needed -- which
+    commands are allowed -- was the one thing dropped.
+    """
+    handler = CommandHandler(orchestrator, allowed_commands={"ps"})
+    command = StatsCommand(ProtocolClient(handler), OutputFormatter())
+
+    command._display_stats_iteration()
+
+    assert (
+        "Error: Command 'stats' is not allowed. Allowed commands: ps"
+        in capfd.readouterr().out
+    )
 
 
 def test_stats_does_not_clear_redirected_output(stats_command, capfd):

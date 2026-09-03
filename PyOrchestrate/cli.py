@@ -228,7 +228,7 @@ class StatsCommand(BaseCommand):
                     )
                     print(output)
                 else:
-                    print(f"Error: {response.get('message', 'Unknown error')}")
+                    print(self.formatter.format_error(response))
             else:
                 print(f"Error: Cannot connect to ZMQ address {self.client.zmq_address}")
                 print("Is the orchestrator running with command interface enabled?")
@@ -450,10 +450,29 @@ class OutputFormatter:
         return OutputFormatter._format_table_output(command, response_data)
 
     @staticmethod
+    def format_error(response_data: Dict[str, Any]) -> str:
+        """Render a failed command response as a single ``Error: <reason>`` line.
+
+        The orchestrator reports why a command failed under ``error``, never
+        under ``message``: see
+        :meth:`~PyOrchestrate.core.utilities.messaging.ServiceMessage.create_command_response`.
+        Reading the wrong key printed ``Error: Unknown error`` for every
+        failure, which is what ``stats`` used to do.
+
+        Args:
+            response_data: Payload of a response whose ``status`` is ``error``.
+
+        Returns:
+            str: The reason reported by the orchestrator, or a generic message
+            when the payload carries none.
+        """
+        return f"Error: {response_data.get('error') or 'Unknown error'}"
+
+    @staticmethod
     def _format_table_output(command: str, response_data: Dict[str, Any]) -> str:
         """Format response as human-readable table output."""
         if response_data.get("status") != "success":
-            return f"Error: {response_data.get('error', 'Unknown error')}"
+            return OutputFormatter.format_error(response_data)
 
         data = response_data.get("data", {})
 

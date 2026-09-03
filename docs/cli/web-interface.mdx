@@ -93,6 +93,37 @@ curl \
   http://127.0.0.1:8000/api/history
 ```
 
+## Status Codes
+
+The HTTP status reports whether the orchestrator could be reached, not whether
+the command succeeded:
+
+| Status | Meaning |
+|---|---|
+| `200` | The orchestrator answered. The body is its response payload, an [error response](/cli/runtime-commands#error-responses) included |
+| `401` | Authentication is enabled and the bearer token is missing or wrong |
+| `500` | The request could not be sent at all, for instance because `--socket` is not a valid ZeroMQ address |
+| `503` | The orchestrator did not answer within five seconds: it is not running, or it is not listening on `--socket` |
+
+So an unknown agent is a `200` carrying `"status": "error"` and `"code": 404`,
+while an orchestrator that is down is a `503`:
+
+```bash
+curl -i "http://127.0.0.1:8000/api/agents/ghost?format=json"
+```
+
+```json
+{
+  "status": "error",
+  "error": "Agent ghost not found",
+  "code": 404,
+  "data": {}
+}
+```
+
+The correlation fields are omitted above; the full shape is in
+[Error Responses](/cli/runtime-commands#error-responses).
+
 ## History Filters
 
 The endpoint reads the same store as the CLI `history` command, which includes the agent lifecycle events routed by `MessageRouter`.

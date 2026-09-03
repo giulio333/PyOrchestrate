@@ -383,6 +383,12 @@ class CommandHandler:
                 ),
             }
 
+        except CommandException:
+            # The 404 above is raised inside this try, so without this clause it
+            # was caught below and answered as `500 Failed to get status for X:
+            # Agent X not found`. `status` was the only agent command that could
+            # not report an unknown agent as such -- `start` and `stop` do.
+            raise
         except Exception as e:
             raise CommandException(
                 f"Failed to get status for {agent_name}: {str(e)}", code=500
