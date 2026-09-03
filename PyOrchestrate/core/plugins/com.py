@@ -1,4 +1,5 @@
 import zmq
+from abc import abstractmethod
 from enum import IntEnum
 from PyOrchestrate.core.plugins.plugin_protocols import PluginProtocol
 
@@ -30,11 +31,175 @@ class SocketType(IntEnum):
     PAIR = zmq.PAIR
 
 
-class ZeroMQPubSub(PluginProtocol):
+class ZeroMQSocketPlugin(PluginProtocol):
+    """
+    Shared behaviour of the plugins that own a single ZeroMQ socket.
+
+    Every ZeroMQ plugin in this module holds one socket, hands it out only once
+    `initialize()` has run, sends and receives whole messages with an optional
+    non-blocking flag, and closes both socket and context on `finalize()`. Only
+    `initialize()` genuinely differs between them — which socket type to create,
+    whether to bind or connect, which options to set — so that is the one method
+    subclasses must implement.
+
+    Subclass it to support a socket type this module does not cover:
+
+    ```python
+    from PyOrchestrate.core.plugins.com import SocketType, ZeroMQSocketPlugin
+
+
+    class ZeroMQXPubXSub(ZeroMQSocketPlugin):
+
+        def initialize(self):
+            if self._initialized:
+                return
+            self._socket = self.context.socket(zmq.XPUB)
+            self._socket.bind(self.address)
+            self._initialized = True
+    ```
+
+    Attributes:
+        address (str): The address the socket binds or connects to.
+        context (zmq.Context): The ZeroMQ context.
+        hwm (int | None): The high water mark applied by `initialize()`, when
+            the subclass supports one.
+        socket (zmq.Socket): The ZeroMQ socket. Raises until `initialize()` runs.
+    """
+
+    def __init__(
+        self,
+        address: str,
+        context: zmq.Context | None = None,
+        hwm: int | None = None,
+    ):
+        """
+        Stores the connection parameters without touching the network.
+
+        No socket exists until `initialize()` is called, so building a plugin is
+        safe in a parent process that will fork.
+
+        A context passed in belongs to the caller: `finalize()` closes the
+        socket but leaves that context running, so several plugins can share
+        the single context per process the warning below asks for.
+
+        Warning:
+            Ensure that one process has only one zmq.Context instance.
+
+        Args:
+            address (str): The address to bind/connect the socket.
+            context (zmq.Context, optional): The ZeroMQ context. Defaults to None,
+                which creates one owned by the plugin.
+            hwm (int, optional): The high water mark for the socket. Defaults to None.
+        """
+        self.address = address
+        self.context = context if context is not None else zmq.Context()
+        self.hwm = hwm
+
+        self._owns_context = context is None
+        self._socket: zmq.Socket | None = None
+        self._initialized = False
+
+    @property
+    def socket(self) -> zmq.Socket:
+        if not self._socket:
+            raise RuntimeError(
+                "Socket not initialized. Did you forget to call initialize?"
+            )
+        return self._socket
+
+    def setsockopt(self, option, value) -> None:
+        """
+        Sets a socket option on the underlying socket.
+
+        Args:
+            option: The ZeroMQ socket option (e.g. `zmq.SUBSCRIBE`).
+            value: The value to set.
+
+        Raises:
+            RuntimeError: If `initialize()` has not run.
+        """
+        self.socket.setsockopt(option, value)
+
+    @abstractmethod
+    def initialize(self):
+        """
+        Creates the socket and binds or connects it.
+
+        Implementations must return early when `self._initialized` is already
+        true, and set it once the socket is ready.
+        """
+
+    def send(self, message: bytes, blocking: bool = True) -> None:
+        """
+        Sends a message using ZeroMQ.
+
+        Args:
+            message (bytes): The message to be sent.
+            blocking (bool, optional): If True, the operation blocks until
+                complete. If False, returns immediately and may raise
+                zmq.error.Again if the message cannot be queued. Defaults to True.
+
+        Raises:
+            zmq.error.Again: If the message cannot be queued and blocking is False.
+        """
+        if blocking:
+            self.socket.send(message)
+        else:
+            self.socket.send(message, zmq.NOBLOCK)
+
+    def recv(self, blocking: bool = True) -> bytes:
+        """
+        Receives a message using ZeroMQ.
+
+        - If blocking is True, the receive operation blocks until a message arrives.
+        - If blocking is False, the receive returns immediately and may raise zmq.error.Again
+          if no message is available.
+
+        Args:
+            blocking (bool, optional): Whether to block or not. Defaults to True.
+
+        Returns:
+            bytes: The received message.
+
+        Raises:
+            zmq.error.Again: If no message is available and blocking is False.
+        """
+        if blocking:
+            return self.socket.recv()
+        else:
+            return self.socket.recv(zmq.NOBLOCK)
+
+    def finalize(self):
+        """
+        Finalizes the ZeroMQ plugin.
+
+        Closes the socket, and terminates the context only when the plugin
+        created it. A context received from the caller is left alone:
+        `zmq.Context.term()` blocks until every socket in the context is
+        closed, so terminating a shared one hung the first plugin to finalize
+        on the sockets its siblings still held, and poisoned the context for
+        them in the meantime.
+
+        Does nothing when `initialize()` never ran or failed, since `socket`
+        would raise.
+        """
+        if not self._initialized:
+            return
+
+        self.socket.close()
+        if self._owns_context:
+            self.context.term()
+        self._initialized = False
+
+
+class ZeroMQPubSub(ZeroMQSocketPlugin):
     """
     ZeroMQ Pub/Sub communication plugin.
 
     This plugin provides communication using ZeroMQ Pub/Sub sockets.
+
+    Messages travel as two frames, topic then payload: `send()` prepends the
+    topic and `recv()` drops it, returning the payload alone.
 
     Example:
         >>> from PyOrchestrate.core.plugins.com import ZeroMQPubSub, SocketType
@@ -70,28 +235,16 @@ class ZeroMQPubSub(PluginProtocol):
             context (zmq.Context, optional): The ZeroMQ context.
                 Defaults to None.
         """
-        self._socket: zmq.Socket | None = None
-        self.context = context if context is not None else zmq.Context()
+        super().__init__(address, context)
         self.socket_type = socket_type
         self.subscribe_topic = subscribe_topic
-        self.address = address
-
-        self._initialized = False
-
-    @property
-    def socket(self) -> zmq.Socket:
-        if not self._socket:
-            raise RuntimeError(
-                "Socket not initialized. Did you forget to call initialize method?"
-            )
-        return self._socket
-
-    def setsockopt(self, option, value) -> None:
-        self.socket.setsockopt(option, value)
 
     def initialize(self):
         """
         Initializes the ZeroMQ plugin.
+
+        For SocketType.PUB, binds to the address.
+        For SocketType.SUB, connects to the address and subscribes to the topic.
         """
         if self._initialized:
             return
@@ -110,23 +263,9 @@ class ZeroMQPubSub(PluginProtocol):
 
         self._initialized = True
 
-    def finalize(self):
-        """
-        Finalizes the ZeroMQ plugin.
-
-        Closes the socket and terminates the context. Does nothing when
-        `initialize()` never ran or failed, since `socket` would raise.
-        """
-        if not self._initialized:
-            return
-
-        self.socket.close()
-        self.context.term()
-        self._initialized = False
-
     def recv(self, blocking: bool = True) -> bytes:
         """
-        Receives a message using ZeroMQ.
+        Receives a message using ZeroMQ, discarding the topic frame.
 
         - If blocking is True, the receive operation blocks until a message arrives.
         - If blocking is False, the receive returns immediately and may raise zmq.error.Again
@@ -151,15 +290,13 @@ class ZeroMQPubSub(PluginProtocol):
         self, message: bytes, topic: bytes = b"", blocking: bool = True
     ) -> zmq.MessageTracker | None:
         """
-        Sends a message using ZeroMQ.
+        Sends a message using ZeroMQ, prefixed by its topic frame.
 
         Args:
             message (bytes): The message to be sent.
             topic (bytes, optional): The topic to use for the message. Defaults to b"".
-            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
-
+            blocking (bool, optional): If True, the operation blocks until
                 complete. If False, returns immediately and may raise
-
                 zmq.error.Again if the message cannot be queued. Defaults to True.
 
         Returns:
@@ -173,11 +310,8 @@ class ZeroMQPubSub(PluginProtocol):
         else:
             return self.socket.send_multipart([topic, message], zmq.NOBLOCK)
 
-    def set_owner(self, owner):
-        return super().set_owner(owner)
 
-
-class ZeroMQReqRep(PluginProtocol):
+class ZeroMQReqRep(ZeroMQSocketPlugin):
     """
     ZeroMQ REQ/REP communication plugin.
 
@@ -207,20 +341,8 @@ class ZeroMQReqRep(PluginProtocol):
             socket_type (int): The type of ZeroMQ socket (e.g., SocketType.REQ, SocketType.REP).
             context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
         """
-        self.address = address
+        super().__init__(address, context)
         self.socket_type = socket_type
-        self._socket: zmq.Socket | None = None
-        self.context = context if context is not None else zmq.Context()
-
-        self._initialized = False
-
-    @property
-    def socket(self) -> zmq.Socket:
-        if not self._socket:
-            raise RuntimeError(
-                "Socket not initialized. Did you forget to call initialize?"
-            )
-        return self._socket
 
     def initialize(self):
         """
@@ -243,75 +365,16 @@ class ZeroMQReqRep(PluginProtocol):
 
         self._initialized = True
 
-    def send(self, message: bytes, blocking: bool = True) -> None:
-        """
-        Sends a message using ZeroMQ.
 
-        For SocketType.REQ, sends the request.
-        For SocketType.REP, sends the reply.
-
-        Args:
-            message (bytes): The message to be sent.
-            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
-
-                complete. If False, returns immediately and may raise
-
-                zmq.error.Again if the message cannot be queued. Defaults to True.
-
-        Raises:
-            zmq.error.Again: If the message cannot be queued and blocking is False.
-        """
-        if blocking:
-            self.socket.send(message)
-        else:
-            self.socket.send(message, zmq.NOBLOCK)
-
-    def recv(self, blocking: bool = True) -> bytes:
-        """
-        Receives a message using ZeroMQ.
-
-        - If blocking is True, the receive operation blocks until a message arrives.
-        - If blocking is False, the receive returns immediately and may raise zmq.error.Again
-          if no message is available.
-
-        Args:
-            blocking (bool, optional): Whether to block or not. Defaults to True.
-
-        Returns:
-            bytes: The received message.
-
-        Raises:
-            zmq.error.Again: If no message is available and blocking is False.
-        """
-        if blocking:
-            return self.socket.recv()
-        else:
-            return self.socket.recv(zmq.NOBLOCK)
-
-    def finalize(self):
-        """
-        Finalizes the ZeroMQ plugin.
-
-        Closes the socket and terminates the context. Does nothing when
-        `initialize()` never ran or failed, since `socket` would raise.
-        """
-        if not self._initialized:
-            return
-
-        self.socket.close()
-        self.context.term()
-        self._initialized = False
-
-    def set_owner(self, owner):
-        return super().set_owner(owner)
-
-
-class ZeroMQPushPull(PluginProtocol):
+class ZeroMQPushPull(ZeroMQSocketPlugin):
     """
     ZeroMQ PUSH/PULL communication plugin.
 
     This plugin provides communication using ZeroMQ PUSH/PULL sockets for
     distributed pipeline processing.
+
+    The socket is one-directional: `send()` rejects a PULL socket and `recv()`
+    rejects a PUSH one.
 
     Example:
         >>> # Producer (PUSH)
@@ -347,21 +410,8 @@ class ZeroMQPushPull(PluginProtocol):
             context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
             hwm (int, optional): The high water mark for the socket. Defaults to None.
         """
-        self.address = address
+        super().__init__(address, context, hwm)
         self.socket_type = socket_type
-        self._socket: zmq.Socket | None = None
-        self.context = context if context is not None else zmq.Context()
-        self.hwm = hwm
-
-        self._initialized = False
-
-    @property
-    def socket(self) -> zmq.Socket:
-        if not self._socket:
-            raise RuntimeError(
-                "Socket not initialized. Did you forget to call initialize?"
-            )
-        return self._socket
 
     def initialize(self):
         """
@@ -396,10 +446,8 @@ class ZeroMQPushPull(PluginProtocol):
 
         Args:
             message (bytes): The message to be sent.
-            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
-
+            blocking (bool, optional): If True, the operation blocks until
                 complete. If False, returns immediately and may raise
-
                 zmq.error.Again if the message cannot be queued. Defaults to True.
 
         Raises:
@@ -409,10 +457,7 @@ class ZeroMQPushPull(PluginProtocol):
         if self.socket_type != SocketType.PUSH:
             raise RuntimeError("Cannot send with a SocketType.PULL socket.")
 
-        if blocking:
-            self.socket.send(message)
-        else:
-            self.socket.send(message, zmq.NOBLOCK)
+        super().send(message, blocking)
 
     def recv(self, blocking: bool = True) -> bytes:
         """
@@ -435,36 +480,20 @@ class ZeroMQPushPull(PluginProtocol):
         if self.socket_type != SocketType.PULL:
             raise RuntimeError("Cannot receive with a SocketType.PUSH socket.")
 
-        if blocking:
-            return self.socket.recv()
-        else:
-            return self.socket.recv(zmq.NOBLOCK)
-
-    def finalize(self):
-        """
-        Finalizes the ZeroMQ plugin.
-
-        Closes the socket and terminates the context. Does nothing when
-        `initialize()` never ran or failed, since `socket` would raise.
-        """
-        if not self._initialized:
-            return
-
-        self.socket.close()
-        self.context.term()
-        self._initialized = False
-
-    def set_owner(self, owner):
-        return super().set_owner(owner)
+        return super().recv(blocking)
 
 
-class ZeroMQRouterDealer(PluginProtocol):
+class ZeroMQRouterDealer(ZeroMQSocketPlugin):
     """
     ZeroMQ ROUTER/DEALER communication plugin.
 
     This plugin provides advanced request/reply routing using ZeroMQ ROUTER/DEALER sockets.
     ROUTER sockets can handle multiple clients and route messages based on client identity.
     DEALER sockets can connect to multiple services and load balance requests.
+
+    A ROUTER socket needs the identity frame that `send_multipart()` and
+    `recv_multipart()` expose; `send()` and `recv()` handle the single-frame case
+    a DEALER uses.
 
     Example:
         >>> # Server side with ROUTER
@@ -505,22 +534,9 @@ class ZeroMQRouterDealer(PluginProtocol):
             identity (bytes, optional): The identity for DEALER socket. Defaults to None.
             hwm (int, optional): The high water mark for the socket. Defaults to None.
         """
-        self.address = address
+        super().__init__(address, context, hwm)
         self.socket_type = socket_type
-        self._socket: zmq.Socket | None = None
-        self.context = context if context is not None else zmq.Context()
         self.identity = identity
-        self.hwm = hwm
-
-        self._initialized = False
-
-    @property
-    def socket(self) -> zmq.Socket:
-        if not self._socket:
-            raise RuntimeError(
-                "Socket not initialized. Did you forget to call initialize?"
-            )
-        return self._socket
 
     def initialize(self):
         """
@@ -551,48 +567,6 @@ class ZeroMQRouterDealer(PluginProtocol):
 
         self._initialized = True
 
-    def send(self, message: bytes, blocking: bool = True) -> None:
-        """
-        Sends a message using ZeroMQ.
-
-        Args:
-            message (bytes): The message to be sent.
-            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
-
-                complete. If False, returns immediately and may raise
-
-                zmq.error.Again if the message cannot be queued. Defaults to True.
-
-        Raises:
-            zmq.error.Again: If the message cannot be queued and blocking is False.
-        """
-        if blocking:
-            self.socket.send(message)
-        else:
-            self.socket.send(message, zmq.NOBLOCK)
-
-    def recv(self, blocking: bool = True) -> bytes:
-        """
-        Receives a message using ZeroMQ.
-
-        - If blocking is True, the receive operation blocks until a message arrives.
-        - If blocking is False, the receive returns immediately and may raise zmq.error.Again
-          if no message is available.
-
-        Args:
-            blocking (bool, optional): Whether to block or not. Defaults to True.
-
-        Returns:
-            bytes: The received message.
-
-        Raises:
-            zmq.error.Again: If no message is available and blocking is False.
-        """
-        if blocking:
-            return self.socket.recv()
-        else:
-            return self.socket.recv(zmq.NOBLOCK)
-
     def send_multipart(self, message_parts: list[bytes], blocking: bool = True) -> None:
         """
         Sends a multipart message using ZeroMQ.
@@ -604,10 +578,8 @@ class ZeroMQRouterDealer(PluginProtocol):
             message_parts (list[bytes]): The list of message parts
 
                 to be sent.
-            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
-
+            blocking (bool, optional): If True, the operation blocks until
                 complete. If False, returns immediately and may raise
-
                 zmq.error.Again if the message cannot be queued. Defaults to True.
 
         Raises:
@@ -641,30 +613,16 @@ class ZeroMQRouterDealer(PluginProtocol):
         else:
             return self.socket.recv_multipart(zmq.NOBLOCK)
 
-    def finalize(self):
-        """
-        Finalizes the ZeroMQ plugin.
 
-        Closes the socket and terminates the context. Does nothing when
-        `initialize()` never ran or failed, since `socket` would raise.
-        """
-        if not self._initialized:
-            return
-
-        self.socket.close()
-        self.context.term()
-        self._initialized = False
-
-    def set_owner(self, owner):
-        return super().set_owner(owner)
-
-
-class ZeroMQPair(PluginProtocol):
+class ZeroMQPair(ZeroMQSocketPlugin):
     """
     ZeroMQ PAIR communication plugin.
 
     This plugin provides bidirectional communication using ZeroMQ PAIR sockets.
     PAIR sockets are designed for connecting two peers exclusively.
+
+    There is no socket type to choose: `bind` decides which of the two peers
+    binds and which connects.
 
     Example:
         >>> # Peer A
@@ -703,21 +661,8 @@ class ZeroMQPair(PluginProtocol):
             context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
             hwm (int, optional): The high water mark for the socket. Defaults to None.
         """
-        self.address = address
+        super().__init__(address, context, hwm)
         self.bind = bind
-        self._socket: zmq.Socket | None = None
-        self.context = context if context is not None else zmq.Context()
-        self.hwm = hwm
-
-        self._initialized = False
-
-    @property
-    def socket(self) -> zmq.Socket:
-        if not self._socket:
-            raise RuntimeError(
-                "Socket not initialized. Did you forget to call initialize?"
-            )
-        return self._socket
 
     def initialize(self):
         """
@@ -741,64 +686,6 @@ class ZeroMQPair(PluginProtocol):
 
         self._initialized = True
 
-    def send(self, message: bytes, blocking: bool = True) -> None:
-        """
-        Sends a message using ZeroMQ PAIR socket.
-
-        Args:
-            message (bytes): The message to be sent.
-            blocking (bool, optional): If True, the blocking (bool, optional) operation blocks until
-
-                complete. If False, returns immediately and may raise
-
-                zmq.error.Again if the message cannot be queued. Defaults to True.
-
-        Raises:
-            zmq.error.Again: If the message cannot be queued and blocking is False.
-        """
-        if blocking:
-            self.socket.send(message)
-        else:
-            self.socket.send(message, zmq.NOBLOCK)
-
-    def recv(self, blocking: bool = True) -> bytes:
-        """
-        Receives a message using ZeroMQ PAIR.
-
-        - If blocking is True, the receive operation blocks until a message arrives.
-        - If blocking is False, the receive returns immediately and may raise zmq.error.Again
-          if no message is available.
-
-        Args:
-            blocking (bool, optional): Whether to block or not. Defaults to True.
-
-        Returns:
-            bytes: The received message.
-
-        Raises:
-            zmq.error.Again: If no message is available and blocking is False.
-        """
-        if blocking:
-            return self.socket.recv()
-        else:
-            return self.socket.recv(zmq.NOBLOCK)
-
-    def finalize(self):
-        """
-        Finalizes the ZeroMQ plugin.
-
-        Closes the socket and terminates the context.
-        """
-        if not self._initialized:
-            return
-
-        self.socket.close()
-        self.context.term()
-        self._initialized = False
-
-    def set_owner(self, owner):
-        return super().set_owner(owner)
-
 
 class ZeroMQPoller(PluginProtocol):
     """
@@ -806,6 +693,12 @@ class ZeroMQPoller(PluginProtocol):
 
     This utility provides polling capabilities for multiple ZeroMQ sockets,
     allowing non-blocking operations and event-driven programming.
+
+    It owns no socket of its own, which is why it does not build on
+    `ZeroMQSocketPlugin`: it watches the sockets the other plugins expose.
+    It owns no context either — a `zmq.Poller` needs none — so the `context`
+    it is given is only kept for the caller to reach, never created and never
+    terminated.
 
     Example:
         >>> # Create multiple sockets
@@ -831,18 +724,34 @@ class ZeroMQPoller(PluginProtocol):
         >>>         socket.send(b"Hello", zmq.NOBLOCK)
 
     Attributes:
+        context (zmq.Context | None): The context passed to the constructor,
+            or None when none was. Nothing in this class reads it.
         poller (zmq.Poller): The ZeroMQ poller instance.
 
     """
 
     def __init__(self, context: zmq.Context | None = None):
         """
-        Initializes the ZeroMQ Poller.
+        Stores the given context, without ever creating one.
+
+        A `zmq.Poller` takes no context: it watches sockets, and each of them
+        already carries the context of the plugin that owns it. Building a
+        context here allocated one that nothing used and nothing terminated,
+        so every poller left a live `zmq.Context` — and the file descriptor it
+        opens — behind for the lifetime of the process.
+
+        The argument is kept so a poller can be declared next to the socket
+        plugins from the same shared context, and so that context stays
+        reachable through `self.context`.
 
         Args:
-            context (zmq.Context, optional): The ZeroMQ context. Defaults to None.
+            context (zmq.Context, optional): The context the polled sockets
+                belong to, stored as `self.context` and left otherwise
+                untouched. Defaults to None, which leaves the attribute None:
+                the poller never owns a context, so a context given to it
+                stays the caller's to terminate.
         """
-        self.context = context if context is not None else zmq.Context()
+        self.context = context
         self._poller: zmq.Poller | None = None
         self._initialized = False
 
@@ -902,11 +811,12 @@ class ZeroMQPoller(PluginProtocol):
     def finalize(self):
         """
         Finalizes the ZeroMQ poller.
+
+        Drops the poller and its registrations. There is no context to
+        terminate: the poller never creates one, and one handed to it belongs
+        to the caller, exactly as it does for `ZeroMQSocketPlugin`.
         """
         if self._poller:
             # Note: zmq.Poller doesn't have a close method, just clear registered sockets
             self._poller = None
         self._initialized = False
-
-    def set_owner(self, owner):
-        return super().set_owner(owner)

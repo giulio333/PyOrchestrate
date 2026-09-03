@@ -38,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `PyOrchestrate.core.utilities.messaging.is_local_only()`, which tells whether a
+  socket bound to a ZeroMQ endpoint can be reached from another host. `tcp://`
+  on loopback, `ipc://` and `inproc://` cannot; a wildcard, a routable address
+  and a host name that cannot be resolved to loopback can. `CommandInterface`
+  uses it to decide whether binding deserves a warning.
+
 - `Orchestrator.shutdown()`, the complete teardown `join()` performs when its
   loop exits, callable on its own for an orchestrator nothing drives with
   `join()`. It stops and joins the agents, records the `SHUTDOWN` event, stops
@@ -54,9 +60,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   needed to configure an orchestrator: they had to be imported from
   `PyOrchestrate.core.orchestrator.orchestrator`, which is what the
   documented examples were doing.
+- `ZeroMQSocketPlugin`, the base the five socket plugins now derive from,
+  exported from `PyOrchestrate.core.plugins`. It carries the `socket` property,
+  `send()`, `recv()`, `setsockopt()` and `finalize()`; `initialize()` is its
+  only abstract method. Subclass it to wrap a ZeroMQ socket type this module
+  does not cover; the "Communication Plugins" page walks through one.
+- `setsockopt()` on every socket plugin. It existed only on `ZeroMQPubSub`,
+  although the underlying socket is the same on all of them.
+- `PluginProtocol` is exported from `PyOrchestrate.core.plugins`, next to the
+  plugins that implement it, instead of only from
+  `PyOrchestrate.core.plugins.plugin_protocols`.
 
 ### Changed
 
+- **Breaking:** `OrchestratorConfig.command_zmq_address` defaults to
+  `"tcp://127.0.0.1:5555"` instead of `"tcp://*:5555"`. The command interface is
+  enabled by default and authenticates nobody, so the old default put an
+  unauthenticated control port on every network interface of every orchestrator:
+  whoever reached port 5555 could `shutdown` it, `start` and `stop` its agents,
+  and read the agent configurations `ps` serializes — user-defined `Config`
+  fields included. Loopback is what the rest of the framework already assumed:
+  the CLI connects to `tcp://127.0.0.1:5555`, `WebServerConfig.host` is
+  `127.0.0.1`, and the documentation told readers to override the default in
+  four different places. Deployments that need remote CLI or web clients must
+  now set `command_zmq_address="tcp://*:5555"` explicitly, and should pair it
+  with a restrictive `allowed_commands`.
+
+- `CommandInterface` logs a warning when the address it binds is reachable from
+  other hosts, naming the address and what an unauthenticated client can do with
+  it. Deliberately a log line and not a `ValidationResult`: with the default
+  `ValidationPolicy(ignore_warnings=True)` a WARNING result makes
+  `BaseClassConfig._validate` raise `ConfigValidationWarning`, which would break
+  every intentional wildcard bind rather than inform it.
+
+- The `pyorchestrate create` scaffold (`CLIConstants.STARTER_TEMPLATE`) and
+  `examples/cli/example_cli_interface.py` bind `tcp://127.0.0.1:5555`. The
+  scaffold used to write out `tcp://*:5555` explicitly, so the first file a new
+  user ran opened the port to the network.
+
+- The README is a tour of the framework that links to the documentation site
+  instead of a second copy of it: 424 lines down to 245. The `create`
+  troubleshooting list, the "Modern Architecture" section that restated the
+  `Config` and `Plugin` sections a second time, and the documentation build
+  commands duplicated from `CONTRIBUTING.md` are gone. Both remaining snippets
+  were executed before being committed. Links that pointed at `.mdx` files in
+  the repository, which GitHub serves as plain text, now point at the rendered
+  pages on https://pyorchestrate.mintlify.app.
+- The README documents the runtime CLI commands (`ps`, `status`,
+  `dependencies`, `start`, `stop`, `history`, `history-stats`, `stats`,
+  `commands`, `shutdown`) and `pyorchestrate-web`. It described `create` alone,
+  which is the only one of the eleven that does not talk to a running
+  orchestrator.
+- The documentation site links to GitHub once, from the navbar. The same link
+  was also declared as a global anchor in `docs.json`, so it appeared a second
+  time at the top of the sidebar on every page. The footer social link is
+  unchanged.
+- The Weather Collector example callouts now show their headings and render the
+  `requests` installation command as a separate code block.
 - **Breaking:** `MessageRouter` takes an `OrchestratorEventBus` as its first
   argument instead of an `EventManager`, and exposes it as `router.event_bus`
   rather than `router.event_manager`. Framework integrations that build a
@@ -84,6 +144,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `urllib3` 2.7.0.
 - Docstrings, comments and error messages translated to English across
   `logguru.py`, `memory.py` and the Sphinx configuration.
+- `ZeroMQPubSub`, `ZeroMQReqRep`, `ZeroMQPushPull`, `ZeroMQRouterDealer` and
+  `ZeroMQPair` derive from `ZeroMQSocketPlugin` and implement only
+  `initialize()` plus what is genuinely theirs — PubSub's topic frame,
+  PushPull's direction guards, RouterDealer's multipart pair, Pair's `bind`.
+  339 of `com.py`'s 912 lines sat in methods with a byte-identical twin
+  elsewhere in the same file: `finalize()` in five copies, the `socket`
+  property in five, `send()` and `recv()` in three each. No behaviour change,
+  and the constructors keep their signatures.
+- `PluginProtocol.set_owner` is no longer abstract. Its body was already `pass`,
+  so every plugin that ignores the owner had to write
+  `return super().set_owner(owner)` to become instantiable — six copies in
+  `com.py` alone. Plugins that override it are unaffected.
+- `ZeroMQPubSub` raises the same "Socket not initialized. Did you forget to
+  call initialize?" message as the other four when the socket is used before
+  `initialize()`. Its copy of the guard said "call initialize method?".
+- The `com` module's API reference entry is generated with
+  `:inherited-members:`. Without it, autodoc would list each plugin with only
+  its constructor and `initialize()`, dropping the `send()`/`recv()`/
+  `finalize()` users actually call now that they live on the base.
+- CI's blocking `flake8` run also selects `F401`, `F811` and `F841`. The
+  previous `E9,F63,F7,F82` let dead code through: fourteen unused imports
+  across six modules, `heartbeat.py` importing `Optional` twice in one
+  statement and `core.utilities.event` twice in two, and a discarded local in
+  the web interface all passed a green build.
+- `PyOrchestrate.core.plugins` declares an `__all__` and imports
+  `PyOrchestrate.core.plugins.heartbeat` once instead of in two consecutive
+  statements, matching the other packages' layout.
+
+### Removed (internal)
+
+- Dead code that the narrower `flake8` select never reported: the unused
+  imports above, the `if unknown_commands:` block in
+  `CommandPermissions.validate_commands` whose whole body was `pass`, six
+  f-strings with no placeholders, and four `except Exception as e` clauses in
+  the tests that never read `e`. No behaviour change.
+- The web interface's `create_pretty_json_response` is now
+  `create_json_response`. It built a `pretty_json` string, discarded it and
+  returned the compact `JSONResponse` its name denied — the responses are
+  unchanged, the name now matches them. The helper is internal to
+  `web_interface/server.py`.
 
 ### Fixed
 
@@ -102,6 +202,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   looked like a fault of the web server. The reason now survives all three
   paths, and `OutputFormatter.format_error()` is the single place the CLI
   renders it.
+- The API Reference workflow could not publish anything. It committed the
+  regenerated Sphinx artifact straight to `main`, which no longer accepts a
+  direct push: every attempt ended in
+  `GH013: Repository rule violations found for refs/heads/main`. The breakage
+  was silent for weeks because a run with nothing to commit never reaches the
+  push and passes, so it only surfaced once a change finally left the artifact
+  stale — meaning the published API reference had been frozen at the last
+  successful run. The artifact now arrives as a pull request, which is what the
+  rule asks for, on a branch the job owns and force-pushes so an open pull
+  request is updated in place instead of one piling up per docstring change.
+- A ZeroMQ plugin terminated a context it did not own. `finalize()` called
+  `zmq.Context.term()` unconditionally, but `term()` blocks until every socket
+  in the context is closed: an agent whose `Plugin` class declared two socket
+  plugins over one shared context — the single context per process the
+  plugins' own warning asks for — hung forever in the first `finalize()`, on
+  the socket its sibling still held. `PluginManager.finalize_plugins()` runs
+  from the `finally` of `BaseAgent.run()`, so the agent never reached
+  `close_event`: a process agent had to be force-terminated at shutdown, a
+  thread agent could not be terminated at all. Terminating the context also
+  poisoned it for the siblings still using it, which failed with
+  `ZMQError: Context was terminated`. `finalize()` now closes its socket and
+  terminates only a context the plugin itself created; one received from the
+  caller belongs to the caller.
+- **Breaking:** `ZeroMQPoller` allocated a `zmq.Context` nothing ever used.
+  `initialize()` only builds a `zmq.Poller`, which takes no context, and
+  `finalize()` never terminated the one the constructor had created, so every
+  poller built without an explicit `context` left a live context — and the
+  file descriptor it opens — behind for as long as the poller was referenced:
+  for a poller declared in a `Plugin` class, the lifetime of the process. The
+  constructor now stores the context it is given and creates none, which is
+  the breaking part: `poller.context` is `None` when the argument is omitted,
+  where it used to be a fresh context. The argument itself stays, so a poller
+  can still be declared next to the socket plugins from the one context they
+  share, and the ownership rule holds for it as it does for them — a context
+  passed to the poller is never terminated by it and remains the caller's.
+- The README's ZeroMQ example never delivered a message. It bound the publisher
+  to `tcp://*:5555`, which is the orchestrator's own default
+  `command_zmq_address`, so the socket collided with `CommandInterface` and the
+  subscriber received nothing — for 50 seconds of runtime, 2 messages published
+  and 0 received. Both `except:` clauses in the snippet were bare, so the
+  `zmq.Again` this raised on every cycle was reported as "No weather data
+  available" and read as normal operation. The README now shows the pattern
+  from `examples/communication/example_zmq_pubsub.py`, which runs to
+  completion, and states explicitly that port 5555 is reserved.
 - Asking the event store for the history of an agent that had never sent a
   heartbeat allocated a bucket for it, permanently. `BucketRingStore.last()`
   indexed its `defaultdict`, and the agent name arrives straight from the

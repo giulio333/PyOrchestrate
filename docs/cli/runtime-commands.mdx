@@ -15,16 +15,16 @@ from PyOrchestrate.core.orchestrator import Orchestrator
 
 config = Orchestrator.Config(
     enable_command_interface=True,
-    command_zmq_address="tcp://*:5555",
+    command_zmq_address="tcp://127.0.0.1:5555",
 )
 
 orchestrator = Orchestrator(config=config)
 ```
 
-The orchestrator binds to `tcp://*:5555`, while local CLI clients connect to `tcp://127.0.0.1:5555` by default.
+`tcp://127.0.0.1:5555` is the default on both sides: the orchestrator binds it, and CLI clients connect to it. The snippet above spells it out, but an orchestrator that says nothing about `command_zmq_address` binds the same address.
 
 <Warning title="Network exposure">
-Binding to `tcp://*:5555` exposes the command interface on every network interface. Use `tcp://127.0.0.1:5555` when the interface should only be reachable from the same machine.
+Binding anything but loopback — `tcp://*:5555` covers every network interface — exposes the command interface to other hosts, and it authenticates nobody: whoever reaches the port can run every command in `allowed_commands`, `shutdown` included. The orchestrator logs a warning at startup when the address it binds is reachable from other hosts.
 </Warning>
 
 ## Command Syntax
@@ -178,7 +178,7 @@ An orchestrator JSON response has this shape:
   "max_workers": 5,
   "waiting_agents": 1,
   "command_interface_enabled": true,
-  "command_zmq_address": "tcp://*:5555"
+  "command_zmq_address": "tcp://127.0.0.1:5555"
 }
 ```
 

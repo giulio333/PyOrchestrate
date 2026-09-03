@@ -177,16 +177,7 @@
           "directory": "api"
         }
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "GitHub",
-          "href": "https://github.com/giulio333/PyOrchestrate",
-          "icon": "github"
-        }
-      ]
-    }
+    ]
   },
   "footer": {
     "socials": {

@@ -6,26 +6,30 @@
 multi-thread architectures. It provides a structured approach to orchestrating tasks, allowing developers to focus on
 logic while the framework handles complexities like process and thread management.
 
+📚 **[Read the documentation →](https://pyorchestrate.mintlify.app)**
+
+This README is a tour of the framework. The documentation site covers every
+class, option and command in depth, and the
+[API Reference](https://pyorchestrate.mintlify.app/api/agent) is generated from
+the docstrings, so it never drifts from the code.
+
 ## Features
 
-- **Centralized Management**: The **Orchestrator** provides unified control over all agents
-- **Flexible Execution Models**: Support for both process-based and thread-based agents
-- **Multiple Agent Types**: Periodic, looping, and pool agents for different execution patterns
-- **Configuration-First Design**: Inner `Config` classes with type hints and validation
-- **Modern Plugin System**: Inner `Plugin` classes for extending agent capabilities
-- **Inter-Agent Communication**: ZeroMQ-based communication plugins (Pair, PubSub, PushPull, ReqRep, RouterDealer) plus a Poller for watching several sockets at once
-- **Lifecycle Management**: Automated setup, execution, and cleanup of agent resources
-- **Memory Management**: Built-in dependency tracking and resource cleanup
+- **Centralized Management**: the **Orchestrator** provides unified control over all agents
+- **Flexible Execution Models**: every agent comes in a process and a thread flavour
+- **Multiple Agent Types**: base, looping, periodic and pool agents for different execution patterns
+- **Configuration-First Design**: inner `Config` classes with type hints and validation
+- **Plugin System**: inner `Plugin` classes extend an agent without subclassing it
+- **Inter-Agent Communication**: ZeroMQ plugins (Pair, PubSub, PushPull, ReqRep, RouterDealer) plus a Poller for watching several sockets at once
+- **Lifecycle Management**: automated setup, execution and cleanup of agent resources
 - **Structured Logging**: Loguru-based logging with per-agent log files
-- **CLI Tools**: Project scaffolding and management commands
+- **CLI and Web Interface**: inspect and drive a running orchestrator from outside
 
 * * *
 
-## Quick Start
+## Installation
 
-### Installation
-
-Ensure Python 3.11+ is installed, then clone the repository and install the package. This also installs the `pyorchestrate` CLI command:
+Python 3.11+ is required.
 
 ``` bash
 git clone https://github.com/giulio333/PyOrchestrate.git
@@ -33,13 +37,15 @@ cd PyOrchestrate
 pip install .
 ```
 
-The web interface is an optional extra, since `fastapi`, `uvicorn` and `pydantic` are only needed by it:
+This also installs the `pyorchestrate` CLI. The web interface is an optional
+extra, since `fastapi`, `uvicorn` and `pydantic` are only needed by it:
 
 ``` bash
-pip install ".[web]"     # installs the optional web runtime dependencies
+pip install ".[web]"
 ```
 
-For development, `uv` reproduces the exact locked environment, dev tools included:
+For development, [`uv`](https://docs.astral.sh/uv/) reproduces the exact locked
+environment, dev tools included — see [CONTRIBUTING.md](CONTRIBUTING.md):
 
 ``` bash
 uv sync --extra web
@@ -48,12 +54,11 @@ uv run pytest
 
 * * *
 
-## Basic Usage
+## Quick Start
 
-### Defining an Agent
-
-Define a custom agent by inheriting from predefined agent classes like `PeriodicAgent` or `LoopingAgent`. For example,
-here's a `FileWriter` agent that logs a message periodically:
+Define an agent by inheriting from one of the built-in classes, then hand it to
+an `Orchestrator`. Here is a `FileWriter` that logs a message every second and
+stops after five cycles ([`examples/example_periodic_agent.py`](examples/example_periodic_agent.py)):
 
 ``` python
 from PyOrchestrate.core.orchestrator import Orchestrator
@@ -73,29 +78,13 @@ class FileWriter(PeriodicProcessAgent):
     config: Config
 
     def setup(self):
-        """
-        Setup method for the agent.
-        """
         super().setup()
         self.logger.info(f"FileWriter {self.name} initialized. pid={self.pid}")
         self.logger.info(f"Working with directory: {self.config.directory}")
 
     def runner(self):
-        """
-        Runner method for the agent.
-        """
         self.logger.info("Doing some work")
 
-```
-
-* * *
-
-### Running with an Orchestrator
-
-The **Orchestrator** coordinates agents and manages their lifecycle. Below is an example:
-
-``` python
-from PyOrchestrate.core.orchestrator import Orchestrator
 
 if __name__ == "__main__":
     orchestrator = Orchestrator()
@@ -104,8 +93,8 @@ if __name__ == "__main__":
     orchestrator.register_agent(FileWriter, "FileWriter")
     orchestrator.register_agent(
         FileWriter,
-        "FileWriter2", 
-        custom_config=FileWriter.Config(execution_interval=0.2, directory="/tmp2")
+        "FileWriter2",
+        custom_config=FileWriter.Config(execution_interval=0.2, directory="/tmp2"),
     )
 
     # start agent
@@ -115,309 +104,141 @@ if __name__ == "__main__":
     orchestrator.join()
 ```
 
-* * *
+Agents log to `logs/<AgentName>.log`, one file per agent.
 
-## Configuration
+Two conventions are worth learning early:
 
-Each agent has a `Config` inner class to customize behavior:
+- **Call `super()` first in every lifecycle hook.** `setup`, `execute` and
+  `runner` do bookkeeping in the base class — counters, limits, plugin wiring.
+- **Re-declare the annotation** (`config: Config`, `plugin: Plugin`) below the
+  inner class. The framework finds the inner class without it, but the
+  annotation is what gives type checkers and editors your own settings on
+  `self.config` instead of the base class's.
 
-``` python
-class MyAgent(PeriodicProcessAgent):
-    class Config(PeriodicProcessAgent.Config):
-        execution_interval = 5.0  # every 5 seconds
-        api_url: str = "https://api.example.com"
-        keyword: str = "important"
-    
-    config: Config
-```
+→ [Getting started](https://pyorchestrate.mintlify.app/learn/agents/index) ·
+[Configuration and validation](https://pyorchestrate.mintlify.app/learn/config_and_validation)
 
 * * *
 
 ## Agent Types
 
-PyOrchestrate provides several specialized agent types for different use cases:
+Each type exists in a `Process` and a `Thread` flavour: pick a process for
+CPU-bound, isolated work, a thread for I/O-bound work that shares memory.
 
-### Periodic Agents
-Execute tasks at regular intervals:
-- **PeriodicProcessAgent**: For CPU-intensive, isolated periodic tasks
-- **PeriodicThreadAgent**: For I/O-bound periodic tasks with shared memory
+| Type | Hook to implement | Use it for |
+| --- | --- | --- |
+| [`BaseAgent`](https://pyorchestrate.mintlify.app/learn/agents/built-in-agents/baseagent) | `execute` | a task that runs once |
+| [`LoopingAgent`](https://pyorchestrate.mintlify.app/learn/agents/built-in-agents/loopingagent) | `cycle` | continuous processing, as fast as it can go |
+| [`PeriodicAgent`](https://pyorchestrate.mintlify.app/learn/agents/built-in-agents/periodicagent) | `runner` | work on a schedule, with delay compensation |
+| [`PoolAgent`](https://pyorchestrate.mintlify.app/learn/agents/built-in-agents/poolagent) | `setup` | a *group* of collaborating agents supervised by an inner orchestrator |
 
-### Looping Agents  
-Execute tasks in continuous loops:
-- **LoopingProcessAgent**: For continuous processing in isolated processes
-- **LoopingThreadAgent**: For continuous processing with shared memory
-
-### Pool Agents
-Supervise a declared group of child agents through an inner orchestrator:
-- **PoolProcessAgent**: The pool itself runs in its own process; its children share that process and are best declared as thread agents
-- **PoolThreadAgent**: The pool itself runs in a thread of the parent process
-
-### Base Agents
-Foundation classes for custom implementations:
-- **BaseProcessAgent**: Base class for process-based agents
-- **BaseThreadAgent**: Base class for thread-based agents
-
-## Example Use Cases
-
-1. **Periodic Data Collection**  
-   Use `PeriodicProcessAgent` to collect sensor data every N seconds and save it to a database.
-
-2. **Real-time Processing**  
-   Use `LoopingThreadAgent` for continuous data stream processing with low latency.
-
-3. **Grouped Workloads**  
-   Use `PoolProcessAgent` when a unit of work is a *group* of collaborating agents: the children start and stop together, and inside one process they can share large objects through a plain `Queue` without paying the serialisation cost of a process boundary.
-
-4. **Event Monitoring**  
-   Use `PeriodicThreadAgent` to monitor file system changes or API endpoints.
-
-5. **Hierarchical Orchestration**  
-   The main orchestrator manages agents that themselves coordinate subtasks using different agent types.
+Every type drives your hook from a `@final` method you must not override —
+`LoopingAgent.execute`, `PeriodicAgent.cycle`, `PoolAgent.runner` — so
+implement the one named in the table. A `PoolAgent` registers its children in
+`setup` and can observe each supervision pass through `pre_runner` and
+`post_runner`.
 
 * * *
 
-## Why Choose PyOrchestrate?
+## Plugins
 
-- Simplifies complex architectures with modular design.
-- Reduces development time by providing reusable patterns.
-- Scales from single tasks to intricate pipelines.
-
-* * *
-
-## Using the `create` Command
-
-The PyOrchestrate CLI includes a `create` command that initializes a project directory with a starter file.
-
-### Command
-
-``` bash
-pyorchestrate create <app_name>
-```
-
-### Options
-
-- `--help` or `-h`: Displays help information about the command.
-- `--version` or `-v`: Displays the version of the PyOrchestrate framework.
-
-### Project Structure
-
-The `create` command creates the following project structure:
-
-```
-<app_name>/
-    ├── models/
-    ├── configurations/
-    └── starter.py
-```
-
-- **App directory**: This is the main directory for the generated project, named after the specified app name.
-  - `models`: A subdirectory where the user will insert the models of the specialized agents they want to create.
-  - `configurations`: A subdirectory for storing the configurations of the agents.
-  - `starter.py`: A file where the definition of how the orchestrator will manage the agents is provided.
-
-### Example
-
-To create a new project named `MyApp`, run the following command:
-
-``` bash
-pyorchestrate create MyApp
-```
-
-This will create a directory named `MyApp` with the necessary subdirectories and a `starter.py` file.
-
-* * *
-
-## Troubleshooting the `create` Command
-
-If you encounter issues with the `create` command, here are some common problems and their solutions:
-
-1. **Command not found**: Ensure that the `pyorchestrate` command is available in your PATH. You may need to install the package or adjust your environment variables.
-2. **Permission denied**: Check your file system permissions. You may need to run the command with elevated privileges (e.g., using `sudo` on Unix-based systems).
-3. **Invalid app name**: Ensure that the app name provided is a valid directory name and does not contain any restricted characters.
-4. **Directory already exists**: The command reuses existing directories and overwrites `<app_name>/starter.py`. Back up that file or choose a new app name before running the command.
-
-For more details, see the CLI documentation in [`docs/cli/`](docs/cli/index.mdx).
-
-* * *
-
-## Plugin System
-
-The PyOrchestrate framework includes a plugin system that allows for dynamic extension of agent functionalities through inner `Plugin` classes. This system supports various types of plugins, including communication plugins.
-
-### Communication Plugins
-
-Communication plugins enable agents to send and receive messages using different communication mechanisms. The following communication plugins are available:
-
-- **ZeroMQPair**: Provides bidirectional exclusive communication using ZeroMQ PAIR sockets
-- **ZeroMQPubSub**: Provides publish-subscribe communication using ZeroMQ PUB/SUB sockets
-- **ZeroMQPushPull**: Provides load-balanced communication using ZeroMQ PUSH/PULL sockets
-- **ZeroMQReqRep**: Provides request-reply communication using ZeroMQ REQ/REP sockets
-- **ZeroMQRouterDealer**: Provides asynchronous request-reply with client identity tracking
-- **ZeroMQPoller**: Watches several sockets at once, so an agent can serve more than one pattern without blocking
-
-Each plugin has its own page under [Plugins](docs/learn/agents/plugins/communication-plugins.mdx), and runnable examples live in [`examples/communication/`](examples/communication/).
-
-### Example Usage
-
-Here's an example of how to use the modern plugin system with an agent:
+Plugins extend an agent through the inner `Plugin` class. The communication
+plugins wrap the ZeroMQ patterns — `ZeroMQPair`, `ZeroMQPubSub`,
+`ZeroMQPushPull`, `ZeroMQReqRep`, `ZeroMQRouterDealer` — with `ZeroMQPoller`
+for serving several sockets at once.
 
 ``` python
-from PyOrchestrate.core.orchestrator import Orchestrator
-from PyOrchestrate.core.agent import PeriodicProcessAgent
-from PyOrchestrate.core.plugins.com import ZeroMQPair, ZeroMQPubSub
-import zmq
+from PyOrchestrate.core.agent import PeriodicProcessAgent, LoopingProcessAgent
+from PyOrchestrate.core.plugins.com import ZeroMQPubSub, SocketType
 
 
-class WeatherCollector(PeriodicProcessAgent):
-    """Agent that collects weather data and sends it via ZeroMQ."""
+class Publisher(PeriodicProcessAgent):
 
     class Config(PeriodicProcessAgent.Config):
-        api_url: str = "https://api.weather.com/data"
-        execution_interval: float = 30.0  # every 30 seconds
-        limit: int = 10
+        limit = 100
+        execution_interval = 0.05
+        counter: int = 1
 
     class Plugin(PeriodicProcessAgent.Plugin):
-        """Plugin configuration for weather collector."""
-        
-        publisher = ZeroMQPubSub("tcp://*:5555", zmq.PUB)
-        pair_comm = ZeroMQPair("tcp://*:5556", bind=True)
-
-    config: Config
-    plugin: Plugin
-
-    def setup(self):
-        """Setup method - plugins are automatically initialized."""
-        super().setup()
-        self.logger.info(f"Weather collector initialized")
-
-    def runner(self):
-        """Collect weather data and publish it."""
-        super().runner()
-        
-        # Simulate weather data collection
-        weather_data = f"Temperature: 25°C, Humidity: 60%"
-        
-        # Send via publisher plugin
-        self.plugin.publisher.send(weather_data.encode())
-        self.logger.info(f"Published: {weather_data}")
-        
-        # Try to receive control messages via pair plugin
-        try:
-            control_msg = self.plugin.pair_comm.recv(blocking=False).decode()
-            self.logger.info(f"Control message received: {control_msg}")
-        except:
-            pass  # No control message available
-
-
-class WeatherDisplay(PeriodicProcessAgent):
-    """Agent that receives and displays weather data."""
-
-    class Config(PeriodicProcessAgent.Config):
-        execution_interval: float = 1.0
-        limit: int = 50
-
-    class Plugin(PeriodicProcessAgent.Plugin):
-        """Plugin configuration for weather display."""
-        
-        subscriber = ZeroMQPubSub("tcp://localhost:5555", zmq.SUB)
+        zmq = ZeroMQPubSub("tcp://*:5556", SocketType.PUB)
 
     config: Config
     plugin: Plugin
 
     def runner(self):
-        """Listen for weather data."""
         super().runner()
-        
-        try:
-            weather_data = self.plugin.subscriber.recv(blocking=False).decode()
-            self.logger.success(f"Weather update: {weather_data}")
-        except:
-            self.logger.debug("No weather data available")
+
+        self.plugin.zmq.send(f"Message {self.config.counter}".encode())
+        self.config.counter += 1
+
+    def on_close(self):
+        super().on_close()
+
+        self.plugin.zmq.send(b"END")
 
 
-if __name__ == "__main__":
-    orchestrator = Orchestrator()
+class Subscriber(LoopingProcessAgent):
 
-    # Register agents
-    orchestrator.register_agent(WeatherCollector, "WeatherCollector")
-    orchestrator.register_agent(WeatherDisplay, "WeatherDisplay")
+    class Plugin(LoopingProcessAgent.Plugin):
+        zmq = ZeroMQPubSub("tcp://localhost:5556", SocketType.SUB)
 
-    # Start all agents
-    orchestrator.start()
+    plugin: Plugin
 
-    # Wait for all agents to complete
-    orchestrator.join()
+    def cycle(self):
+        super().cycle()
+
+        message = self.plugin.zmq.recv().decode()
+        self.logger.info(f"Received: {message}")
+
+        if message == "END":
+            self.stop()
 ```
 
-In this example, agents use the modern `Plugin` inner class pattern. The framework initializes plugins after configuration validation and before `setup()`, and you can access them directly via `self.plugin.plugin_name`.
+Plugins are initialized after the configuration is validated and before
+`setup()`, and are reachable as `self.plugin.<name>`.
+
+> [!WARNING]
+> Do not bind an agent socket to port **5555**. That is the orchestrator's own
+> default `command_zmq_address`: an agent binding it collides with the
+> `CommandInterface` and silently never delivers a message. Use another port,
+> as the examples do.
+
+→ [Communication plugins](https://pyorchestrate.mintlify.app/learn/agents/plugins/communication-plugins) ·
+runnable examples in [`examples/communication/`](examples/communication/)
 
 * * *
 
-## Modern Architecture
+## Command Line Interface
 
-PyOrchestrate follows a **container orchestration** approach - think "Docker for Python processes". The framework handles the complete lifecycle of execution units (Agents) with these key principles:
+`pyorchestrate create <app_name>` scaffolds a project (`models/`,
+`configurations/` and a `starter.py`). The remaining commands talk to a running
+orchestrator over ZeroMQ:
 
-### Configuration Pattern
-Every agent uses the **Config inner class pattern** with type hints:
-```python
-class MyAgent(PeriodicProcessAgent):
-    class Config(PeriodicProcessAgent.Config):
-        api_url: str = "https://api.example.com"
-        keyword: str = "important" 
-        execution_interval: float = 5.0
-    
-    config: Config
-```
+| Command | Description |
+| --- | --- |
+| `ps` | list all agents and their status |
+| `status` | orchestrator or single-agent status |
+| `dependencies` | show the declared agent dependencies |
+| `start` / `stop` | drive a single agent |
+| `history` / `history-stats` | event history and aggregated statistics |
+| `stats` | live resource usage, like `docker stats` |
+| `commands` | list the commands this orchestrator allows |
+| `shutdown` | shut the orchestrator down gracefully |
 
-### Plugin System
-Extend agent functionality through the **Plugin inner class**:
-```python
-class MyAgent(PeriodicProcessAgent):
-    class Plugin(PeriodicProcessAgent.Plugin):
-        zmq_pub = ZeroMQPubSub("tcp://*:5555", zmq.PUB)
-        zmq_pair = ZeroMQPair("tcp://*:5556", bind=True)
-    
-    plugin: Plugin
-    
-    def runner(self):
-        self.plugin.zmq_pub.send(b"Hello World")
-```
+`pyorchestrate-web` serves the same information as a FastAPI web interface
+(requires the `web` extra).
 
-### Lifecycle Management
-Agents follow a structured lifecycle:
-1. **Validation and plugin initialization**
-2. **Setup**: Initialize agent-owned resources
-3. **Runner/Execute**: Core business logic execution
-4. **On Close and plugin finalization**: Cleanup resources and connections
-
-### Process vs Thread Selection
-- **ProcessAgent**: CPU-intensive, isolated tasks with memory separation
-- **ThreadAgent**: I/O-bound tasks with shared memory and faster communication
-
-## Conclusion
-
-The PyOrchestrate framework provides a powerful and flexible way to manage multi-process and multi-thread architectures. With the modern configuration and plugin systems, it's easier than ever to build scalable, maintainable concurrent applications in Python.
-
-For more information and detailed documentation, see the `docs/` directory.
-
-### Working on the documentation
-
-The docs are a [Mintlify](https://mintlify.com) site living in `docs/`:
-
-```bash
-rm -rf docs/.mint                # the dev server caches the previous build
-cd docs && npx mint dev          # local preview
-npx mint broken-links            # check internal links
-./scripts/build_api_reference.sh # regenerate the API reference from docstrings
-```
-
-The API reference is generated by Sphinx from the docstrings in the sources:
-`sphinx/` holds the configuration and `docs/sdk-artifacts/` the output Mintlify
-consumes. Regenerate it with the Python version pinned in `.python-version`
-(3.13), the same one CI uses — a different interpreter renders different
-inherited signatures and makes the artifact flip back and forth on every build.
+→ [CLI reference](https://pyorchestrate.mintlify.app/cli/index) ·
+[Web interface](https://pyorchestrate.mintlify.app/cli/web-interface)
 
 * * *
+
+## Contributing
+
+Bug reports, feature requests and pull requests are welcome. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) first: it covers the development
+environment, the checks CI runs and how the documentation is built. Everything
+in this repository is written in English.
 
 ## License
 

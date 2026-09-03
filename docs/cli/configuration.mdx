@@ -27,7 +27,7 @@ orchestrator = Orchestrator(config=config)
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `enable_command_interface` | `bool` | `True` | Enable the external command interface |
-| `command_zmq_address` | `str` | `"tcp://*:5555"` | Address on which the orchestrator binds its ZeroMQ ROUTER socket |
+| `command_zmq_address` | `str` | `"tcp://127.0.0.1:5555"` | Address on which the orchestrator binds its ZeroMQ ROUTER socket. Loopback by default, so only this machine reaches it |
 | `allowed_commands` | `set[str]`, preset `str`, or `None` | `None` | Restrict accepted commands; `None` allows every command |
 | `run_mode` | `RunMode` | `RunMode.STOP_ON_EMPTY` | Decide whether the orchestrator exits when no work remains |
 | `history_max_events` | `int` | `5000` | Event history capacity |
@@ -41,7 +41,8 @@ pyorchestrate status --socket tcp://127.0.0.1:5555
 
 ## Bind and Connect Addresses
 
-For local-only access, bind the orchestrator to the loopback interface:
+The default binds the loopback interface, which is what local CLI and web
+clients connect to. Nothing outside the machine can reach it:
 
 ```python
 config = Orchestrator.Config(
@@ -64,7 +65,7 @@ pyorchestrate status --socket tcp://192.0.2.10:5555
 ```
 
 <Warning title="No transport authentication">
-The command interface does not add authentication or encryption to ZeroMQ. Do not expose it to an untrusted network. Prefer loopback binding, firewall rules, a private network, and restrictive command permissions.
+The command interface does not add authentication or encryption to ZeroMQ. Any client that reaches the port can run every command in `allowed_commands` — `shutdown`, `stop` and `start` included — and read the agent configurations `ps` returns. Do not expose it to an untrusted network: prefer the default loopback binding, and back a wider one with firewall rules, a private network and restrictive command permissions. The orchestrator logs a warning at startup whenever the address it binds is reachable from other hosts.
 </Warning>
 
 ## Command Permissions
@@ -212,7 +213,7 @@ services:
       - tcp://orchestrator:5555
 ```
 
-Configure the orchestrator to bind to `tcp://*:5555`. Publishing port `5555` to the host is unnecessary unless a host-side client must connect.
+The default `tcp://127.0.0.1:5555` is not reachable from another container, so this composition needs the orchestrator to bind `tcp://*:5555` explicitly. Keep port `5555` unpublished so it stays on the Docker network: publishing it to the host puts an unauthenticated control port on the host's interfaces.
 
 ## Troubleshooting
 

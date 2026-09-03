@@ -84,17 +84,25 @@ class WeatherCollector(PeriodicProcessAgent):
 
 The `runner` method executes periodically and logs the response. If any request fails, it raises a `RecoverableException` which prevents the agent from stopping.
 
-<Note title="This example needs `requests`">
+<Note>
+**Install the example dependency**
+
 `requests` is not a PyOrchestrate dependency — only the examples use it. Install
-it with `pip install requests` before running this project.
+it before running this project:
+
+```bash
+pip install requests
+```
 </Note>
 
-<Tip title="Configuration Tip">
+<Tip>
+**Use the capitalized `Config` attribute**
+
 When adding a new agent, override the inner `Config` attribute — capital `C` —
-to use a custom configuration class, as shown with `WCConfig`. Assigning the
-lowercase `config` instead has no effect: `__init__` overwrites it with
-`self.config = config if config else self.Config()`, so the agent silently runs
-on the base configuration and `self.config.url` does not exist.
+to use a custom configuration class, as shown with `WCConfig`. Do not assign the
+lowercase `config` attribute instead. `BaseAgent.__init__` replaces it with the
+provided configuration or an instance of `self.Config()`. Otherwise, the agent
+silently uses its base configuration and `self.config.url` does not exist.
 </Tip>
 
 ## Orchestrator Integration

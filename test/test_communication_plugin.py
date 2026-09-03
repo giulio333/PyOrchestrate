@@ -1,4 +1,6 @@
+import threading
 import unittest
+import psutil
 import zmq
 import time
 from PyOrchestrate.core.plugins.com import (
@@ -8,6 +10,7 @@ from PyOrchestrate.core.plugins.com import (
     ZeroMQRouterDealer,
     ZeroMQPair,
     ZeroMQPoller,
+    ZeroMQSocketPlugin,
     SocketType,
 )
 
@@ -376,7 +379,9 @@ class TestFinalizeWithoutInitialize(unittest.TestCase):
             with self.subTest(plugin=type(plugin).__name__):
                 plugin.finalize()
                 self.assertFalse(plugin._initialized)
-                plugin.context.term()
+                if plugin.context is not None:
+                    # The poller holds no context of its own to release.
+                    plugin.context.term()
 
     def test_finalize_after_failed_initialize_does_not_raise(self):
         plugin = ZeroMQPubSub("tcp://127.0.0.1:5599", SocketType.REQ)
@@ -395,6 +400,190 @@ class TestFinalizeWithoutInitialize(unittest.TestCase):
         plugin.finalize()
 
         self.assertFalse(plugin._initialized)
+
+
+class TestContextOwnership(unittest.TestCase):
+    """finalize() terminates the context only when the plugin created it."""
+
+    def test_own_context_is_terminated(self):
+        # A plugin that built its own context is the only one that can free it.
+        plugin = ZeroMQPair("tcp://127.0.0.1:5606")
+        plugin.initialize()
+
+        plugin.finalize()
+
+        self.assertTrue(plugin.context.closed)
+
+    def test_caller_context_survives_finalize(self):
+        # Terminating a context the caller owns left every sibling plugin with
+        # a dead context: the next socket raised "Context was terminated".
+        address = "tcp://127.0.0.1:5607"
+        context = zmq.Context()
+        plugins = [
+            ZeroMQPubSub(address, SocketType.PUB, context=context),
+            ZeroMQReqRep(address, SocketType.REP, context=context),
+            ZeroMQPushPull(address, SocketType.PUSH, context=context),
+            ZeroMQRouterDealer(address, SocketType.ROUTER, context=context),
+            ZeroMQPair(address, context=context),
+        ]
+
+        for plugin in plugins:
+            with self.subTest(plugin=type(plugin).__name__):
+                plugin.initialize()
+                plugin.finalize()
+
+                self.assertFalse(context.closed)
+                sibling = context.socket(zmq.PAIR)
+                sibling.close()
+
+        context.term()
+
+    def test_finalize_does_not_wait_on_a_sibling_socket(self):
+        # zmq.Context.term() blocks until every socket in the context is
+        # closed, so terminating a shared context hung the first plugin to
+        # finalize for as long as its sibling held a socket open.
+        context = zmq.Context()
+        first = ZeroMQPair("tcp://127.0.0.1:5608", context=context)
+        sibling = ZeroMQPair("tcp://127.0.0.1:5609", context=context)
+        first.initialize()
+        sibling.initialize()
+
+        finalized = threading.Event()
+
+        def finalize_first():
+            first.finalize()
+            finalized.set()
+
+        worker = threading.Thread(target=finalize_first, daemon=True)
+        worker.start()
+
+        self.assertTrue(
+            finalized.wait(timeout=5),
+            "finalize() blocked on the socket still held by the sibling plugin",
+        )
+
+        sibling.finalize()
+        context.term()
+
+    def test_poller_creates_no_context(self):
+        # The poller allocated a context nothing read: initialize() only
+        # builds a zmq.Poller, which needs none, and finalize() never
+        # terminated it.
+        poller = ZeroMQPoller()
+
+        self.assertIsNone(poller.context)
+
+    def test_poller_leaks_no_file_descriptor(self):
+        # What the unused context cost: one live zmq.Context, and the
+        # descriptor it opens, per poller. A poller declared in a Plugin class
+        # is held for the lifetime of the process, so nothing ever collected
+        # them.
+        process = psutil.Process()
+        before = process.num_fds()
+
+        pollers = [ZeroMQPoller() for _ in range(32)]
+        for poller in pollers:
+            poller.initialize()
+            poller.finalize()
+
+        # A descriptor from an earlier test being reaped shifts the count
+        # either way, so the assertion is on the order of magnitude rather
+        # than on equality: the leak grew it by one per poller.
+        self.assertLess(process.num_fds() - before, len(pollers) // 4)
+
+    def test_poller_context_survives_finalize(self):
+        # A context handed to the poller is the caller's, exactly as it is for
+        # a socket plugin: the poller stores it and touches nothing else.
+        context = zmq.Context()
+        poller = ZeroMQPoller(context=context)
+        poller.initialize()
+
+        poller.finalize()
+
+        self.assertIs(poller.context, context)
+        self.assertFalse(context.closed)
+        context.term()
+
+
+class TestZeroMQSocketPlugin(unittest.TestCase):
+    """The base the socket plugins share, and what a subclass has to provide."""
+
+    def test_socket_property_raises_before_initialize(self):
+        # Every plugin used to carry its own copy of this guard, and
+        # ZeroMQPubSub's copy worded the message differently from the others.
+        address = "tcp://127.0.0.1:5601"
+        plugins = [
+            ZeroMQPubSub(address, SocketType.PUB),
+            ZeroMQReqRep(address, SocketType.REQ),
+            ZeroMQPushPull(address, SocketType.PUSH),
+            ZeroMQRouterDealer(address, SocketType.ROUTER),
+            ZeroMQPair(address),
+        ]
+
+        for plugin in plugins:
+            with self.subTest(plugin=type(plugin).__name__):
+                with self.assertRaises(RuntimeError) as ctx:
+                    plugin.socket
+                self.assertEqual(
+                    str(ctx.exception),
+                    "Socket not initialized. Did you forget to call initialize?",
+                )
+                plugin.context.term()
+
+    def test_initialize_is_the_only_required_override(self):
+        # A subclass that implements initialize() inherits a working socket,
+        # send, recv, finalize and set_owner.
+        class ZeroMQPairSubclass(ZeroMQSocketPlugin):
+
+            def initialize(self):
+                if self._initialized:
+                    return
+                self._socket = self.context.socket(SocketType.PAIR)
+                self._socket.bind(self.address)
+                self._initialized = True
+
+        context = zmq.Context()
+        server = ZeroMQPairSubclass("tcp://127.0.0.1:5602", context=context)
+        server.initialize()
+
+        client = context.socket(zmq.PAIR)
+        client.connect("tcp://127.0.0.1:5602")
+        time.sleep(0.2)
+
+        server.send(b"from the subclass")
+        self.assertEqual(client.recv(), b"from the subclass")
+
+        client.send(b"to the subclass")
+        self.assertEqual(server.recv(), b"to the subclass")
+
+        client.close()
+        server.finalize()
+        self.assertFalse(server._initialized)
+        context.term()
+
+    def test_subclass_without_initialize_cannot_be_instantiated(self):
+        class Incomplete(ZeroMQSocketPlugin):
+            pass
+
+        with self.assertRaises(TypeError):
+            Incomplete("tcp://127.0.0.1:5603")
+
+    def test_set_owner_defaults_to_a_no_op(self):
+        # PluginProtocol.set_owner is no longer abstract: the plugins that
+        # ignore the owner do not have to restate it.
+        plugin = ZeroMQPair("tcp://127.0.0.1:5604")
+
+        self.assertIsNone(plugin.set_owner(object()))
+
+        plugin.context.term()
+
+    def test_setsockopt_is_available_on_every_socket_plugin(self):
+        plugin = ZeroMQPubSub("tcp://127.0.0.1:5605", SocketType.SUB)
+        plugin.initialize()
+
+        plugin.setsockopt(zmq.SUBSCRIBE, b"topic")
+
+        plugin.finalize()
 
 
 if __name__ == "__main__":

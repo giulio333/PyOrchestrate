@@ -1,3 +1,4 @@
+import ipaddress
 import queue
 import multiprocessing
 import json
@@ -10,6 +11,66 @@ import zmq
 # Constants
 DEFAULT_ZMQ_ADDRESS = "tcp://127.0.0.1:5555"
 PROTOCOL_VERSION = "1.0"
+
+# Hosts a `tcp://` endpoint can name that mean "every interface on this
+# machine". ZeroMQ accepts `*` as the wildcard; the two addresses are what the
+# underlying socket binds for it.
+_WILDCARD_HOSTS = frozenset({"*", "", "0.0.0.0", "::"})
+
+
+def is_local_only(address: str) -> bool:
+    """Tell whether a socket bound to `address` stays out of reach of other hosts.
+
+    Used to decide whether binding an endpoint deserves a warning: a `tcp://`
+    socket on a wildcard or routable address is reachable from the network,
+    while loopback, `ipc://` and `inproc://` are not.
+
+    A host the standard library cannot parse as an address -- a DNS name, or
+    ZeroMQ's `tcp://eth0:5555` interface syntax -- counts as reachable: loopback
+    cannot be proven from it, and the safe answer is the conservative one.
+
+    Args:
+        address (str): ZeroMQ endpoint, e.g. `"tcp://127.0.0.1:5555"`.
+
+    Returns:
+        bool: True when nothing outside this machine can reach the socket.
+
+    Examples:
+        >>> is_local_only("tcp://127.0.0.1:5555")
+        True
+        >>> is_local_only("tcp://*:5555")
+        False
+        >>> is_local_only("ipc:///tmp/orchestrator")
+        True
+    """
+    if not isinstance(address, str):
+        return False
+
+    scheme, separator, endpoint = address.partition("://")
+    if not separator:
+        return False
+    if scheme.lower() != "tcp":
+        # ipc:// is a filesystem socket and inproc:// never leaves the process;
+        # neither is listening on an interface.
+        return True
+
+    host = endpoint
+    if host.startswith("["):
+        # IPv6 literal: `[::1]:5555`. The brackets are what keeps the port
+        # separator unambiguous, so they have to go before the rsplit below.
+        host, _, _ = host[1:].partition("]")
+    else:
+        host = host.rsplit(":", 1)[0]
+
+    if host in _WILDCARD_HOSTS:
+        return False
+    if host.lower() == "localhost":
+        return True
+
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 def now_iso() -> str:
@@ -230,7 +291,7 @@ class MessageChannel:
 
     Example:
         >>> # Server mode (orchestrator)
-        >>> server = MessageChannel('zmq_router', 'tcp://*:5555')
+        >>> server = MessageChannel('zmq_router', 'tcp://127.0.0.1:5555')
         >>> msg = ServiceMessage('agent1', 'STATUS', 'running', datetime.now())
         >>> server.send('target', msg)
         >>> received = server.receive(timeout=1.0)

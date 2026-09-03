@@ -92,7 +92,7 @@ def stats_command(orchestrator):
 
 def test_starter_template_uses_current_command_interface_config():
     compile(CLIConstants.STARTER_TEMPLATE, "starter.py", "exec")
-    assert 'command_zmq_address="tcp://*:5555"' in CLIConstants.STARTER_TEMPLATE
+    assert 'command_zmq_address="tcp://127.0.0.1:5555"' in CLIConstants.STARTER_TEMPLATE
     assert "command_socket_path" not in CLIConstants.STARTER_TEMPLATE
 
 

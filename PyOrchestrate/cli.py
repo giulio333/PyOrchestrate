@@ -1,13 +1,11 @@
 import argparse
 import os
-import socket
 import json
 import time
 import signal
 import sys
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional, Union
-from datetime import datetime
+from typing import Dict, List, Any, Optional
 
 from PyOrchestrate import __version__
 from PyOrchestrate.core.utilities.messaging import (
@@ -35,10 +33,13 @@ from PyOrchestrate.core.orchestrator import Orchestrator
 
 if __name__ == "__main__":
 
-    # Initialize Orchestrator with command interface enabled
+    # Initialize Orchestrator with command interface enabled.
+    # This address is reachable from this machine only. The interface
+    # authenticates nobody, so use "tcp://*:5555" for remote CLI clients only
+    # when the port is protected by something else.
     config = Orchestrator.Config(
         enable_command_interface=True,
-        command_zmq_address="tcp://*:5555"
+        command_zmq_address="tcp://127.0.0.1:5555"
     )
     orchestrator = Orchestrator(config=config)
 
@@ -111,12 +112,12 @@ class ProjectCommand(BaseCommand):
             f"📁 Created directories: {args.app_name}/models, {args.app_name}/configurations"
         )
         print(f"📄 Created file: {args.app_name}/starter.py")
-        print(f"\n🚀 To get started:")
+        print("\n🚀 To get started:")
         print(f"   cd {args.app_name}")
-        print(f"   python starter.py")
-        print(f"\n📋 Then use CLI commands to control it:")
-        print(f"   python -m PyOrchestrate.cli ps")
-        print(f"   python -m PyOrchestrate.cli shutdown")
+        print("   python starter.py")
+        print("\n📋 Then use CLI commands to control it:")
+        print("   python -m PyOrchestrate.cli ps")
+        print("   python -m PyOrchestrate.cli shutdown")
 
     def _create_project_structure(self, app_name: str) -> None:
         """Create the project structure for the specified app name."""

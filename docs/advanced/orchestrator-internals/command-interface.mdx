@@ -48,7 +48,7 @@ orchestrator = Orchestrator(config=config)
 | Option | Default | Description |
 |---|---|---|
 | `enable_command_interface` | `True` | Create and start the external command interface |
-| `command_zmq_address` | `"tcp://*:5555"` | ROUTER bind address |
+| `command_zmq_address` | `"tcp://127.0.0.1:5555"` | ROUTER bind address, loopback-only by default |
 | `allowed_commands` | `None` | Preset name, explicit command set, or all commands |
 
 The command interface starts during `Orchestrator` initialization and stops during orchestrator shutdown. `stop()` ends the polling thread before closing the ROUTER socket, and the same [shutdown rules as the router's handler](/advanced/orchestrator-internals/message-router#shutdown-of-the-polling-thread) apply to an interface nobody stopped.
@@ -224,15 +224,17 @@ Agent lifecycle messages routed by `MessageRouter` are recorded, so `history` co
 
 ## Network Security
 
-The default orchestrator address, `tcp://*:5555`, binds every network interface. For local-only clients:
+The default orchestrator address, `tcp://127.0.0.1:5555`, binds the loopback interface: only clients on the same machine reach it. Exposing it further is explicit:
 
 ```python
 config = Orchestrator.Config(
-    command_zmq_address="tcp://127.0.0.1:5555",
+    command_zmq_address="tcp://*:5555",
 )
 ```
 
-The command transport does not add authentication or encryption. When remote access is necessary:
+`CommandInterface` logs a warning on startup whenever the address it binds is reachable from other hosts — a wildcard, a routable address, or a host name it cannot resolve to loopback. Non-TCP transports (`ipc://`, `inproc://`) never reach the network and stay quiet.
+
+The command transport does not add authentication or encryption, so whoever reaches the port runs commands as the orchestrator. When remote access is necessary:
 
 1. use a trusted private network;
 2. restrict the port with firewall rules;

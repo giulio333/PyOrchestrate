@@ -8,7 +8,11 @@ command handler integration, and message processing logic.
 
 from typing import Optional, TYPE_CHECKING
 
-from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
+from PyOrchestrate.core.utilities.messaging import (
+    MessageChannel,
+    ServiceMessage,
+    is_local_only,
+)
 from PyOrchestrate.core.utilities.command_handler import CommandHandler
 from PyOrchestrate.core.orchestrator.channel_handler import ChannelHandler
 from PyOrchestrate.core.orchestrator.event_store import EventStore
@@ -35,7 +39,7 @@ class CommandInterface:
         ```python
         cmd_interface = CommandInterface(
             orchestrator=orchestrator,
-            zmq_address="tcp://*:5555",
+            zmq_address="tcp://127.0.0.1:5555",
             allowed_commands={"ps", "shutdown"},
             event_store=event_store,
             logger=logger
@@ -66,7 +70,10 @@ class CommandInterface:
 
         Args:
             orchestrator: Orchestrator instance (for command execution)
-            zmq_address: ZeroMQ address for command channel (e.g., "tcp://*:5555")
+            zmq_address: ZeroMQ address for command channel (e.g.,
+                "tcp://127.0.0.1:5555"). An address reachable from other hosts,
+                such as "tcp://*:5555", is bound as asked and logs a warning:
+                the interface authenticates nobody.
             allowed_commands: Set of allowed commands, preset name, or None for all
             event_store: EventStore for tracking command execution
             logger: Logger instance for logging
@@ -84,6 +91,15 @@ class CommandInterface:
 
         # Channel handler (will be started later)
         self._channel_handler: Optional[ChannelHandler] = None
+
+        if not is_local_only(zmq_address):
+            self.logger.warning(
+                f"Command interface bound to {zmq_address}, which is reachable "
+                "from other hosts. It performs no authentication: any client "
+                "that reaches the port can run the allowed commands, including "
+                "'shutdown'. Bind tcp://127.0.0.1:5555 for local-only access, "
+                "or restrict allowed_commands."
+            )
 
         self.logger.debug(f"Command interface initialized on ZMQ: {zmq_address}")
 

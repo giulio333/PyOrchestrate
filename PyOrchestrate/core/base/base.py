@@ -289,29 +289,17 @@ class BaseClass:
 
     start_time: float
 
-    def __init__(
-        self,
-        config: BaseClassConfig | None = None,
-        plugin: BaseClassPlugin | None = None,
-        name: str | None = None,
-        **kwargs,
-    ):
+    def __init__(self, **kwargs):
         """
-        Initialize a new instance.
+        Initialize the shared extension state.
+
+        Concrete subclasses are responsible for initializing their ``config``,
+        ``plugin``, and ``name`` attributes before using the common helpers
+        provided by this class.
 
         Args:
-            config (T): Configuration object.
-            plugin (BaseClassPlugin): Plugin instance to be used.
-            name (str | None): Identifier used for logging. Defaults to class name if None.
-            **kwargs: Additional attributes to set on the instance.
-
-        Note:
-            All kwargs are set as instance attributes directly.
+            **kwargs: Additional attributes exposed on the instance.
         """
-        # self.config = config if config else self.Config()
-        # self.plugin = plugin if plugin else self.Plugin()
-        # self.name = name if name else self.__class__.__name__
-
         # store user-defined attributes
         self._custom_attr: dict[str, Any] = kwargs
 
@@ -361,7 +349,7 @@ class BaseClass:
             raise e
         except ConfigValidationWarning as w:
             self.logger.warning(w)
-        self.logger.debug(f"Self configuration validated.")
+        self.logger.debug("Self configuration validated.")
 
     def __getattr__(self, key: str) -> Any:
         try:

@@ -1,7 +1,4 @@
-from typing import List
 import unittest
-import sys
-import os
 from unittest.mock import MagicMock, patch, call, ANY
 from datetime import datetime
 import time

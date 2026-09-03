@@ -9,8 +9,7 @@ core Orchestrator functionality.
 import json
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
-from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, List, Set
 
 from PyOrchestrate.core.orchestrator.event_store import EventRecord
 from PyOrchestrate.core.utilities.messaging import ServiceMessage
@@ -84,10 +83,6 @@ class CommandPermissions:
         Returns:
             Set of valid commands
         """
-        unknown_commands = commands - cls.ALL_COMMANDS
-        if unknown_commands:
-            # Log warning about unknown commands but don't fail
-            pass
         return commands & cls.ALL_COMMANDS
 
     @classmethod

@@ -6,12 +6,13 @@ command handling, error handling, and event tracking.
 """
 
 import unittest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock
 import time
 
 from PyOrchestrate.core.orchestrator.command_interface import CommandInterface
 from PyOrchestrate.core.orchestrator.event_store import EventStore
-from PyOrchestrate.core.utilities.messaging import ServiceMessage
+from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
+from PyOrchestrate.core.utilities.messaging import ServiceMessage, is_local_only
 from loguru import logger
 
 
@@ -21,7 +22,7 @@ class TestCommandInterface(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.orchestrator = MagicMock()
-        self.zmq_address = "tcp://*:5555"
+        self.zmq_address = "tcp://127.0.0.1:5555"
         self.event_store = EventStore(capacity=100)
         self.logger = logger
 
@@ -287,7 +288,7 @@ class TestCommandInterface(unittest.TestCase):
         # Create interface with specific allowed commands
         cmd_interface = CommandInterface(
             orchestrator=self.orchestrator,
-            zmq_address="tcp://*:5556",
+            zmq_address="tcp://127.0.0.1:5556",
             allowed_commands={"ps", "status", "shutdown"},
             event_store=self.event_store,
             logger=self.logger,
@@ -302,7 +303,7 @@ class TestCommandInterface(unittest.TestCase):
         # Create interface with None allowed_commands
         cmd_interface = CommandInterface(
             orchestrator=self.orchestrator,
-            zmq_address="tcp://*:5557",
+            zmq_address="tcp://127.0.0.1:5557",
             allowed_commands=None,
             event_store=self.event_store,
             logger=self.logger,
@@ -310,6 +311,94 @@ class TestCommandInterface(unittest.TestCase):
 
         # Verify command handler was created
         self.assertIsNotNone(cmd_interface.command_handler)
+
+
+class TestIsLocalOnly(unittest.TestCase):
+    """`is_local_only` decides whether binding an endpoint deserves a warning."""
+
+    def test_reachable_addresses(self):
+        """Wildcards, routable addresses and unparseable hosts are reachable."""
+        for address in (
+            "tcp://*:5555",
+            "tcp://0.0.0.0:5555",
+            "tcp://[::]:5555",
+            "tcp://:5555",
+            "tcp://192.168.1.10:5555",
+            "tcp://example.com:5555",
+            # ZeroMQ also accepts an interface name here, which says nothing
+            # about loopback, so it must not be taken for it.
+            "tcp://eth0:5555",
+            "not-an-endpoint",
+        ):
+            with self.subTest(address=address):
+                self.assertFalse(is_local_only(address))
+
+    def test_local_addresses(self):
+        """Loopback and the non-TCP transports never leave the machine."""
+        for address in (
+            "tcp://127.0.0.1:5555",
+            "tcp://127.5.5.5:5555",
+            "tcp://localhost:5555",
+            "tcp://[::1]:5555",
+            "ipc:///tmp/orchestrator",
+            "inproc://orchestrator",
+        ):
+            with self.subTest(address=address):
+                self.assertTrue(is_local_only(address))
+
+
+class TestBindExposureWarning(unittest.TestCase):
+    """A command interface reachable from the network says so on startup."""
+
+    def setUp(self):
+        self.orchestrator = MagicMock()
+        self.event_store = EventStore(capacity=100)
+        self.messages: list[str] = []
+        self._sink_id = logger.add(
+            lambda message: self.messages.append(message), level="WARNING"
+        )
+        self.cmd_interface = None
+
+    def tearDown(self):
+        logger.remove(self._sink_id)
+        if self.cmd_interface is not None:
+            self.cmd_interface.command_channel.close()
+            time.sleep(0.1)  # Give ZMQ time to release the port
+
+    def _build(self, zmq_address: str) -> None:
+        self.cmd_interface = CommandInterface(
+            orchestrator=self.orchestrator,
+            zmq_address=zmq_address,
+            allowed_commands=None,
+            event_store=self.event_store,
+            logger=logger,
+        )
+
+    def test_warns_when_bound_beyond_this_machine(self):
+        """The default used to be this address, unauthenticated and silent."""
+        self._build("tcp://*:5558")
+
+        warnings = [text for text in self.messages if "no authentication" in text]
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("tcp://*:5558", warnings[0])
+
+    def test_quiet_when_bound_to_loopback(self):
+        """The default binding is local-only and has nothing to warn about."""
+        self._build("tcp://127.0.0.1:5559")
+
+        self.assertEqual(
+            [text for text in self.messages if "no authentication" in text], []
+        )
+
+
+class TestCommandInterfaceDefaults(unittest.TestCase):
+    """The orchestrator does not expose its command port unless asked to."""
+
+    def test_default_address_is_loopback(self):
+        config = Orchestrator.Config()
+
+        self.assertEqual(config.command_zmq_address, "tcp://127.0.0.1:5555")
+        self.assertTrue(is_local_only(config.command_zmq_address))
 
 
 if __name__ == "__main__":

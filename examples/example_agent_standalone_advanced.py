@@ -1,6 +1,6 @@
 import random
 import time
-from typing import List, Optional
+from typing import List
 from enum import Enum
 from dataclasses import dataclass
 

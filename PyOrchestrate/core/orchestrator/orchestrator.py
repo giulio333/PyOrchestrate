@@ -1,5 +1,5 @@
 import time
-from typing import List, final, Optional
+from typing import List, Optional
 from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
@@ -15,11 +15,10 @@ from PyOrchestrate.core.utilities.event import OrchestratorEvent
 from PyOrchestrate.core.utilities.validation import (
     ValidationResult,
     ValidationSeverity,
-    ConfigValidationError,
 )
 
 from PyOrchestrate.core.base.base import BaseClass
-from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
+from PyOrchestrate.core.utilities.messaging import MessageChannel
 from PyOrchestrate.core.plugins.plugin_manager import PluginManager
 from PyOrchestrate.core.plugins.heartbeat import (
     OrchestratorHeartbeatPlugin,
@@ -62,7 +61,8 @@ class OrchestratorConfig(BaseClass.Config):
         agent_start_timeout (float): Maximum time in seconds to wait for an agent to start. Defaults to 30.0.
         agent_stop_timeout (float): Maximum time in seconds to wait for agents to terminate during shutdown. Defaults to 10.0.
         enable_command_interface (bool): Enable external command interface via ZeroMQ over TCP. Defaults to True.
-        command_zmq_address (str): ZeroMQ address for external commands. Defaults to ``"tcp://*:5555"``.
+        command_zmq_address (str): ZeroMQ address for external commands. Defaults to
+            ``"tcp://127.0.0.1:5555"``, which is reachable from this machine only.
         logger (LoggerConfig): Logger configuration.
         run_mode (RunMode): Required lifecycle policy. Defaults to RunMode.STOP_ON_EMPTY.
         history_max_events (int): Maximum number of events to store in history (ring buffer size). Defaults to 5000.
@@ -79,8 +79,15 @@ class OrchestratorConfig(BaseClass.Config):
     """Maximum time in seconds to wait for agents to terminate during shutdown."""
     enable_command_interface: bool = True
     """Enable external command interface via ZeroMQ."""
-    command_zmq_address: str = "tcp://*:5555"
-    """ZeroMQ address for external commands."""
+    command_zmq_address: str = "tcp://127.0.0.1:5555"
+    """ZeroMQ address for external commands.
+
+    Bound to loopback, so only this machine can reach it. The interface
+    authenticates nothing: any client that reaches the port can run every
+    command in ``allowed_commands``, ``shutdown`` included. Binding it
+    somewhere reachable -- ``"tcp://*:5555"`` for every interface -- is a
+    deliberate choice, and one the orchestrator logs a warning for.
+    """
     allowed_commands: set[str] | str | None = None
     """Allowed commands for CLI interface. Can be a set of commands, a preset name, or None for all commands."""
     run_mode: RunMode = RunMode.STOP_ON_EMPTY
@@ -113,7 +120,8 @@ class OrchestratorConfig(BaseClass.Config):
             agent_start_timeout (float | None, optional): Maximum time in seconds to wait for an agent to start. Defaults to None.
             agent_stop_timeout (float | None, optional): Maximum time in seconds to wait for agents to terminate during shutdown. Defaults to None.
             enable_command_interface (bool | None, optional): Enable external command interface via ZeroMQ. Defaults to None.
-            command_zmq_address (str | None, optional): ZeroMQ address for external commands. Defaults to None.
+            command_zmq_address (str | None, optional): ZeroMQ address for external commands. Defaults to None,
+                which keeps the local-only ``"tcp://127.0.0.1:5555"``.
             allowed_commands (set[str] | str | None, optional): Allowed commands for CLI interface. Can be a set of commands, a preset name, or None for all commands. Defaults to None.
             run_mode (RunMode | None, optional): Execution mode for the orchestrator. If None, defaults to RunMode.STOP_ON_EMPTY
                 (stops when all agents finish).

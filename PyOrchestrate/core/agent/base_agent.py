@@ -12,11 +12,7 @@ from enum import Enum
 from PyOrchestrate.core.base.base import BaseClass
 from PyOrchestrate.core.utilities.event import AgentEvent
 from PyOrchestrate.core.plugins.plugin_manager import PluginManager
-from PyOrchestrate.core.plugins.heartbeat import AgentHeartbeatTimerPlugin
-from PyOrchestrate.core.utilities.validation import (
-    ConfigValidationError,
-    ConfigValidationWarning,
-)
+from PyOrchestrate.core.utilities.validation import ConfigValidationError
 from PyOrchestrate.core.utilities.messaging import MessageChannel, ServiceMessage
 
 

@@ -89,7 +89,7 @@ from PyOrchestrate.core.orchestrator import Orchestrator
 
 config = Orchestrator.Config(
     enable_command_interface=True,
-    command_zmq_address="tcp://*:5555",
+    command_zmq_address="tcp://127.0.0.1:5555",
 )
 
 orchestrator = Orchestrator(config=config)
@@ -141,8 +141,8 @@ graph TD
 
 ## Security Considerations
 
-- **Network binding**: Use `tcp://127.0.0.1:5555` when the command interface should only be reachable locally
-- **Remote exposure**: Binding to `tcp://*:5555` exposes the command interface on every network interface
+- **Network binding**: `command_zmq_address` defaults to `tcp://127.0.0.1:5555`, reachable from this machine only
+- **Remote exposure**: Binding to `tcp://*:5555` exposes the command interface on every network interface. Nothing on the interface authenticates the client, so whoever reaches the port can run every allowed command; the orchestrator logs a warning at startup when it binds such an address
 - **Command Validation**: All commands are validated before execution
 - **Command Restrictions**: Use `allowed_commands` to select a preset or provide an explicit set of permitted commands
 

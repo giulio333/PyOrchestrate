@@ -7,9 +7,8 @@ protocol as the CLI.
 """
 
 import json
-import logging
 from typing import Dict, Any, Optional, List
-from fastapi import FastAPI, HTTPException, Depends, Response, Request
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -86,9 +85,8 @@ class OrchestratorClient:
         return response_msg.payload
 
 
-def create_pretty_json_response(data: Dict[str, Any]) -> JSONResponse:
-    """Create a pretty-formatted JSON response."""
-    pretty_json = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True)
+def create_json_response(data: Dict[str, Any]) -> JSONResponse:
+    """Create the JSON response returned by the `?format=json` endpoints."""
     return JSONResponse(
         content=data,
         headers={"Content-Type": "application/json; charset=utf-8"},
@@ -913,7 +911,7 @@ class PyOrchestrateWebServer:
             if format == "json" or "application/json" in request.headers.get(
                 "accept", ""
             ):
-                return create_pretty_json_response(data)
+                return create_json_response(data)
             else:
                 return create_html_response("Health Check", data, "/api/health")
 
@@ -931,7 +929,7 @@ class PyOrchestrateWebServer:
             if format == "json" or "application/json" in request.headers.get(
                 "accept", ""
             ):
-                return create_pretty_json_response(response)
+                return create_json_response(response)
             else:
                 return create_html_response(
                     "Orchestrator Status", response, "/api/orchestrator/status"
@@ -951,7 +949,7 @@ class PyOrchestrateWebServer:
             if format == "json" or "application/json" in request.headers.get(
                 "accept", ""
             ):
-                return create_pretty_json_response(response)
+                return create_json_response(response)
             else:
                 return create_html_response(
                     "Agents List", response, "/api/agents", show_filters=True
@@ -972,7 +970,7 @@ class PyOrchestrateWebServer:
             if format == "json" or "application/json" in request.headers.get(
                 "accept", ""
             ):
-                return create_pretty_json_response(response)
+                return create_json_response(response)
             else:
                 return create_html_response(
                     f"Agent: {agent_name}", response, f"/api/agents/{agent_name}"
@@ -992,7 +990,7 @@ class PyOrchestrateWebServer:
             if format == "json" or "application/json" in request.headers.get(
                 "accept", ""
             ):
-                return create_pretty_json_response(response)
+                return create_json_response(response)
             else:
                 return create_html_response(
                     "Dependencies", response, "/api/orchestrator/dependencies"
@@ -1012,7 +1010,7 @@ class PyOrchestrateWebServer:
             if format == "json" or "application/json" in request.headers.get(
                 "accept", ""
             ):
-                return create_pretty_json_response(response)
+                return create_json_response(response)
             else:
                 return create_html_response(
                     "Real-time Stats",
@@ -1050,7 +1048,7 @@ class PyOrchestrateWebServer:
             if format == "json" or "application/json" in request.headers.get(
                 "accept", ""
             ):
-                return create_pretty_json_response(response)
+                return create_json_response(response)
             else:
                 current_params = {}
                 if last is not None:
@@ -1090,7 +1088,7 @@ class PyOrchestrateWebServer:
             if format == "json" or "application/json" in request.headers.get(
                 "accept", ""
             ):
-                return create_pretty_json_response(response)
+                return create_json_response(response)
             else:
                 return create_html_response(
                     "History Statistics", response, "/api/history/stats"
