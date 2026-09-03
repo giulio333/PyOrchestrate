@@ -33,10 +33,13 @@ from PyOrchestrate.core.orchestrator import Orchestrator
 
 if __name__ == "__main__":
 
-    # Initialize Orchestrator with command interface enabled
+    # Initialize Orchestrator with command interface enabled.
+    # This address is reachable from this machine only. The interface
+    # authenticates nobody, so use "tcp://*:5555" for remote CLI clients only
+    # when the port is protected by something else.
     config = Orchestrator.Config(
         enable_command_interface=True,
-        command_zmq_address="tcp://*:5555"
+        command_zmq_address="tcp://127.0.0.1:5555"
     )
     orchestrator = Orchestrator(config=config)
 
