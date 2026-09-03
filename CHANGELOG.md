@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The API Reference workflow did not rebuild on a version bump. Sphinx reads
+  `release` from the installed package metadata, so the version does reach the
+  artifact — `globalcontext.json` carried `release: "0.2.0"` and `cli.fjson`
+  rendered it as a default argument — but `pyproject.toml`, the one file that
+  version comes from, was not among the paths that trigger the workflow. A
+  release therefore left the published API reference showing the previous
+  version until some unrelated docstring change happened to rebuild it. It is
+  in the trigger paths now.
+
 ## [0.3.0] - 2026-09-03
 
 ### Removed

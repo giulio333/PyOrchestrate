@@ -11,6 +11,13 @@ on:
       - "PyOrchestrate/**/*.py"
       - "sphinx/**"
       - ".github/workflows/docs-api-reference.yml"
+      # Sphinx reads `release` from the installed package metadata, so the
+      # version reaches the artifact: `globalcontext.json` carried
+      # `release: "0.2.0"` and `cli.fjson` rendered it as a default argument.
+      # Without this path a release bump left the published reference showing
+      # the previous version until some unrelated docstring change happened
+      # to rebuild it.
+      - "pyproject.toml"
   workflow_dispatch:
 
 permissions:
