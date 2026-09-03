@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-03
+
 ### Removed
 
 - **Breaking:** `PyOrchestrate.settings` has been removed. `LOG_FOLDER` and
@@ -499,5 +501,6 @@ First versions tracked before this changelog existed. See the
 [commit history](https://github.com/giulio333/PyOrchestrate/commits/main) for
 details.
 
-[Unreleased]: https://github.com/giulio333/PyOrchestrate/compare/main...HEAD
+[Unreleased]: https://github.com/giulio333/PyOrchestrate/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/giulio333/PyOrchestrate/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/giulio333/PyOrchestrate/releases/tag/v0.2.0

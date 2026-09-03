@@ -5,7 +5,7 @@ built out of agents. The package is `PyOrchestrate/`, the test suite `test/`,
 the documentation site `docs/`, the Sphinx sources behind the API reference
 `sphinx/`.
 
-Version 0.2.0, alpha. Requires Python >= 3.11; development happens on the
+Alpha. Requires Python >= 3.11; development happens on the
 version in `.python-version` (3.13) and CI runs the suite on 3.11, 3.12 and
 3.13 — so no syntax newer than 3.11.
 
