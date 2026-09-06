@@ -440,6 +440,8 @@ class Orchestrator(BaseClass):
             AgentEntry: The agent entry object stored in the memory.
 
         Raises:
+            TypeError: If `agent_class` has no process or thread flavour, and
+                therefore cannot be started, joined or polled for liveness.
             ValueError: If an agent with the same name is already registered.
             Exception: If agent registration fails for any reason.
         """

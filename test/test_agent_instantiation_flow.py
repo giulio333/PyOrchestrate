@@ -638,5 +638,57 @@ class TestDocumentedAgentPatterns(unittest.TestCase):
         self.assertFalse(hasattr(agent.config, "url"))
 
 
+class TestRunFlavourGuard(unittest.TestCase):
+    """
+    An agent class the orchestrator cannot drive is refused at registration.
+
+    A subclass of `BaseAgent` alone used to register and start, then take the
+    whole `join()` loop down on the first reap pass with
+    `AttributeError: 'MyAgent' object has no attribute 'is_alive'`, several
+    seconds and one `CRITICAL ... worker slot is quarantined` later.
+    """
+
+    class Flavourless(BaseAgent):
+        """What `BaseAgent` on its own gives you: hooks and no way to run them."""
+
+        def execute(self):
+            super().execute()
+
+    class Flavoured(BaseThreadAgent):
+        def execute(self):
+            super().execute()
+
+    def test_a_bare_baseagent_subclass_is_refused_by_memory(self):
+        """`OMemory.add_agent` is the funnel every registration goes through."""
+        memory = OMemory()
+
+        with self.assertRaises(TypeError) as ctx:
+            memory.add_agent(self.Flavourless, "flavourless")
+
+        message = str(ctx.exception)
+        self.assertIn("Flavourless", message)
+        self.assertIn("is_alive()", message)
+        self.assertIn("BaseProcessAgent", message)
+        self.assertIsNone(memory.get_agent("flavourless"))
+
+    def test_a_bare_baseagent_subclass_is_refused_by_the_orchestrator(self):
+        """The public path reports it too, instead of failing inside join()."""
+        orchestrator = Orchestrator(
+            config=Orchestrator.Config(enable_command_interface=False)
+        )
+
+        with self.assertRaises(TypeError):
+            orchestrator.register_agent(self.Flavourless, "flavourless")
+
+    def test_a_process_or_thread_flavour_still_registers(self):
+        """The guard must not stand in the way of a usable agent."""
+        memory = OMemory()
+
+        entry = memory.add_agent(self.Flavoured, "flavoured")
+
+        self.assertEqual(entry.name, "flavoured")
+        self.assertIs(memory.get_agent("flavoured"), entry)
+
+
 if __name__ == "__main__":
     unittest.main()

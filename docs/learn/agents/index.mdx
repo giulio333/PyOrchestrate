@@ -229,7 +229,11 @@ class MyAgent(PeriodicProcessAgent):
 
 ## Hierarchical Structure
 
-All user-defined agent must inherit first from the `BaseAgent` class or any of its subclasses ([built-in agents](/learn/agents/built-in-agents/baseagent)).
+Every user-defined agent inherits from one of the [built-in agents](/learn/agents/built-in-agents/baseagent), in its **process** or **thread** flavour: `BaseProcessAgent` or `BaseThreadAgent`, `LoopingProcessAgent` or `LoopingThreadAgent`, and so on.
+
+<Warning>
+Do not inherit from `BaseAgent` itself. It defines the lifecycle hooks and nothing to run them with — the flavour is what brings `start()`, `join()` and `is_alive()` — so registering a direct subclass of it raises `TypeError`.
+</Warning>
 
 Keep in mind that **higher-level agents** (bottom) come with more built-in functionality but are less customizable, while **lower-level agents** (top) require more work but give you more control. 
 
@@ -238,13 +242,7 @@ The challenge is finding the highest-level agent that best fits your needs.
 ```mermaid
 graph TD
     BaseAgent --> LoopingAgent
-    BaseAgent --> OneShotAgent
-    OneShotAgent --> RecoveryAgent
-    OneShotAgent --> TriggeredAgent
-    OneShotAgent --> ConditionalAgent
-    OneShotAgent --> DeferredAgent
     LoopingAgent --> PeriodicAgent
-    LoopingAgent --> EventDrivenAgent
     PeriodicAgent --> PoolAgent
 ```
 

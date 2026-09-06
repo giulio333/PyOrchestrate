@@ -148,6 +148,8 @@ The available parameters are:
 
 If you don't provide optional parameters, the Orchestrator will use the default values defined in the `Agent` class.
 
+`agent_class` must be an agent in its process or thread flavour: the orchestrator starts it, polls it for liveness and joins it, and those three come from the flavour rather than from `BaseAgent`. A class without one is refused with `TypeError` here, at registration, instead of failing once the orchestrator is already running.
+
 ### Example
 
 You can create multiple Agents of the same Agent class, each with its own configuration:

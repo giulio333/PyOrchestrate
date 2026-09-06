@@ -47,6 +47,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Registering an agent class with no process or thread flavour is refused by
+  `register_agent` with a `TypeError` naming the flavours to derive from. A
+  direct subclass of `BaseAgent` registered and started happily, then brought
+  the whole `join()` loop down on the first reap pass with
+  `AttributeError: 'MyAgent' object has no attribute 'is_alive'`, after a
+  `CRITICAL ... worker slot is quarantined` that pointed at the wrong thing:
+  `start()`, `join()` and `is_alive()` come from `multiprocessing.Process` and
+  `threading.Thread`, not from `BaseAgent`. The Getting Started page invited the
+  mistake -- "All user-defined agent must inherit first from the `BaseAgent`
+  class" -- and now names the flavours; its hierarchy diagram no longer shows
+  `OneShotAgent`, `RecoveryAgent`, `TriggeredAgent`, `ConditionalAgent`,
+  `DeferredAgent` and `EventDrivenAgent`, none of which exist in the package.
 - The API Reference workflow did not rebuild on a version bump. Sphinx reads
   `release` from the installed package metadata, so the version does reach the
   artifact — `globalcontext.json` carried `release: "0.2.0"` and `cli.fjson`
