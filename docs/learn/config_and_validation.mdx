@@ -44,6 +44,12 @@ custom_config = MyAgent.Config(limit=10, output_directory="custom")
 The `Config` class inherits from the respective parent's `Config` class. This allows you to customize the configuration while retaining the built-in ones.
 </Tip>
 
+The `config: Config` annotation below the inner class is what a type checker and
+an editor read to give you *your* attributes on `self.config` instead of the base
+class's. PyOrchestrate ships the [PEP 561](https://peps.python.org/pep-0561/)
+marker, so this holds for an installed copy of the package too, not only inside
+the repository.
+
 ## Built-in vs User-Defined Attributes
 
 - **Built-in attributes**: provided by the base class, control core behavior.  

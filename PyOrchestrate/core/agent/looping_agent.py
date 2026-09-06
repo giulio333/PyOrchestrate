@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from typing import final, List
+from typing import final, List, TypeAlias
 import multiprocessing
 import threading
 
@@ -103,7 +103,7 @@ class LoopingAgent(BaseAgent):
 
     """
 
-    Config = LoopingAgentConfig
+    Config: TypeAlias = LoopingAgentConfig
 
     def __init__(self, name: str | None = None, **kwargs):
         super().__init__(name=name, **kwargs)

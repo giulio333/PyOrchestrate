@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The [PEP 561](https://peps.python.org/pep-0561/) marker
+  (`PyOrchestrate/py.typed`), so a type checker in a consumer's project reads
+  the annotations instead of treating an installed PyOrchestrate as untyped.
+  Outside a source checkout `self.config` was `Any`, which is the opposite of
+  what re-declaring `config: Config` is documented to give you.
+
+### Changed
+
+- `Config` and `Plugin` on `BaseClass`, `BaseAgent`, `LoopingAgent`,
+  `PeriodicAgent`, `PoolAgent` and `Orchestrator` are annotated as
+  `TypeAlias`. mypy reads a bare `Config = AgentConfig` as a variable and
+  rejects a variable as a base class, so the documented
+  `class Config(PeriodicProcessAgent.Config)` raised two errors in the *user's
+  own file* as soon as the annotations became visible — the marker above would
+  have made the framework's central pattern unusable under mypy. The
+  assignments are untouched, so nothing changes at runtime; on the package
+  itself the annotation takes mypy from 41 findings in 13 files to 14 in 7.
+
 ### Removed
 
 - `PyOrchestrate/templates/starter.py`. The `create` command writes

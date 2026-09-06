@@ -1,5 +1,5 @@
 import time
-from typing import List, Optional
+from typing import List, Optional, TypeAlias
 from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
@@ -280,8 +280,8 @@ class Orchestrator(BaseClass):
 
     """
 
-    Config = OrchestratorConfig
-    Plugin = OrchestratorPlugin
+    Config: TypeAlias = OrchestratorConfig
+    Plugin: TypeAlias = OrchestratorPlugin
 
     config: OrchestratorConfig
     plugin: OrchestratorPlugin

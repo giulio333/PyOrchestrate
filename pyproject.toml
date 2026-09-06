@@ -95,6 +95,13 @@ testpaths = ["test"]
 line-length = 88
 target-version = ["py311"]
 
+# PEP 561: the marker is what makes the annotations in the package readable by a
+# type checker in the consumer's project. Without it an installed PyOrchestrate
+# is treated as untyped and `self.config` degrades to `Any`, which is the
+# opposite of what re-declaring `config: Config` is documented to give you.
+[tool.setuptools.package-data]
+PyOrchestrate = ["py.typed"]
+
 [tool.setuptools.packages.find]
 include = ["PyOrchestrate*"]
 exclude = ["test*", "examples*", "docs*", "logs*"]

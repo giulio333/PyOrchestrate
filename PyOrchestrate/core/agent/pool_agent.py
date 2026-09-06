@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import final, List
+from typing import final, List, TypeAlias
 import threading
 import multiprocessing
 
@@ -129,7 +129,7 @@ class PoolAgent(PeriodicAgent):
     This agent is an orchestrator of BaseThreadAgent instances.
     """
 
-    Config = PoolAgentConfig
+    Config: TypeAlias = PoolAgentConfig
 
     def __init__(self, name: str | None = None, **kwargs):
         super().__init__(name=name, **kwargs)
