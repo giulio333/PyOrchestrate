@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- `PyOrchestrate/templates/starter.py`. The `create` command writes
+  `CLIConstants.STARTER_TEMPLATE`, a string literal in `cli.py`, and nothing in
+  the package, the tests or the documentation ever read the template file. It was
+  not shipped either: `PyOrchestrate/templates/` has no `__init__.py`, so
+  `packages.find` skipped it and the built wheel never contained it. The two
+  copies had drifted apart in the meantime — the file still registered a bare
+  `BaseAgent` subclass and predated the loopback default of the command
+  interface — so the only way to use it was to copy it off GitHub and get
+  `AttributeError: 'MyAgent' object has no attribute 'is_alive'`.
+- `test/test_messaging_client.py`. Its single test case was decorated
+  `@unittest.skip("Unix socket tests deprecated - ZMQ tests in
+  test_communication_plugin.py")` and covered an API that no longer exists:
+  `MessageChannel("unix_socket", path)`, `_connect_to_server()` and
+  `_send_to_unix_socket_client()` are all gone from `messaging.py`, so the four
+  tests could not have run even with the skip removed.
+
 ### Fixed
 
 - The API Reference workflow did not rebuild on a version bump. Sphinx reads
