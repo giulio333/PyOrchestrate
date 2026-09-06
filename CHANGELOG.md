@@ -59,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   class" -- and now names the flavours; its hierarchy diagram no longer shows
   `OneShotAgent`, `RecoveryAgent`, `TriggeredAgent`, `ConditionalAgent`,
   `DeferredAgent` and `EventDrivenAgent`, none of which exist in the package.
+  The "Agent Types" section of the introduction had the same problem from the
+  other side, offering `OneShotAgent`, `EventAgent` and `ScheduledAgent` as
+  three of the five types to choose from; it lists the four that exist, in their
+  process and thread flavours. Its illustration is no longer shown, because it
+  spells out those same five names in the picture -- the two `types_*.svg` files
+  are kept for whoever redraws them.
 - The API Reference workflow did not rebuild on a version bump. Sphinx reads
   `release` from the installed package metadata, so the version does reach the
   artifact — `globalcontext.json` carried `release: "0.2.0"` and `cli.fjson`

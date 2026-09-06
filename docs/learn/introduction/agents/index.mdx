@@ -12,18 +12,14 @@ Each Agent encapsulates a specific task and can run either in a separate **threa
 
 ### Agent Types
 
-<img src="/learn/introduction/agents/types_l.svg" alt="alt text" className="block dark:hidden" />
-<img src="/learn/introduction/agents/types_d.svg" alt="alt text" className="hidden dark:block" />
+Agents come in four shapes, depending on their intended behaviour:
 
-Agents can be implemented in different styles, depending on their intended behavior:
-
-- **OneShotAgent**: performs a single task and then exits.
+- **BaseAgent**: performs a single task and then exits.
 - **LoopingAgent**: continuously performs a task until externally stopped.
 - **PeriodicAgent**: executes at regular time intervals.
-- **EventAgent**: responds to external events or signals.
-- **ScheduledAgent**: runs based on a predefined schedule.
+- **PoolAgent**: distributes work over a pool of child agents it supervises.
 
-Each one builds on top of the core logic provided by `BaseAgent`, inheriting its lifecycle and configuration support.
+The last three build on the lifecycle and configuration support of `BaseAgent`, and each of the four exists in a **process** and a **thread** flavour — `LoopingProcessAgent` and `LoopingThreadAgent`, and so on. Reacting to external events is what the [communication plugins](/learn/agents/plugins/communication-plugins) are for, on any of them.
 
 <Tip>
 To learn more about the different Agent types, check out the [Hierarchical Structure](/learn/agents/index#hierarchical-structure) section.
