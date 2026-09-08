@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `stats` reported the orchestrator's own cpu, memory and thread count as an
+  agent's whenever that agent had an instance but no started process. The pid
+  read from such an instance is `None`, and `psutil.Process(None)` is the
+  *current* process, so the numbers were the orchestrator's — printed next to
+  `"pid": None`, which is the tell. The measurement is now taken only for a pid
+  that exists, and the agent shows `N/A` like a thread agent does. Found by the
+  type checker this release adds to CI.
+
 ### Added
 
 - The [PEP 561](https://peps.python.org/pep-0561/) marker

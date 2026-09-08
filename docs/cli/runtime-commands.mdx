@@ -324,6 +324,10 @@ The default refresh interval is `2.0` seconds. Press `Ctrl+C` to stop monitoring
 
 Unlike the other runtime commands, `stats` does not expose `--format`; it renders a continuously refreshed table.
 
+An agent with no live process of its own — a thread agent, or a process agent
+that has not started yet — shows `N/A` in the resource columns instead of a
+measurement.
+
 A refresh that fails prints the reason reported by the orchestrator, in the
 form described in [Error Responses](#error-responses), and the next refresh
 tries again. This is what a `stats` left out of `allowed_commands` looks like:

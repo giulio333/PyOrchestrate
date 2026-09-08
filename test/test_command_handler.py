@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-from PyOrchestrate.core.agent import BaseThreadAgent
+from PyOrchestrate.core.agent import BaseProcessAgent, BaseThreadAgent
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.utilities.command_handler import (
     CommandException,
@@ -150,3 +150,39 @@ def test_history_stats_count_the_events_kept_in_the_heartbeat_store(handler):
 
     assert by_type[OrchestratorEvent.AGENT_HEARTBEAT.value] == 3
     assert by_type[OrchestratorEvent.AGENT_REGISTERED.value] == 2
+
+
+class Idle(BaseProcessAgent):
+    def execute(self) -> None:
+        super().execute()
+
+
+def test_stats_reports_no_measurements_for_a_process_agent_that_never_started():
+    """
+    `psutil.Process(None)` is the *current* process.
+
+    An agent whose instance exists but was never started has `pid is None`.
+    `stats` handed that None to psutil and reported the orchestrator's own cpu,
+    memory and thread count as the agent's, right next to `"pid": None`.
+    """
+    orchestrator = Orchestrator(
+        config=Orchestrator.Config(
+            run_mode=RunMode.STOP_ON_EMPTY,
+            enable_command_interface=False,
+        ),
+        name="stats_orchestrator",
+    )
+    entry = orchestrator.register_agent(Idle, "idle")
+    entry._initialize_instance()
+
+    assert entry.is_initialized
+    assert entry.instance.pid is None
+
+    stats = CommandHandler(orchestrator).execute_command("stats", [])
+    agent = next(item for item in stats["agents"] if item["name"] == "idle")
+
+    assert agent["pid"] is None
+    assert agent["cpu_percent"] == "N/A"
+    assert agent["memory_mb"] == "N/A"
+    assert agent["memory_percent"] == "N/A"
+    assert agent["threads"] == "N/A"
