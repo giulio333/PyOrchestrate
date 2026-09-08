@@ -450,7 +450,7 @@ class CommandHandler:
                     if agent.is_initialized and hasattr(agent.instance, "pid")
                     else None
                 )
-                agent_stat = {
+                agent_stat: Dict[str, Any] = {
                     "name": agent.name,
                     "alive": agent.is_alive(),
                     "lifecycle_state": agent.state.value,

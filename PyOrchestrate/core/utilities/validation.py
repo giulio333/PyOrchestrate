@@ -89,7 +89,7 @@ class ConfigValidationWarning(Warning):
         self.config_class = config_class
 
         # Group results by severity
-        self.errors = []
+        self.errors: List[ValidationResult] = []
         self.warnings = [r for r in results if r.severity == ValidationSeverity.WARNING]
 
         # Build detailed message

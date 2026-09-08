@@ -10,7 +10,7 @@ import threading
 from datetime import datetime
 import json
 from collections import deque, defaultdict
-from typing import NamedTuple, Optional, List, Dict, Protocol
+from typing import Any, NamedTuple, Optional, List, Dict, Protocol
 
 
 class EventRecord(NamedTuple):
@@ -663,7 +663,7 @@ class EventStore:
                     by_type[event_name] += count
             return {"by_type": dict(by_type)}
 
-    def get_capacity_info(self) -> Dict[str, Dict[str, Dict[str, int]]]:
+    def get_capacity_info(self) -> Dict[str, Dict[str, Any]]:
         """
         Get current capacity and usage information for all storage policies.
 
@@ -699,7 +699,7 @@ class EventStore:
                 if "current_size" in capacity_info:
                     total_events += capacity_info["current_size"]
 
-            info = {
+            info: Dict[str, Dict[str, Any]] = {
                 "stores": stores_info,
                 "summary": {
                     "total_stores": len(self._stores),

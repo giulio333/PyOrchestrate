@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The remaining thirteen type errors in the package are gone, so `mypy` is
+  clean: `payload`, `params`, `agent_stat` and `info` say they hold JSON rather
+  than being inferred from their first key; `AgentEntry._instance` and
+  `ConfigValidationWarning.errors` state what they hold; `MessageChannel._queue`
+  is declared once for its two queue flavours; `MessageChannel.receive()` ends
+  in an explicit `return None`; and `EventStore.get_capacity_info()` no longer
+  claims a third level of nesting that its `summary` key never had. None of
+  these changes what the code does at runtime.
+- `ZeroMQPubSub.send()` keeps its signature and carries
+  `# type: ignore[override]` with the reason. It takes a topic frame the base
+  `ZeroMQSocketPlugin.send()` has no room for and returns what
+  `send_multipart()` returns; both are documented and used by the examples, so
+  aligning them would break callers. Worth deciding separately.
+
 ### Fixed
 
 - `stats` reported the orchestrator's own cpu, memory and thread count as an
