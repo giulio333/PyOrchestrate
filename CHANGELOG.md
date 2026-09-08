@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- CI type-checks the package: `mypy` is a required job next to `black` and
+  `flake8`, configured in `[tool.mypy]` and pinned to `2.3.1` in the `dev`
+  group, so `uv run mypy` locally is the same check CI runs. It reads the
+  standard library of `3.11`, the floor in `requires-python`, for the same
+  reason `[tool.black]` pins `target-version`. This is the gate the previous
+  release's `py.typed` marker asks for: the annotations are shipped, so a wrong
+  one is a user's error, and nothing was watching them. `check_untyped_defs`
+  stays off — it reads the bodies of the functions that carry no annotations
+  yet, which is a wider change than a gate.
 - The remaining thirteen type errors in the package are gone, so `mypy` is
   clean: `payload`, `params`, `agent_stat` and `info` say they hold JSON rather
   than being inferred from their first key; `AgentEntry._instance` and

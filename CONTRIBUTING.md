@@ -35,8 +35,14 @@ Run what CI runs:
 ```bash
 uv run black --check --diff .   # CI verifies formatting, it does not fix it
 uv run flake8 . --count --select=E9,F63,F7,F82,F401,F811,F841 --show-source --statistics
+uv run mypy                     # reads [tool.mypy]: the package must stay clean
 uv run pytest
 ```
+
+The package ships its type annotations (`PyOrchestrate/py.typed`), so a type
+checker in a user's project reads them and a wrong annotation becomes their
+error. `mypy` is pinned in the `dev` group: a floating type checker fails the
+build on its own release day rather than on your commit.
 
 Formatting is not negotiable in CI: `black --check` fails the build. The style
 is pinned in `[tool.black]` (line length 88, target py311) so it does not

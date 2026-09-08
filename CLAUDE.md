@@ -83,6 +83,9 @@ Conventions that silently break things when ignored:
   not a stylistic preference.
 - **The version number has one source**, `pyproject.toml`, exposed as
   `PyOrchestrate.__version__`. Never write the literal anywhere else.
+- **The annotations are shipped** (`PyOrchestrate/py.typed`), so a type checker
+  in a user's project reads them: a wrong one is their error, not just ours.
+  `uv run mypy` must stay clean, and it is a required check in CI.
 
 The CLI (`pyorchestrate`, `PyOrchestrate/cli.py`) exposes `create`, `ps`,
 `status`, `dependencies`, `start`, `stop`, `commands`, `shutdown`, `history`,
@@ -97,11 +100,12 @@ uv sync --extra web      # dependencies, web extra and dev group into .venv
 uv run pytest
 ```
 
-Before pushing, run what CI runs — the three of them, in this order:
+Before pushing, run what CI runs — the four of them, in this order:
 
 ```bash
 uv run black --check --diff .    # CI verifies formatting, it does not fix it
 uv run flake8 . --count --select=E9,F63,F7,F82,F401,F811,F841 --show-source --statistics
+uv run mypy                      # reads [tool.mypy]: the package must stay clean
 uv run pytest
 ```
 
@@ -162,7 +166,7 @@ at zero warnings.
   importable: if you add a test or a module touching it, remember CI installs
   `pip install -e ".[web]"`.
 - **Group `dev`** (`[dependency-groups]`, PEP 735): pytest, black, flake8,
-  pylint, coverage, sphinx. `uv` installs it by default, so `uv run pytest`
+  mypy, pylint, coverage, sphinx. `uv` installs it by default, so `uv run pytest`
   needs no flags. It replaced `requirements-dev.txt`.
 - `requirements.txt` is **generated**, never hand-edited. Regenerate it after
   every `uv lock` with the command annotated on its first line. It is one of

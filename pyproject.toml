@@ -73,6 +73,10 @@ dev = [
     "coverage",
     "flake8",
     "flake8-gl-codeclimate",
+    # Pinned for the same reason as sphinx: what a type checker reports changes
+    # between releases, and an unpinned one turns CI red on a release rather
+    # than on a commit. The workflow installs this exact version.
+    "mypy==2.3.1",
     "pylint",
     "pytest",
     # Not a package dependency: only the scripts under examples/ import it.
@@ -99,6 +103,19 @@ target-version = ["py311"]
 # type checker in the consumer's project. Without it an installed PyOrchestrate
 # is treated as untyped and `self.config` degrades to `Any`, which is the
 # opposite of what re-declaring `config: Config` is documented to give you.
+# The package ships its annotations (see `py.typed` below), so they are checked
+# in CI. `python_version` is the floor in `requires-python`, not the interpreter
+# mypy runs on: it is what tells the checker which standard library to assume,
+# the same reason `[tool.black]` pins `target-version`.
+#
+# `check_untyped_defs` stays off. Turning it on reads the bodies of the
+# functions that carry no annotations yet, which is a wider change than a gate
+# and belongs in whatever pass adds those annotations.
+[tool.mypy]
+files = ["PyOrchestrate"]
+python_version = "3.11"
+ignore_missing_imports = true
+
 [tool.setuptools.package-data]
 PyOrchestrate = ["py.typed"]
 
