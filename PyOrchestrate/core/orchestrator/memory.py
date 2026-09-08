@@ -7,6 +7,41 @@ from typing import Dict, List, Optional, Type, Any
 from PyOrchestrate.core.agent import BaseAgent, AgentProtocol
 from PyOrchestrate.core.base import BaseClass
 
+# The orchestrator drives an agent through these three: `start()` when a worker
+# slot opens, `is_alive()` on every reap pass and `join()` on teardown. None of
+# them comes from `BaseAgent`, which carries the lifecycle hooks and nothing to
+# run them with: they arrive with `multiprocessing.Process` or
+# `threading.Thread`, that is, with a process or thread flavour.
+_RUNTIME_MEMBERS = ("start", "join", "is_alive")
+
+
+def _check_run_flavour(agent_class: Type[AgentProtocol]) -> None:
+    """
+    Refuse an agent class the orchestrator would not be able to drive.
+
+    Args:
+        agent_class: The class about to be registered.
+
+    Raises:
+        TypeError: If the class has no process or thread flavour.
+    """
+    missing = [
+        member
+        for member in _RUNTIME_MEMBERS
+        if not callable(getattr(agent_class, member, None))
+    ]
+    if not missing:
+        return
+
+    raise TypeError(
+        f"Agent class '{getattr(agent_class, '__name__', agent_class)}' has no run "
+        f"flavour: it does not provide {', '.join(f'{name}()' for name in missing)}. "
+        "Derive from a process or thread agent -- BaseProcessAgent, "
+        "BaseThreadAgent, or one of the Looping, Periodic and Pool flavours -- "
+        "rather than from BaseAgent, which defines the lifecycle hooks but no way "
+        "to run them."
+    )
+
 
 class AgentLifecycleState(Enum):
     """Parent-process lifecycle state for an orchestrated agent entry."""
@@ -549,8 +584,12 @@ class OMemory:
             AgentEntry: The `AgentEntry` object corresponding to the stored agent.
 
         Raises:
+            TypeError: If `agent_class` has no process or thread flavour, and
+                therefore cannot be started, joined or polled for liveness.
             ValueError: If the agent already exists.
         """
+
+        _check_run_flavour(agent_class)
 
         if name in self._agents:
             raise ValueError(f"Agent '{name}' already exists.")

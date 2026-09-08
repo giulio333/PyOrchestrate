@@ -2,7 +2,7 @@ import inspect
 import logging
 from dataclasses import asdict, is_dataclass
 from enum import Enum
-from typing import Any, List, final
+from typing import Any, List, TypeAlias, final
 
 from PyOrchestrate.utilities.logguru import LoggerFactory
 from PyOrchestrate.core.base.utilities import LoggerConfig
@@ -284,8 +284,12 @@ class BaseClass:
         - Extensible through inheritance
     """
 
-    Config = BaseClassConfig
-    Plugin = BaseClassPlugin
+    # Annotated as aliases rather than left as plain assignments so that a type
+    # checker accepts `class Config(Parent.Config)` in user code: mypy reads a
+    # bare `Config = BaseClassConfig` as a variable, and rejects a variable as a
+    # base class. The assignment, and with it every runtime lookup, is unchanged.
+    Config: TypeAlias = BaseClassConfig
+    Plugin: TypeAlias = BaseClassPlugin
 
     start_time: float
 

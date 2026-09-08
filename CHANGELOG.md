@@ -7,8 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The [PEP 561](https://peps.python.org/pep-0561/) marker
+  (`PyOrchestrate/py.typed`), so a type checker in a consumer's project reads
+  the annotations instead of treating an installed PyOrchestrate as untyped.
+  Outside a source checkout `self.config` was `Any`, which is the opposite of
+  what re-declaring `config: Config` is documented to give you.
+
+### Changed
+
+- `Config` and `Plugin` on `BaseClass`, `BaseAgent`, `LoopingAgent`,
+  `PeriodicAgent`, `PoolAgent` and `Orchestrator` are annotated as
+  `TypeAlias`. mypy reads a bare `Config = AgentConfig` as a variable and
+  rejects a variable as a base class, so the documented
+  `class Config(PeriodicProcessAgent.Config)` raised two errors in the *user's
+  own file* as soon as the annotations became visible — the marker above would
+  have made the framework's central pattern unusable under mypy. The
+  assignments are untouched, so nothing changes at runtime; on the package
+  itself the annotation takes mypy from 41 findings in 13 files to 14 in 7.
+
+### Removed
+
+- `PyOrchestrate/templates/starter.py`. The `create` command writes
+  `CLIConstants.STARTER_TEMPLATE`, a string literal in `cli.py`, and nothing in
+  the package, the tests or the documentation ever read the template file. It was
+  not shipped either: `PyOrchestrate/templates/` has no `__init__.py`, so
+  `packages.find` skipped it and the built wheel never contained it. The two
+  copies had drifted apart in the meantime — the file still registered a bare
+  `BaseAgent` subclass and predated the loopback default of the command
+  interface — so the only way to use it was to copy it off GitHub and get
+  `AttributeError: 'MyAgent' object has no attribute 'is_alive'`.
+- `test/test_messaging_client.py`. Its single test case was decorated
+  `@unittest.skip("Unix socket tests deprecated - ZMQ tests in
+  test_communication_plugin.py")` and covered an API that no longer exists:
+  `MessageChannel("unix_socket", path)`, `_connect_to_server()` and
+  `_send_to_unix_socket_client()` are all gone from `messaging.py`, so the four
+  tests could not have run even with the skip removed.
+
 ### Fixed
 
+- Registering an agent class with no process or thread flavour is refused by
+  `register_agent` with a `TypeError` naming the flavours to derive from. A
+  direct subclass of `BaseAgent` registered and started happily, then brought
+  the whole `join()` loop down on the first reap pass with
+  `AttributeError: 'MyAgent' object has no attribute 'is_alive'`, after a
+  `CRITICAL ... worker slot is quarantined` that pointed at the wrong thing:
+  `start()`, `join()` and `is_alive()` come from `multiprocessing.Process` and
+  `threading.Thread`, not from `BaseAgent`. The Getting Started page invited the
+  mistake -- "All user-defined agent must inherit first from the `BaseAgent`
+  class" -- and now names the flavours; its hierarchy diagram no longer shows
+  `OneShotAgent`, `RecoveryAgent`, `TriggeredAgent`, `ConditionalAgent`,
+  `DeferredAgent` and `EventDrivenAgent`, none of which exist in the package.
+  The "Agent Types" section of the introduction had the same problem from the
+  other side, offering `OneShotAgent`, `EventAgent` and `ScheduledAgent` as
+  three of the five types to choose from; it lists the four that exist, in their
+  process and thread flavours. Its illustration is no longer shown, because it
+  spells out those same five names in the picture -- the two `types_*.svg` files
+  are kept for whoever redraws them.
 - The API Reference workflow did not rebuild on a version bump. Sphinx reads
   `release` from the installed package metadata, so the version does reach the
   artifact — `globalcontext.json` carried `release: "0.2.0"` and `cli.fjson`

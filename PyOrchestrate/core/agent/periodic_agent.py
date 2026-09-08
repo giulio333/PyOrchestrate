@@ -1,6 +1,6 @@
 import threading
 from abc import abstractmethod, ABC
-from typing import final, List
+from typing import final, List, TypeAlias
 import multiprocessing
 
 from PyOrchestrate.core.agent.looping_agent import LoopingAgent, LoopingAgentConfig
@@ -112,7 +112,7 @@ class PeriodicAgent(LoopingAgent):
 
     """
 
-    Config = PeriodicAgentConfig
+    Config: TypeAlias = PeriodicAgentConfig
 
     def __init__(self, name: str | None = None, **kwargs):
         super().__init__(name=name, **kwargs)

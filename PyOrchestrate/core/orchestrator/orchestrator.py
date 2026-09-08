@@ -1,5 +1,5 @@
 import time
-from typing import List, Optional
+from typing import List, Optional, TypeAlias
 from enum import Enum
 
 from PyOrchestrate.core.agent.base_agent import BaseAgent
@@ -280,8 +280,8 @@ class Orchestrator(BaseClass):
 
     """
 
-    Config = OrchestratorConfig
-    Plugin = OrchestratorPlugin
+    Config: TypeAlias = OrchestratorConfig
+    Plugin: TypeAlias = OrchestratorPlugin
 
     config: OrchestratorConfig
     plugin: OrchestratorPlugin
@@ -440,6 +440,8 @@ class Orchestrator(BaseClass):
             AgentEntry: The agent entry object stored in the memory.
 
         Raises:
+            TypeError: If `agent_class` has no process or thread flavour, and
+                therefore cannot be started, joined or polled for liveness.
             ValueError: If an agent with the same name is already registered.
             Exception: If agent registration fails for any reason.
         """

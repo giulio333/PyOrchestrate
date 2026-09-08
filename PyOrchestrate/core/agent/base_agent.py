@@ -6,7 +6,7 @@ import threading
 import multiprocessing
 import time
 from abc import ABC, abstractmethod
-from typing import final, Protocol, Literal, Optional
+from typing import final, Protocol, Literal, Optional, TypeAlias
 from enum import Enum
 
 from PyOrchestrate.core.base.base import BaseClass
@@ -119,8 +119,8 @@ class BaseAgent(BaseClass, ABC):
 
     a_type: str = ""
 
-    Config = AgentConfig
-    Plugin = AgentPlugin
+    Config: TypeAlias = AgentConfig
+    Plugin: TypeAlias = AgentPlugin
 
     class StateEvents:
         """
