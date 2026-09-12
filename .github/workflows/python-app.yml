@@ -36,7 +36,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 pytest black pre-commit
+          # mypy is pinned to the version in the `dev` group of pyproject.toml:
+          # a floating type checker fails the build on its own release day.
+          pip install flake8 pytest black pre-commit "mypy==2.3.1"
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       # `[web]` because fastapi/uvicorn/pydantic are an extra: without it the
@@ -61,6 +63,11 @@ jobs:
       # at the end of the run, so it always passed and reported nothing.
       - name: Check formatting with black
         run: black --check --diff .
+
+      # Reads `[tool.mypy]` in pyproject.toml, so it checks the same files with
+      # the same settings a contributor gets from `uv run mypy`.
+      - name: Type-check with mypy
+        run: mypy
 
       - name: Test with pytest
         run: pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml

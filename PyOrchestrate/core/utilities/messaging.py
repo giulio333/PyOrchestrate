@@ -259,7 +259,7 @@ class ServiceMessage:
         Returns:
             ServiceMessage instance with type="STATUS"
         """
-        payload = {
+        payload: Dict[str, Any] = {
             "status": status,
             "error": error or "",
             "event": event_name or "",
@@ -312,6 +312,10 @@ class MessageChannel:
         self._zmq_context: Optional[zmq.Context] = None
         self._zmq_socket: Optional[zmq.Socket] = None
         self._closed = False
+        # Declared once for the two queue flavours -- a `queue.Queue` for a
+        # thread, a `multiprocessing.Queue` for a process. The two ZeroMQ
+        # flavours never assign it: they talk through `_zmq_socket`.
+        self._queue: queue.Queue | multiprocessing.queues.Queue
 
         if a_type == "thread":
             self._queue = queue.Queue()
@@ -364,6 +368,7 @@ class MessageChannel:
                 return None
         elif self.a_type in ["zmq_router", "zmq_dealer"]:
             return self._receive_zmq(timeout)
+        return None
 
     def send_and_receive(
         self, msg: ServiceMessage, timeout: float = 5.0, auto_close: bool = False
