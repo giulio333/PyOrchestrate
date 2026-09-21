@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- CI type-checks the package: `mypy` is a required job next to `black` and
+  `flake8`, configured in `[tool.mypy]` and pinned to `2.3.1` in the `dev`
+  group, so `uv run mypy` locally is the same check CI runs. It reads the
+  standard library of `3.11`, the floor in `requires-python`, for the same
+  reason `[tool.black]` pins `target-version`. This is the gate the previous
+  release's `py.typed` marker asks for: the annotations are shipped, so a wrong
+  one is a user's error, and nothing was watching them. `check_untyped_defs`
+  stays off — it reads the bodies of the functions that carry no annotations
+  yet, which is a wider change than a gate.
+- The remaining thirteen type errors in the package are gone, so `mypy` is
+  clean: `payload`, `params`, `agent_stat` and `info` say they hold JSON rather
+  than being inferred from their first key; `AgentEntry._instance` and
+  `ConfigValidationWarning.errors` state what they hold; `MessageChannel._queue`
+  is declared once for its two queue flavours; `MessageChannel.receive()` ends
+  in an explicit `return None`; and `EventStore.get_capacity_info()` no longer
+  claims a third level of nesting that its `summary` key never had. None of
+  these changes what the code does at runtime.
+- `ZeroMQPubSub.send()` keeps its signature and carries
+  `# type: ignore[override]` with the reason. It takes a topic frame the base
+  `ZeroMQSocketPlugin.send()` has no room for and returns what
+  `send_multipart()` returns; both are documented and used by the examples, so
+  aligning them would break callers. Worth deciding separately.
+
+### Fixed
+
+- `stats` reported the orchestrator's own cpu, memory and thread count as an
+  agent's whenever that agent had an instance but no started process. The pid
+  read from such an instance is `None`, and `psutil.Process(None)` is the
+  *current* process, so the numbers were the orchestrator's — printed next to
+  `"pid": None`, which is the tell. The measurement is now taken only for a pid
+  that exists, and the agent shows `N/A` like a thread agent does. Found by the
+  type checker this release adds to CI.
+
 ### Added
 
 - The [PEP 561](https://peps.python.org/pep-0561/) marker

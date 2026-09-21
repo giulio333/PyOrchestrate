@@ -441,24 +441,29 @@ class CommandHandler:
             agents_stats = []
             for agent in self.orchestrator.memory.agents:
                 # Get basic agent info
-                agent_stat = {
+                # A process agent is initialized before it is started, and its
+                # `pid` is None until then. `psutil.Process(None)` is the
+                # *current* process, so measuring on a None pid reported the
+                # orchestrator's own figures as the agent's.
+                pid = (
+                    agent.instance.pid
+                    if agent.is_initialized and hasattr(agent.instance, "pid")
+                    else None
+                )
+                agent_stat: Dict[str, Any] = {
                     "name": agent.name,
                     "alive": agent.is_alive(),
                     "lifecycle_state": agent.state.value,
                     "started": self.orchestrator.worker_pool.is_started(agent.name),
                     "in_queue": self.orchestrator.worker_pool.is_queued(agent.name),
-                    "pid": (
-                        agent.instance.pid
-                        if agent.is_initialized and hasattr(agent.instance, "pid")
-                        else None
-                    ),
+                    "pid": pid,
                     "uptime": self._get_agent_uptime(agent),
                 }
 
                 # Add process-specific stats if available
-                if agent.is_initialized and hasattr(agent.instance, "pid"):
+                if pid is not None:
                     try:
-                        process = self._process_for(agent.instance.pid)
+                        process = self._process_for(pid)
                         agent_stat.update(
                             {
                                 "cpu_percent": process.cpu_percent(),

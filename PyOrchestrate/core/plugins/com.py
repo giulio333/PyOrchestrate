@@ -286,7 +286,14 @@ class ZeroMQPubSub(ZeroMQSocketPlugin):
             topic, message = self.socket.recv_multipart(zmq.NOBLOCK)
         return message
 
-    def send(
+    # Deliberately not the base signature: PUB/SUB needs a topic frame, which
+    # `ZeroMQSocketPlugin.send` has no place for, and this one returns what
+    # `send_multipart` returns. Both are documented and used by the examples, so
+    # making the override compatible -- moving `topic` after `blocking` or
+    # dropping the return value -- would break existing callers. Calling it
+    # through a base-class reference as `send(message, False)` therefore passes
+    # `False` as the topic, which pyzmq rejects with a TypeError.
+    def send(  # type: ignore[override]
         self, message: bytes, topic: bytes = b"", blocking: bool = True
     ) -> zmq.MessageTracker | None:
         """
