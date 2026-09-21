@@ -40,6 +40,25 @@ class MyAgent(BaseProcessAgent):
         self.plugin.zmq.send("Hello, World!".encode())
 ```
 
+### Publishing on a topic
+
+A publisher that leaves `topic` out sends on the empty topic, which every
+subscriber receives. Pass it by keyword to publish on a named one:
+
+```python
+self.plugin.zmq.send("Hello, World!".encode(), topic=b"alerts")
+```
+
+`topic` is keyword-only, so that `send(message, blocking)` means on this plugin
+exactly what it means on every other one. See [`ZeroMQPubSub.send()`](/api/plugins)
+for the full signature.
+
+<Warning>
+Passing the topic as the second positional argument — `send(message, b"alerts")`,
+the parameter order of 0.3.0 and earlier — still works and raises a
+`DeprecationWarning`. It will stop working in a future release.
+</Warning>
+
 ### Subscriber Example
 
 ```python

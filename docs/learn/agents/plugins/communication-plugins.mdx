@@ -89,7 +89,7 @@ What each one adds is the part that is genuinely its own:
 
 | Plugin | On top of the shared base |
 | --- | --- |
-| `ZeroMQPubSub` | binds PUB / connects SUB, and moves the topic in a separate frame — `send()` takes a `topic`, `recv()` drops it |
+| `ZeroMQPubSub` | binds PUB / connects SUB, and moves the topic in a separate frame — `send()` takes a keyword-only `topic`, `recv()` drops it |
 | `ZeroMQReqRep` | connects REQ / binds REP |
 | `ZeroMQPushPull` | binds PUSH / connects PULL, and refuses the direction the socket cannot serve |
 | `ZeroMQRouterDealer` | binds ROUTER / connects DEALER, plus `send_multipart()` and `recv_multipart()` for the identity frame |

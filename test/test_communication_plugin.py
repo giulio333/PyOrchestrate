@@ -65,13 +65,63 @@ class TestZeroMQPubSub(unittest.TestCase):
         time.sleep(1)
 
         message = b"Hello, ZeroMQ with topic!"
-        pub.send(message, topic)
+        pub.send(message, topic=topic)
 
         time.sleep(1)
         received_message: bytes = sub.recv()
         self.assertEqual(received_message, message)
 
         self.assertTrue(received_message.startswith(b"Hello"))
+
+        pub.finalize()
+        sub.finalize()
+
+    def test_send_matches_the_base_class_signature(self):
+        # A caller holding a ZeroMQSocketPlugin reference passes blocking
+        # second; on this subclass that used to land in the topic parameter.
+        address = "tcp://127.0.0.1:5710"
+
+        sub = ZeroMQPubSub(address, zmq.SUB, subscribe_topic=b"")
+        sub.initialize()
+        time.sleep(1)
+
+        pub: ZeroMQSocketPlugin = ZeroMQPubSub(address, zmq.PUB)
+        pub.initialize()
+        time.sleep(1)
+
+        message = b"sent through the base signature"
+        self.assertIsNone(pub.send(message, False))
+
+        time.sleep(1)
+        self.assertEqual(sub.recv(), message)
+
+        pub.finalize()
+        sub.finalize()
+
+    def test_topic_is_keyword_only_with_a_deprecated_positional_form(self):
+        # The 0.3.0 call send(message, topic) keeps working and warns,
+        # rather than silently reading the topic as the blocking flag.
+        address = "tcp://127.0.0.1:5711"
+        topic = b"legacy"
+
+        sub = ZeroMQPubSub(address, zmq.SUB, topic)
+        sub.initialize()
+        time.sleep(1)
+
+        pub = ZeroMQPubSub(address, zmq.PUB)
+        pub.initialize()
+        time.sleep(1)
+
+        message = b"Hello from the deprecated call"
+        with self.assertWarns(DeprecationWarning):
+            pub.send(message, topic)
+
+        time.sleep(1)
+        self.assertEqual(sub.recv(), message)
+
+        # The third positional argument the old signature accepted is gone.
+        with self.assertRaises(TypeError):
+            pub.send(message, topic, False)
 
         pub.finalize()
         sub.finalize()
