@@ -1032,7 +1032,7 @@ class PyOrchestrateWebServer:
             ),
         ):
             """Get event history with optional filtering."""
-            params = {}
+            params: Dict[str, Any] = {}
             if last is not None:
                 params["last"] = last
             if agent is not None:
@@ -1050,7 +1050,7 @@ class PyOrchestrateWebServer:
             ):
                 return create_json_response(response)
             else:
-                current_params = {}
+                current_params: Dict[str, Any] = {}
                 if last is not None:
                     current_params["last"] = last
                 if agent is not None:

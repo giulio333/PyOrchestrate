@@ -110,7 +110,7 @@ class AgentEntry:
         self.config = config
         self.plugin = plugin
         self.kwargs = kwargs
-        self._instance = None
+        self._instance: Optional[AgentProtocol] = None
         self._instance_generation_id: int | None = None
         self._record_event_callback = record_event_callback
         self._state = AgentLifecycleState.REGISTERED
