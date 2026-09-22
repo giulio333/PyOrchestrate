@@ -1,3 +1,5 @@
+import warnings
+
 import zmq
 from abc import abstractmethod
 from enum import IntEnum
@@ -286,36 +288,47 @@ class ZeroMQPubSub(ZeroMQSocketPlugin):
             topic, message = self.socket.recv_multipart(zmq.NOBLOCK)
         return message
 
-    # Deliberately not the base signature: PUB/SUB needs a topic frame, which
-    # `ZeroMQSocketPlugin.send` has no place for, and this one returns what
-    # `send_multipart` returns. Both are documented and used by the examples, so
-    # making the override compatible -- moving `topic` after `blocking` or
-    # dropping the return value -- would break existing callers. Calling it
-    # through a base-class reference as `send(message, False)` therefore passes
-    # `False` as the topic, which pyzmq rejects with a TypeError.
-    def send(  # type: ignore[override]
-        self, message: bytes, topic: bytes = b"", blocking: bool = True
-    ) -> zmq.MessageTracker | None:
+    def send(
+        self, message: bytes, blocking: bool = True, *, topic: bytes = b""
+    ) -> None:
         """
         Sends a message using ZeroMQ, prefixed by its topic frame.
 
+        `blocking` comes second, as on every other plugin, so that a call
+        written against `ZeroMQSocketPlugin.send()` keeps its meaning here;
+        `topic` is keyword-only.
+
+        Deprecated:
+            Passing the topic as the second positional argument -- the
+            parameter order this method had in 0.3.0 and earlier -- still
+            works and raises a `DeprecationWarning`. Pass it by keyword
+            instead: `send(message, topic=b"topic")`.
+
         Args:
             message (bytes): The message to be sent.
-            topic (bytes, optional): The topic to use for the message. Defaults to b"".
             blocking (bool, optional): If True, the operation blocks until
                 complete. If False, returns immediately and may raise
                 zmq.error.Again if the message cannot be queued. Defaults to True.
-
-        Returns:
-            (zmq.MessageTracker | None): The result of the send operation or None.
+            topic (bytes, optional): The topic to use for the message. Defaults to b"".
 
         Raises:
             zmq.error.Again: If the message cannot be queued and blocking is False.
         """
+        if isinstance(blocking, bytes):
+            warnings.warn(
+                "Passing the topic as the second positional argument of "
+                "ZeroMQPubSub.send() is deprecated and will stop working in a "
+                "future release; pass it by keyword: send(message, "
+                'topic=b"topic").',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            topic, blocking = blocking, True
+
         if blocking:
-            return self.socket.send_multipart([topic, message])
+            self.socket.send_multipart([topic, message])
         else:
-            return self.socket.send_multipart([topic, message], zmq.NOBLOCK)
+            self.socket.send_multipart([topic, message], zmq.NOBLOCK)
 
 
 class ZeroMQReqRep(ZeroMQSocketPlugin):

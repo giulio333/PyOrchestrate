@@ -26,11 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in an explicit `return None`; and `EventStore.get_capacity_info()` no longer
   claims a third level of nesting that its `summary` key never had. None of
   these changes what the code does at runtime.
-- `ZeroMQPubSub.send()` keeps its signature and carries
-  `# type: ignore[override]` with the reason. It takes a topic frame the base
-  `ZeroMQSocketPlugin.send()` has no room for and returns what
-  `send_multipart()` returns; both are documented and used by the examples, so
-  aligning them would break callers. Worth deciding separately.
 
 ### Fixed
 
@@ -52,6 +47,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** `ZeroMQPubSub.send()` takes `blocking` as its second parameter,
+  like every other plugin, and `topic` as a keyword-only one; it returns
+  `None`. Its signature was `send(message, topic=b"", blocking=True)`, which
+  meant that code written against the base class it inherits from --
+  `ZeroMQSocketPlugin.send(message, blocking)`, the signature the
+  documentation describes as shared -- passed its blocking flag as the topic:
+  `send(message, False)` raised `TypeError: Frame 0 (False) does not support
+  the buffer interface` from pyzmq. Passing the topic positionally still works
+  and raises a `DeprecationWarning`, so `send(message, b"topic")` keeps
+  publishing on `b"topic"` rather than silently sending on the empty topic;
+  the three-argument form `send(message, topic, blocking)` raises `TypeError`.
+  The declared return type never had a value behind it: `send_multipart()`
+  returns a `MessageTracker` only with `track=True` and `copy=False`, neither
+  of which this method passes, so it always returned `None`.
 - `Config` and `Plugin` on `BaseClass`, `BaseAgent`, `LoopingAgent`,
   `PeriodicAgent`, `PoolAgent` and `Orchestrator` are annotated as
   `TypeAlias`. mypy reads a bare `Config = AgentConfig` as a variable and
