@@ -16,8 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reason `[tool.black]` pins `target-version`. This is the gate the previous
   release's `py.typed` marker asks for: the annotations are shipped, so a wrong
   one is a user's error, and nothing was watching them. `check_untyped_defs`
-  stays off — it reads the bodies of the functions that carry no annotations
-  yet, which is a wider change than a gate.
+  is on, so the gate also reads the bodies of the functions that carry no
+  annotations yet; the four findings it added are fixed: `PoolAgent._orchestrator`
+  is declared `Orchestrator | None` instead of being inferred as `None`, the
+  key set in `PluginManager` says it holds `str`, and `MessageChannel.close()`
+  narrows its queue to the `multiprocessing.Queue` a process channel holds
+  before calling `close()` and `join_thread()`, which `queue.Queue` lacks.
 - The remaining thirteen type errors in the package are gone, so `mypy` is
   clean: `payload`, `params`, `agent_stat` and `info` say they hold JSON rather
   than being inferred from their first key; `AgentEntry._instance` and
