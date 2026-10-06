@@ -53,6 +53,8 @@ Next, in the `models` directory, create `weathercollector.py` with an agent
 called `WeatherCollector`:
 
 ```python
+from typing import TypeAlias
+
 import requests
 from PyOrchestrate.core.agent.periodic_agent import PeriodicProcessAgent
 from PyOrchestrate.core.base.exceptions import RecoverableException
@@ -61,8 +63,8 @@ from configurations.weather_config import WCConfig
 
 class WeatherCollector(PeriodicProcessAgent):
 
-    Config = WCConfig  # Associate the configuration class with the agent
-    config: Config     # Type hint for the config attribute
+    Config: TypeAlias = WCConfig  # Associate the configuration class with the agent
+    config: Config                # Type hint for the config attribute
 
     def setup(self):
         super().setup()

@@ -9,7 +9,6 @@ from PyOrchestrate.core.utilities.validation import (
     ValidationSeverity,
     ValidationPolicy,
 )
-from PyOrchestrate.core.base import BaseClassConfig
 from PyOrchestrate.core.agent.base_agent import BaseProcessAgent
 from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
 
@@ -17,7 +16,7 @@ from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
 class SimpleAgent(BaseProcessAgent):
     """Minimal agent that only logs the threshold value."""
 
-    class Config(BaseClassConfig):
+    class Config(BaseProcessAgent.Config):
         """Configuration with a single custom field and simple validation."""
 
         threshold: int = 10

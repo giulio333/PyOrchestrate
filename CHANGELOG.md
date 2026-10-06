@@ -40,6 +40,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `"pid": None`, which is the tell. The measurement is now taken only for a pid
   that exists, and the agent shows `N/A` like a thread agent does. Found by the
   type checker this release adds to CI.
+- Documentation snippets that misled or failed a type checker: the validation
+  example declared its agent's `Config` on `BaseClassConfig` instead of
+  `BaseProcessAgent.Config`, which mypy rejects as an incompatible override of
+  `config`; the multiple-agents example passed `debug=True`, which is not a
+  setting and which nothing reads; the Weather Collector example bound its
+  config with a bare `Config = WCConfig`, which a type checker reads as a
+  variable and refuses as the type of `config`, so it is now a `TypeAlias`;
+  and two snippets used names they never imported. `examples/` is fixed the
+  same way.
 
 ### Added
 

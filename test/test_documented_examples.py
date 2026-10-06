@@ -10,6 +10,7 @@ Issues #87 and #88.
 """
 
 import unittest
+from typing import TypeAlias
 
 import zmq
 
@@ -87,7 +88,7 @@ class TestPeriodicAgentExample(unittest.TestCase):
             url: str = "https://catfact.ninja/fact"
 
         class WeatherCollector(PeriodicProcessAgent):
-            Config = WCConfig
+            Config: TypeAlias = WCConfig
 
             config: Config
 
