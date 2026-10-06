@@ -6,6 +6,7 @@ tests therefore use a real instance.
 """
 
 import json
+from datetime import datetime
 import os
 import time
 
@@ -18,6 +19,7 @@ from PyOrchestrate.core.utilities.command_handler import (
     CommandHandler,
 )
 from PyOrchestrate.core.utilities.event import OrchestratorEvent
+from PyOrchestrate.core.utilities.messaging import ServiceMessage
 
 
 class Worker(BaseThreadAgent):
@@ -186,3 +188,30 @@ def test_stats_reports_no_measurements_for_a_process_agent_that_never_started():
     assert agent["memory_mb"] == "N/A"
     assert agent["memory_percent"] == "N/A"
     assert agent["threads"] == "N/A"
+
+
+@pytest.mark.parametrize(
+    "payload, message",
+    [
+        ("ps", "payload must be an object"),
+        ({"command": ["ps"]}, "'command' must be a string"),
+        ({"command": "status", "args": 5}, "'args' must be a list"),
+    ],
+)
+def test_a_malformed_request_is_rejected_with_a_validation_error(
+    handler, payload, message
+):
+    """
+    The command endpoint is a system boundary: a request of the wrong shape
+    used to fail deep in the handler and come back as a Python internal, such
+    as ``'str' object has no attribute 'get'`` or ``unhashable type: 'list'``.
+    """
+    request = ServiceMessage(
+        sender="client", type="COMMAND", payload=payload, timestamp=datetime.now()
+    )
+
+    response = handler.execute_command_msg(request).payload
+
+    assert response["status"] == "error"
+    assert response["code"] == 400
+    assert message in response["error"]

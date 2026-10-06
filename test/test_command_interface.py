@@ -5,15 +5,18 @@ Tests the command interface functionality including initialization, lifecycle ma
 command handling, error handling, and event tracking.
 """
 
+import json
 import unittest
 from unittest.mock import MagicMock
 import time
 
 from PyOrchestrate.core.orchestrator.command_interface import CommandInterface
 from PyOrchestrate.core.orchestrator.event_store import EventStore
-from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator
+from PyOrchestrate.core.orchestrator.orchestrator import Orchestrator, RunMode
 from PyOrchestrate.core.utilities.messaging import ServiceMessage, is_local_only
 from loguru import logger
+import pytest
+import zmq
 
 
 class TestCommandInterface(unittest.TestCase):
@@ -403,3 +406,57 @@ class TestCommandInterfaceDefaults(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+MALFORMED_ADDRESS = "tcp://127.0.0.1:5712"
+
+
+@pytest.fixture
+def listening_orchestrator():
+    result = Orchestrator(
+        config=Orchestrator.Config(
+            run_mode=RunMode.DAEMON,
+            enable_command_interface=True,
+            command_zmq_address=MALFORMED_ADDRESS,
+        ),
+        name="malformed_request_orchestrator",
+    )
+
+    yield result
+
+    result.shutdown()
+
+
+def _send_raw(payload) -> dict:
+    """Send one request over a real DEALER socket and return the reply payload."""
+    context = zmq.Context.instance()
+    socket = context.socket(zmq.DEALER)
+    socket.setsockopt(zmq.LINGER, 0)
+    socket.connect(MALFORMED_ADDRESS)
+    try:
+        socket.send(
+            json.dumps(
+                {"sender": "client", "event_name": "COMMAND", "payload": payload}
+            ).encode()
+        )
+        assert socket.poll(5000), "the orchestrator did not answer"
+        return json.loads(socket.recv_multipart()[-1])["payload"]
+    finally:
+        socket.close()
+
+
+@pytest.mark.parametrize("payload", ["ps", None, ["ps"]])
+def test_a_request_whose_payload_is_not_an_object_gets_a_validation_error(
+    listening_orchestrator, payload
+):
+    """
+    The payload used to be read with ``.get()`` unchecked, so a string, a null
+    or a list came back as ``'str' object has no attribute 'get'``.
+    """
+    response = _send_raw(payload)
+
+    assert response["status"] == "error"
+    assert "payload must be an object" in response["error"]
+
+    # The endpoint keeps serving well-formed requests afterwards.
+    assert _send_raw({"command": "ps", "args": []})["status"] == "success"

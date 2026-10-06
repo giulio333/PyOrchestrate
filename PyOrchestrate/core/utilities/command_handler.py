@@ -123,6 +123,32 @@ class CommandException(Exception):
         self.code = code
 
 
+def check_request_payload(payload: Any) -> None:
+    """
+    Reject a command request whose payload does not have the expected shape.
+
+    The command endpoint answers anything that can reach its socket, so the
+    shape is checked before a field is read: a payload of the wrong type used
+    to fail inside the handler and come back as a Python internal, such as
+    ``'str' object has no attribute 'get'``.
+
+    Args:
+        payload: The ``payload`` of the request ``ServiceMessage``.
+
+    Raises:
+        CommandException: With code 400, naming what is wrong.
+    """
+    if not isinstance(payload, dict):
+        raise CommandException("Request payload must be an object", 400)
+
+    command = payload.get("command")
+    if command is not None and not isinstance(command, str):
+        raise CommandException("'command' must be a string", 400)
+
+    if not isinstance(payload.get("args", []), list):
+        raise CommandException("'args' must be a list", 400)
+
+
 class CommandHandler:
     """
     Handles external CLI commands for the orchestrator.
@@ -229,7 +255,17 @@ class CommandHandler:
         implementation internally.
         """
         # Expecting payload to be a dict with 'command', 'args', and optional 'request_id'
-        payload = request_msg.payload or {}
+        payload = request_msg.payload if request_msg.payload is not None else {}
+        try:
+            check_request_payload(payload)
+        except CommandException as ce:
+            return ServiceMessage.create_command_response(
+                sender="command_handler",
+                status="error",
+                error=str(ce),
+                code=ce.code,
+            )
+
         command = payload.get("command")
         args = payload.get("args", [])
         request_id = payload.get("request_id")

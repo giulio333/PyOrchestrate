@@ -13,7 +13,10 @@ from PyOrchestrate.core.utilities.messaging import (
     ServiceMessage,
     is_local_only,
 )
-from PyOrchestrate.core.utilities.command_handler import CommandHandler
+from PyOrchestrate.core.utilities.command_handler import (
+    CommandHandler,
+    check_request_payload,
+)
 from PyOrchestrate.core.orchestrator.channel_handler import ChannelHandler
 from PyOrchestrate.core.orchestrator.event_store import EventStore
 
@@ -167,7 +170,8 @@ class CommandInterface:
         request_id = None
 
         try:
-            cmd_data = request_msg.payload  # Already a dict
+            cmd_data = request_msg.payload
+            check_request_payload(cmd_data)
             command = cmd_data.get("command")
             request_id = cmd_data.get("request_id")
 
