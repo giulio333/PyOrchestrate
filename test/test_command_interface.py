@@ -456,6 +456,7 @@ def test_a_request_whose_payload_is_not_an_object_gets_a_validation_error(
     response = _send_raw(payload)
 
     assert response["status"] == "error"
+    assert response["code"] == 400
     assert "payload must be an object" in response["error"]
 
     # The endpoint keeps serving well-formed requests afterwards.
