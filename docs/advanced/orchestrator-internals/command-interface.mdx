@@ -260,15 +260,18 @@ Rejected or invalid commands return a structured error payload:
 
 Common failure categories include:
 
+- malformed request (code 400): a payload that is not an object, a `command`
+  that is not a string, or `args` that is not a list;
 - command not allowed;
 - unknown command;
 - missing required agent name;
 - unknown agent;
-- transport timeout or unavailable endpoint.
+- transport timeout or unavailable endpoint. A frame that is not a JSON
+  message at all gets no reply, so its sender waits for its own timeout.
 
 ## Testing
 
-Test the handler without opening a network socket by constructing `CommandHandler` with a mocked orchestrator. Test ROUTER/DEALER integration separately because it requires a local TCP port.
+Test the handler without opening a network socket by constructing `CommandHandler` around a real `Orchestrator` built with `enable_command_interface=False`. A mocked orchestrator answers any attribute, so it hides a handler reading something that no longer exists. Test ROUTER/DEALER integration separately because it requires a local TCP port.
 
 For a running orchestrator:
 

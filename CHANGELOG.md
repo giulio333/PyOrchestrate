@@ -72,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `timer` property has a guard that says "Did you forget to call setup()?",
   but `_timer` was only ever assigned by `setup()` itself, so the guard could
   not run. `__init__` now declares it, and the error names the missing call.
+- The command endpoint read a request's payload without checking its shape,
+  so a client sending a string, a `null` or a list as the payload, a
+  `command` that is not a string or `args` that is not a list got back a
+  Python internal — `'str' object has no attribute 'get'`,
+  `unhashable type: 'list'` — and a `CLI_ERROR` event recorded with it. Those
+  requests are now rejected with code 400 and a message naming the field.
 - The `BaseClass.Config` docstring example set `logger`, which is not a
   setting: it landed among the user-defined attributes and the logger level
   stayed `DEBUG`. It now sets `logger_config`. `LoggerConfig.level` is
