@@ -40,6 +40,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `"pid": None`, which is the tell. The measurement is now taken only for a pid
   that exists, and the agent shows `N/A` like a thread agent does. Found by the
   type checker this release adds to CI.
+- No agent class satisfied `AgentProtocol`, so `AgentEntry(MyAgent, ...)` —
+  the way a `PoolAgent`'s `agents_entry` is written — failed type checking in
+  a user's project, built-in agents included. The protocol declared `config`
+  and `plugin` as settable attributes, which a type checker treats as
+  invariant, while every agent narrows them to its own inner `Config` and
+  `Plugin`; and it declared `ident` and `pid` settable, while
+  `threading.Thread` and `multiprocessing.Process` expose them as read-only
+  properties. The four are now read-only protocol members, and
+  `test/typing_agent_shape.py`, type-checked by `mypy` in CI, holds the
+  documented agent shapes to it. Code that assigns one of the four through a
+  reference typed as `AgentProtocol` no longer type-checks; nothing changes at
+  runtime.
+- The `BaseClass.Config` docstring example set `logger`, which is not a
+  setting: it landed among the user-defined attributes and the logger level
+  stayed `DEBUG`. It now sets `logger_config`. `LoggerConfig.level` is
+  documented as the level name it is, not as an `int`.
 
 ### Added
 

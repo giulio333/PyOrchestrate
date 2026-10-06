@@ -112,7 +112,7 @@ target-version = ["py311"]
 # functions that carry no annotations yet, which is a wider change than a gate
 # and belongs in whatever pass adds those annotations.
 [tool.mypy]
-files = ["PyOrchestrate"]
+files = ["PyOrchestrate", "test/typing_agent_shape.py"]
 python_version = "3.11"
 check_untyped_defs = true
 ignore_missing_imports = true
