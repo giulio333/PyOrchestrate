@@ -6,6 +6,9 @@ inner `Plugin` re-declared as `plugin: Plugin` -- has to type-check in a user's
 project, including where the framework takes an agent class: `AgentEntry`,
 `OMemory.register_agent` and the lifecycle manager all expect
 `type[AgentProtocol]`.
+
+Every hook calls `super()` first, as the conventions require: an abstract hook
+whose body is trivial makes that call a `safe-super` error in annotated code.
 """
 
 from typing import TYPE_CHECKING
@@ -40,7 +43,7 @@ class Sensor(PeriodicProcessAgent):
     plugin: Plugin
 
     def runner(self) -> None:
-        pass
+        super().runner()
 
 
 class ThreadSensor(PeriodicThreadAgent):
@@ -50,7 +53,7 @@ class ThreadSensor(PeriodicThreadAgent):
     config: Config
 
     def runner(self) -> None:
-        pass
+        super().runner()
 
 
 class Listener(LoopingProcessAgent):
@@ -60,12 +63,12 @@ class Listener(LoopingProcessAgent):
     config: Config
 
     def cycle(self) -> None:
-        pass
+        super().cycle()
 
 
 class ThreadListener(LoopingThreadAgent):
     def cycle(self) -> None:
-        pass
+        super().cycle()
 
 
 class Job(BaseProcessAgent):
@@ -75,12 +78,12 @@ class Job(BaseProcessAgent):
     plugin: Plugin
 
     def execute(self) -> None:
-        pass
+        super().execute()
 
 
 class ThreadJob(BaseThreadAgent):
     def execute(self) -> None:
-        pass
+        super().execute()
 
 
 class Pool(PoolProcessAgent):
