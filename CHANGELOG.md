@@ -33,13 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `stats` reported the orchestrator's own cpu, memory and thread count as an
-  agent's whenever that agent had an instance but no started process. The pid
-  read from such an instance is `None`, and `psutil.Process(None)` is the
-  *current* process, so the numbers were the orchestrator's — printed next to
-  `"pid": None`, which is the tell. The measurement is now taken only for a pid
-  that exists, and the agent shows `N/A` like a thread agent does. Found by the
-  type checker this release adds to CI.
 - Documentation snippets that misled or failed a type checker: the validation
   example declared its agent's `Config` on `BaseClassConfig` instead of
   `BaseProcessAgent.Config`, which mypy rejects as an incompatible override of
@@ -49,6 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   variable and refuses as the type of `config`, so it is now a `TypeAlias`;
   and two snippets used names they never imported. `examples/` is fixed the
   same way.
+- `stats` reported the orchestrator's own cpu, memory and thread count as an
+  agent's whenever that agent had an instance but no started process. The pid
+  read from such an instance is `None`, and `psutil.Process(None)` is the
+  *current* process, so the numbers were the orchestrator's — printed next to
+  `"pid": None`, which is the tell. The measurement is now taken only for a pid
+  that exists, and the agent shows `N/A` like a thread agent does. Found by the
+  type checker this release adds to CI.
 
 ### Added
 
