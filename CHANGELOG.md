@@ -67,6 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   abstract hooks had a trivial body, which a type checker refuses to call
   through `super()`. They now end in an explicit `return None`; they are still
   abstract and still do nothing, so nothing changes at runtime.
+- A `PeriodicAgent` whose `setup()` override forgot `super().setup()` died with
+  `AttributeError: ... has no attribute '_timer'` on its first cycle. The
+  `timer` property has a guard that says "Did you forget to call setup()?",
+  but `_timer` was only ever assigned by `setup()` itself, so the guard could
+  not run. `__init__` now declares it, and the error names the missing call.
 - The `BaseClass.Config` docstring example set `logger`, which is not a
   setting: it landed among the user-defined attributes and the logger level
   stayed `DEBUG`. It now sets `logger_config`. `LoggerConfig.level` is

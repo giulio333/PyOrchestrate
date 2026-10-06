@@ -51,3 +51,21 @@ class TestPeriodicTimerDelayHandling(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPeriodicAgentTimerGuard(unittest.TestCase):
+    """`PeriodicAgent.timer` names the missing `setup()` instead of failing obscurely."""
+
+    def test_timer_before_setup_points_at_setup(self):
+        from PyOrchestrate.core.agent import PeriodicThreadAgent
+
+        class Agent(PeriodicThreadAgent):
+            def runner(self) -> None:
+                super().runner()
+
+        agent = Agent(name="no_setup")
+
+        # It used to raise AttributeError on `_timer`, which says nothing about
+        # the forgotten `super().setup()`.
+        with self.assertRaisesRegex(RuntimeError, r"setup\(\)"):
+            agent.timer
