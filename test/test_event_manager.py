@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from PyOrchestrate.core.utilities.event_manager import EventManager
 
 
-class TestEvents(Enum):
+class SampleEvents(Enum):
     """Test events for EventManager testing."""
 
     EVENT_A = "event_a"
@@ -17,8 +17,8 @@ class TestEvents(Enum):
     STRESS_TEST = "stress_test"
 
 
-class OtherTestEvents(Enum):
-    """Second enum sharing a member name with TestEvents."""
+class OtherSampleEvents(Enum):
+    """Second enum sharing a member name with SampleEvents."""
 
     EVENT_A = "other_event_a"
 
@@ -50,12 +50,14 @@ class TestEventManager(unittest.TestCase):
         """Test registering a single callback to an event."""
         callback = MagicMock()
 
-        self.event_manager.register_event(TestEvents.EVENT_A, callback)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback)
 
         # Check that the event is registered
-        self.assertIn(TestEvents.EVENT_A, self.event_manager._listeners)
-        self.assertEqual(len(self.event_manager._listeners[TestEvents.EVENT_A]), 1)
-        self.assertEqual(self.event_manager._listeners[TestEvents.EVENT_A][0], callback)
+        self.assertIn(SampleEvents.EVENT_A, self.event_manager._listeners)
+        self.assertEqual(len(self.event_manager._listeners[SampleEvents.EVENT_A]), 1)
+        self.assertEqual(
+            self.event_manager._listeners[SampleEvents.EVENT_A][0], callback
+        )
 
     def test_register_event_multiple_callbacks(self):
         """Test registering multiple callbacks to the same event."""
@@ -63,12 +65,12 @@ class TestEventManager(unittest.TestCase):
         callback2 = MagicMock()
         callback3 = MagicMock()
 
-        self.event_manager.register_event(TestEvents.EVENT_A, callback1)
-        self.event_manager.register_event(TestEvents.EVENT_A, callback2)
-        self.event_manager.register_event(TestEvents.EVENT_A, callback3)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback1)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback2)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback3)
 
         # Check that all callbacks are registered in order
-        listeners = self.event_manager._listeners[TestEvents.EVENT_A]
+        listeners = self.event_manager._listeners[SampleEvents.EVENT_A]
         self.assertEqual(len(listeners), 3)
         self.assertEqual(listeners[0], callback1)
         self.assertEqual(listeners[1], callback2)
@@ -79,26 +81,26 @@ class TestEventManager(unittest.TestCase):
         fired = []
 
         self.event_manager.register_event(
-            TestEvents.EVENT_A, lambda: fired.append(TestEvents.EVENT_A)
+            SampleEvents.EVENT_A, lambda: fired.append(SampleEvents.EVENT_A)
         )
         self.event_manager.register_event(
-            OtherTestEvents.EVENT_A, lambda: fired.append(OtherTestEvents.EVENT_A)
+            OtherSampleEvents.EVENT_A, lambda: fired.append(OtherSampleEvents.EVENT_A)
         )
 
-        self.assertIn(TestEvents.EVENT_A, self.event_manager._listeners)
-        self.assertIn(OtherTestEvents.EVENT_A, self.event_manager._listeners)
+        self.assertIn(SampleEvents.EVENT_A, self.event_manager._listeners)
+        self.assertIn(OtherSampleEvents.EVENT_A, self.event_manager._listeners)
 
-        self.event_manager.emit(TestEvents.EVENT_A)
+        self.event_manager.emit(SampleEvents.EVENT_A)
 
         # shutdown drains the pool, so no sleep is needed to see every callback
         self.event_manager.shutdown(wait=True)
 
-        self.assertEqual(fired, [TestEvents.EVENT_A])
+        self.assertEqual(fired, [SampleEvents.EVENT_A])
 
     def test_emit_no_listeners(self):
         """Test emitting an event with no registered listeners."""
         # Should not raise any exception
-        self.event_manager.emit(TestEvents.EVENT_A, arg1="value1", arg2="value2")
+        self.event_manager.emit(SampleEvents.EVENT_A, arg1="value1", arg2="value2")
 
     def test_emit_with_listeners(self):
         """Test emitting an event with registered listeners."""
@@ -112,12 +114,12 @@ class TestEventManager(unittest.TestCase):
         mock_callback1 = MagicMock(side_effect=callback1)
         mock_callback2 = MagicMock(side_effect=callback2)
 
-        self.event_manager.register_event(TestEvents.EVENT_A, mock_callback1)
-        self.event_manager.register_event(TestEvents.EVENT_A, mock_callback2)
+        self.event_manager.register_event(SampleEvents.EVENT_A, mock_callback1)
+        self.event_manager.register_event(SampleEvents.EVENT_A, mock_callback2)
 
         # Emit event with arguments
         self.event_manager.emit(
-            TestEvents.EVENT_A, "arg1", arg2="value2", arg3="value3"
+            SampleEvents.EVENT_A, "arg1", arg2="value2", arg3="value3"
         )
 
         # Wait for async execution
@@ -150,11 +152,11 @@ class TestEventManager(unittest.TestCase):
         callback1 = MagicMock(side_effect=callback_with_kwargs_only)
         callback2 = MagicMock(side_effect=callback_with_all_params)
 
-        self.event_manager.register_event(TestEvents.EVENT_A, callback1)
-        self.event_manager.register_event(TestEvents.EVENT_A, callback2)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback1)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback2)
 
         # Emit with kwargs only to avoid args/kwargs conflicts
-        self.event_manager.emit(TestEvents.EVENT_A, arg2="value2", arg3="value3")
+        self.event_manager.emit(SampleEvents.EVENT_A, arg2="value2", arg3="value3")
 
         time.sleep(0.1)
 
@@ -184,8 +186,8 @@ class TestEventManager(unittest.TestCase):
         callback1 = MagicMock(side_effect=callback_with_default_data)
         callback2 = MagicMock(side_effect=callback_without_default_data)
 
-        self.event_manager.register_event(TestEvents.EVENT_A, callback1)
-        self.event_manager.register_event(TestEvents.EVENT_A, callback2)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback1)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback2)
 
         # Mock datetime to control the default data
         with patch(
@@ -196,7 +198,7 @@ class TestEventManager(unittest.TestCase):
             mock_now.time.return_value.isoformat.return_value = "10:30:00"
             mock_datetime.now.return_value = mock_now
 
-            self.event_manager.emit(TestEvents.EVENT_A, custom_arg="value")
+            self.event_manager.emit(SampleEvents.EVENT_A, custom_arg="value")
 
             time.sleep(0.1)
 
@@ -223,11 +225,11 @@ class TestEventManager(unittest.TestCase):
         callback1 = MagicMock(side_effect=failing_callback)
         callback2 = MagicMock(side_effect=working_callback)
 
-        self.event_manager.register_event(TestEvents.EVENT_A, callback1)
-        self.event_manager.register_event(TestEvents.EVENT_A, callback2)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback1)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback2)
 
         # Emit event
-        self.event_manager.emit(TestEvents.EVENT_A, test_arg="success")
+        self.event_manager.emit(SampleEvents.EVENT_A, test_arg="success")
 
         time.sleep(0.2)
 
@@ -242,13 +244,13 @@ class TestEventManager(unittest.TestCase):
     def test_shutdown_prevents_new_emissions(self):
         """Test that shutdown prevents new event emissions."""
         callback = MagicMock()
-        self.event_manager.register_event(TestEvents.EVENT_A, callback)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback)
 
         # Shutdown the event manager
         self.event_manager.shutdown()
 
         # Try to emit an event after shutdown
-        self.event_manager.emit(TestEvents.EVENT_A, arg="value")
+        self.event_manager.emit(SampleEvents.EVENT_A, arg="value")
 
         time.sleep(0.1)
 
@@ -272,13 +274,13 @@ class TestEventManager(unittest.TestCase):
 
         # Register callback
         callback = MagicMock()
-        self.event_manager.register_event(TestEvents.EVENT_A, callback)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback)
 
         # Still no executor after registration
         self.assertIsNone(self.event_manager._executor)
 
         # Emit event should create executor
-        self.event_manager.emit(TestEvents.EVENT_A, arg="value")
+        self.event_manager.emit(SampleEvents.EVENT_A, arg="value")
 
         # Now executor should exist
         self.assertIsNotNone(self.event_manager._executor)
@@ -292,17 +294,17 @@ class TestEventManager(unittest.TestCase):
             pass
 
         callback = MagicMock(side_effect=callback_no_defaults)
-        self.event_manager.register_event(TestEvents.EVENT_A, callback)
+        self.event_manager.register_event(SampleEvents.EVENT_A, callback)
 
         # Since the callback accepts **kwargs, default data will be created
         # So we test a different scenario: no callbacks at all
-        self.event_manager._listeners[TestEvents.EVENT_A] = []
+        self.event_manager._listeners[SampleEvents.EVENT_A] = []
 
         # Mock datetime to ensure it's not called when no listeners
         with patch(
             "PyOrchestrate.core.utilities.event_manager.datetime"
         ) as mock_datetime:
-            self.event_manager.emit(TestEvents.EVENT_A, custom_arg="value")
+            self.event_manager.emit(SampleEvents.EVENT_A, custom_arg="value")
 
             time.sleep(0.1)
 
@@ -335,7 +337,9 @@ class TestEventManagerThreadSafety(unittest.TestCase):
             try:
                 for i in range(10):
                     callback = MagicMock()
-                    self.event_manager.register_event(TestEvents.STRESS_TEST, callback)
+                    self.event_manager.register_event(
+                        SampleEvents.STRESS_TEST, callback
+                    )
             except Exception:
                 with self.error_lock:
                     self.error_count += 1
@@ -355,7 +359,7 @@ class TestEventManagerThreadSafety(unittest.TestCase):
         self.assertEqual(self.error_count, 0)
 
         # Check that all callbacks were registered
-        listeners = self.event_manager._listeners.get(TestEvents.STRESS_TEST, [])
+        listeners = self.event_manager._listeners.get(SampleEvents.STRESS_TEST, [])
         self.assertEqual(len(listeners), 50)  # 5 threads * 10 callbacks each
 
     def test_concurrent_emissions(self):
@@ -369,13 +373,13 @@ class TestEventManagerThreadSafety(unittest.TestCase):
 
         # Register callback
         callback = MagicMock(side_effect=thread_callback)
-        self.event_manager.register_event(TestEvents.STRESS_TEST, callback)
+        self.event_manager.register_event(SampleEvents.STRESS_TEST, callback)
 
         def emit_events(thread_id):
             try:
                 for i in range(20):
                     self.event_manager.emit(
-                        TestEvents.STRESS_TEST, thread_id=thread_id, event_count=i
+                        SampleEvents.STRESS_TEST, thread_id=thread_id, event_count=i
                     )
             except Exception:
                 with self.error_lock:
@@ -411,8 +415,8 @@ class TestEventManagerThreadSafety(unittest.TestCase):
         def emit_event():
             try:
                 callback = MagicMock()
-                self.event_manager.register_event(TestEvents.EVENT_A, callback)
-                self.event_manager.emit(TestEvents.EVENT_A, arg="test")
+                self.event_manager.register_event(SampleEvents.EVENT_A, callback)
+                self.event_manager.emit(SampleEvents.EVENT_A, arg="test")
             except Exception:
                 with self.error_lock:
                     self.error_count += 1
@@ -443,12 +447,12 @@ class TestEventManagerThreadSafety(unittest.TestCase):
 
         def continuous_emit():
             callback = MagicMock()
-            self.event_manager.register_event(TestEvents.EVENT_B, callback)
+            self.event_manager.register_event(SampleEvents.EVENT_B, callback)
 
             for i in range(100):
                 if not self.event_manager._shutdown:
                     try:
-                        self.event_manager.emit(TestEvents.EVENT_B, count=i)
+                        self.event_manager.emit(SampleEvents.EVENT_B, count=i)
                         time.sleep(0.001)  # Small delay
                     except Exception:
                         # Expected during shutdown
@@ -485,12 +489,12 @@ class TestEventManagerThreadSafety(unittest.TestCase):
                         shared_results.append(f"worker_{worker_id_kw}_{operation}")
 
                 callback_mock = MagicMock(side_effect=callback)
-                self.event_manager.register_event(TestEvents.EVENT_C, callback_mock)
+                self.event_manager.register_event(SampleEvents.EVENT_C, callback_mock)
 
                 # Emit some events
                 for op in range(5):
                     self.event_manager.emit(
-                        TestEvents.EVENT_C, worker_id=worker_id, operation=f"op_{op}"
+                        SampleEvents.EVENT_C, worker_id=worker_id, operation=f"op_{op}"
                     )
             except Exception:
                 with self.error_lock:
