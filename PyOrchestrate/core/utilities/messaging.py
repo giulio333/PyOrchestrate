@@ -414,6 +414,8 @@ class MessageChannel:
                 self._zmq_context = None
         elif self.a_type == "process" and not self._closed:
             self._closed = True
+            # Only a process channel holds a `multiprocessing.Queue`.
+            assert isinstance(self._queue, multiprocessing.queues.Queue)
             self._queue.close()
             # Only messages this process queued are still buffered, and the
             # orchestrator process never sends on this channel, so the feeder

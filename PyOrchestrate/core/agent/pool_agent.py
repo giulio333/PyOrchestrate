@@ -138,7 +138,7 @@ class PoolAgent(PeriodicAgent):
         self.interval = self.config.execution_interval
         self.compensate_delay = self.config.delay_compensation
 
-        self._orchestrator = None
+        self._orchestrator: Orchestrator | None = None
 
     def setup(self):
         """

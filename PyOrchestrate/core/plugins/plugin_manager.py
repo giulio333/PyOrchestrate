@@ -38,7 +38,7 @@ class PluginManager:
             return True
 
         # Collect all potential attribute names from class and instance
-        all_keys = set()
+        all_keys: set[str] = set()
         all_keys.update(plugins.__class__.__dict__.keys())
         all_keys.update(vars(plugins).keys())
         if hasattr(plugins, "_custom_attr"):
