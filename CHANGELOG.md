@@ -52,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documented agent shapes to it. Code that assigns one of the four through a
   reference typed as `AgentProtocol` no longer type-checks; nothing changes at
   runtime.
+- `super().runner()` and `super().cycle()` — the first line of every
+  documented `PeriodicAgent` and `LoopingAgent` hook — were a `safe-super`
+  error under mypy as soon as the override carried an annotation: both
+  abstract hooks had a trivial body, which a type checker refuses to call
+  through `super()`. They now end in an explicit `return None`; they are still
+  abstract and still do nothing, so nothing changes at runtime.
 - The `BaseClass.Config` docstring example set `logger`, which is not a
   setting: it landed among the user-defined attributes and the logger level
   stayed `DEBUG`. It now sets `logger_config`. `LoggerConfig.level` is

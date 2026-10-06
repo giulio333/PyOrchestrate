@@ -143,11 +143,17 @@ class PeriodicAgent(LoopingAgent):
             return
 
     @abstractmethod
-    def runner(self):
+    def runner(self) -> None:
         """
         Here you have to implement the logic to be executed periodically.
+
+        Notes:
+            The base implementation does nothing, so calling `super().runner()`
+            first, as every lifecycle hook does, is safe.
         """
-        pass
+        # Not `pass`: a type checker refuses `super().runner()` in an annotated
+        # override when the abstract body is trivial (mypy's `safe-super`).
+        return None
 
     def _info(self):
         super()._info()

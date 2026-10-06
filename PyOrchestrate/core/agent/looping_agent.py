@@ -182,11 +182,17 @@ class LoopingAgent(BaseAgent):
             This method must be implemented in derived classes.
 
         Notes:
-            This method must be implemented in derived classes.
+            This method must be implemented in derived classes. The base
+            implementation does nothing, so calling `super().cycle()` first, as
+            every lifecycle hook does, is safe.
 
         Returns:
             None
         """
+        # Not a bare docstring: a type checker refuses `super().cycle()` in an
+        # annotated override when the abstract body is trivial (mypy's
+        # `safe-super`).
+        return None
 
     def _info(self) -> None:
         """
