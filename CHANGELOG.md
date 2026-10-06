@@ -40,8 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   setting and which nothing reads; the Weather Collector example bound its
   config with a bare `Config = WCConfig`, which a type checker reads as a
   variable and refuses as the type of `config`, so it is now a `TypeAlias`;
-  and two snippets used names they never imported. `examples/` is fixed the
-  same way.
+  and two snippets used names they never imported. The two scripts under
+  `examples/` that carried the first two mistakes are fixed too.
 - `stats` reported the orchestrator's own cpu, memory and thread count as an
   agent's whenever that agent had an instance but no started process. The pid
   read from such an instance is `None`, and `psutil.Process(None)` is the
