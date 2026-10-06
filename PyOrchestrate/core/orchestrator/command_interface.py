@@ -226,6 +226,8 @@ class CommandInterface:
                         sender="orchestrator",
                         status="error",
                         error=str(e),
+                        # A rejected request carries its own code (400).
+                        code=getattr(e, "code", 0),
                         request_id=request_id,
                     ),
                 )
