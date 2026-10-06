@@ -119,6 +119,9 @@ class PeriodicAgent(LoopingAgent):
 
         self.interval = self.config.execution_interval
         self.compensate_delay = self.config.delay_compensation
+        # Created by setup(). Declared here so that reading `timer` before it
+        # raises the error naming setup(), not an AttributeError on `_timer`.
+        self._timer: PeriodicTimer | None = None
 
     def setup(self):
         super().setup()
@@ -171,7 +174,7 @@ class PeriodicAgent(LoopingAgent):
 
     @timer.setter
     def timer(self, value):
-        self._timer: PeriodicTimer | None = value
+        self._timer = value
 
 
 class PeriodicProcessAgent(PeriodicAgent, multiprocessing.Process, ABC):
