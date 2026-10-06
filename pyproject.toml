@@ -81,6 +81,12 @@ dev = [
     "pytest",
     # Not a package dependency: only the scripts under examples/ import it.
     "requests>=2.33.0",
+    # Highlights the code in the same artifact. Pinned for the same reason as
+    # sphinx: its HTML escaping changes between releases (2.20 writes `&quot;`
+    # where 2.21 writes `"`), so a floating version rewrites every code sample
+    # in the reference with no docstring change. The workflow installs this
+    # exact version.
+    "pygments==2.21.0",
     # Builds the JSON artifact behind Mintlify's SDK reference. Pinned because
     # the output format changes across Sphinx majors.
     "sphinx==8.1.3",

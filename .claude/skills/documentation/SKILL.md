@@ -89,6 +89,17 @@ Run it before pushing any documentation change.
 > `enum.Enum`'s signature changed in 3.12 — and CI produces regeneration
 > commits matching no docstring change at all. If the artifact diff shows
 > signature changes you did not cause, you are on the wrong interpreter.
+>
+> **Even the patch release shows.** The workflow takes the latest 3.13; an
+> older 3.13.x on your machine rewraps the docstrings autodoc inherits from
+> builtins — `int.to_bytes` in `plugins.fjson` is the usual one. If that is the
+> only change in a file, restore it with `git checkout` instead of committing
+> it, or install a current 3.13.
+
+> **Regenerate through `uv run`, not a bare `python`.** Sphinx and Pygments are
+> pinned in the `dev` group and the workflow installs the same versions; a
+> different Pygments re-escapes every code sample in the artifact (`&quot;`
+> instead of `"`), so the diff touches files whose docstrings you never edited.
 
 - `sphinx/conf.py` — configuration (autodoc + napoleon, Google-style
   docstrings).
