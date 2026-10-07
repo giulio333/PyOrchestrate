@@ -122,6 +122,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   floating in CI while `uv.lock` held `2.20.0`, a local regeneration rewrote
   files whose docstrings had not changed, and each new Pygments release would
   have produced a regeneration commit of its own.
+- The Python snippets in `docs/` and the README are tested
+  (`test/test_docs_snippets.py`): every `PyOrchestrate` import must resolve,
+  every complete snippet must pass mypy, and every keyword passed to a
+  framework `Config(...)` must be one of its settings, since an unknown one is
+  stored as a user-defined attribute that nothing reads. Run against the
+  documentation as it stood before this release's snippet fixes, it reports
+  each of them.
 
 ### Removed
 

@@ -145,7 +145,7 @@ and preview commands and the failure modes that cost hours when rediscovered
 from scratch (stale `.mint` cache, `mint` CLI version, `broken-links` false
 positives).
 
-The four rules that are worth having in mind at all times:
+The five rules that are worth having in mind at all times:
 
 - **Pages are `.mdx`, never `.md`.** In `.md`, Mintlify does not render
   components: `<Tip>`, `<Warning>` and `<Card>` come out as raw text or vanish,
@@ -157,6 +157,9 @@ The four rules that are worth having in mind at all times:
 - **Narrative pages link to the API reference for signatures and parameters**
   (`/api/agent`, `/api/plugins`, …) instead of restating them. A signature
   copied by hand into an `.mdx` is a second place it can drift from the code.
+- **Python snippets are tested** by `test/test_docs_snippets.py`: imports,
+  mypy on every complete snippet, and the keywords passed to framework
+  `Config(...)` classes. A snippet a reader copies must type-check.
 
 After changing docstrings, regenerate the artifact with
 `./scripts/build_api_reference.sh` using Python 3.13 and commit
