@@ -97,35 +97,34 @@ def test_the_documentation_has_python_snippets():
     assert sum(s.is_complete for s in SNIPPETS) > 40
 
 
+def _unresolved(module: str, name: str | None) -> str | None:
+    """Why `from module import name` (or `import module`) fails, if it does."""
+    try:
+        loaded = importlib.import_module(module)
+        if name is not None and not hasattr(loaded, name):
+            importlib.import_module(f"{module}.{name}")
+    except Exception as error:
+        return type(error).__name__
+    return None
+
+
 def test_every_pyorchestrate_import_in_the_docs_resolves():
     failures = []
     for snippet in SNIPPETS:
         for node in _imports(snippet):
             if isinstance(node, ast.ImportFrom):
-                module = node.module or ""
+                pairs = [(node.module or "", a.name) for a in node.names]
+            else:
+                pairs = [(a.name, None) for a in node.names]
+            for module, name in pairs:
                 if not module.startswith("PyOrchestrate"):
                     continue
-                for alias in node.names:
-                    try:
-                        loaded = importlib.import_module(module)
-                        if not hasattr(loaded, alias.name):
-                            importlib.import_module(f"{module}.{alias.name}")
-                    except Exception as error:
-                        failures.append(
-                            f"{snippet.where}: from {module} import {alias.name}"
-                            f" ({type(error).__name__})"
-                        )
-            else:
-                for alias in node.names:
-                    if not alias.name.startswith("PyOrchestrate"):
-                        continue
-                    try:
-                        importlib.import_module(alias.name)
-                    except Exception as error:
-                        failures.append(
-                            f"{snippet.where}: import {alias.name}"
-                            f" ({type(error).__name__})"
-                        )
+                error = _unresolved(module, name)
+                if error:
+                    statement = (
+                        f"from {module} import {name}" if name else (f"import {module}")
+                    )
+                    failures.append(f"{snippet.where}: {statement} ({error})")
 
     assert not failures, "\n".join(failures)
 
