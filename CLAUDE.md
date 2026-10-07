@@ -62,8 +62,13 @@ each running in its own process or thread. Its internals live in
 
 Agents live in `PyOrchestrate/core/agent/`, each in a `Process` and a `Thread`
 flavour: `BaseAgent` (`setup` / `execute` / `on_stop`), `LoopingAgent`
-(`execute`, continuous), `PeriodicAgent` (`runner`, on a schedule), `PoolAgent`
-(`runner`, work distributed over a pool). `PoolProcessAgent` and
+(`cycle`, continuous), `PeriodicAgent` (`runner`, on a schedule), `PoolAgent`
+(supervises child agents through an inner orchestrator; custom work goes in
+`pre_runner` / `post_runner`). The loop behind each hook is `@final` and must
+not be overridden: `LoopingAgent.execute`, `PeriodicAgent.cycle`,
+`PoolAgent.runner`. `@final` is only enforced by a type checker — at runtime an
+override silently replaces the limits, the timer or the pool supervision.
+`PoolProcessAgent` and
 `PoolThreadAgent` are resolved lazily via PEP 562 in
 `core/agent/__init__.py`: `pool_agent` imports `Orchestrator`, which imports
 `base_agent`, so an eager import would hit a partially initialised module.
@@ -74,9 +79,12 @@ live in `PyOrchestrate/core/plugins/`.
 
 Conventions that silently break things when ignored:
 
-- **Call `super()` first in every lifecycle hook.** `setup`, `execute` and
-  `runner` do bookkeeping in the base class (counters, limits, plugin
-  wiring); skipping the call, or making it last, breaks it.
+- **Call `super()` first in every lifecycle hook.** `BaseAgent.setup` and
+  `BaseAgent.execute` wait on the control events the orchestrator uses to
+  gate an agent, `PeriodicAgent.setup` creates the timer (without it the agent
+  dies on its first cycle) and `PoolAgent.setup` builds the inner
+  orchestrator; skipping the call, or making it last, breaks them. The abstract
+  `runner` and `cycle` do nothing in the base, but are called the same way.
 - **Configuration goes in the inner `Config` class, plugins in the inner
   `Plugin` class**, both re-declared with their type annotation
   (`config: Config`, `plugin: Plugin`). This is the framework's public shape,
