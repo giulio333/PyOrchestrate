@@ -14,7 +14,8 @@ class LoggerConfig:
         - If not specified, the log file will be named like the Agent.
 
     Attributes:
-        level (int): Logging level. Defaults to DEBUG.
+        level (str): Logging level, one of the loguru level names. Defaults to
+            "DEBUG".
         filename (str): File name for logging. Defaults to empty string.
     """
 

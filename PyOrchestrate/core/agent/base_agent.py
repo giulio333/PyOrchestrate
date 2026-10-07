@@ -570,21 +570,37 @@ class AgentProtocol(Protocol):
 
     This protocol specifies the methods and attributes that any agent
     implementation must provide.
+
+    Notes:
+        `config`, `plugin`, `ident` and `pid` are read-only members. An agent
+        narrows `config` and `plugin` to its own inner `Config` and `Plugin`,
+        and `threading.Thread` and `multiprocessing.Process` expose `ident` and
+        `pid` as read-only properties: declared as plain settable attributes,
+        no agent class satisfied the protocol, and passing one to `AgentEntry`
+        failed type checking in user code.
     """
 
     a_type: str
     name: str
     daemon: bool
-    ident: int | None
-    pid: int | None
     termination_status: AgentTerminationStatus
-    config: AgentConfig
-    plugin: BaseClass.Plugin
     plugin_manager: PluginManager
     state_events: BaseAgent.StateEvents
     control_events: BaseAgent.ControlEvents
     start_time: float
     # plugins: dict[str, BaseClass.Plugin]
+
+    @property
+    def ident(self) -> int | None: ...
+
+    @property
+    def pid(self) -> int | None: ...
+
+    @property
+    def config(self) -> AgentConfig: ...
+
+    @property
+    def plugin(self) -> BaseClass.Plugin: ...
 
     def run(self) -> None: ...
 

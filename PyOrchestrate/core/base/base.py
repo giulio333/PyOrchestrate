@@ -108,9 +108,9 @@ class BaseClassConfig:
         Create a custom configuration by subclassing BaseClass.Config:
 
         >>> class Config(BaseClass.Config):
-        ...     logger = LoggerConfig(level="DEBUG")
+        ...     logger_config = LoggerConfig(level="DEBUG")
         >>> default_config = Config()
-        >>> custom_config = Config(logger=LoggerConfig(level="INFO"))
+        >>> custom_config = Config(logger_config=LoggerConfig(level="INFO"))
     """
 
     logger_config: LoggerConfig = LoggerConfig()
