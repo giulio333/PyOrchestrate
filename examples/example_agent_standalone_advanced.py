@@ -143,7 +143,6 @@ def run_multiple_sensor_agents():
         max_variance=0.75,
         max_readings=12,
         execution_interval=1.5,
-        debug=True,
     )
 
     # Create agent instances
