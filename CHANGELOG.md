@@ -74,6 +74,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   have made the framework's central pattern unusable under mypy. The
   assignments are untouched, so nothing changes at runtime; on the package
   itself the annotation takes mypy from 41 findings in 13 files to 14 in 7.
+- Pygments is pinned (`2.21.0`) in the `dev` group and in the API reference
+  workflow, next to Sphinx. It writes the HTML of every code sample in
+  `docs/sdk-artifacts/`, and its escaping changes between releases: left
+  floating in CI while `uv.lock` held `2.20.0`, a local regeneration rewrote
+  files whose docstrings had not changed, and each new Pygments release would
+  have produced a regeneration commit of its own.
 
 ### Removed
 
