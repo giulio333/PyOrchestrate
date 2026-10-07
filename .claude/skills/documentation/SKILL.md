@@ -61,6 +61,14 @@ Run it before pushing any documentation change.
 
 ## Writing pages
 
+- **Python snippets are tested.** `test/test_docs_snippets.py` checks every
+  ` ```python ` block in `docs/` and the README: its `PyOrchestrate` imports
+  resolve, a complete snippet (one that parses and imports from
+  `PyOrchestrate`) passes mypy, and every keyword passed to a framework
+  `Config(...)` is a real setting — an unknown one is silently stored and
+  never read. Run `uv run pytest test/test_docs_snippets.py` after editing a
+  snippet. A fragment continuing an earlier block may use that block's names;
+  a module it forgot to import is still reported.
 - **Pages are `.mdx`, never `.md`.** In `.md` Mintlify does not render
   components: `<Tip>`, `<Warning>` and `<Card>` come out as raw text or vanish
   entirely, and the problem only surfaces once deployed.
