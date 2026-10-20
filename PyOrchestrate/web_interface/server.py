@@ -7,6 +7,7 @@ protocol as the CLI.
 """
 
 import json
+from html import escape
 from typing import Dict, Any, Optional, List
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -102,8 +103,12 @@ def create_html_response(
     show_filters: bool = False,
     current_params: Optional[Dict[str, Any]] = None,
 ) -> HTMLResponse:
-    """Create an HTML response with syntax-highlighted JSON."""
+    """Render monitoring data as text, escaping HTML and inline-script contexts."""
+    title = escape(title)
+    endpoint = escape(endpoint)
     pretty_json = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True)
+    # HTML parses script terminators even inside JavaScript string literals.
+    script_json = json.dumps(pretty_json).replace("<", "\\u003c")
 
     html_content = f"""
     <!DOCTYPE html>
@@ -530,7 +535,7 @@ def create_html_response(
         <div class="api-info">
             <strong>Endpoint:</strong> <code>GET {endpoint}</code><br>
             <strong>API URL:</strong> <code>{endpoint}?format=json</code> (for raw JSON)<br>
-            <strong>Updated:</strong> <span id="timestamp">{data.get('timestamp', 'N/A')}</span>
+            <strong>Updated:</strong> <span id="timestamp">{escape(str(data.get('timestamp', 'N/A')))}</span>
         </div>
         
         {'''
@@ -538,13 +543,13 @@ def create_html_response(
             ''' + ('''
             <div class="filter-group">
                 <label for="filter-agent">Agent Name</label>
-                <input type="text" id="filter-agent" placeholder="Enter agent name..." value="''' + str(current_params.get('agent', '') if current_params else '') + '''">
+                <input type="text" id="filter-agent" placeholder="Enter agent name..." value="''' + escape(str(current_params.get('agent', '') if current_params else '')) + '''">
             </div>
             ''' if endpoint == '/api/agents' else '') + '''
             ''' + ('''
             <div class="filter-group">
                 <label for="filter-agent">Agent</label>
-                <input type="text" id="filter-agent" placeholder="Enter agent name..." value="''' + str(current_params.get('agent', '') if current_params else '') + '''">
+                <input type="text" id="filter-agent" placeholder="Enter agent name..." value="''' + escape(str(current_params.get('agent', '') if current_params else '')) + '''">
             </div>
             <div class="filter-group">
                 <label for="filter-event-type">Event Type</label>
@@ -558,11 +563,11 @@ def create_html_response(
             </div>
             <div class="filter-group">
                 <label for="filter-last">Last N Events</label>
-                <input type="number" id="filter-last" min="1" max="1000" placeholder="50" value="''' + str(current_params.get('last', '') if current_params and current_params.get('last') else '') + '''">
+                <input type="number" id="filter-last" min="1" max="1000" placeholder="50" value="''' + escape(str(current_params.get('last', '') if current_params and current_params.get('last') else '')) + '''">
             </div>
             <div class="filter-group">
                 <label for="filter-after-seq">After Sequence</label>
-                <input type="number" id="filter-after-seq" min="0" placeholder="0" value="''' + str(current_params.get('after_seq', '') if current_params and current_params.get('after_seq') else '') + '''">
+                <input type="number" id="filter-after-seq" min="0" placeholder="0" value="''' + escape(str(current_params.get('after_seq', '') if current_params and current_params.get('after_seq') else '')) + '''">
             </div>
             ''' if endpoint == '/api/history' else '') + '''
             <div class="filter-actions">
@@ -593,7 +598,7 @@ def create_html_response(
         
         <script>
             // JSON data to display
-            const jsonData = {json.dumps(pretty_json)};
+            const jsonData = {script_json};
             
             // Simple JSON highlighting using DOM methods (no regex)
             function highlightJSON(jsonStr) {{
@@ -626,7 +631,7 @@ def create_html_response(
                     
                     // Use simple string methods instead of regex
                     if (line.indexOf(':') !== -1 && line.indexOf('"') !== -1) {{
-                        const parts = line.split(':');
+                        const parts = lineHTML.split(':');
                         if (parts.length >= 2) {{
                             const keyPart = parts[0];
                             const valuePart = parts.slice(1).join(':');
