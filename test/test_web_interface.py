@@ -42,6 +42,9 @@ class SilentChannel:
     def send_and_receive(self, msg, timeout=5.0):
         return None
 
+    def close(self):
+        pass
+
 
 class BrokenChannel:
     """A channel that cannot be opened at all, as for a malformed address."""

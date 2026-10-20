@@ -3,7 +3,8 @@ HTTP Server for PyOrchestrate Web Interface
 
 Provides a REST API that exposes orchestrator data in read-only mode.
 Communicates with the orchestrator via ZeroMQ using the same
-protocol as the CLI.
+protocol as the CLI. Blocking command requests run in FastAPI worker threads
+so the event loop remains available for health checks and other requests.
 """
 
 import json
@@ -43,7 +44,8 @@ class OrchestratorClient:
         """Send a command to the orchestrator and return the response.
 
         The command may still have failed on the orchestrator: this returns the
-        response payload as it is, error responses included.
+        response payload as it is, error responses included. The request owns
+        its channel and closes it before returning, in the same thread.
 
         Args:
             command: Runtime command name, as accepted by the CLI.
@@ -59,13 +61,16 @@ class OrchestratorClient:
         try:
             client = MessageChannel("zmq_dealer", self.zmq_address)
 
-            msg = ServiceMessage.create_command(
-                sender="web_interface",
-                command=command,
-                args=args or [],
-            )
+            try:
+                msg = ServiceMessage.create_command(
+                    sender="web_interface",
+                    command=command,
+                    args=args or [],
+                )
 
-            response_msg = client.send_and_receive(msg, timeout=5.0)
+                response_msg = client.send_and_receive(msg, timeout=5.0)
+            finally:
+                client.close()
 
         except Exception as e:
             raise HTTPException(
@@ -916,7 +921,7 @@ class PyOrchestrateWebServer:
                 return create_html_response("Health Check", data, "/api/health")
 
         @self.app.get("/api/orchestrator/status")
-        async def get_orchestrator_status(
+        def get_orchestrator_status(
             request: Request,
             format: Optional[str] = None,
             token: Optional[str] = (
@@ -936,7 +941,7 @@ class PyOrchestrateWebServer:
                 )
 
         @self.app.get("/api/agents")
-        async def list_agents(
+        def list_agents(
             request: Request,
             format: Optional[str] = None,
             token: Optional[str] = (
@@ -956,7 +961,7 @@ class PyOrchestrateWebServer:
                 )
 
         @self.app.get("/api/agents/{agent_name}")
-        async def get_agent_status(
+        def get_agent_status(
             agent_name: str,
             request: Request,
             format: Optional[str] = None,
@@ -977,7 +982,7 @@ class PyOrchestrateWebServer:
                 )
 
         @self.app.get("/api/orchestrator/dependencies")
-        async def get_dependencies(
+        def get_dependencies(
             request: Request,
             format: Optional[str] = None,
             token: Optional[str] = (
@@ -997,7 +1002,7 @@ class PyOrchestrateWebServer:
                 )
 
         @self.app.get("/api/orchestrator/stats")
-        async def get_stats(
+        def get_stats(
             request: Request,
             format: Optional[str] = None,
             token: Optional[str] = (
@@ -1020,7 +1025,7 @@ class PyOrchestrateWebServer:
                 )
 
         @self.app.get("/api/history")
-        async def get_event_history(
+        def get_event_history(
             request: Request,
             last: Optional[int] = None,
             agent: Optional[str] = None,
@@ -1069,7 +1074,7 @@ class PyOrchestrateWebServer:
                 )
 
         @self.app.get("/api/history/stats")
-        async def get_history_stats(
+        def get_history_stats(
             request: Request,
             agent: Optional[str] = None,
             format: Optional[str] = None,

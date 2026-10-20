@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Web monitoring requests no longer block the HTTP event loop while waiting
+  for ZeroMQ replies. Health checks remain responsive during a slow or
+  unreachable orchestrator; the five-second timeout and response payloads
+  are unchanged. Each request also closes its ZeroMQ channel in the worker
+  that created it, avoiding socket cleanup from a different thread.
+
 - Documentation snippets that misled or failed a type checker: the validation
   example declared its agent's `Config` on `BaseClassConfig` instead of
   `BaseProcessAgent.Config`, which mypy rejects as an incompatible override of

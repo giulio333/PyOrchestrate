@@ -124,6 +124,8 @@ curl -i "http://127.0.0.1:8000/api/agents/ghost?format=json"
 The correlation fields are omitted above; the full shape is in
 [Error Responses](/cli/runtime-commands#error-responses).
 
+ZeroMQ requests run in worker threads. A slow or unreachable orchestrator does not block the web event loop, so `/api/health` can still respond while monitoring requests wait for their five-second timeout. The command interface may still process commands sequentially.
+
 ## History Filters
 
 The endpoint reads the same store as the CLI `history` command, which includes the agent lifecycle events routed by `MessageRouter`.
