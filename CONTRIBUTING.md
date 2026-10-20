@@ -53,6 +53,18 @@ depend on which black version your machine has.
 Prefer integration tests over mocks: start a real orchestrator with real
 agents and assert on the observable outcome. Tests live in `test/`.
 
+The optional browser regression also executes the monitoring page's JavaScript
+highlighter with hostile payloads. With Node.js, Playwright and its Chromium
+browser installed, run it from the repository root:
+
+```bash
+PYTHON=.venv/bin/python node --test test/web_html_browser.cjs
+```
+
+Set `BROWSER_CHANNEL=chrome` to use an installed Google Chrome instead of
+Playwright's Chromium. These browser tools are only needed for this optional
+check; the Python suite needs no additional dependencies.
+
 ## Dependencies
 
 Core dependencies are only what the package actually imports. Before adding

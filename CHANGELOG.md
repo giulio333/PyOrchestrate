@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The web monitoring pages escape inline-script data, metadata and filter
+  values so agent/event content and query parameters cannot inject HTML or
+  terminate the page script. JSON responses retain the original values.
+
 - Documentation snippets that misled or failed a type checker: the validation
   example declared its agent's `Config` on `BaseClassConfig` instead of
   `BaseProcessAgent.Config`, which mypy rejects as an incompatible override of
